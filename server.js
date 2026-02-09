@@ -34,7 +34,6 @@ import dateMonitoringRoutes from './api/admin/date-monitoring.route.js';
 import pastActivitiesRoutes from './api/admin/past-activities.route.js';
 import cascadeDeletionRoutes from './api/admin/cascade-deletion.routes.js';
 import cleanupRoutes from './api/admin/cleanup.route.js';
-import lessonRoutes from './api/lesson/lesson.route.js';
 import { invitationController } from './api/teacher/invitation.controller.js';
 import tenantRoutes from './api/tenant/tenant.route.js';
 import hoursSummaryRoutes from './api/hours-summary/hours-summary.route.js';
@@ -257,14 +256,6 @@ app.use(
   addSchoolYearToRequest,
   exportRoutes
 );
-app.use(
-  '/api/lessons',
-  authenticateToken,
-  buildContext,
-  addSchoolYearToRequest,
-  lessonRoutes
-);
-
 // Super admin routes (auth handled internally)
 app.use('/api/super-admin', superAdminRoutes);
 

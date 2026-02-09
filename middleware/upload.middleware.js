@@ -23,8 +23,8 @@ export const uploadSingleFile = (fieldName) => {
           }
 
           next()
-        } catch (proccessError) {
-          console.error(`Error processing file: ${proccessError.message}`)
+        } catch (processError) {
+          console.error(`Error processing file: ${processError.message}`)
           return res.status(500).json({ error: 'Error processing uploaded file' })
         }
       })
@@ -62,8 +62,8 @@ export const uploadMultipleFiles = (fieldName, maxCount = 5) => {
 
           req.processedFiles = processedFiles
           next()
-        } catch (proccessError) { 
-          console.error(`Error processing file: ${proccessError.message}`)
+        } catch (processError) { 
+          console.error(`Error processing file: ${processError.message}`)
           return res.status(500).json({ error: 'Error processing uploaded file' })
         }
       })
