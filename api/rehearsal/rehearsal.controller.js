@@ -17,6 +17,7 @@ export const rehearsalController = {
 async function getRehearsals(req, res, next) {
   try {
     const filterBy = {
+      tenantId: req.context?.tenantId || null,
       groupId: req.query.groupId,
       type: req.query.type,
       fromDate: req.query.fromDate,

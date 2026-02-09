@@ -515,10 +515,9 @@ async function assignLessonToBlock(assignmentData) {
         _id: ObjectId.createFromHexString(teacherId),
         'teaching.timeBlocks._id': ObjectId.createFromHexString(timeBlockId)
       },
-      { 
+      {
         $push: { 'teaching.timeBlocks.$.assignedLessons': lessonAssignment },
-        $addToSet: { 'teaching.studentIds': studentId },
-        $set: { 
+        $set: {
           'teaching.timeBlocks.$.updatedAt': new Date(),
           updatedAt: new Date()
         }
@@ -545,12 +544,11 @@ async function assignLessonToBlock(assignmentData) {
       updatedAt: new Date()
     };
 
-    // Update student record
+    // Update student record — teacherAssignments is single source of truth
     await studentCollection.updateOne(
       { _id: ObjectId.createFromHexString(studentId) },
-      { 
+      {
         $push: { teacherAssignments: teacherAssignment },
-        $addToSet: { teacherIds: teacherId },
         $set: { updatedAt: new Date() }
       }
     );
@@ -658,35 +656,7 @@ async function removeLessonFromBlock(teacherId, timeBlockId, lessonId) {
     });
 
     if (updatedStudent) {
-      const hasActiveAssignments = updatedStudent.teacherAssignments?.some(
-        assignment => assignment.teacherId === teacherId && assignment.isActive
-      );
-
-      // If no more active assignments, remove from teacherIds array
-      if (!hasActiveAssignments) {
-        await studentCollection.updateOne(
-          { _id: ObjectId.createFromHexString(studentId) },
-          { $pull: { teacherIds: teacherId } }
-        );
-
-        // Also remove student from teacher's studentIds if no active lessons
-        const updatedTeacher = await teacherCollection.findOne({
-          _id: ObjectId.createFromHexString(teacherId)
-        });
-
-        const hasActiveLessons = updatedTeacher.teaching?.timeBlocks?.some(block =>
-          block.assignedLessons?.some(lesson => 
-            lesson.studentId === studentId && lesson.isActive
-          )
-        );
-
-        if (!hasActiveLessons) {
-          await teacherCollection.updateOne(
-            { _id: ObjectId.createFromHexString(teacherId) },
-            { $pull: { 'teaching.studentIds': studentId } }
-          );
-        }
-      }
+      // teacherAssignments is single source of truth — no redundant field cleanup needed
     }
 
     return {
@@ -777,16 +747,17 @@ async function getTeacherScheduleWithBlocks(teacherId, options = {}) {
           .find({ 
             _id: { $in: allStudentIds.map(id => ObjectId.createFromHexString(id)) }
           })
-          .project({ 
-            _id: 1, 
-            'personalInfo.fullName': 1,
-            'academicInfo.instrumentProgress': 1 
+          .project({
+            _id: 1,
+            'personalInfo.firstName': 1,
+            'personalInfo.lastName': 1,
+            'academicInfo.instrumentProgress': 1
           })
           .toArray();
 
         const studentLookup = students.reduce((acc, student) => {
           acc[student._id.toString()] = {
-            fullName: student.personalInfo?.fullName,
+            name: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown',
             instrument: student.academicInfo?.instrumentProgress?.find(i => i.isPrimary)?.instrumentName
           };
           return acc;
@@ -809,7 +780,7 @@ async function getTeacherScheduleWithBlocks(teacherId, options = {}) {
 
     return {
       teacherId,
-      teacherName: teacher.personalInfo?.fullName,
+      teacherName: `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'Unknown',
       weeklySchedule,
       statistics: calculateScheduleStatistics(timeBlocks)
     };

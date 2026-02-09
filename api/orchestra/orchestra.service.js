@@ -597,6 +597,11 @@ async function getStudentAttendanceStats(orchestraId, studentId) {
 function _buildCriteria(filterBy) {
   const criteria = {}
 
+  // Tenant scoping
+  if (filterBy.tenantId) {
+    criteria.tenantId = filterBy.tenantId
+  }
+
   // Handle batch fetching by IDs - highest priority
   if (filterBy.ids) {
     const idsArray = Array.isArray(filterBy.ids) ? filterBy.ids : filterBy.ids.split(',')

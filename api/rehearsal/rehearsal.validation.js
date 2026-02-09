@@ -14,6 +14,7 @@ export const VALID_DAYS_OF_WEEK = {
 export const VALID_REHEARSAL_TYPES = ['תזמורת', 'הרכב'];
 
 export const rehearsalSchema = Joi.object({
+  tenantId: Joi.string().optional(),
   groupId: Joi.string().required(),
   type: Joi.string()
     .valid(...VALID_REHEARSAL_TYPES)

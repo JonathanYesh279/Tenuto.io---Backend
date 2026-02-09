@@ -28,6 +28,7 @@ export const bagrutController = {
 async function getBagruts(req, res, next) {
   try {
     const filterBy = {
+      tenantId: req.context?.tenantId || null,
       studentId: req.query.studentId,
       teacherId: req.query.teacherId,
       isActive: req.query.isActive,

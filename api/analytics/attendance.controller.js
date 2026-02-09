@@ -29,7 +29,7 @@ async function getStudentAttendanceStats(req, res) {
 
     // Verify permission - teachers can only view their own students
     if (!req.isAdmin) {
-      if (!req.teacher.teaching.studentIds.includes(studentId)) {
+      if (!req.teacher._studentAccessIds?.includes(studentId)) {
         return res.status(403).json({
           error: 'You are not authorized to view this student\'s attendance analytics'
         });
@@ -160,7 +160,7 @@ async function getAttendanceTrends(req, res) {
         });
       }
       
-      if (studentId && !req.teacher.teaching.studentIds.includes(studentId)) {
+      if (studentId && !req.teacher._studentAccessIds?.includes(studentId)) {
         return res.status(403).json({
           error: 'You can only view trends for your own students'
         });
@@ -243,7 +243,7 @@ async function generateAttendanceInsights(req, res) {
         });
       }
       
-      if (entityType === 'student' && !req.teacher.teaching.studentIds.includes(entityId)) {
+      if (entityType === 'student' && !req.teacher._studentAccessIds?.includes(entityId)) {
         return res.status(403).json({
           error: 'You can only view insights for your own students'
         });
@@ -290,7 +290,7 @@ async function exportAttendanceReport(req, res) {
         });
       }
       
-      if (reportOptions.scope === 'student' && !req.teacher.teaching.studentIds.includes(reportOptions.entityId)) {
+      if (reportOptions.scope === 'student' && !req.teacher._studentAccessIds?.includes(reportOptions.entityId)) {
         return res.status(403).json({
           error: 'You can only export reports for your own students'
         });

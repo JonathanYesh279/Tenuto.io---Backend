@@ -1118,6 +1118,11 @@ async function bulkDeleteTheoryLessonsByTeacher(teacherId, userId, isAdmin = fal
 function _buildCriteria(filterBy) {
   const criteria = {};
 
+  // Tenant scoping
+  if (filterBy.tenantId) {
+    criteria.tenantId = filterBy.tenantId;
+  }
+
   if (filterBy.category) {
     criteria.category = filterBy.category;
   }

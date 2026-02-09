@@ -96,7 +96,7 @@ async function getTeacherLessons(teacherId, options = {}) {
         $project: {
           lessonId: '$_unifiedAssignments._id',
           studentId: '$_id',
-          studentName: '$personalInfo.fullName',
+          studentName: { $concat: [{ $ifNull: ['$personalInfo.firstName', ''] }, ' ', { $ifNull: ['$personalInfo.lastName', ''] }] },
           studentPhone: '$personalInfo.phone',
           studentEmail: '$personalInfo.email',
           instrument: {
@@ -395,39 +395,44 @@ async function validateTeacherLessonData(teacherId) {
       return validation;
     }
 
-    // Get lessons from student records
+    // Get lessons from student records (via teacherAssignments)
     const lessons = await getTeacherLessons(teacherId);
     validation.summary.lessonsFound = lessons.length;
 
-    // Check if teacher has students in studentIds that match the lessons
-    const teacherStudentIds = teacher.teaching?.studentIds || [];
+    // Get students who have active teacherAssignments for this teacher
+    const assignedStudents = await studentCollection.find({
+      'teacherAssignments.teacherId': teacherId,
+      'teacherAssignments.isActive': true,
+      isActive: { $ne: false }
+    }, { projection: { _id: 1 } }).toArray();
+    const assignedStudentIds = assignedStudents.map(s => s._id.toString());
     const lessonStudentIds = [...new Set(lessons.map(lesson => lesson.studentId.toString()))];
-    validation.summary.studentsWithAssignments = lessonStudentIds.length;
+    validation.summary.studentsWithAssignments = assignedStudentIds.length;
 
-    // Check for missing bidirectional references
-    lessonStudentIds.forEach(studentId => {
-      if (!teacherStudentIds.includes(studentId)) {
-        validation.isValid = false;
-        validation.issues.push({
-          type: 'MISSING_BIDIRECTIONAL_REFERENCE',
-          message: `Student ${studentId} has lessons with teacher but teacher doesn't have student in studentIds`,
-          studentId,
-          teacherId
-        });
-        validation.summary.missingReferences++;
-      }
-    });
-
-    // Check for orphaned teacher references
-    teacherStudentIds.forEach(studentId => {
+    // Check for students with assignments but no lessons (schedule data missing)
+    assignedStudentIds.forEach(studentId => {
       if (!lessonStudentIds.includes(studentId)) {
         validation.issues.push({
-          type: 'ORPHANED_TEACHER_REFERENCE',
-          message: `Teacher has student ${studentId} in studentIds but no active lessons found`,
+          type: 'ASSIGNMENT_WITHOUT_LESSON',
+          message: `Student ${studentId} has teacherAssignment for this teacher but no lesson schedule data found`,
           studentId,
           teacherId
         });
         validation.summary.dataInconsistencies++;
+      }
+    });
+
+    // Check for lessons without matching active assignment (orphaned lesson data)
+    lessonStudentIds.forEach(studentId => {
+      if (!assignedStudentIds.includes(studentId)) {
+        validation.isValid = false;
+        validation.issues.push({
+          type: 'LESSON_WITHOUT_ASSIGNMENT',
+          message: `Student ${studentId} has lesson data but no active teacherAssignment for this teacher`,
+          studentId,
+          teacherId
+        });
+        validation.summary.missingReferences++;
       }
     });
 

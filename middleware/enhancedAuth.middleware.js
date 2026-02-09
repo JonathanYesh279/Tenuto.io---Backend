@@ -1,12 +1,14 @@
+/**
+ * @deprecated This file is unused — no route imports it.
+ * Auth is handled by middleware/auth.middleware.js (authenticateToken + requireAuth)
+ * and query scoping by utils/queryScoping.js.
+ * Kept for reference only; do not import in new code.
+ */
+
 import jwt from 'jsonwebtoken';
 import { getCollection } from '../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { PermissionService, PERMISSIONS } from '../services/permissionService.js';
-
-/**
- * Enhanced Authentication and Authorization Middleware
- * Provides secure token validation, role-based access control, and audit logging
- */
 
 /**
  * Enhanced token authentication with security improvements
@@ -66,7 +68,7 @@ export async function authenticateToken(req, res, next) {
     req.user = {
       _id: teacher._id.toString(),
       roles: teacher.roles,
-      fullName: teacher.personalInfo?.fullName || 'Unknown',
+      displayName: `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'Unknown',
       email: teacher.credentials?.email,
       permissions: PermissionService.getUserPermissions(teacher.roles)
     };

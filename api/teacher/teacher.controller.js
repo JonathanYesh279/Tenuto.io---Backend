@@ -32,6 +32,7 @@ export const teacherController = {
 async function getTeachers(req, res, next) {
   try {
     const filterBy = {
+      tenantId: req.context?.tenantId || null,
       name: req.query.name,
       instrument: req.query.instrument,
       role: req.query.role,
@@ -66,8 +67,8 @@ async function getTeacherById(req, res, next) {
       });
     }
     
-    const teacher = await teacherService.getTeacherById(id);
-    
+    const teacher = await teacherService.getTeacherById(id, { tenantId: req.context?.tenantId });
+
     res.json({
       success: true,
       data: teacher
@@ -101,8 +102,8 @@ async function getMyProfile(req, res, next) {
     const teacherId = req.teacher._id.toString();
     console.log(`Getting profile for authenticated teacher: ${teacherId}`);
     
-    const teacher = await teacherService.getTeacherById(teacherId);
-    
+    const teacher = await teacherService.getTeacherById(teacherId, { tenantId: req.context?.tenantId });
+
     res.json({
       success: true,
       data: teacher
@@ -187,7 +188,11 @@ async function addTeacher(req, res, next) {
     console.log('Is admin flag:', req.isAdmin);
     console.log('=================================');
     
-    const teacherToAdd = req.body
+    const teacherToAdd = { ...req.body }
+    // Inject tenantId from context if not already set
+    if (req.context?.tenantId && !teacherToAdd.tenantId) {
+      teacherToAdd.tenantId = req.context.tenantId;
+    }
     const adminId = req.teacher?._id // Get admin ID from authenticated user
     const addedTeacher = await teacherService.addTeacher(teacherToAdd, adminId)
     
@@ -316,7 +321,7 @@ async function removeTeacher(req, res, next) {
 async function getTeacherByRole(req, res, next) {
   try {
     const { role } = req.params
-    const teachers = await teacherService.getTeacherByRole(role)
+    const teachers = await teacherService.getTeacherByRole(role, req.context?.tenantId)
     res.json(teachers)
   } catch (err) {
     next(err)

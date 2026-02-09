@@ -29,7 +29,8 @@ async function validateInvitation(token) {
       teacher: {
         _id: teacher._id.toString(),
         personalInfo: {
-          fullName: teacher.personalInfo.fullName,
+          firstName: teacher.personalInfo?.firstName || '',
+          lastName: teacher.personalInfo?.lastName || '',
           email: teacher.credentials.email
         },
         roles: teacher.roles
@@ -109,7 +110,8 @@ async function acceptInvitation(token, password) {
       teacher: {
         _id: updatedTeacher._id.toString(),
         personalInfo: {
-          fullName: updatedTeacher.personalInfo.fullName,
+          firstName: updatedTeacher.personalInfo?.firstName || '',
+          lastName: updatedTeacher.personalInfo?.lastName || '',
           email: updatedTeacher.credentials.email
         },
         roles: updatedTeacher.roles,
@@ -159,7 +161,8 @@ async function resendInvitation(teacherId, adminId) {
     );
 
     // Send invitation email
-    await emailService.sendInvitationEmail(teacher.credentials.email, invitationToken, teacher.personalInfo.fullName);
+    const inviteName = `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'מורה';
+    await emailService.sendInvitationEmail(teacher.credentials.email, invitationToken, inviteName);
 
     return {
       success: true,

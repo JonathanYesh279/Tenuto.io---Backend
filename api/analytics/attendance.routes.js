@@ -1,11 +1,7 @@
 import express from 'express';
 import { attendanceAnalyticsController } from './attendance.controller.js';
-import { authenticateToken } from '../../middleware/auth.middleware.js';
 
 const router = express.Router();
-
-// All analytics routes require authentication
-router.use(authenticateToken);
 
 /**
  * Student attendance analytics

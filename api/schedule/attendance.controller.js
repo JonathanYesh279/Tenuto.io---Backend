@@ -17,7 +17,7 @@ async function getStudentPrivateLessonStats(req, res) {
 
     // Verify permission - teachers can only view stats for their own students
     if (!req.isAdmin) {
-      if (!req.teacher.teaching.studentIds.includes(studentId)) {
+      if (!req.teacher._studentAccessIds?.includes(studentId)) {
         return res.status(403).json({
           error: 'You are not authorized to view this student\'s attendance'
         });
@@ -54,7 +54,7 @@ async function getStudentAttendanceHistory(req, res) {
 
     // Verify permission - teachers can only view their own students' history
     if (!req.isAdmin) {
-      if (!req.teacher.teaching.studentIds.includes(studentId)) {
+      if (!req.teacher._studentAccessIds?.includes(studentId)) {
         return res.status(403).json({
           error: 'You are not authorized to view this student\'s attendance history'
         });

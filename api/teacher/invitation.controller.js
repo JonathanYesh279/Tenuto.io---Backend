@@ -24,8 +24,10 @@ async function validateInvitation(req, res) {
       data: {
         teacher: {
           personalInfo: {
-            fullName: result.teacher.personalInfo.fullName,
-            email: result.teacher.personalInfo.email
+            firstName: result.teacher.personalInfo?.firstName || '',
+            lastName: result.teacher.personalInfo?.lastName || '',
+            fullName: `${result.teacher.personalInfo?.firstName || ''} ${result.teacher.personalInfo?.lastName || ''}`.trim() || result.teacher.personalInfo?.fullName || '',
+            email: result.teacher.personalInfo?.email || ''
           },
           roles: result.teacher.roles
         }
@@ -88,7 +90,8 @@ async function acceptInvitation(req, res) {
     
     // Send welcome email
     try {
-      await emailService.sendWelcomeEmail(result.teacher.personalInfo.email, result.teacher.personalInfo.fullName);
+      const welcomeName = `${result.teacher.personalInfo?.firstName || ''} ${result.teacher.personalInfo?.lastName || ''}`.trim() || result.teacher.personalInfo?.fullName || '';
+      await emailService.sendWelcomeEmail(result.teacher.personalInfo?.email, welcomeName);
     } catch (emailError) {
       console.error('Welcome email failed:', emailError);
       // Don't fail the invitation acceptance if email fails
@@ -101,8 +104,10 @@ async function acceptInvitation(req, res) {
         teacher: {
           _id: result.teacher._id,
           personalInfo: {
-            fullName: result.teacher.personalInfo.fullName,
-            email: result.teacher.personalInfo.email
+            firstName: result.teacher.personalInfo?.firstName || '',
+            lastName: result.teacher.personalInfo?.lastName || '',
+            fullName: `${result.teacher.personalInfo?.firstName || ''} ${result.teacher.personalInfo?.lastName || ''}`.trim() || result.teacher.personalInfo?.fullName || '',
+            email: result.teacher.personalInfo?.email || ''
           },
           roles: result.teacher.roles
         },

@@ -588,16 +588,15 @@ export const cascadeManagementController = {
     try {
       const db = getDB();
       
-      // Quick check for obvious orphaned references in major collections
-      const orphanedTeachers = await db.collection('teacher').countDocuments({
-        'teaching.studentIds': {
-          $exists: true,
-          $not: { $size: 0 }
-        },
-        isActive: true
+      // Quick check: count students with active assignments referencing inactive teachers
+      const orphanedAssignments = await db.collection('student').countDocuments({
+        isActive: true,
+        'teacherAssignments': {
+          $elemMatch: { isActive: { $ne: false } }
+        }
       });
 
-      return Math.floor(orphanedTeachers * 0.05); // Rough estimation
+      return Math.floor(orphanedAssignments * 0.05); // Rough estimation
       
     } catch (error) {
       console.error('Error getting orphaned reference count:', error);

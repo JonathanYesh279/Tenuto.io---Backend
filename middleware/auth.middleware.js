@@ -57,13 +57,16 @@ export async function authenticateToken(req, res, next) {
       });
     }
 
-    // Add the decoded token data to req.loggedinUser as well
-    // This makes it available for the bulkCreateRehearsals function
+    const displayName = `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'Unknown';
+
     req.teacher = teacher;
     req.loggedinUser = {
       _id: teacher._id.toString(),
+      tenantId: teacher.tenantId || null,
       roles: teacher.roles,
-      fullName: teacher.personalInfo?.fullName || 'Unknown',
+      firstName: teacher.personalInfo?.firstName || '',
+      lastName: teacher.personalInfo?.lastName || '',
+      displayName,
       email: teacher.credentials?.email,
       requiresPasswordChange: teacher.credentials?.requiresPasswordChange || false,
     };
@@ -71,10 +74,11 @@ export async function authenticateToken(req, res, next) {
     // Add user object for cascade management compatibility
     req.user = {
       id: teacher._id.toString(),
+      tenantId: teacher.tenantId || null,
       role: teacher.roles?.includes('מנהל') ? 'admin' : 'teacher',
       isAdmin: teacher.roles?.includes('מנהל') || false,
       email: teacher.credentials?.email,
-      fullName: teacher.personalInfo?.fullName
+      displayName,
     };
 
     next();

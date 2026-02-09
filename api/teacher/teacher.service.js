@@ -30,6 +30,23 @@ export const teacherService = {
 
 async function getTeachers(filterBy = {}, page = 1, limit = 0) {
   try {
+    // If filtering by studentId, resolve to teacher IDs via teacherAssignments
+    if (filterBy.studentId) {
+      const studentCollection = await getCollection('student');
+      const student = await studentCollection.findOne(
+        { _id: ObjectId.createFromHexString(filterBy.studentId) },
+        { projection: { teacherAssignments: 1 } }
+      );
+      if (student?.teacherAssignments?.length) {
+        filterBy._teacherIdsList = student.teacherAssignments
+          .filter(a => a.isActive)
+          .map(a => ObjectId.createFromHexString(a.teacherId));
+      } else {
+        // No active assignments → return empty
+        return limit === 0 ? [] : { data: [], pagination: { currentPage: page, totalPages: 0, totalCount: 0, limit, hasNextPage: false, hasPreviousPage: false, resultsCount: 0 } };
+      }
+    }
+
     const collection = await getCollection('teacher');
     const criteria = _buildCriteria(filterBy);
 
@@ -78,10 +95,10 @@ async function getTeachers(filterBy = {}, page = 1, limit = 0) {
   }
 }
 
-async function getTeacherById(teacherId) {
+async function getTeacherById(teacherId, options = {}) {
   try {
     console.log(`Getting teacher by ID: ${teacherId}`);
-    
+
     // Validate ObjectId format
     if (!teacherId || !ObjectId.isValid(teacherId)) {
       console.error(`Invalid teacher ID format: ${teacherId}`);
@@ -89,9 +106,9 @@ async function getTeacherById(teacherId) {
     }
 
     const collection = await getCollection('teacher');
-    const teacher = await collection.findOne({
-      _id: ObjectId.createFromHexString(teacherId),
-    });
+    const filter = { _id: ObjectId.createFromHexString(teacherId) };
+    if (options.tenantId) filter.tenantId = options.tenantId;
+    const teacher = await collection.findOne(filter);
 
     console.log(`Teacher found: ${teacher ? 'Yes' : 'No'}`);
     if (!teacher) {
@@ -114,26 +131,34 @@ async function getTeacherIds() {
     const collection = await getCollection('teacher');
     const teachers = await collection.find(
       { isActive: true },
-      { 
-        projection: { 
-          _id: 1, 
-          'personalInfo.fullName': 1, 
-          'credentials.email': 1, 
+      {
+        projection: {
+          _id: 1,
+          'personalInfo.firstName': 1,
+          'personalInfo.lastName': 1,
+          'credentials.email': 1,
           roles: 1,
           isActive: 1,
           createdAt: 1
-        } 
+        }
       }
     ).toArray();
-    
-    return teachers.map(teacher => ({
-      _id: teacher._id.toString(),
-      fullName: teacher.personalInfo?.fullName || 'Unknown',
-      email: teacher.credentials?.email || 'No email',
-      roles: teacher.roles || [],
-      isActive: teacher.isActive,
-      createdAt: teacher.createdAt
-    }));
+
+    return teachers.map(teacher => {
+      const first = teacher.personalInfo?.firstName || '';
+      const last = teacher.personalInfo?.lastName || '';
+      const displayName = (first || last) ? `${first} ${last}`.trim() : 'Unknown';
+      return {
+        _id: teacher._id.toString(),
+        firstName: first,
+        lastName: last,
+        displayName,
+        email: teacher.credentials?.email || 'No email',
+        roles: teacher.roles || [],
+        isActive: teacher.isActive,
+        createdAt: teacher.createdAt
+      };
+    });
   } catch (err) {
     console.error(`Error getting teacher IDs: ${err.message}`);
     throw new Error(`Error getting teacher IDs: ${err.message}`);
@@ -150,7 +175,6 @@ async function addTeacher(teacherToAdd, adminId) {
       // Ensure teaching structure exists and handle timeBlocks conversion
       teaching: (() => {
         let teaching = teacherToAdd.teaching || {
-          studentIds: [],
           timeBlocks: []
         };
 
@@ -235,11 +259,9 @@ async function addTeacher(teacherToAdd, adminId) {
     // Initialize teaching structure if not present
     if (!value.teaching) {
       value.teaching = {
-        studentIds: [],
         timeBlocks: []
       };
     } else {
-      if (!value.teaching.studentIds) value.teaching.studentIds = [];
       if (!value.teaching.timeBlocks) value.teaching.timeBlocks = [];
     }
 
@@ -250,7 +272,8 @@ async function addTeacher(teacherToAdd, adminId) {
     
     // Send invitation email only in EMAIL mode
     if (invitationConfig.isEmailMode()) {
-      await emailService.sendInvitationEmail(value.credentials.email, value.credentials.invitationToken, value.personalInfo.fullName);
+      const teacherDisplayName = `${value.personalInfo?.firstName || ''} ${value.personalInfo?.lastName || ''}`.trim() || 'מורה';
+      await emailService.sendInvitationEmail(value.credentials.email, value.credentials.invitationToken, teacherDisplayName);
     }
     
     // Return success with potential duplicate warnings
@@ -416,14 +439,13 @@ async function removeTeacher(teacherId) {
   }
 }
 
-async function getTeacherByRole(role) {
+async function getTeacherByRole(role, tenantId = null) {
   try {
     const collection = await getCollection('teacher');
+    const filter = { roles: role, isActive: true };
+    if (tenantId) filter.tenantId = tenantId;
     return await collection
-      .find({
-        roles: role,
-        isActive: true,
-      })
+      .find(filter)
       .toArray();
   } catch (err) {
     console.error(`Error getting teacher by role: ${err.message}`);
@@ -505,11 +527,10 @@ async function updateTeacherSchedule(teacherId, scheduleData) {
       updatedAt: new Date(),
     };
 
-    // Update the teacher's schedule and student list
+    // Update the teacher's schedule
     await teacherCollection.updateOne(
       { _id: ObjectId.createFromHexString(teacherId) },
       {
-        $addToSet: { 'teaching.studentIds': studentId },
         $push: {
           'teaching.timeBlocks': scheduleSlot,
         },
@@ -529,12 +550,11 @@ async function updateTeacherSchedule(teacherId, scheduleData) {
       updatedAt: new Date()
     };
 
-    // Update the student's teacher assignments and teacherIds (for backward compatibility)
+    // Update the student's teacher assignments (single source of truth)
     await studentCollection.updateOne(
       { _id: ObjectId.createFromHexString(studentId) },
-      { 
+      {
         $push: { teacherAssignments: assignment },
-        $addToSet: { teacherIds: teacherId },
         $set: { updatedAt: new Date() }
       }
     );
@@ -631,42 +651,52 @@ async function addStudentToTeacher(teacherId, studentId) {
   try {
     const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
-    
+
     // Verify both teacher and student exist
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId)
     });
-    
+
     if (!teacher) {
       throw new Error(`Teacher with id ${teacherId} not found`);
     }
-    
+
     const student = await studentCollection.findOne({
       _id: ObjectId.createFromHexString(studentId)
     });
-    
+
     if (!student) {
       throw new Error(`Student with id ${studentId} not found`);
     }
-    
-    // Add student to teacher's studentIds (for backward compatibility)
-    await teacherCollection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
-      { 
-        $addToSet: { 'teaching.studentIds': studentId },
-        $set: { updatedAt: new Date() }
-      }
+
+    // Check if active assignment already exists
+    const existingAssignment = student.teacherAssignments?.find(
+      a => a.teacherId === teacherId && a.isActive
     );
-    
-    // Add teacher to student's teacherIds (for backward compatibility)
+    if (existingAssignment) {
+      return { success: true, message: 'Assignment already exists', teacherId, studentId };
+    }
+
+    // Create teacherAssignment on student (single source of truth)
+    const assignment = {
+      teacherId,
+      scheduleSlotId: null,
+      startDate: new Date(),
+      endDate: null,
+      isActive: true,
+      notes: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
     await studentCollection.updateOne(
       { _id: ObjectId.createFromHexString(studentId) },
-      { 
-        $addToSet: { teacherIds: teacherId },
+      {
+        $push: { teacherAssignments: assignment },
         $set: { updatedAt: new Date() }
       }
     );
-    
+
     return {
       success: true,
       message: 'Student added to teacher successfully',
@@ -716,19 +746,15 @@ async function removeStudentFromTeacher(teacherId, studentId) {
       }
       
       // Log current state for debugging
-      console.log(`📊 Current teacher studentIds: ${teacher.teaching?.studentIds || []}`);
-      console.log(`📊 Current student teacherIds: ${student.teacherIds || []}`);
       console.log(`📊 Current student teacherAssignments: ${student.teacherAssignments?.length || 0}`);
-      
-      // Check if relationship exists
-      const hasTeacherRelation = teacher.teaching?.studentIds?.includes(studentId);
-      const hasStudentRelation = student.teacherIds?.includes(teacherId);
+
+      // Check if active assignment relationship exists (single source of truth)
       const hasActiveAssignments = student.teacherAssignments?.some(
         assignment => assignment.teacherId === teacherId && assignment.isActive
       );
-      
-      if (!hasTeacherRelation && !hasStudentRelation && !hasActiveAssignments) {
-        console.log(`⚠️ No relationship found between teacher ${teacherId} and student ${studentId}`);
+
+      if (!hasActiveAssignments) {
+        console.log(`⚠️ No active assignment found between teacher ${teacherId} and student ${studentId}`);
         return {
           success: true,
           message: 'No relationship found to remove',
@@ -740,26 +766,11 @@ async function removeStudentFromTeacher(teacherId, studentId) {
           }
         };
       }
-      
-      console.log(`🔍 Found relationship - Teacher: ${hasTeacherRelation}, Student: ${hasStudentRelation}, Assignments: ${hasActiveAssignments}`);
-      
-      // ATOMIC OPERATION 1a: Remove student from teacher's studentIds
-      const teacherUpdate = await teacherCollection.updateOne(
-        { _id: ObjectId.createFromHexString(teacherId) },
-        {
-          $pull: {
-            'teaching.studentIds': studentId
-          },
-          $set: {
-            updatedAt: new Date(),
-            'metadata.lastModifiedBy': 'cascade_deletion_system'
-          }
-        },
-        { session }
-      );
 
-      // ATOMIC OPERATION 1b: Deactivate student's lessons in timeBlocks
-      await teacherCollection.updateOne(
+      console.log(`🔍 Found active assignment for teacher ${teacherId} on student ${studentId}`);
+      
+      // ATOMIC OPERATION 1: Deactivate student's lessons in timeBlocks
+      const teacherUpdate = await teacherCollection.updateOne(
         {
           _id: ObjectId.createFromHexString(teacherId),
           'teaching.timeBlocks.assignedLessons.studentId': studentId
@@ -768,7 +779,9 @@ async function removeStudentFromTeacher(teacherId, studentId) {
           $set: {
             'teaching.timeBlocks.$[block].assignedLessons.$[lesson].isActive': false,
             'teaching.timeBlocks.$[block].assignedLessons.$[lesson].endDate': new Date(),
-            'teaching.timeBlocks.$[block].assignedLessons.$[lesson].updatedAt': new Date()
+            'teaching.timeBlocks.$[block].assignedLessons.$[lesson].updatedAt': new Date(),
+            updatedAt: new Date(),
+            'metadata.lastModifiedBy': 'cascade_deletion_system'
           }
         },
         {
@@ -782,14 +795,11 @@ async function removeStudentFromTeacher(teacherId, studentId) {
 
       console.log(`📝 Teacher update result: matched ${teacherUpdate.matchedCount}, modified ${teacherUpdate.modifiedCount}`);
       
-      // ATOMIC OPERATION 2: Update student document - remove teacher relationship and assignments
+      // ATOMIC OPERATION 2: Deactivate teacher assignments on student (single source of truth)
       const studentUpdate = await studentCollection.updateOne(
         { _id: ObjectId.createFromHexString(studentId) },
-        { 
-          $pull: { 
-            teacherIds: teacherId 
-          },
-          $set: { 
+        {
+          $set: {
             'teacherAssignments.$[elem].isActive': false,
             'teacherAssignments.$[elem].endDate': new Date(),
             'teacherAssignments.$[elem].updatedAt': new Date(),
@@ -822,32 +832,19 @@ async function removeStudentFromTeacher(teacherId, studentId) {
       
       console.log(`📝 Schedule cleanup result: matched ${scheduleCleanup.matchedCount}, modified ${scheduleCleanup.modifiedCount}`);
       
-      // Get updated documents to return
-      const updatedTeacher = await teacherCollection.findOne(
-        { _id: ObjectId.createFromHexString(teacherId) },
-        { 
-          projection: {
-            'teaching.studentIds': 1,
-            'teaching.timeBlocks': 1,
-            updatedAt: 1
-          },
-          session 
-        }
-      );
-      
+      // Get updated student to return
       const updatedStudent = await studentCollection.findOne(
         { _id: ObjectId.createFromHexString(studentId) },
-        { 
-          projection: { 
-            teacherIds: 1, 
+        {
+          projection: {
             teacherAssignments: 1,
             scheduleInfo: 1,
-            updatedAt: 1 
+            updatedAt: 1
           },
-          session 
+          session
         }
       );
-      
+
       return {
         success: true,
         message: 'Student removed from teacher successfully with atomic cascade deletion',
@@ -855,15 +852,11 @@ async function removeStudentFromTeacher(teacherId, studentId) {
         studentId,
         changes: {
           teacher: {
-            modified: teacherUpdate.modifiedCount > 0,
-            studentsRemoved: hasTeacherRelation ? 1 : 0,
-            currentStudentIds: updatedTeacher?.teaching?.studentIds || []
+            modified: teacherUpdate.modifiedCount > 0
           },
           student: {
             modified: studentUpdate.modifiedCount > 0 || scheduleCleanup.modifiedCount > 0,
-            teachersRemoved: hasStudentRelation ? 1 : 0,
             assignmentsDeactivated: hasActiveAssignments ? 1 : 0,
-            currentTeacherIds: updatedStudent?.teacherIds || [],
             remainingActiveAssignments: updatedStudent?.teacherAssignments?.filter(a => a.isActive)?.length || 0
           }
         },
@@ -904,9 +897,8 @@ async function initializeTeachingStructure(teacherId) {
     
     const result = await collection.updateOne(
       { _id: ObjectId.createFromHexString(teacherId) },
-      { 
+      {
         $set: {
-          'teaching.studentIds': [],
           'teaching.timeBlocks': [],
           updatedAt: new Date()
         }
@@ -923,29 +915,37 @@ async function initializeTeachingStructure(teacherId) {
 function _buildCriteria(filterBy) {
   const criteria = {};
 
+  // Tenant scoping
+  if (filterBy.tenantId) {
+    criteria.tenantId = filterBy.tenantId;
+  }
+
   if (filterBy.name) {
-    criteria['personalInfo.fullName'] = {
-      $regex: filterBy.name,
-      $options: 'i',
-    };
+    criteria.$or = [
+      { 'personalInfo.firstName': { $regex: filterBy.name, $options: 'i' } },
+      { 'personalInfo.lastName': { $regex: filterBy.name, $options: 'i' } },
+      // Fallback for pre-migration data
+      { 'personalInfo.fullName': { $regex: filterBy.name, $options: 'i' } },
+    ];
   }
 
   if (filterBy.instrument) {
-    // Use regex for flexible instrument matching (e.g., "כינור" matches "כינור בארוק")
-    criteria['professionalInfo.instrument'] = {
-      $regex: filterBy.instrument,
-      $options: 'i'
-    };
+    // Match against instruments[] array or legacy instrument field
+    criteria.$or = [
+      ...(criteria.$or || []),
+      { 'professionalInfo.instruments': { $regex: filterBy.instrument, $options: 'i' } },
+      { 'professionalInfo.instrument': { $regex: filterBy.instrument, $options: 'i' } },
+    ];
   }
 
   // Filter by role - checks if the role is in the roles array
-  // This handles teachers with multiple roles (e.g., ['מורה', 'מנצח'])
   if (filterBy.role) {
     criteria.roles = filterBy.role;
   }
 
-  if (filterBy.studentId) {
-    criteria['teaching.studentIds'] = filterBy.studentId;
+  // teacherIds filter is injected by getTeachers() after student lookup
+  if (filterBy._teacherIdsList) {
+    criteria._id = { $in: filterBy._teacherIdsList };
   }
 
   if (filterBy.orchestraId) {

@@ -43,8 +43,8 @@ async function previewCascadeDeletion(req, res, next) {
         data: result.data,
         message: 'תצוגה מקדימה של המחיקה הושלמה בהצלחה',
         meta: {
-          studentName: student.personalInfo?.fullName || 'Unknown',
-          requestedBy: req.loggedinUser.fullName,
+          studentName: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown',
+          requestedBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           dryRun: options.dryRun !== false
         }
@@ -111,7 +111,7 @@ async function executeCascadeDeletion(req, res, next) {
     // Build admin info for logging
     const adminInfo = {
       id: req.loggedinUser._id,
-      fullName: req.loggedinUser.fullName,
+      displayName: req.loggedinUser.displayName,
       email: req.loggedinUser.email,
       ipAddress: req.ip || req.connection?.remoteAddress || 'unknown',
       userAgent: req.get('User-Agent') || 'unknown'
@@ -132,8 +132,8 @@ async function executeCascadeDeletion(req, res, next) {
           ? 'המחיקה הקשה הושלמה בהצלחה - לא ניתן לשחזור'
           : 'המחיקה הושלמה בהצלחה',
         meta: {
-          studentName: student.personalInfo?.fullName || 'Unknown',
-          deletedBy: req.loggedinUser.fullName,
+          studentName: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown',
+          deletedBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           canRollback: !!result.data.rollbackToken,
           totalRecordsDeleted: Object.values(result.data.deletedRecords || {})
@@ -175,7 +175,7 @@ async function cleanupOrphanedReferences(req, res, next) {
     // Build admin info for logging
     const adminInfo = {
       id: req.loggedinUser._id,
-      fullName: req.loggedinUser.fullName,
+      displayName: req.loggedinUser.displayName,
       email: req.loggedinUser.email,
       ipAddress: req.ip || req.connection?.remoteAddress || 'unknown'
     };
@@ -191,7 +191,7 @@ async function cleanupOrphanedReferences(req, res, next) {
           ? 'הדמיית ניקוי הושלמה בהצלחה'
           : 'ניקוי ההפניות היתומות הושלם בהצלחה',
         meta: {
-          cleanedBy: req.loggedinUser.fullName,
+          cleanedBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           dryRun: options.dryRun,
           collectionsProcessed: options.collections?.length || 'all'
@@ -275,7 +275,7 @@ async function rollbackDeletion(req, res, next) {
     // Build admin info for logging
     const adminInfo = {
       id: req.loggedinUser._id,
-      fullName: req.loggedinUser.fullName,
+      displayName: req.loggedinUser.displayName,
       email: req.loggedinUser.email,
       ipAddress: req.ip || req.connection?.remoteAddress || 'unknown'
     };
@@ -293,7 +293,7 @@ async function rollbackDeletion(req, res, next) {
         data: result.data,
         message: 'השחזור הושלם בהצלחה',
         meta: {
-          rolledBackBy: req.loggedinUser.fullName,
+          rolledBackBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           snapshotDate: snapshot.createdAt,
           totalRecordsRestored: Object.values(result.data.restoredRecords || {})
@@ -340,7 +340,7 @@ async function getAuditLog(req, res, next) {
         data: result.data,
         message: 'יומן הביקורת נטען בהצלחה',
         meta: {
-          requestedBy: req.loggedinUser.fullName,
+          requestedBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           filters: queryParams,
           timezone: 'Asia/Jerusalem'
@@ -413,7 +413,7 @@ async function getAvailableSnapshots(req, res, next) {
       },
       message: 'תמונות מצב נטענו בהצלחה',
       meta: {
-        requestedBy: req.loggedinUser.fullName,
+        requestedBy: req.loggedinUser.displayName,
         timestamp: new Date().toISOString(),
         filters: { entityType, includeExpired }
       }
@@ -450,7 +450,7 @@ async function getRunningOperations(req, res, next) {
       },
       message: 'פעולות פעילות נטענו בהצלחה',
       meta: {
-        requestedBy: req.loggedinUser.fullName,
+        requestedBy: req.loggedinUser.displayName,
         timestamp: new Date().toISOString()
       }
     });
@@ -484,7 +484,7 @@ async function cancelOperation(req, res, next) {
       code: 'CANCELLATION_NOT_IMPLEMENTED',
       meta: {
         operationId,
-        requestedBy: req.loggedinUser.fullName,
+        requestedBy: req.loggedinUser.displayName,
         timestamp: new Date().toISOString()
       }
     });

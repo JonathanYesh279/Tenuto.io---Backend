@@ -615,6 +615,11 @@ async function setRecitalConfiguration(bagrutId, units, field) {
 function _buildCriteria(filterBy) {
   const criteria = {}
 
+  // Tenant scoping
+  if (filterBy.tenantId) {
+    criteria.tenantId = filterBy.tenantId
+  }
+
   if (filterBy.studentId) {
     criteria.studentId = filterBy.studentId
   }

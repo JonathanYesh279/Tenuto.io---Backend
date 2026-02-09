@@ -188,38 +188,28 @@ export class PermissionService {
     try {
       // Admin can access everything
       if (userRoles.includes('מנהל')) {
-        await this.logAccess(userId, permission, resourceType, resourceId, true, 'Admin access');
         return true;
       }
-      
+
       // Check basic permission first
       if (!this.hasPermission(userRoles, permission)) {
-        await this.logAccess(userId, permission, resourceType, resourceId, false, 'Permission denied');
         return false;
       }
-      
+
       // For "own" permissions, check resource ownership
       if (permission.includes(':own') && resourceId) {
-        const hasOwnership = await this.checkResourceOwnership(userId, resourceType, resourceId);
-        await this.logAccess(userId, permission, resourceType, resourceId, hasOwnership, 
-          hasOwnership ? 'Own resource access' : 'Not resource owner');
-        return hasOwnership;
+        return await this.checkResourceOwnership(userId, resourceType, resourceId);
       }
-      
+
       // For "assigned" permissions, check if user is assigned to resource
       if (permission.includes(':assigned') && resourceId) {
-        const isAssigned = await this.checkResourceAssignment(userId, resourceType, resourceId);
-        await this.logAccess(userId, permission, resourceType, resourceId, isAssigned,
-          isAssigned ? 'Assigned resource access' : 'Not assigned to resource');
-        return isAssigned;
+        return await this.checkResourceAssignment(userId, resourceType, resourceId);
       }
-      
-      await this.logAccess(userId, permission, resourceType, resourceId, true, 'Permission granted');
+
       return true;
-      
+
     } catch (error) {
       console.error('Error checking resource access:', error);
-      await this.logAccess(userId, permission, resourceType, resourceId, false, `Error: ${error.message}`);
       return false;
     }
   }
@@ -256,7 +246,9 @@ export class PermissionService {
         const studentCollection = await getCollection('student');
         const student = await studentCollection.findOne({
           _id: ObjectId.createFromHexString(resourceId),
-          teacherIds: userId
+          'teacherAssignments': {
+            $elemMatch: { teacherId: userId, isActive: { $ne: false } }
+          }
         });
         return !!student;
       }
@@ -361,7 +353,7 @@ export class PermissionService {
       if (collection === 'student') {
         // Teachers can only see assigned students
         if (!this.hasPermission(userRoles, PERMISSIONS.STUDENT_READ)) {
-          enhancedFilter.teacherIds = userId;
+          enhancedFilter['teacherAssignments.teacherId'] = userId;
         }
       }
       

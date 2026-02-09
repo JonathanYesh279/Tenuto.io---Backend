@@ -43,7 +43,7 @@ export const uploadMultipleFiles = (fieldName, maxCount = 5) => {
           return res.status(400).json({ error: err.message })
         }
 
-        if (!req.file || !req.file.length === 0) {
+        if (!req.files || req.files.length === 0) {
           return res.status(400).json({ error: 'No file uploaded' })
         }
 
@@ -52,7 +52,7 @@ export const uploadMultipleFiles = (fieldName, maxCount = 5) => {
             req.files.map(async (file) => {
               const fileInfo = await processUploadedFile(file)
               return {
-                orginalname: file.originalname,
+                originalname: file.originalname,
                 mimetype: file.mimetype,
                 size: file.size,
                 ...fileInfo

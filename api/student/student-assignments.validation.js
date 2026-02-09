@@ -13,7 +13,7 @@ import { ObjectId } from 'mongodb';
 const VALID_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 // Valid lesson durations (in minutes)
-const VALID_DURATIONS = [15, 30, 45, 60, 90, 120, 180];
+const VALID_DURATIONS = [30, 45, 60];
 
 /**
  * Teacher Assignment Schema

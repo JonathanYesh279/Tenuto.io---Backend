@@ -1,5 +1,6 @@
 // api/student/student.controller.js
 import { studentService } from './student.service.js';
+import { canAccessStudent } from '../../utils/queryScoping.js';
 
 export const studentController = {
   getStudents,
@@ -26,11 +27,7 @@ async function getStudents(req, res, next) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 0; // 0 means no pagination (return all)
 
-    // Authorization context for IDOR prevention
-    const teacherId = req.teacher?._id?.toString();
-    const isAdmin = req.teacher?.roles?.includes('מנהל') || false;
-
-    const result = await studentService.getStudents(filterBy, page, limit, { teacherId, isAdmin });
+    const result = await studentService.getStudents(filterBy, page, limit, { context: req.context });
     res.json(result);
   } catch (err) {
     next(err);
@@ -40,19 +37,13 @@ async function getStudents(req, res, next) {
 async function getStudentById(req, res, next) {
   try {
     const { id } = req.params;
-    const teacherId = req.teacher?._id?.toString();
-    const isAdmin = req.teacher?.roles?.includes('מנהל') || false;
 
-    const student = await studentService.getStudentById(id);
-
-    // IDOR prevention: non-admin teachers can only access their own students
-    if (teacherId && !isAdmin) {
-      const hasAccess = await studentService.checkTeacherHasAccessToStudent(teacherId, id);
-      if (!hasAccess) {
-        return res.status(403).json({ error: 'Access denied: student not assigned to you' });
-      }
+    // IDOR prevention via pre-loaded scopes (no extra DB query)
+    if (!canAccessStudent(id, req.context)) {
+      return res.status(403).json({ error: 'Access denied: student not assigned to you' });
     }
 
+    const student = await studentService.getStudentById(id, { tenantId: req.context?.tenantId });
     res.json(student);
   } catch (err) {
     next(err);

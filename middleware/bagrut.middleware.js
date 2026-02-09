@@ -15,6 +15,12 @@ export async function authorizeBagrutAccess(req, res, next) {
       return res.status(404).json({ error: `Bagrut with id ${bagrutId} not found` })
     }
 
+    // Tenant isolation: ensure bagrut belongs to the same tenant
+    const requestTenantId = req.teacher?.tenantId || req.context?.tenantId
+    if (requestTenantId && bagrut.tenantId && bagrut.tenantId !== requestTenantId) {
+      return res.status(404).json({ error: `Bagrut with id ${bagrutId} not found` })
+    }
+
     const teacherId = req.teacher._id.toString()
     const isAdmin = req.teacher.roles.includes('מנהל')
 

@@ -33,9 +33,7 @@ async function initializeStudentStructures(results) {
 
   const studentsWithoutStructure = await studentCollection.find({
     $or: [
-      { teacherIds: { $exists: false } },
       { teacherAssignments: { $exists: false } },
-      { teacherIds: null },
       { teacherAssignments: null }
     ]
   }).toArray();
@@ -46,14 +44,13 @@ async function initializeStudentStructures(results) {
         { _id: student._id },
         {
           $set: {
-            teacherIds: student.teacherIds || [],
             teacherAssignments: student.teacherAssignments || [],
             updatedAt: new Date()
           }
         }
       );
       results.studentsFixed++;
-      console.log(`Fixed student structure: ${student.personalInfo?.fullName}`);
+      console.log(`Fixed student structure: ${`${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim()}`);
     } catch (error) {
       results.errors.push(`Student ${student._id}: ${error.message}`);
     }
@@ -80,19 +77,21 @@ export async function validateScheduleIntegrity() {
   report.totalStudents = students.length;
 
   for (const student of students) {
-    const teacherIds = student.teacherIds || [];
     const teacherAssignments = student.teacherAssignments || [];
     const activeAssignments = teacherAssignments.filter(a => a.isActive);
     const assignmentTeacherIds = [...new Set(activeAssignments.map(a => a.teacherId))];
 
-    if (JSON.stringify(teacherIds.sort()) !== JSON.stringify(assignmentTeacherIds.sort())) {
-      report.inconsistencies.push({
-        studentId: student._id,
-        studentName: student.personalInfo?.fullName,
-        issue: 'teacherIds does not match active assignments',
-        expected: assignmentTeacherIds,
-        actual: teacherIds
-      });
+    // Check that all referenced teachers exist
+    for (const teacherId of assignmentTeacherIds) {
+      const teacherExists = teachers.some(t => t._id.toString() === teacherId);
+      if (!teacherExists) {
+        report.inconsistencies.push({
+          studentId: student._id,
+          studentName: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim(),
+          issue: 'Active assignment references non-existent teacher',
+          teacherId
+        });
+      }
     }
   }
 
@@ -104,26 +103,37 @@ export async function validateScheduleIntegrity() {
  */
 export async function repairTeacherStudentRelationship(teacherId, studentId) {
   try {
-    const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
 
-    // Add student to teacher's studentIds
-    await teacherCollection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
-      {
-        $addToSet: { 'teaching.studentIds': studentId },
-        $set: { updatedAt: new Date() }
-      }
+    // Ensure teacherAssignment exists (single source of truth)
+    const student = await studentCollection.findOne(
+      { _id: ObjectId.createFromHexString(studentId) }
     );
 
-    // Add teacher to student's teacherIds
-    await studentCollection.updateOne(
-      { _id: ObjectId.createFromHexString(studentId) },
-      {
-        $addToSet: { teacherIds: teacherId },
-        $set: { updatedAt: new Date() }
-      }
+    const hasAssignment = student?.teacherAssignments?.some(
+      a => a.teacherId === teacherId && a.isActive
     );
+
+    if (!hasAssignment) {
+      await studentCollection.updateOne(
+        { _id: ObjectId.createFromHexString(studentId) },
+        {
+          $push: {
+            teacherAssignments: {
+              teacherId,
+              scheduleSlotId: null,
+              startDate: new Date(),
+              endDate: null,
+              isActive: true,
+              notes: 'Repaired relationship',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          },
+          $set: { updatedAt: new Date() }
+        }
+      );
+    }
 
     return { success: true, teacherId, studentId };
   } catch (error) {

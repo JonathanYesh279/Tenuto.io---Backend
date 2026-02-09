@@ -7,6 +7,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { cascadeJobProcessor } from './cascadeJobProcessor.js';
 import { getDB } from './mongoDB.service.js';
+import { ObjectId } from 'mongodb';
 import jwt from 'jsonwebtoken';
 
 class CascadeWebSocketService {
@@ -548,13 +549,12 @@ class CascadeWebSocketService {
     try {
       const db = getDB();
       // Check if user has any relationship with this student (teacher, etc.)
-      const hasAccess = await db.collection('teacher').findOne({
-        userId: socket.userId,
-        $or: [
-          { 'teaching.studentIds': studentId },
-          { 'teaching.timeBlocks.assignedLessons.studentId': studentId }
-        ],
-        isActive: true
+      // Check via student's teacherAssignments (single source of truth)
+      const hasAccess = await db.collection('student').findOne({
+        _id: typeof studentId === 'string' ? new ObjectId(studentId) : studentId,
+        'teacherAssignments': {
+          $elemMatch: { teacherId: socket.userId, isActive: { $ne: false } }
+        }
       });
 
       // For now, allow access for testing purposes

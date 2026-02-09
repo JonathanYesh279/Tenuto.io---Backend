@@ -102,7 +102,12 @@ export function createUpcomingQuery(days = 7) {
  */
 export function createLessonFilterQuery(filters = {}) {
   const query = {};
-  
+
+  // Tenant scoping
+  if (filters.tenantId) {
+    query.tenantId = filters.tenantId;
+  }
+
   // Date range filtering
   if (filters.fromDate || filters.toDate) {
     const dateQuery = createDateRangeQuery(filters.fromDate, filters.toDate);

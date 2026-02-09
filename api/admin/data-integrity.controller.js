@@ -30,7 +30,7 @@ async function validateIntegrity(req, res, next) {
           ? 'בדיקת השלמות הושלמה - לא נמצאו בעיות'
           : `בדיקת השלמות הושלמה - נמצאו ${result.data.summary.issuesFound} בעיות`,
         meta: {
-          requestedBy: req.loggedinUser.fullName,
+          requestedBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           healthScore: calculateHealthScore(result.data),
           criticalIssuesFound: result.data.summary.criticalIssues > 0,
@@ -86,7 +86,7 @@ async function repairIntegrity(req, res, next) {
     // Build admin info for logging
     const adminInfo = {
       id: req.loggedinUser._id,
-      fullName: req.loggedinUser.fullName,
+      displayName: req.loggedinUser.displayName,
       email: req.loggedinUser.email,
       ipAddress: req.ip || req.connection?.remoteAddress || 'unknown',
       userAgent: req.get('User-Agent') || 'unknown'
@@ -105,7 +105,7 @@ async function repairIntegrity(req, res, next) {
           ? 'הדמיית תיקון הושלמה בהצלחה'
           : `תיקון הושלם - ${repairData.summary.issuesRepaired} בעיות תוקנו`,
         meta: {
-          repairedBy: req.loggedinUser.fullName,
+          repairedBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           dryRun: options.dryRun,
           backupCreated: !!repairData.backupLocation,
@@ -157,7 +157,7 @@ async function generateIntegrityReport(req, res, next) {
         data: reportData,
         message: `דוח שלמות ${reportData.reportType} נוצר בהצלחה`,
         meta: {
-          generatedBy: req.loggedinUser.fullName,
+          generatedBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           reportFormat: options.format || 'JSON',
           timeRangeDays: Math.ceil(
@@ -212,7 +212,7 @@ async function getOrphanedStudents(req, res, next) {
           ? 'לא נמצאו תלמידים יתומים'
           : `נמצאו ${data.orphanedStudents.length} תלמידים יתומים`,
         meta: {
-          requestedBy: req.loggedinUser.fullName,
+          requestedBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           searchCriteria: {
             orphanType: queryParams.orphanType || 'ALL',
@@ -272,7 +272,7 @@ async function performHealthCheck(req, res, next) {
         data: healthData,
         message: getHealthMessage(healthData.overallHealth, healthData.healthScore),
         meta: {
-          requestedBy: req.loggedinUser.fullName,
+          requestedBy: req.loggedinUser.displayName,
           timestamp: new Date().toISOString(),
           nextRecommendedCheck: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           criticalAlertsCount: healthData.alerts?.filter(a => a.level === 'CRITICAL').length || 0,
@@ -348,7 +348,7 @@ async function getCollectionStats(req, res, next) {
       data: mockStats,
       message: 'סטטיסטיקות אוספים נטענו בהצלחה',
       meta: {
-        requestedBy: req.loggedinUser.fullName,
+        requestedBy: req.loggedinUser.displayName,
         timestamp: new Date().toISOString(),
         collectionsRequested: collections ? collections.split(',') : 'all',
         includeIndexStats: includeIndexStats === 'true',
@@ -430,7 +430,7 @@ async function validateBusinessConstraints(req, res, next) {
         ? 'לא נמצאו הפרות אילוצים'
         : `נמצאו ${mockViolations.length} הפרות אילוצים`,
       meta: {
-        validatedBy: req.loggedinUser.fullName,
+        validatedBy: req.loggedinUser.displayName,
         timestamp: new Date().toISOString(),
         validationMode: options.strictMode ? 'STRICT' : 'STANDARD',
         collectionsChecked: options.collections?.length || 'all'

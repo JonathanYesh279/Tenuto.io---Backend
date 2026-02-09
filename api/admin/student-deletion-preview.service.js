@@ -14,11 +14,10 @@ const STUDENT_RELATIONSHIPS = [
   {
     collection: 'teacher',
     fields: [
-      { path: 'teaching.studentIds', type: 'array', description: 'Teacher-student assignments' },
       { path: 'teaching.timeBlocks.assignedLessons.studentId', type: 'nested', description: 'Private lesson assignments' }
     ],
     criticality: 'medium',
-    impact: 'Teacher assignments and lesson schedules will be affected'
+    impact: 'Teacher lesson schedules will be affected'
   },
   {
     collection: 'orchestra',
@@ -117,7 +116,7 @@ async function generateDeletionPreview(studentId) {
     const preview = {
       student: {
         id: studentId,
-        name: student.personalInfo?.fullName || 'Unknown Student',
+        name: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown Student',
         class: student.academicInfo?.class || 'Unknown',
         isActive: student.isActive !== false,
         instruments: student.academicInfo?.instrumentProgress?.map(ip => ip.instrumentName) || []
@@ -135,7 +134,7 @@ async function generateDeletionPreview(studentId) {
       }
     };
 
-    console.log(`✅ Generated deletion preview for ${student.personalInfo?.fullName}: ${preview.summary.totalRecords} total records affected`);
+    console.log(`✅ Generated deletion preview for ${student.personalInfo?.firstName} ${student.personalInfo?.lastName}: ${preview.summary.totalRecords} total records affected`);
     return { success: true, data: preview };
 
   } catch (error) {
@@ -273,7 +272,8 @@ function buildProjectionForField(field) {
   // Include relevant fields based on collection
   if (field.path.includes('timeBlocks')) {
     projection['teaching.timeBlocks'] = 1;
-    projection['personalInfo.fullName'] = 1;
+    projection['personalInfo.firstName'] = 1;
+    projection['personalInfo.lastName'] = 1;
   } else if (field.path.includes('attendees')) {
     projection.date = 1;
     projection.attendees = 1;
@@ -302,7 +302,7 @@ function formatSampleItem(item, field, collectionName) {
   // Add collection-specific formatting
   switch (collectionName) {
     case 'teacher':
-      formatted.name = item.personalInfo?.fullName || 'Unknown Teacher';
+      formatted.name = `${item.personalInfo?.firstName || ''} ${item.personalInfo?.lastName || ''}`.trim() || 'Unknown Teacher';
       formatted.detail = field.path.includes('timeBlocks') ? 'Private lesson assignment' : 'Student assignment';
       break;
 
@@ -437,11 +437,15 @@ function generateWarnings(impacts, student) {
  */
 async function calculateRelationshipCounts(studentId) {
   try {
-    // Count active teacher relationships
-    const teacherCollection = await getCollection('teacher');
-    const teachersCount = await teacherCollection.countDocuments({
-      'teaching.studentIds': studentId
-    });
+    // Count active teacher relationships via student's teacherAssignments
+    const studentCollection = await getCollection('student');
+    const studentDoc = await studentCollection.findOne(
+      { _id: ObjectId.createFromHexString(studentId) },
+      { projection: { teacherAssignments: 1 } }
+    );
+    const teachersCount = studentDoc?.teacherAssignments
+      ? [...new Set(studentDoc.teacherAssignments.filter(a => a.isActive !== false).map(a => a.teacherId))].length
+      : 0;
 
     // Count parent relationships (if implemented in your system)
     // For now, we'll extract from student data

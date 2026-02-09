@@ -4,6 +4,7 @@ import { getCollection } from '../../services/mongoDB.service.js';
 import { validateStudent } from './student.validation.js';
 import { relationshipValidationService } from '../../services/relationshipValidationService.js';
 import { validateTeacherAssignmentsWithDB } from './student-assignments.validation.js';
+import { buildScopedFilter } from '../../utils/queryScoping.js';
 
 export const studentService = {
   getStudents,
@@ -23,13 +24,19 @@ export const studentService = {
 
 async function getStudents(filterBy = {}, page = 1, limit = 0, options = {}) {
   try {
-    const { teacherId, isAdmin } = options;
+    const { context, teacherId, isAdmin, tenantId } = options;
     const collection = await getCollection('student');
+
+    // Inject tenantId into filter (backward compat)
+    if (tenantId) filterBy.tenantId = tenantId;
+
     const criteria = _buildCriteria(filterBy);
 
-    // IDOR prevention: non-admin teachers only see their own students
-    if (teacherId && !isAdmin) {
-      criteria.teacherIds = teacherId;
+    // Role-based scoping: prefer context, fall back to legacy teacherId/isAdmin
+    if (context) {
+      Object.assign(criteria, buildScopedFilter('student', {}, context));
+    } else if (teacherId && !isAdmin) {
+      criteria['teacherAssignments.teacherId'] = teacherId;
     }
 
     // If limit is 0 or not provided, return all students (backward compatibility)
@@ -77,25 +84,26 @@ async function getStudents(filterBy = {}, page = 1, limit = 0, options = {}) {
   }
 }
 
-async function getStudentById(studentId) {
+async function getStudentById(studentId, options = {}) {
   try {
     console.log(`🔍 Student service: Getting student by ID: ${studentId}`);
-    
+
     // Validate ObjectId format
     if (!ObjectId.isValid(studentId)) {
       throw new Error(`Invalid student ID format: ${studentId}`);
     }
-    
+
     const collection = await getCollection('student');
-    const student = await collection.findOne({
-      _id: ObjectId.createFromHexString(studentId),
-    });
+    const filter = { _id: ObjectId.createFromHexString(studentId) };
+    if (options.tenantId) filter.tenantId = options.tenantId;
+    const student = await collection.findOne(filter);
 
     if (!student) {
       throw new Error(`Student with id ${studentId} not found`);
     }
     
-    console.log(`✅ Student service: Found student: ${student.personalInfo?.fullName || 'Unknown'}`);
+    const displayName = `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown';
+    console.log(`✅ Student service: Found student: ${displayName}`);
     return student;
   } catch (err) {
     console.error(`❌ Student service error for ID ${studentId}:`, err.message);
@@ -144,7 +152,6 @@ async function addStudent(studentToAdd, teacherId = null, isAdmin = false) {
     }
 
     // Initialize relationship arrays if not present
-    if (!value.teacherIds) value.teacherIds = [];
     if (!value.teacherAssignments) value.teacherAssignments = [];
 
     value.createdAt = new Date();
@@ -164,10 +171,11 @@ async function addStudent(studentToAdd, teacherId = null, isAdmin = false) {
     if (value.teacherAssignments && value.teacherAssignments.length > 0) {
       console.log(`🔥 SYNC FIX: New student created with ${value.teacherAssignments.length} teacher assignments - syncing teacher records`);
       try {
+        const studentDisplayName = `${value.personalInfo?.firstName || ''} ${value.personalInfo?.lastName || ''}`.trim();
         await syncTeacherRecordsForStudentUpdate(
-          result.insertedId.toString(), 
-          value.personalInfo?.fullName, 
-          value.teacherAssignments, 
+          result.insertedId.toString(),
+          studentDisplayName,
+          value.teacherAssignments,
           []
         );
 
@@ -177,10 +185,7 @@ async function addStudent(studentToAdd, teacherId = null, isAdmin = false) {
           .map(assignment => assignment.teacherId)
           .filter(Boolean);
         
-        if (teacherIdsFromAssignments.length > 0) {
-          console.log(`🔥 SYNC FIX: New student has ${teacherIdsFromAssignments.length} teacher assignments - syncing to teacher.teaching.studentIds`);
-          await syncTeacherStudentRelationships(result.insertedId.toString(), teacherIdsFromAssignments, []);
-        }
+        // teacherAssignments is the single source of truth — no deprecated sync needed
       } catch (syncError) {
         console.error(`🔥 SYNC ERROR: Failed to sync teacher assignments for new student:`, syncError);
         // Continue with student creation even if sync fails
@@ -256,25 +261,6 @@ async function updateStudent(
       }
     }
 
-    // 🔥 CRITICAL FIX: Detect teacherIds changes for bidirectional sync
-    let teacherRelationshipSyncRequired = false;
-    let teachersToAdd = [];
-    let teachersToRemove = [];
-
-    if (value.teacherIds !== undefined) {
-      const originalTeacherIds = originalStudent.teacherIds || [];
-      const newTeacherIds = value.teacherIds || [];
-      
-      teachersToAdd = newTeacherIds.filter(id => !originalTeacherIds.includes(id));
-      teachersToRemove = originalTeacherIds.filter(id => !newTeacherIds.includes(id));
-      
-      if (teachersToAdd.length > 0 || teachersToRemove.length > 0) {
-        teacherRelationshipSyncRequired = true;
-        console.log(`🔥 SYNC FIX: TeacherIds changes detected for student ${studentId}`);
-        console.log(`Teachers to add: ${teachersToAdd.length}, Teachers to remove: ${teachersToRemove.length}`);
-      }
-    }
-
     // 🔥 ENHANCED VALIDATION: Advanced teacherAssignments validation with DB consistency checks
     let teacherAssignmentsSyncRequired = false;
     let newAssignments = [];
@@ -330,22 +316,7 @@ async function updateStudent(
 
     if (!result) throw new Error(`Student with id ${studentId} not found`);
 
-    // 🔥 CRITICAL FIX: Sync teacher relationships bidirectionally with transactions
-    if (teacherRelationshipSyncRequired) {
-      console.log(`🔥 SYNC FIX: Starting bidirectional teacherIds sync for student ${studentId}`);
-      await syncTeacherStudentRelationships(studentId, teachersToAdd, teachersToRemove, session);
-    }
-
-    // 🔥 ENHANCED SYNC FIX: Robust bidirectional sync for teacherAssignments
-    // This ensures teaching.studentIds is ALWAYS in sync with active assignments
-    //
-    // The sync handles these cases:
-    // 1. New teacher assignment added (active) → Add student to teacher's studentIds
-    // 2. Existing assignment becomes active → Add student to teacher's studentIds
-    // 3. Existing assignment becomes inactive → Remove student from teacher's studentIds
-    // 4. Assignment completely removed → Remove student from teacher's studentIds
-    // 5. Safety fallback: If assignments updated but no changes detected, sync all active teachers
-    //    (This fixes any pre-existing sync issues using idempotent $addToSet)
+    // Sync teacher timeBlock lessons when teacherAssignments are modified
     if (teacherAssignmentsSyncRequired || (value.teacherAssignments && value.teacherAssignments.length > 0)) {
       const originalTeacherIdsFromAssignments = (originalStudent.teacherAssignments || [])
         .filter(assignment => assignment.isActive)
@@ -430,28 +401,24 @@ async function updateStudent(
     // 🔥 CRITICAL FIX: Sync teacher assignments (time-block system)
     if (teacherAssignmentsSyncRequired) {
       console.log(`🔥 SYNC FIX: Starting teacher assignments sync for student ${studentId}`);
-      await syncTeacherRecordsForStudentUpdate(studentId, result.personalInfo?.fullName, newAssignments, removedAssignments, session);
+      const syncDisplayName = `${result.personalInfo?.firstName || ''} ${result.personalInfo?.lastName || ''}`.trim();
+      await syncTeacherRecordsForStudentUpdate(studentId, syncDisplayName, newAssignments, removedAssignments, session);
     }
 
-    // 🔥 VALIDATION: Validate relationship integrity after sync
-    if (teacherRelationshipSyncRequired && value.teacherIds) {
-      console.log(`🔍 VALIDATION: Checking relationship integrity for student ${studentId}`);
+    // Validate relationship integrity after sync
+    if (teacherRelationshipSyncRequired) {
       try {
-        const validationResult = await relationshipValidationService.validateStudentTeacherRelationships(
-          studentId, 
-          value.teacherIds
-        );
-        
+        const validationResult = await relationshipValidationService.validateStudentTeacherRelationships(studentId);
+
         if (!validationResult.isValid) {
           console.warn(`⚠️  VALIDATION WARNING: Student ${studentId} has relationship issues:`, validationResult.errors);
         }
-        
+
         if (validationResult.warnings.length > 0) {
           console.warn(`⚠️  VALIDATION WARNINGS for student ${studentId}:`, validationResult.warnings);
         }
       } catch (validationError) {
         console.error(`❌ VALIDATION ERROR: Failed to validate relationships for student ${studentId}:`, validationError.message);
-        // Don't fail the transaction for validation errors
       }
     }
 
@@ -702,14 +669,15 @@ async function removeStudent(studentId, teacherId = null, isAdmin = false) {
 
 async function checkTeacherHasAccessToStudent(teacherId, studentId) {
   try {
-    const teacherCollection = await getCollection('teacher');
-    const teacher = await teacherCollection.findOne({
-      _id: ObjectId.createFromHexString(teacherId),
-      'teaching.studentIds': studentId,
+    // Check via teacherAssignments on the student (single source of truth)
+    const studentCollection = await getCollection('student');
+    const student = await studentCollection.findOne({
+      _id: ObjectId.createFromHexString(studentId),
+      'teacherAssignments.teacherId': teacherId,
       isActive: true,
     });
 
-    return !!teacher;
+    return !!student;
   } catch (err) {
     console.error(`Error checking teacher access to student: ${err.message}`);
     throw new Error(`Error checking teacher access to student: ${err.message}`);
@@ -758,21 +726,28 @@ function checkIfOnlyAddingSelfToAssignments(studentUpdate, teacherId) {
 
 async function associateStudentWithTeacher(studentId, teacherId) {
   try {
-    const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
-    
-    // Always update the teacher's studentIds array for backward compatibility
-    await teacherCollection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
-      { $addToSet: { 'teaching.studentIds': studentId } }
-    );
-    
-    // Update the student's teacherIds array for backward compatibility
+
+    // Create teacherAssignment on student (single source of truth)
+    const assignment = {
+      teacherId,
+      scheduleSlotId: null,
+      startDate: new Date(),
+      endDate: null,
+      isActive: true,
+      notes: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
     await studentCollection.updateOne(
       { _id: ObjectId.createFromHexString(studentId) },
-      { $addToSet: { teacherIds: teacherId } }
+      {
+        $push: { teacherAssignments: assignment },
+        $set: { updatedAt: new Date() }
+      }
     );
-    
+
     return {
       success: true,
       studentId,
@@ -788,12 +763,6 @@ async function removeStudentTeacherAssociation(studentId, teacherId) {
   try {
     const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
-    
-    // For backward compatibility, remove student from teacher's studentIds array
-    await teacherCollection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
-      { $pull: { 'teaching.studentIds': studentId } }
-    );
 
     // Deactivate lessons in timeBlocks for this student
     await teacherCollection.updateMany(
@@ -835,12 +804,6 @@ async function removeStudentTeacherAssociation(studentId, teacherId) {
       }
     );
     
-    // For backward compatibility, remove teacher from student's teacherIds array
-    await studentCollection.updateOne(
-      { _id: ObjectId.createFromHexString(studentId) },
-      { $pull: { teacherIds: teacherId } }
-    );
-
     return {
       message: 'Student removed from teacher successfully',
       studentId,
@@ -849,52 +812,6 @@ async function removeStudentTeacherAssociation(studentId, teacherId) {
   } catch (err) {
     console.error(`Error removing student from teacher: ${err.message}`);
     throw new Error(`Error removing student from teacher: ${err.message}`);
-  }
-}
-
-/**
- * 🔥 CRITICAL FIX: Sync teacher-student relationships bidirectionally (teacherIds array)
- * This function ensures the teacher's studentIds array is updated when student's teacherIds changes
- */
-async function syncTeacherStudentRelationships(studentId, teachersToAdd, teachersToRemove, session) {
-  try {
-    const teacherCollection = await getCollection('teacher');
-
-    console.log(`🔥 SYNC FIX: Syncing teacher relationships - Adding ${teachersToAdd.length}, Removing ${teachersToRemove.length}`);
-
-    // Add student to new teachers' studentIds arrays
-    if (teachersToAdd.length > 0) {
-      const teacherObjectIds = teachersToAdd.map(id => ObjectId.createFromHexString(id));
-      await teacherCollection.updateMany(
-        { _id: { $in: teacherObjectIds } },
-        { 
-          $addToSet: { 'teaching.studentIds': studentId },
-          $set: { updatedAt: new Date() }
-        },
-        { session }
-      );
-      console.log(`🔥 SYNC FIX: Added student ${studentId} to ${teachersToAdd.length} teachers' studentIds`);
-    }
-
-    // Remove student from old teachers' studentIds arrays
-    if (teachersToRemove.length > 0) {
-      const teacherObjectIds = teachersToRemove.map(id => ObjectId.createFromHexString(id));
-      await teacherCollection.updateMany(
-        { _id: { $in: teacherObjectIds } },
-        { 
-          $pull: { 'teaching.studentIds': studentId },
-          $set: { updatedAt: new Date() }
-        },
-        { session }
-      );
-      console.log(`🔥 SYNC FIX: Removed student ${studentId} from ${teachersToRemove.length} teachers' studentIds`);
-    }
-
-    console.log(`🔥 SYNC FIX: Teacher-student relationship sync completed for student ${studentId}`);
-
-  } catch (err) {
-    console.error(`🔥 SYNC FIX: Error in syncTeacherStudentRelationships:`, err.message);
-    throw err; // Re-throw to trigger transaction rollback
   }
 }
 
@@ -974,10 +891,9 @@ async function syncTeacherRecordsForStudentUpdate(studentId, studentName, newAss
             _id: ObjectId.createFromHexString(teacherId),
             'teaching.timeBlocks._id': ObjectId.createFromHexString(timeBlockId)
           },
-          { 
+          {
             $push: { 'teaching.timeBlocks.$.assignedLessons': lessonAssignment },
-            $addToSet: { 'teaching.studentIds': studentId },
-            $set: { 
+            $set: {
               'teaching.timeBlocks.$.updatedAt': new Date(),
               updatedAt: new Date()
             }
@@ -1048,13 +964,18 @@ function _buildCriteria(filterBy) {
   const criteria = {};
   console.log('🔍 studentService._buildCriteria called with filterBy:', JSON.stringify(filterBy))
 
+  // Tenant scoping — always applied if present
+  if (filterBy.tenantId) {
+    criteria.tenantId = filterBy.tenantId;
+  }
+
   // Handle batch fetching by IDs - highest priority
   if (filterBy.ids) {
     console.log('🎯 Found student ids parameter:', filterBy.ids)
     const idsArray = Array.isArray(filterBy.ids) ? filterBy.ids : filterBy.ids.split(',')
     console.log('🎯 Parsed student IDs array:', idsArray)
-    criteria._id = { 
-      $in: idsArray.map(id => ObjectId.createFromHexString(id.trim())) 
+    criteria._id = {
+      $in: idsArray.map(id => ObjectId.createFromHexString(id.trim()))
     }
     console.log('🎯 Built student criteria with IDs:', JSON.stringify(criteria))
     // When fetching by specific IDs, return all (active and inactive)
@@ -1077,10 +998,11 @@ function _buildCriteria(filterBy) {
   }
 
   if (filterBy.name) {
-    criteria['personalInfo.fullName'] = {
-      $regex: filterBy.name,
-      $options: 'i',
-    };
+    // Search across firstName and lastName
+    criteria.$or = [
+      { 'personalInfo.firstName': { $regex: filterBy.name, $options: 'i' } },
+      { 'personalInfo.lastName': { $regex: filterBy.name, $options: 'i' } },
+    ];
   }
 
   // Update test filtering to check new structure
@@ -1094,14 +1016,9 @@ function _buildCriteria(filterBy) {
       filterBy.stageTest;
   }
 
-  // Unchanged criteria
   if (filterBy.teacherId) {
-    criteria['enrollments.teachers'] = {
-      $elemMatch: {
-        teacherId: filterBy.teacherId,
-        isActive: true,
-      },
-    };
+    criteria['teacherAssignments.teacherId'] = filterBy.teacherId;
+    criteria['teacherAssignments.isActive'] = true;
   }
 
   if (filterBy.orchestraId) {

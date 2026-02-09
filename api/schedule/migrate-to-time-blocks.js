@@ -90,7 +90,7 @@ async function analyzeAndGroupSlots(results) {
       const analysis = analyzeTeacherSlots(teacher._id.toString(), slots);
       results.slotAnalysis.push(analysis);
       
-      console.log(`Analyzed ${slots.length} slots for teacher ${teacher.personalInfo?.fullName}`);
+      console.log(`Analyzed ${slots.length} slots for teacher ${`${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim()}`);
     } catch (error) {
       results.errors.push(`Analysis error for teacher ${teacher._id}: ${error.message}`);
     }
@@ -477,7 +477,7 @@ export async function generateMigrationReport(teacherId = null) {
 
     const teacherReport = {
       teacherId: teacher._id.toString(),
-      teacherName: teacher.personalInfo?.fullName,
+      teacherName: `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim(),
       originalSlots,
       timeBlocks,
       assignedLessons,

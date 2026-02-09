@@ -1000,6 +1000,11 @@ function _generateDatesForDayOfWeek(
 function _buildCriteria(filterBy) {
   const criteria = {};
 
+  // Tenant scoping
+  if (filterBy.tenantId) {
+    criteria.tenantId = filterBy.tenantId;
+  }
+
   if (filterBy.groupId) {
     criteria.groupId = filterBy.groupId;
   }

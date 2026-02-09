@@ -3,6 +3,8 @@ import { createLogger } from './logger.service.js'
 
 const log = createLogger('mongodb')
 
+const DB_NAME = 'Tenuto-DB'
+
 let db = null
 let client = null
 
@@ -16,18 +18,29 @@ export async function initializeMongoDB(uri) {
       throw new Error('MongoDB connection string is missing. Please set MONGODB_URI environment variable.')
     }
 
-    log.info({ database: process.env.MONGODB_NAME || 'Conservatory-DB' }, 'Attempting MongoDB connection')
+    const dbName = process.env.MONGODB_NAME || DB_NAME
+
+    log.info({ database: dbName }, 'Attempting MongoDB connection')
 
     client = await MongoClient.connect(connectionString, {
       serverSelectionTimeoutMS: 5000,
       connectTimeoutMS: 10000,
     })
 
-    db = client.db(process.env.MONGODB_NAME || 'Conservatory-DB')
-    log.info('Connected to MongoDB successfully')
+    db = client.db(dbName)
+
+    // Verify connection with a healthcheck write
+    const healthcheck = db.collection('healthcheck')
+    await healthcheck.updateOne(
+      { _id: 'startup' },
+      { $set: { status: 'ok', timestamp: new Date(), dbName } },
+      { upsert: true }
+    )
+
+    log.info({ database: dbName }, 'Connected to MongoDB successfully (healthcheck passed)')
     return db
   } catch (err) {
-    log.error({ err: err.message }, 'MongoDB connection error')
+    log.error({ err: err.message, stack: err.stack }, 'MongoDB connection error')
     throw err
   }
 }

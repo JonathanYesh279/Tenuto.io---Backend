@@ -45,6 +45,9 @@ async function getTheoryLessons(req, res, next) {
 
     const filterBy = {};
 
+    // Tenant scoping
+    if (req.context?.tenantId) filterBy.tenantId = req.context.tenantId;
+
     // Only add filters that have actual values
     if (req.query.category) filterBy.category = req.query.category;
     if (req.query.teacherId) filterBy.teacherId = req.query.teacherId;

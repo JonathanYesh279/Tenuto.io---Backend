@@ -12,6 +12,7 @@ const REFRESH_TOKEN_EXPIRY = '30d'
 
 export const authService = {
   login,
+  getTenantsForEmail,
   validateToken,
   refreshAccessToken,
   encryptPassword,
@@ -25,15 +26,17 @@ export const authService = {
   acceptInvitation
 }
 
-async function login(email, password) {
+async function login(email, password, tenantId) {
   try {
-    log.info({ email }, 'Login attempt')
+    log.info({ email, tenantId: tenantId || 'auto' }, 'Login attempt')
 
     const collection = await getCollection('teacher')
-    const teacher = await collection.findOne({
-      'credentials.email': email,
-      isActive: true,
-    })
+
+    // Build query — include tenantId if specified
+    const query = { 'credentials.email': email, isActive: true }
+    if (tenantId) query.tenantId = tenantId
+
+    const teacher = await collection.findOne(query)
 
     if (!teacher) {
       log.info({ email }, 'No teacher found with email')
@@ -65,13 +68,27 @@ async function login(email, password) {
     try {
       match = await bcrypt.compare(password, teacher.credentials.password)
     } catch (err) {
-      log.warn({ err: err.message }, 'bcryptjs comparison failed, trying direct match')
-      match = password === '123456' && teacher.credentials.email === 'yona279@gmail.com'
+      log.error({ err: err.message }, 'bcryptjs comparison failed')
+      match = false
     }
 
     if (!match) {
       log.info({ teacherId: teacher._id.toString() }, 'Password comparison failed')
       throw new Error('Invalid email or password')
+    }
+
+    // Multi-tenant check: if no tenantId was specified, see if multiple tenants exist
+    if (!tenantId) {
+      const teacherCount = await collection.countDocuments({
+        'credentials.email': email,
+        isActive: true,
+      })
+
+      if (teacherCount > 1) {
+        log.info({ email, count: teacherCount }, 'Multiple tenants found, requiring selection')
+        const tenants = await _getTenantsForTeachers(collection, email)
+        return { requiresTenantSelection: true, tenants }
+      }
     }
 
     log.debug({ teacherId: teacher._id.toString() }, 'Password verified, generating tokens')
@@ -90,16 +107,21 @@ async function login(email, password) {
 
     log.info({ teacherId: teacher._id.toString() }, 'Login successful')
 
+    const displayFirstName = teacher.personalInfo?.firstName || '';
+    const displayLastName = teacher.personalInfo?.lastName || '';
+
     const responseData = {
       accessToken,
       refreshToken,
       teacher: {
         _id: teacher._id.toString(),
+        tenantId: teacher.tenantId || null,
         personalInfo: {
-          fullName: teacher.personalInfo.fullName,
-          email: teacher.personalInfo.email || teacher.credentials.email,
-          phone: teacher.personalInfo.phone,
-          address: teacher.personalInfo.address,
+          firstName: displayFirstName,
+          lastName: displayLastName,
+          email: teacher.personalInfo?.email || teacher.credentials.email,
+          phone: teacher.personalInfo?.phone,
+          address: teacher.personalInfo?.address,
         },
         professionalInfo: teacher.professionalInfo,
         roles: teacher.roles,
@@ -112,6 +134,38 @@ async function login(email, password) {
     log.error({ err: err.message }, 'Error in login')
     throw err
   }
+}
+
+/**
+ * Get all tenants a user has access to (by email).
+ * Used for the tenant selection screen before login.
+ */
+async function getTenantsForEmail(email) {
+  const collection = await getCollection('teacher')
+  return _getTenantsForTeachers(collection, email)
+}
+
+async function _getTenantsForTeachers(collection, email) {
+  const teachers = await collection.find(
+    { 'credentials.email': email, isActive: true },
+    { projection: { _id: 1, tenantId: 1, roles: 1, 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 } }
+  ).toArray()
+
+  if (teachers.length === 0) return []
+
+  // Get tenant names
+  const tenantCollection = await getCollection('tenant')
+  const tenantIds = [...new Set(teachers.map((t) => t.tenantId).filter(Boolean))]
+  const tenants = tenantIds.length > 0
+    ? await tenantCollection.find({ tenantId: { $in: tenantIds } }).toArray()
+    : []
+  const tenantMap = new Map(tenants.map((t) => [t.tenantId, t]))
+
+  return teachers.map((t) => ({
+    tenantId: t.tenantId || null,
+    tenantName: tenantMap.get(t.tenantId)?.name || 'ברירת מחדל',
+    roles: t.roles,
+  }))
 }
 
 async function refreshAccessToken(refreshToken) {
@@ -205,7 +259,9 @@ async function generateTokens(teacher) {
 function generateAccessToken(teacher) {
   const tokenData = {
     _id: teacher._id.toString(),
-    fullName: teacher.personalInfo.fullName,
+    tenantId: teacher.tenantId || null,
+    firstName: teacher.personalInfo?.firstName || '',
+    lastName: teacher.personalInfo?.lastName || '',
     email: teacher.credentials.email,
     roles: teacher.roles,
     version: teacher.credentials?.tokenVersion || 0
@@ -339,11 +395,13 @@ async function changePassword(teacherId, currentPassword, newPassword) {
       refreshToken,
       teacher: {
         _id: updatedTeacher._id.toString(),
+        tenantId: updatedTeacher.tenantId || null,
         personalInfo: {
-          fullName: updatedTeacher.personalInfo.fullName,
-          email: updatedTeacher.personalInfo.email || updatedTeacher.credentials.email,
-          phone: updatedTeacher.personalInfo.phone,
-          address: updatedTeacher.personalInfo.address,
+          firstName: updatedTeacher.personalInfo?.firstName || '',
+          lastName: updatedTeacher.personalInfo?.lastName || '',
+          email: updatedTeacher.personalInfo?.email || updatedTeacher.credentials.email,
+          phone: updatedTeacher.personalInfo?.phone,
+          address: updatedTeacher.personalInfo?.address,
         },
         professionalInfo: updatedTeacher.professionalInfo,
         roles: updatedTeacher.roles,
@@ -426,11 +484,13 @@ async function forcePasswordChange(teacherId, newPassword) {
       refreshToken,
       teacher: {
         _id: updatedTeacher._id.toString(),
+        tenantId: updatedTeacher.tenantId || null,
         personalInfo: {
-          fullName: updatedTeacher.personalInfo.fullName,
-          email: updatedTeacher.personalInfo.email || updatedTeacher.credentials.email,
-          phone: updatedTeacher.personalInfo.phone,
-          address: updatedTeacher.personalInfo.address,
+          firstName: updatedTeacher.personalInfo?.firstName || '',
+          lastName: updatedTeacher.personalInfo?.lastName || '',
+          email: updatedTeacher.personalInfo?.email || updatedTeacher.credentials.email,
+          phone: updatedTeacher.personalInfo?.phone,
+          address: updatedTeacher.personalInfo?.address,
         },
         professionalInfo: updatedTeacher.professionalInfo,
         roles: updatedTeacher.roles,
@@ -443,17 +503,16 @@ async function forcePasswordChange(teacherId, newPassword) {
   }
 }
 
-async function forgotPassword(email) {
+async function forgotPassword(email, tenantId = null) {
   try {
     if (!email) {
       throw new Error('Email is required')
     }
 
     const collection = await getCollection('teacher')
-    const teacher = await collection.findOne({
-      'credentials.email': email,
-      isActive: true
-    })
+    const filter = { 'credentials.email': email, isActive: true }
+    if (tenantId) filter.tenantId = tenantId
+    const teacher = await collection.findOne(filter)
 
     if (!teacher) {
       log.info('Password reset requested for non-existent email')
@@ -485,10 +544,11 @@ async function forgotPassword(email) {
     )
 
     const { emailService } = await import('../../services/emailService.js')
+    const displayName = `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'משתמש';
     const emailResult = await emailService.sendPasswordResetEmail(
       teacher.credentials.email,
       resetToken,
-      teacher.personalInfo.fullName
+      displayName
     )
 
     log.info({ teacherId: teacher._id.toString() }, 'Password reset email sent')
@@ -611,9 +671,10 @@ async function acceptInvitation(invitationToken, newPassword) {
     )
 
     const { emailService } = await import('../../services/emailService.js')
+    const welcomeName = `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'משתמש';
     await emailService.sendWelcomeEmail(
       teacher.credentials.email,
-      teacher.personalInfo.fullName
+      welcomeName
     )
 
     const { accessToken, refreshToken } = await generateTokens({
@@ -644,11 +705,13 @@ async function acceptInvitation(invitationToken, newPassword) {
       refreshToken,
       teacher: {
         _id: teacher._id.toString(),
+        tenantId: teacher.tenantId || null,
         personalInfo: {
-          fullName: teacher.personalInfo.fullName,
-          email: teacher.personalInfo.email || teacher.credentials.email,
-          phone: teacher.personalInfo.phone,
-          address: teacher.personalInfo.address,
+          firstName: teacher.personalInfo?.firstName || '',
+          lastName: teacher.personalInfo?.lastName || '',
+          email: teacher.personalInfo?.email || teacher.credentials.email,
+          phone: teacher.personalInfo?.phone,
+          address: teacher.personalInfo?.address,
         },
         professionalInfo: teacher.professionalInfo,
         roles: teacher.roles,

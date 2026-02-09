@@ -16,6 +16,7 @@ export const orchestraController = {
 async function getOrchestras(req, res, next) {
   try {
     const filterBy = {
+      tenantId: req.context?.tenantId || null,
       name: req.query.name,
       type: req.query.type,
       conductorId: req.query.conductorId,
@@ -43,7 +44,10 @@ async function getOrchestraById(req, res, next) {
 
 async function addOrchestra(req, res, next) {
   try {
-    const orchestraToAdd = req.body
+    const orchestraToAdd = { ...req.body }
+    if (req.context?.tenantId && !orchestraToAdd.tenantId) {
+      orchestraToAdd.tenantId = req.context.tenantId
+    }
     const addedOrchestra = await orchestraService.addOrchestra(orchestraToAdd)
     res.status(201).json(addedOrchestra)
   } catch (err) {

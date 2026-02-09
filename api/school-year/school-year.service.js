@@ -12,10 +12,12 @@ export const schoolYearService = {
   rolloverToNewYear
 }
 
-async function getSchoolYears() {
+async function getSchoolYears(tenantId = null) {
   try {
     const collection = await getCollection('school_year')
-    const query = collection.find({ isActive: true })
+    const filter = { isActive: true }
+    if (tenantId) filter.tenantId = tenantId
+    const query = collection.find(filter)
     const sorted = query.sort({ startDate: -1 })
     const limited = sorted.limit(4)
     return await limited.toArray()
@@ -43,10 +45,12 @@ async function getSchoolYearById(schoolYearId) {
   }
 }
 
-async function getCurrentSchoolYear() {
+async function getCurrentSchoolYear(tenantId = null) {
   try {
     const collection = await getCollection('school_year')
-    const schoolYear = await collection.findOne({ isCurrent: true })
+    const filter = { isCurrent: true }
+    if (tenantId) filter.tenantId = tenantId
+    const schoolYear = await collection.findOne(filter)
 
     if (!schoolYear) {
       const currentYear = new Date().getFullYear()
@@ -84,11 +88,13 @@ async function createSchoolYear(schoolYearData) {
     
     const value = validationResult.value
 
-    // If this is a current year, update other years to not be current
+    // If this is a current year, update other years to not be current (scoped by tenant)
     if (value.isCurrent) {
       const collection = await getCollection('school_year')
+      const unsetFilter = { isCurrent: true }
+      if (value.tenantId) unsetFilter.tenantId = value.tenantId
       await collection.updateMany(
-        { isCurrent: true },
+        unsetFilter,
         { $set: { isCurrent: false, updatedAt: new Date() } }
       )
     }
@@ -120,11 +126,13 @@ async function updateSchoolYear(schoolYearId, schoolYearData) {
     const value = validationResult.value
     value.updatedAt = new Date()
 
-    // If this is becoming the current year, update other years
+    // If this is becoming the current year, update other years (scoped by tenant)
     if (value.isCurrent) {
-      const collection = await getCollection('school_year') 
+      const collection = await getCollection('school_year')
+      const unsetFilter = { _id: { $ne: ObjectId.createFromHexString(schoolYearId) }, isCurrent: true }
+      if (value.tenantId) unsetFilter.tenantId = value.tenantId
       await collection.updateMany(
-        { _id: { $ne: ObjectId.createFromHexString(schoolYearId) }, isCurrent: true },
+        unsetFilter,
         { $set: { isCurrent: false, updatedAt: new Date() } }
       )
     }
@@ -149,12 +157,25 @@ async function updateSchoolYear(schoolYearId, schoolYearData) {
   }
 }
 
-async function setCurrentSchoolYear(schoolYearId) {
+async function setCurrentSchoolYear(schoolYearId, tenantId = null) {
   try {
-    // First, set all school years to not current
     const collection = await getCollection('school_year')
+
+    // First, get the target school year to determine its tenantId
+    const target = await collection.findOne({
+      _id: ObjectId.createFromHexString(schoolYearId)
+    })
+    if (!target) {
+      throw new Error(`School year with id ${schoolYearId} not found`)
+    }
+
+    // Use provided tenantId or the target's tenantId — scope the unset to this tenant only
+    const scopeTenantId = tenantId || target.tenantId
+    const unsetFilter = { isCurrent: true }
+    if (scopeTenantId) unsetFilter.tenantId = scopeTenantId
+
     await collection.updateMany(
-      { isCurrent: true },
+      unsetFilter,
       { $set: { isCurrent: false, updatedAt: new Date() } }
     )
 
@@ -165,11 +186,6 @@ async function setCurrentSchoolYear(schoolYearId) {
       { returnDocument: 'after' }
     )
 
-    // Check if found
-    if (!result) {
-      throw new Error(`School year with id ${schoolYearId} not found`)
-    }
-    
     return result
   } catch (err) {
     console.error(`Error in schoolYearService.setCurrentSchoolYear: ${err}`)

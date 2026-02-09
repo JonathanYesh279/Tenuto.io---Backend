@@ -315,7 +315,7 @@ class CascadeJobProcessor extends EventEmitter {
     };
 
     const collections = [
-      { name: 'teacher', studentRefFields: ['teaching.studentIds', 'teaching.timeBlocks.assignedLessons.studentId'] },
+      { name: 'teacher', studentRefFields: ['teaching.timeBlocks.assignedLessons.studentId'] },
       { name: 'orchestra', studentRefFields: ['memberIds'] },
       { name: 'theory_lesson', studentRefFields: ['studentIds'] },
       { name: 'rehearsal', studentRefFields: ['attendance.studentId'] },
@@ -401,35 +401,9 @@ class CascadeJobProcessor extends EventEmitter {
     try {
       if (fieldPath.includes('.')) {
         const [parentField, childField] = fieldPath.split('.');
-        
-        // Special case for teaching.studentIds - it's an object with an array property
-        if (parentField === 'teaching' && childField === 'studentIds') {
-          const docs = await db.collection(collectionName)
-            .find({ 'teaching.studentIds': { $exists: true, $ne: [] } })
-            .toArray();
 
-          for (const doc of docs) {
-            const studentIds = doc.teaching?.studentIds || [];
-            // Ensure it's an array before iterating
-            if (Array.isArray(studentIds)) {
-              for (const studentId of studentIds) {
-                if (studentId) {
-                  const studentExists = await db.collection('student')
-                    .findOne({ _id: new ObjectId(studentId), isActive: true });
-                  
-                  if (!studentExists) {
-                    orphans.push({
-                      documentId: doc._id,
-                      orphanedId: studentId,
-                      fieldPath
-                    });
-                  }
-                }
-              }
-            }
-          }
-        } else {
-          // Handle nested fields like 'attendance.studentId' where attendance is an array
+        // Handle nested fields like 'attendance.studentId' where attendance is an array
+        {
           const docs = await db.collection(collectionName)
             .find({ [parentField]: { $exists: true, $ne: [] } })
             .toArray();
@@ -526,30 +500,18 @@ class CascadeJobProcessor extends EventEmitter {
         for (const orphan of orphans) {
           if (fieldPath.includes('.')) {
             const [parentField, childField] = fieldPath.split('.');
-            
-            // Special case for teaching.studentIds
-            if (parentField === 'teaching' && childField === 'studentIds') {
-              await db.collection(collectionName).updateOne(
-                { _id: orphan.documentId },
-                {
-                  $pull: { 'teaching.studentIds': orphan.orphanedId },
-                  $set: { 'cascadeMetadata.lastOrphanCleanup': new Date() }
+
+            // Handle nested array fields like attendance.studentId
+            await db.collection(collectionName).updateOne(
+              { _id: orphan.documentId },
+              {
+                $pull: {
+                  [parentField]: { [childField]: orphan.orphanedId }
                 },
-                { session }
-              );
-            } else {
-              // Handle nested array fields like attendance.studentId
-              await db.collection(collectionName).updateOne(
-                { _id: orphan.documentId },
-                {
-                  $pull: {
-                    [parentField]: { [childField]: orphan.orphanedId }
-                  },
-                  $set: { 'cascadeMetadata.lastOrphanCleanup': new Date() }
-                },
-                { session }
-              );
-            }
+                $set: { 'cascadeMetadata.lastOrphanCleanup': new Date() }
+              },
+              { session }
+            );
           } else {
             // Handle direct reference arrays
             await db.collection(collectionName).updateOne(
@@ -670,42 +632,43 @@ class CascadeJobProcessor extends EventEmitter {
     const issues = [];
     let issuesFound = 0;
 
-    // Check for students referenced in teachers but marked as deleted
-    const invalidTeacherRefs = await db.collection('teacher').aggregate([
+    // Check for students with active teacherAssignments referencing non-existent teachers
+    const invalidAssignments = await db.collection('student').aggregate([
+      { $match: { isActive: true, 'teacherAssignments.0': { $exists: true } } },
+      { $unwind: '$teacherAssignments' },
+      { $match: { 'teacherAssignments.isActive': { $ne: false } } },
       {
         $lookup: {
-          from: 'student',
-          localField: 'teaching.studentIds',
-          foreignField: '_id',
-          as: 'validStudents'
-        }
-      },
-      {
-        $project: {
-          invalidRefs: {
-            $filter: {
-              input: '$teaching.studentIds',
-              cond: {
-                $not: {
-                  $in: ['$$this', '$validStudents._id']
+          from: 'teacher',
+          let: { teacherId: '$teacherAssignments.teacherId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: [{ $toString: '$_id' }, '$$teacherId'] },
+                    { $eq: ['$isActive', true] }
+                  ]
                 }
               }
             }
-          }
+          ],
+          as: 'matchedTeacher'
         }
       },
-      { $match: { 'invalidRefs.0': { $exists: true } } }
+      { $match: { matchedTeacher: { $size: 0 } } },
+      { $group: { _id: null, count: { $sum: 1 } } }
     ]).toArray();
 
-    issuesFound += invalidTeacherRefs.length;
+    issuesFound += invalidAssignments[0]?.count || 0;
 
     return {
       issuesFound,
       details: {
-        invalidTeacherReferences: invalidTeacherRefs.length
+        orphanedTeacherAssignments: invalidAssignments[0]?.count || 0
       },
-      recommendations: invalidTeacherRefs.length > 0 ? 
-        ['Run orphaned reference cleanup to fix invalid teacher references'] : []
+      recommendations: issuesFound > 0 ?
+        ['Run orphaned reference cleanup to deactivate invalid teacher assignments'] : []
     };
   }
 

@@ -52,7 +52,7 @@ export async function previewCascadeDeletion(studentId, options = {}) {
       operationId,
       studentInfo: {
         id: studentId,
-        name: student.personalInfo?.fullName || 'Unknown',
+        name: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown',
         class: student.academicInfo?.class || 'Unknown',
         isActive: student.isActive !== false
       },
@@ -184,7 +184,7 @@ export async function executeCascadeDeletion(studentId, options = {}, adminInfo)
       operationId,
       studentInfo: {
         id: studentId,
-        name: student.personalInfo?.fullName || 'Unknown'
+        name: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown'
       },
       deletedRecords: {},
       preservedRecords: {},
@@ -220,7 +220,7 @@ export async function executeCascadeDeletion(studentId, options = {}, adminInfo)
             $set: { 
               preservedStudentInfo: {
                 studentId,
-                studentName: student.personalInfo?.fullName,
+                studentName: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim(),
                 preservedAt: new Date(),
                 preservedBy: adminInfo.id
               }
@@ -615,7 +615,7 @@ async function logDeletionOperation(operationId, action, data, adminInfo) {
       action,
       timestamp: new Date(),
       adminId: ObjectId.createFromHexString(adminInfo.id),
-      adminName: adminInfo.fullName,
+      adminName: adminInfo.displayName,
       entityType: 'student',
       entityId: data.studentInfo?.id,
       status: 'SUCCESS',

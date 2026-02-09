@@ -81,11 +81,11 @@ async function getTeacherAttendanceOverview(teacherId, dateRange = {}) {
 
     const students = await studentCollection
       .find({ _id: { $in: studentIds.map(id => ObjectId.createFromHexString(id)) } })
-      .project({ _id: 1, 'personalInfo.fullName': 1 })
+      .project({ _id: 1, 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 })
       .toArray();
 
     const studentLookup = students.reduce((acc, student) => {
-      acc[student._id.toString()] = student.personalInfo?.fullName || 'Unknown';
+      acc[student._id.toString()] = `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown';
       return acc;
     }, {});
 

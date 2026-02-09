@@ -25,20 +25,22 @@ export const cascadeDeletionAggregationService = {
       
       const activeStudentIds = activeStudents[0]?.activeStudentIds || [];
       
-      // Find orphaned references in teacher collection
+      // Find orphaned student references in teacher timeBlock lessons
       const teacherOrphans = await db.collection('teacher').aggregate([
         { $match: { isActive: true } },
-        { $unwind: '$teaching.studentIds' },
-        { 
-          $match: { 
-            'teaching.studentIds': { $nin: activeStudentIds }
-          } 
-        },
+        { $unwind: { path: '$teaching.timeBlocks', preserveNullAndEmptyArrays: false } },
+        { $unwind: { path: '$teaching.timeBlocks.assignedLessons', preserveNullAndEmptyArrays: false } },
+        { $match: { 'teaching.timeBlocks.assignedLessons.isActive': { $ne: false } } },
         {
           $group: {
-            _id: '$teaching.studentIds',
+            _id: '$teaching.timeBlocks.assignedLessons.studentId',
             referencedInTeachers: { $push: '$_id' },
             count: { $sum: 1 }
+          }
+        },
+        {
+          $match: {
+            _id: { $nin: activeStudentIds.map(id => id.toString()) }
           }
         },
         {
@@ -211,71 +213,53 @@ export const cascadeDeletionAggregationService = {
     const db = getDB();
     
     try {
-      // Student-Teacher relationship inconsistencies
+      // Student-Teacher assignment inconsistencies:
+      // Find active teacherAssignments referencing non-existent or inactive teachers
       const studentTeacherInconsistencies = await db.collection('student').aggregate([
-        { $match: { isActive: true } },
-        { $unwind: '$teacherIds' },
+        { $match: { isActive: true, 'teacherAssignments.0': { $exists: true } } },
+        { $unwind: '$teacherAssignments' },
+        { $match: { 'teacherAssignments.isActive': { $ne: false } } },
         {
           $lookup: {
             from: 'teacher',
-            let: { studentId: '$_id', teacherId: '$teacherIds' },
+            let: { teacherId: '$teacherAssignments.teacherId' },
             pipeline: [
               {
                 $match: {
                   $expr: {
                     $and: [
-                      { $eq: ['$_id', '$$teacherId'] },
-                      { $eq: ['$isActive', true] },
-                      { $not: { $in: ['$$studentId', '$teaching.studentIds'] } }
+                      { $eq: [{ $toString: '$_id' }, '$$teacherId'] },
+                      { $eq: ['$isActive', true] }
                     ]
                   }
                 }
               }
             ],
-            as: 'inconsistentTeacher'
+            as: 'matchedTeacher'
           }
         },
-        { $match: { inconsistentTeacher: { $ne: [] } } },
+        { $match: { matchedTeacher: { $size: 0 } } },
         {
           $project: {
             studentId: '$_id',
-            teacherId: '$teacherIds',
-            issue: 'Student references teacher but teacher does not reference student',
+            teacherId: '$teacherAssignments.teacherId',
+            issue: 'Student has active assignment referencing non-existent or inactive teacher',
             _id: 0
           }
         }
       ]).toArray();
 
-      // Teacher-Student relationship inconsistencies  
-      const teacherStudentInconsistencies = await db.collection('teacher').aggregate([
-        { $match: { isActive: true } },
-        { $unwind: '$teaching.studentIds' },
-        {
-          $lookup: {
-            from: 'student',
-            let: { teacherId: '$_id', studentId: '$teaching.studentIds' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: {
-                    $and: [
-                      { $eq: ['$_id', '$$studentId'] },
-                      { $eq: ['$isActive', true] },
-                      { $not: { $in: ['$$teacherId', '$teacherIds'] } }
-                    ]
-                  }
-                }
-              }
-            ],
-            as: 'inconsistentStudent'
-          }
-        },
-        { $match: { inconsistentStudent: { $ne: [] } } },
+      // Teacher-Student assignment inconsistencies:
+      // Find inactive students that still have active teacherAssignments
+      const teacherStudentInconsistencies = await db.collection('student').aggregate([
+        { $match: { isActive: false, 'teacherAssignments.0': { $exists: true } } },
+        { $unwind: '$teacherAssignments' },
+        { $match: { 'teacherAssignments.isActive': { $ne: false } } },
         {
           $project: {
-            teacherId: '$_id',
-            studentId: '$teaching.studentIds',
-            issue: 'Teacher references student but student does not reference teacher',
+            studentId: '$_id',
+            teacherId: '$teacherAssignments.teacherId',
+            issue: 'Inactive student has active teacher assignment',
             _id: 0
           }
         }
@@ -431,22 +415,18 @@ export const cascadeDeletionAggregationService = {
         throw new Error(`Student with ID ${studentId} not found`);
       }
 
-      // Find all teacher relationships
+      // Find all teacher relationships via timeBlock lessons
       const teacherImpact = await db.collection('teacher').aggregate([
         {
           $match: {
-            $or: [
-              { 'teaching.studentIds': studentObjectId },
-              { 'teaching.timeBlocks.assignedLessons.studentId': studentId }
-            ],
+            'teaching.timeBlocks.assignedLessons.studentId': studentId,
             isActive: true
           }
         },
         {
           $project: {
             teacherId: '$_id',
-            teacherName: { $concat: ['$personalInfo.firstName', ' ', '$personalInfo.lastName'] },
-            studentInTeaching: { $in: [studentObjectId, '$teaching.studentIds'] },
+            teacherName: { $concat: [{ $ifNull: ['$personalInfo.firstName', ''] }, ' ', { $ifNull: ['$personalInfo.lastName', ''] }] },
             timeBlockLessonsCount: {
               $size: {
                 $reduce: {
@@ -589,7 +569,7 @@ export const cascadeDeletionAggregationService = {
           name: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim(),
           isActive: student.isActive,
           currentReferences: {
-            teachers: student.teacherIds?.length || 0,
+            teachers: [...new Set((student.teacherAssignments || []).filter(a => a.isActive !== false).map(a => a.teacherId))].length,
             orchestras: student.orchestraIds?.length || 0,
             hasBagrut: !!student.bagrutId
           }
@@ -702,42 +682,34 @@ export const cascadeDeletionAggregationService = {
   async findDuplicateReferences() {
     const db = getDB();
     
-    // Find duplicate student IDs in teacher.teaching.studentIds
-    const teacherDuplicates = await db.collection('teacher').aggregate([
-      { $match: { isActive: true } },
+    // Find students with duplicate teacherAssignments (same teacherId appearing multiple times as active)
+    const assignmentDuplicates = await db.collection('student').aggregate([
+      { $match: { isActive: true, 'teacherAssignments.0': { $exists: true } } },
+      { $unwind: '$teacherAssignments' },
+      { $match: { 'teacherAssignments.isActive': { $ne: false } } },
       {
-        $project: {
-          teacherId: '$_id',
-          studentIds: '$teaching.studentIds',
-          duplicateStudents: {
-            $filter: {
-              input: '$teaching.studentIds',
-              cond: {
-                $gt: [
-                  {
-                    $size: {
-                      $filter: {
-                        input: '$teaching.studentIds',
-                        cond: { $eq: ['$$this', '$$item'] }
-                      }
-                    }
-                  },
-                  1
-                ]
-              }
-            }
-          }
+        $group: {
+          _id: { studentId: '$_id', teacherId: '$teacherAssignments.teacherId' },
+          count: { $sum: 1 }
         }
       },
-      { $match: { duplicateStudents: { $ne: [] } } }
+      { $match: { count: { $gt: 1 } } },
+      {
+        $project: {
+          studentId: '$_id.studentId',
+          teacherId: '$_id.teacherId',
+          duplicateCount: '$count',
+          _id: 0
+        }
+      }
     ]).toArray();
 
     return {
       summary: {
-        totalDuplicates: teacherDuplicates.length
+        totalDuplicates: assignmentDuplicates.length
       },
       details: {
-        teacherDuplicates
+        assignmentDuplicates
       }
     };
   },
@@ -771,7 +743,7 @@ export const cascadeDeletionAggregationService = {
     const actions = [];
     
     if (impact.teacherImpact.length > 0) {
-      actions.push('Remove student references from teacher.teaching.studentIds arrays');
+      actions.push('Deactivate student teacherAssignments');
       actions.push('Clear schedule slots assigned to this student');
     }
     

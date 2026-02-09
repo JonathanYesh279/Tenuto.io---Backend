@@ -26,9 +26,12 @@ export async function addSchoolYearToRequest(req, res, next) {
       }
     }
 
-    // Otherwise, get the current school year
+    // Otherwise, get the current school year (scoped by tenant if available)
     const collection = await getCollection('school_year')
-    let schoolYear = await collection.findOne({ isCurrent: true })
+    const tenantId = req.teacher?.tenantId || req.loggedinUser?.tenantId || null
+    const currentFilter = { isCurrent: true }
+    if (tenantId) currentFilter.tenantId = tenantId
+    let schoolYear = await collection.findOne(currentFilter)
 
     // If no current year exists, create a default one
     if (!schoolYear) {
@@ -42,6 +45,7 @@ export async function addSchoolYearToRequest(req, res, next) {
         createdAt: new Date(),
         updatedAt: new Date()
       }
+      if (tenantId) defaultYear.tenantId = tenantId
 
       const result = await collection.insertOne(defaultYear)
       schoolYear = {

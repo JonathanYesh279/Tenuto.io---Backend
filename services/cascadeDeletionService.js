@@ -132,7 +132,7 @@ async function createDeletionSnapshot(studentId) {
           
         case 'teacher':
           snapshot.data.teachers = await collection.find({
-            'teaching.studentIds': studentId
+            'teaching.timeBlocks.assignedLessons.studentId': studentId
           }).toArray();
           break;
           
@@ -194,27 +194,47 @@ async function executeStudentCascade(studentId, session, options = {}) {
   const affectedCollections = new Set();
 
   try {
-    // 1. Clean up teacher relationships
-    const teacherCollection = await getCollection('teacher');
-    const teacherUpdateResult = await teacherCollection.updateMany(
-      { 'teaching.studentIds': studentId },
-      { 
-        $pull: { 'teaching.studentIds': studentId },
-        $set: { 
-          'teaching.lastModified': new Date(),
-          'schedules.$[schedule].isActive': false 
+    // 1. Deactivate student's teacherAssignments
+    const studentCollection2 = await getCollection('student');
+    const assignmentDeactivation = await studentCollection2.updateOne(
+      { _id: studentId },
+      {
+        $set: {
+          'teacherAssignments.$[elem].isActive': false,
+          'teacherAssignments.$[elem].endDate': new Date(),
+          'teacherAssignments.$[elem].updatedAt': new Date()
         }
       },
-      { 
+      {
         session,
-        arrayFilters: [{ 'schedule.studentId': studentId }]
+        arrayFilters: [{ 'elem.isActive': { $ne: false } }]
       }
     );
-    
+
+    // 1b. Deactivate teacher timeBlock lessons for this student
+    const teacherCollection = await getCollection('teacher');
+    const teacherUpdateResult = await teacherCollection.updateMany(
+      { 'teaching.timeBlocks.assignedLessons.studentId': studentId },
+      {
+        $set: {
+          'teaching.timeBlocks.$[block].assignedLessons.$[lesson].isActive': false,
+          'teaching.timeBlocks.$[block].assignedLessons.$[lesson].endDate': new Date(),
+          'teaching.lastModified': new Date()
+        }
+      },
+      {
+        session,
+        arrayFilters: [
+          { 'block.assignedLessons.studentId': studentId },
+          { 'lesson.studentId': studentId }
+        ]
+      }
+    );
+
     operations.push({
       collection: 'teacher',
       operation: 'updateMany',
-      filter: 'teaching.studentIds',
+      filter: 'teaching.timeBlocks.assignedLessons.studentId',
       modifiedCount: teacherUpdateResult.modifiedCount
     });
     operationCounts.teachersModified = teacherUpdateResult.modifiedCount;
@@ -417,20 +437,26 @@ async function cleanupOrphanedReferences(dryRun = true) {
     ).toArray();
     const activeStudentIds = new Set(activeStudents.map(s => s._id.toString()));
 
-    // Check teacher references
+    // Check for orphaned teacherAssignments (referencing non-existent/inactive teachers)
     const teacherCollection = await getCollection('teacher');
-    const teachersWithStudents = await teacherCollection.find({
-      'teaching.studentIds': { $exists: true, $ne: [] }
+    const activeTeachers = await teacherCollection.find(
+      { isActive: { $ne: false } },
+      { projection: { _id: 1 } }
+    ).toArray();
+    const activeTeacherIds = new Set(activeTeachers.map(t => t._id.toString()));
+
+    const studentsWithAssignments = await studentCollection.find({
+      'teacherAssignments.0': { $exists: true }
     }).toArray();
 
-    for (const teacher of teachersWithStudents) {
-      const orphanedIds = teacher.teaching.studentIds.filter(
-        id => !activeStudentIds.has(id.toString())
-      );
-      if (orphanedIds.length > 0) {
+    for (const student of studentsWithAssignments) {
+      const orphanedTeacherIds = (student.teacherAssignments || [])
+        .filter(a => a.isActive !== false && !activeTeacherIds.has(a.teacherId))
+        .map(a => a.teacherId);
+      if (orphanedTeacherIds.length > 0) {
         findings.orphanedTeacherReferences.push({
-          teacherId: teacher._id,
-          orphanedStudentIds: orphanedIds
+          studentId: student._id,
+          orphanedTeacherIds
         });
       }
     }
@@ -462,13 +488,24 @@ async function cleanupOrphanedReferences(dryRun = true) {
       
       try {
         await session.withTransaction(async () => {
-          // Clean teacher references
+          // Deactivate orphaned teacherAssignments
           for (const item of findings.orphanedTeacherReferences) {
-            await teacherCollection.updateOne(
-              { _id: item.teacherId },
-              { $pullAll: { 'teaching.studentIds': item.orphanedStudentIds } },
-              { session }
-            );
+            for (const teacherId of item.orphanedTeacherIds) {
+              await studentCollection.updateOne(
+                { _id: item.studentId },
+                {
+                  $set: {
+                    'teacherAssignments.$[elem].isActive': false,
+                    'teacherAssignments.$[elem].endDate': new Date(),
+                    'teacherAssignments.$[elem].updatedAt': new Date()
+                  }
+                },
+                {
+                  arrayFilters: [{ 'elem.teacherId': teacherId, 'elem.isActive': { $ne: false } }],
+                  session
+                }
+              );
+            }
           }
 
           // Clean orchestra references
@@ -533,7 +570,7 @@ async function validateDeletionImpact(studentId) {
       
       switch (collectionName) {
         case 'teacher':
-          count = await collection.countDocuments({ 'teaching.studentIds': studentId });
+          count = await collection.countDocuments({ 'teaching.timeBlocks.assignedLessons.studentId': studentId });
           break;
         case 'orchestra':
           count = await collection.countDocuments({ memberIds: studentId });

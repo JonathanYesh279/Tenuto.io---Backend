@@ -1,6 +1,7 @@
 import Joi from 'joi'
 
 export const schoolYearSchema = Joi.object({
+  tenantId: Joi.string().optional(),
   name: Joi.string().required(),
   startDate: Joi.date().required(),
   endDate: Joi.date().required(),

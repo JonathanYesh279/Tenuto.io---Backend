@@ -18,8 +18,9 @@ export class DuplicateDetectionService {
       const collection = await getCollection('teacher');
       const { personalInfo } = teacherData;
       
-      // Normalize data for comparison
-      const normalizedName = this.normalizeName(personalInfo.fullName);
+      // Normalize data for comparison — supports both old (fullName) and new (firstName+lastName) schemas
+      const composedName = personalInfo.fullName || `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
+      const normalizedName = this.normalizeName(composedName);
       const normalizedPhone = this.normalizePhone(personalInfo.phone);
       const normalizedAddress = this.normalizeAddress(personalInfo.address);
       const normalizedEmail = personalInfo.email?.toLowerCase().trim();
@@ -77,17 +78,17 @@ export class DuplicateDetectionService {
           ...baseQuery,
           $and: [
             { 'personalInfo.phone': normalizedPhone },
-            { 'personalInfo.fullName': { $regex: this.createNameRegex(normalizedName), $options: 'i' } }
+            this._nameMatchCondition(this.createNameRegex(normalizedName))
           ]
         }).toArray();
-        
+
         if (namePhoneDuplicates.length > 0) {
           duplicateChecks.push({
             type: 'NAME_PHONE_DUPLICATE',
             severity: 'HIGH',
-            message: `Teacher with same name "${personalInfo.fullName}" and phone number "${personalInfo.phone}" already exists`,
+            message: `Teacher with same name "${composedName}" and phone number "${personalInfo.phone}" already exists`,
             matches: namePhoneDuplicates.map(t => this.formatTeacherMatch(t)),
-            conflictingFields: ['fullName', 'phone']
+            conflictingFields: ['name', 'phone']
           });
         }
       }
@@ -97,18 +98,18 @@ export class DuplicateDetectionService {
         const nameAddressDuplicates = await collection.find({
           ...baseQuery,
           $and: [
-            { 'personalInfo.fullName': { $regex: this.createNameRegex(normalizedName), $options: 'i' } },
+            this._nameMatchCondition(this.createNameRegex(normalizedName)),
             { 'personalInfo.address': { $regex: this.createAddressRegex(normalizedAddress), $options: 'i' } }
           ]
         }).toArray();
-        
+
         if (nameAddressDuplicates.length > 0) {
           duplicateChecks.push({
             type: 'NAME_ADDRESS_DUPLICATE',
             severity: 'MEDIUM',
-            message: `Teacher with same name "${personalInfo.fullName}" and similar address "${personalInfo.address}" already exists`,
+            message: `Teacher with same name "${composedName}" and similar address "${personalInfo.address}" already exists`,
             matches: nameAddressDuplicates.map(t => this.formatTeacherMatch(t)),
-            conflictingFields: ['fullName', 'address']
+            conflictingFields: ['name', 'address']
           });
         }
       }
@@ -139,19 +140,19 @@ export class DuplicateDetectionService {
         const tripleDuplicates = await collection.find({
           ...baseQuery,
           $and: [
-            { 'personalInfo.fullName': { $regex: this.createNameRegex(normalizedName), $options: 'i' } },
+            this._nameMatchCondition(this.createNameRegex(normalizedName)),
             { 'personalInfo.phone': normalizedPhone },
             { 'personalInfo.address': { $regex: this.createAddressRegex(normalizedAddress), $options: 'i' } }
           ]
         }).toArray();
-        
+
         if (tripleDuplicates.length > 0) {
           duplicateChecks.push({
             type: 'FULL_PROFILE_DUPLICATE',
             severity: 'CRITICAL',
             message: `Teacher with identical profile (name, phone, and address) already exists`,
             matches: tripleDuplicates.map(t => this.formatTeacherMatch(t)),
-            conflictingFields: ['fullName', 'phone', 'address']
+            conflictingFields: ['name', 'phone', 'address']
           });
         }
       }
@@ -166,7 +167,7 @@ export class DuplicateDetectionService {
             severity: 'LOW',
             message: `Teachers with similar names found`,
             matches: similarNameDuplicates.map(t => this.formatTeacherMatch(t)),
-            conflictingField: 'fullName',
+            conflictingField: 'name',
             note: 'These may be different people, but please verify'
           });
         }
@@ -257,6 +258,18 @@ export class DuplicateDetectionService {
   static escapeRegex(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
+
+  /**
+   * Build a name match condition that works with both old (fullName) and new (firstName+lastName) schemas
+   */
+  static _nameMatchCondition(nameRegex) {
+    return {
+      $or: [
+        { 'personalInfo.fullName': { $regex: nameRegex, $options: 'i' } },
+        { $expr: { $regexMatch: { input: { $concat: [{ $ifNull: ['$personalInfo.firstName', ''] }, ' ', { $ifNull: ['$personalInfo.lastName', ''] }] }, regex: nameRegex, options: 'i' } } }
+      ]
+    };
+  }
   
   /**
    * Find similar names using fuzzy matching
@@ -269,16 +282,15 @@ export class DuplicateDetectionService {
     const similarTeachers = [];
     
     for (const word of words) {
+      const wordRegex = this.escapeRegex(word);
       const matches = await collection.find({
         ...baseQuery,
-        'personalInfo.fullName': { 
-          $regex: this.escapeRegex(word), 
-          $options: 'i' 
-        }
+        ...this._nameMatchCondition(wordRegex)
       }).toArray();
-      
+
       matches.forEach(teacher => {
-        const existingSimilarity = this.calculateNameSimilarity(normalizedName, this.normalizeName(teacher.personalInfo.fullName));
+        const teacherName = teacher.personalInfo?.fullName || `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim();
+        const existingSimilarity = this.calculateNameSimilarity(normalizedName, this.normalizeName(teacherName));
         if (existingSimilarity > 0.6 && existingSimilarity < 0.95) { // Similar but not exact
           if (!similarTeachers.find(t => t._id.equals(teacher._id))) {
             similarTeachers.push(teacher);
@@ -309,7 +321,9 @@ export class DuplicateDetectionService {
   static formatTeacherMatch(teacher) {
     return {
       id: teacher._id.toString(),
-      fullName: teacher.personalInfo?.fullName,
+      firstName: teacher.personalInfo?.firstName || '',
+      lastName: teacher.personalInfo?.lastName || '',
+      name: `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || teacher.personalInfo?.fullName || '',
       email: teacher.personalInfo?.email,
       phone: teacher.personalInfo?.phone,
       address: teacher.personalInfo?.address,

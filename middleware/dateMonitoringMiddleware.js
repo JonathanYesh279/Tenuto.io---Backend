@@ -19,7 +19,7 @@ export const monitorDateOperations = (operationType = 'api_request') => {
       method: req.method,
       path: req.path,
       query: req.query,
-      hasDateParams: this._hasDateParameters(req),
+      hasDateParams: _hasDateParameters(req),
       userAgent: req.get('User-Agent'),
       ip: req.ip
     };
@@ -32,7 +32,7 @@ export const monitorDateOperations = (operationType = 'api_request') => {
       try {
         // Determine if operation was successful
         const isSuccess = res.statusCode >= 200 && res.statusCode < 300;
-        const hasDateData = this._hasDateData(data);
+        const hasDateData = _hasDateData(data);
         
         // Log the operation
         dateMonitoringService.logDateOperation(operationType, {

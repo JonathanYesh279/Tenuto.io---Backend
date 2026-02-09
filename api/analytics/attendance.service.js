@@ -89,7 +89,7 @@ async function getStudentAttendanceStats(studentId, options = {}) {
 
     const result = {
       studentId,
-      studentName: student.personalInfo?.fullName,
+      studentName: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown',
       period: {
         startDate: startDate || 'Beginning',
         endDate: endDate || 'Now'
@@ -176,7 +176,7 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
 
     const analytics = {
       teacherId,
-      teacherName: teacher.personalInfo?.fullName,
+      teacherName: `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'Unknown',
       instrument: teacher.professionalInfo?.instrument,
       period: {
         startDate: startDate || 'Beginning',
@@ -197,11 +197,11 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
       const studentIds = [...new Set(records.map(r => r.studentId))];
       const students = await studentCollection
         .find({ _id: { $in: studentIds.map(id => ObjectId.createFromHexString(id)) } })
-        .project({ _id: 1, 'personalInfo.fullName': 1 })
+        .project({ _id: 1, 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 })
         .toArray();
 
       const studentLookup = students.reduce((acc, student) => {
-        acc[student._id.toString()] = student.personalInfo?.fullName || 'Unknown';
+        acc[student._id.toString()] = `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown';
         return acc;
       }, {});
 

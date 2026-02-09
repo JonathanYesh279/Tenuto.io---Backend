@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import { authenticateToken } from './middleware/auth.middleware.js';
 import { addSchoolYearToRequest } from './middleware/school-year.middleware.js';
+import { buildContext } from './middleware/tenant.middleware.js';
 import { validateEnvironment } from './config/validateEnv.js';
 import logger from './services/logger.service.js';
 import healthRoutes from './api/health/health.route.js';
@@ -35,6 +36,11 @@ import cascadeDeletionRoutes from './api/admin/cascade-deletion.routes.js';
 import cleanupRoutes from './api/admin/cleanup.route.js';
 import lessonRoutes from './api/lesson/lesson.route.js';
 import { invitationController } from './api/teacher/invitation.controller.js';
+import tenantRoutes from './api/tenant/tenant.route.js';
+import hoursSummaryRoutes from './api/hours-summary/hours-summary.route.js';
+import importRoutes from './api/import/import.route.js';
+import exportRoutes from './api/export/export.route.js';
+import superAdminRoutes from './api/super-admin/super-admin.route.js';
 import { cascadeSystemInitializer } from './services/cascadeSystemInitializer.js';
 import { errorHandler } from './middleware/error.handler.js';
 
@@ -122,14 +128,22 @@ app.get('/api/config', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use(
+  '/api/tenant',
+  authenticateToken,
+  buildContext,
+  tenantRoutes
+);
+app.use(
   '/api/student',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   studentRoutes
 );
 app.use(
   '/api/teacher',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   teacherRoutes
 );
@@ -137,85 +151,122 @@ app.use(
 app.use(
   '/api/teachers',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   teacherRoutes
 );
 app.use(
   '/api/orchestra',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   orchestraRoutes
 );
 app.use(
   '/api/rehearsal',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   rehearsalRoutes
 );
-app.use('/api/theory', authenticateToken, addSchoolYearToRequest, theoryRoutes);
-app.use('/api/bagrut', authenticateToken, addSchoolYearToRequest, bagrutRoutes);
+app.use('/api/theory', authenticateToken, buildContext, addSchoolYearToRequest, theoryRoutes);
+app.use('/api/bagrut', authenticateToken, buildContext, addSchoolYearToRequest, bagrutRoutes);
 app.use(
   '/api/school-year',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   schoolYearRoutes
 );
 app.use(
   '/api/schedule',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   scheduleRoutes
 );
 app.use(
   '/api',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   timeBlockRoutes
 );
 app.use(
   '/api/attendance',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   attendanceRoutes
 );
 app.use(
   '/api/analytics',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   analyticsRoutes
 );
 app.use(
   '/api/admin/consistency-validation',
   authenticateToken,
+  buildContext,
   adminValidationRoutes
 );
 app.use(
   '/api/admin/date-monitoring',
   authenticateToken,
+  buildContext,
   dateMonitoringRoutes
 );
 app.use(
   '/api/admin/past-activities',
   authenticateToken,
+  buildContext,
   pastActivitiesRoutes
 );
 app.use(
   '/api/admin',
   authenticateToken,
+  buildContext,
   cascadeDeletionRoutes
 );
 app.use(
   '/api/admin/cleanup',
   authenticateToken,
+  buildContext,
   cleanupRoutes
 );
-app.use('/api/files', authenticateToken, fileRoutes);
+app.use('/api/files', authenticateToken, buildContext, fileRoutes);
+app.use(
+  '/api/hours-summary',
+  authenticateToken,
+  buildContext,
+  addSchoolYearToRequest,
+  hoursSummaryRoutes
+);
+app.use(
+  '/api/import',
+  authenticateToken,
+  buildContext,
+  importRoutes
+);
+app.use(
+  '/api/export',
+  authenticateToken,
+  buildContext,
+  addSchoolYearToRequest,
+  exportRoutes
+);
 app.use(
   '/api/lessons',
   authenticateToken,
+  buildContext,
   addSchoolYearToRequest,
   lessonRoutes
 );
+
+// Super admin routes (auth handled internally)
+app.use('/api/super-admin', superAdminRoutes);
 
 // Health check endpoints (no auth required)
 app.use('/api/health', healthRoutes);

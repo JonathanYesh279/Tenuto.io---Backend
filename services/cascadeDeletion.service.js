@@ -197,10 +197,7 @@ export const cascadeDeletionService = {
         db.collection('student').findOne({ _id: studentId }, { session }),
         
         db.collection('teacher').find({
-          $or: [
-            { 'teaching.studentIds': studentId },
-            { 'teaching.timeBlocks.assignedLessons.studentId': studentId }
-          ],
+          'teaching.timeBlocks.assignedLessons.studentId': studentId,
           isActive: true
         }, { session }).toArray(),
 
@@ -254,10 +251,7 @@ export const cascadeDeletionService = {
     try {
       // First, get affected teachers for reporting
       const affectedTeachers = await db.collection('teacher').find({
-        $or: [
-          { 'teaching.studentIds': studentId },
-          { 'teaching.timeBlocks.assignedLessons.studentId': studentId }
-        ],
+        'teaching.timeBlocks.assignedLessons.studentId': studentId,
         isActive: true
       }, { session }).toArray();
 
@@ -266,9 +260,7 @@ export const cascadeDeletionService = {
 
       // Count removals for reporting
       affectedTeachers.forEach(teacher => {
-        if (teacher.teaching?.studentIds?.includes(studentId)) {
-          studentsRemoved++;
-        }
+        studentsRemoved++;
         if (teacher.teaching?.timeBlocks) {
           teacher.teaching.timeBlocks.forEach(block => {
             if (block.assignedLessons) {
@@ -279,19 +271,6 @@ export const cascadeDeletionService = {
           });
         }
       });
-
-      // Remove student from teaching.studentIds arrays
-      const studentIdsUpdate = await db.collection('teacher').updateMany(
-        {
-          'teaching.studentIds': studentId,
-          isActive: true
-        },
-        {
-          $pull: { 'teaching.studentIds': studentId },
-          $set: { 'cascadeMetadata.lastUpdated': new Date() }
-        },
-        { session }
-      );
 
       // Deactivate student lessons in timeBlocks
       const timeBlockUpdate = await db.collection('teacher').updateMany(
@@ -317,9 +296,9 @@ export const cascadeDeletionService = {
       );
 
       return {
-        modifiedCount: Math.max(studentIdsUpdate.modifiedCount, timeBlockUpdate.modifiedCount),
+        modifiedCount: timeBlockUpdate.modifiedCount,
         studentsRemoved,
-        timeBlockLessonsDeactivated,
+        scheduleSlotsFreed: timeBlockLessonsDeactivated,
         affectedTeachers: affectedTeachers.map(t => t._id)
       };
       
@@ -577,34 +556,40 @@ export const cascadeDeletionService = {
         // Step 2: Restore relationships based on snapshot
         const restorationOperations = [];
         
-        // Restore teacher relationships
-        for (const teacher of snapshot.relatedData.teachers) {
-          const teacherUpdate = {
-            $addToSet: {},
-            $set: { 'cascadeMetadata.lastUpdated': new Date() }
-          };
-          
-          if (teacher.teaching?.studentIds?.includes(studentObjectId)) {
-            teacherUpdate.$addToSet['teaching.studentIds'] = studentObjectId;
-          }
-          
-          // Note: Schedule restoration would need more complex logic
-          // as time slots might now be occupied
-          
-          if (Object.keys(teacherUpdate.$addToSet).length > 0) {
-            await db.collection('teacher').updateOne(
-              { _id: teacher._id },
-              teacherUpdate,
-              { session }
+        // Restore teacher relationships (reactivate student's teacherAssignments)
+        if (snapshot.student?.teacherAssignments?.length > 0) {
+          const teacherIds = [...new Set(
+            snapshot.student.teacherAssignments
+              .filter(a => a.isActive !== false)
+              .map(a => a.teacherId)
+          )];
+
+          if (teacherIds.length > 0) {
+            // Reactivate the student's assignments
+            await db.collection('student').updateOne(
+              { _id: studentObjectId },
+              {
+                $set: {
+                  'teacherAssignments.$[elem].isActive': true,
+                  'teacherAssignments.$[elem].updatedAt': new Date()
+                }
+              },
+              {
+                arrayFilters: [{ 'elem.isActive': false }],
+                session
+              }
             );
-            
+
             restorationOperations.push({
-              collection: 'teacher',
-              operation: 'restore_student_reference',
-              teacherId: teacher._id
+              collection: 'student',
+              operation: 'restore_teacher_assignments',
+              teacherIds
             });
           }
         }
+
+        // Note: Schedule/timeBlock restoration would need more complex logic
+        // as time slots might now be occupied
         
         // Restore orchestra memberships
         for (const orchestra of snapshot.relatedData.orchestras) {

@@ -1,53 +1,13 @@
 import Joi from 'joi';
-
-const VALID_CLASSES = [
-  'א',
-  'ב',
-  'ג',
-  'ד',
-  'ה',
-  'ו',
-  'ז',
-  'ח',
-  'ט',
-  'י',
-  'יא',
-  'יב',
-  'אחר',
-];
-const VALID_STAGES = [1, 2, 3, 4, 5, 6, 7, 8];
-const VALID_INSTRUMENTS = [
-  'חלילית',
-  'חליל צד',
-  'אבוב',
-  'בסון',
-  'סקסופון',
-  'קלרינט',
-  'חצוצרה',
-  'קרן יער',
-  'טרומבון',
-  'טובה/בריטון',
-  'שירה',
-  'כינור',
-  'ויולה',
-  "צ'לו",
-  'קונטרבס',
-  'פסנתר',
-  'גיטרה',
-  'גיטרה בס',
-  'תופים',
-];
-
-const VALID_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
-const VALID_DURATIONS = [30, 45, 60];
-// Update the test statuses to include the new options
-const TEST_STATUSES = [
-  'לא נבחן',
-  'עבר/ה',
-  'לא עבר/ה',
-  'עבר/ה בהצטיינות',
-  'עבר/ה בהצטיינות יתרה',
-];
+import {
+  VALID_INSTRUMENTS,
+  VALID_CLASSES,
+  VALID_STAGES,
+  VALID_DAYS,
+  VALID_DURATIONS,
+  TEST_STATUSES,
+  MINISTRY_STAGE_LEVELS,
+} from '../../config/constants.js';
 
 // Schema for instrument-specific progress tracking
 const instrumentProgressSchema = Joi.object({
@@ -61,6 +21,10 @@ const instrumentProgressSchema = Joi.object({
     .messages({
       'any.only': 'Current stage must be a number between 1 and 8',
     }),
+  ministryStageLevel: Joi.string()
+    .valid(...MINISTRY_STAGE_LEVELS)
+    .allow(null)
+    .default(null),
   tests: Joi.object({
     stageTest: Joi.object({
       status: Joi.string()
@@ -111,7 +75,6 @@ const teacherAssignmentSchema = Joi.object({
       'any.only': 'משך השיעור חייב להיות אחד מהערכים הבאים: ' + VALID_DURATIONS.join(', '),
     }),
   location: Joi.string().allow('', null).default(null),
-  // Optional fields for extended functionality
   startDate: Joi.date().default(() => new Date()),
   endDate: Joi.date().allow(null).default(null),
   isActive: Joi.boolean().default(true),
@@ -124,8 +87,11 @@ const teacherAssignmentSchema = Joi.object({
 
 // Schema for creating a new student (all required fields)
 export const studentSchema = Joi.object({
+  tenantId: Joi.string().required(),
+
   personalInfo: Joi.object({
-    fullName: Joi.string().required(),
+    firstName: Joi.string().required(),
+    lastName: Joi.string().required(),
     phone: Joi.string()
       .pattern(/^05\d{8}$/)
       .allow(null, ''),
@@ -147,6 +113,8 @@ export const studentSchema = Joi.object({
     class: Joi.string()
       .valid(...VALID_CLASSES)
       .required(),
+    studyYears: Joi.number().min(0).max(20).allow(null).default(null),
+    extraHour: Joi.number().min(0).max(10).allow(null).default(null),
     tests: Joi.object({
       bagrutId: Joi.string().allow(null).default(null),
     }).default({ bagrutId: null }),
@@ -156,7 +124,6 @@ export const studentSchema = Joi.object({
     orchestraIds: Joi.array().items(Joi.string()).default([]),
     ensembleIds: Joi.array().items(Joi.string()).default([]),
     theoryLessonIds: Joi.array().items(Joi.string()).default([]),
-
     schoolYears: Joi.array()
       .items(
         Joi.object({
@@ -167,10 +134,6 @@ export const studentSchema = Joi.object({
       .default([]),
   }).default({ orchestraIds: [], ensembleIds: [], theoryLessonIds: [], schoolYears: [] }),
 
-  // Legacy field, maintained for backward compatibility
-  teacherIds: Joi.array().items(Joi.string()).default([]),
-  
-  // New field for comprehensive teacher assignments with schedule slots
   teacherAssignments: Joi.array().items(teacherAssignmentSchema).default([]),
 
   isActive: Joi.boolean().default(true),
@@ -200,7 +163,6 @@ const teacherAssignmentUpdateSchema = Joi.object({
     .messages({
       'any.only': 'משך השיעור חייב להיות אחד מהערכים הבאים: ' + VALID_DURATIONS.join(', '),
     }),
-  // Optional fields for extended functionality
   startDate: Joi.date().optional(),
   endDate: Joi.date().allow(null).optional(),
   isActive: Joi.boolean().optional(),
@@ -213,8 +175,11 @@ const teacherAssignmentUpdateSchema = Joi.object({
 
 // Schema for updating a student (partial updates allowed)
 export const studentUpdateSchema = Joi.object({
+  tenantId: Joi.string().optional(),
+
   personalInfo: Joi.object({
-    fullName: Joi.string(),
+    firstName: Joi.string(),
+    lastName: Joi.string(),
     phone: Joi.string()
       .pattern(/^05\d{8}$/)
       .allow(null, ''),
@@ -231,6 +196,8 @@ export const studentUpdateSchema = Joi.object({
   academicInfo: Joi.object({
     instrumentProgress: Joi.array().items(instrumentProgressSchema),
     class: Joi.string().valid(...VALID_CLASSES),
+    studyYears: Joi.number().min(0).max(20).allow(null),
+    extraHour: Joi.number().min(0).max(10).allow(null),
     tests: Joi.object({
       bagrutId: Joi.string().allow(null),
     }),
@@ -240,7 +207,6 @@ export const studentUpdateSchema = Joi.object({
     orchestraIds: Joi.array().items(Joi.string()),
     ensembleIds: Joi.array().items(Joi.string()),
     theoryLessonIds: Joi.array().items(Joi.string()),
-
     schoolYears: Joi.array().items(
       Joi.object({
         schoolYearId: Joi.string().required(),
@@ -248,11 +214,7 @@ export const studentUpdateSchema = Joi.object({
       })
     ),
   }),
-  
-  // Legacy field, maintained for backward compatibility
-  teacherIds: Joi.array().items(Joi.string()),
-  
-  // New field for comprehensive teacher assignments with schedule slots
+
   teacherAssignments: Joi.array().items(teacherAssignmentUpdateSchema),
 
   isActive: Joi.boolean(),
@@ -261,12 +223,12 @@ export const studentUpdateSchema = Joi.object({
 
 export function validateStudent(student, isUpdate = false, isAdmin = false) {
   let schema = isUpdate ? studentUpdateSchema : studentSchema;
-  
+
   // If it's an admin or update operation, make the class field optional
   if (isAdmin || isUpdate) {
     schema = schema.fork(['academicInfo.class'], (classSchema) => classSchema.optional());
   }
-  
+
   return schema.validate(student, { abortEarly: false });
 }
 
@@ -277,4 +239,5 @@ export const STUDENT_CONSTANTS = {
   VALID_DAYS,
   VALID_DURATIONS,
   TEST_STATUSES,
+  MINISTRY_STAGE_LEVELS,
 };

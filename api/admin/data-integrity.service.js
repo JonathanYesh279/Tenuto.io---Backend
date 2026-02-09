@@ -13,7 +13,7 @@ import crypto from 'crypto';
  */
 const INTEGRITY_RULES = {
   students: {
-    requiredFields: ['personalInfo.fullName', 'academicInfo.class', 'academicInfo.instrumentProgress'],
+    requiredFields: ['personalInfo.firstName', 'academicInfo.class', 'academicInfo.instrumentProgress'],
     references: {
       outgoing: [], // Students don't reference other entities directly
       incoming: [
@@ -34,7 +34,7 @@ const INTEGRITY_RULES = {
     ]
   },
   teachers: {
-    requiredFields: ['personalInfo.fullName', 'roles', 'credentials.email'],
+    requiredFields: ['personalInfo.firstName', 'roles', 'credentials.email'],
     references: {
       outgoing: [
         { collection: 'students', field: 'assignedStudents.studentId' }
@@ -355,7 +355,7 @@ export async function getOrphanedStudents(queryParams = {}) {
       if (orphanAnalysis.isOrphan && (orphanType === 'ALL' || orphanAnalysis.orphanTypes.includes(orphanType))) {
         orphanedStudents.push({
           studentId: student._id.toString(),
-          fullName: student.personalInfo?.fullName || 'Unknown',
+          name: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown',
           class: student.academicInfo?.class || 'Unknown',
           orphanType: orphanAnalysis.primaryOrphanType,
           lastActivity: orphanAnalysis.lastActivity,
@@ -727,7 +727,7 @@ async function logIntegrityOperation(operationId, action, data, adminInfo) {
       action,
       timestamp: new Date(),
       adminId: ObjectId.createFromHexString(adminInfo.id),
-      adminName: adminInfo.fullName,
+      adminName: adminInfo.displayName,
       status: 'SUCCESS',
       details: data
     };

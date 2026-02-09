@@ -8,6 +8,7 @@ const log = createLogger('auth.controller')
 
 export const authController = {
   login,
+  getTenantsForEmail,
   refresh,
   logout,
   validateToken,
@@ -26,7 +27,7 @@ export const authController = {
 
 async function login(req, res) {
   try {
-    const { email, password } = req.body
+    const { email, password, tenantId } = req.body
 
     if (!email || !password) {
       return res.status(400).json({
@@ -35,7 +36,19 @@ async function login(req, res) {
       })
     }
 
-    const { accessToken, refreshToken, teacher } = await authService.login(email, password)
+    const result = await authService.login(email, password, tenantId || null)
+
+    // Multi-tenant: password valid but user must select a tenant
+    if (result.requiresTenantSelection) {
+      return res.json({
+        success: true,
+        requiresTenantSelection: true,
+        tenants: result.tenants,
+        code: 'TENANT_SELECTION_REQUIRED'
+      })
+    }
+
+    const { accessToken, refreshToken, teacher } = result
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -70,6 +83,32 @@ async function login(req, res) {
         code: 'INTERNAL_ERROR'
       })
     }
+  }
+}
+
+async function getTenantsForEmail(req, res) {
+  try {
+    const { email } = req.query
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      })
+    }
+
+    const tenants = await authService.getTenantsForEmail(email)
+    res.json({
+      success: true,
+      tenants,
+      count: tenants.length,
+    })
+  } catch (err) {
+    log.error({ err: err.message }, 'Error fetching tenants for email')
+    res.status(500).json({
+      success: false,
+      error: 'Internal Server Error'
+    })
   }
 }
 
@@ -160,9 +199,11 @@ async function validateToken(req, res) {
         valid: true,
         user: {
           _id: user._id,
-          fullName: user.fullName,
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
           email: user.email,
-          roles: user.roles
+          roles: user.roles,
+          tenantId: user.tenantId || null,
         }
       },
       message: 'Token is valid'
@@ -303,7 +344,8 @@ async function forgotPassword(req, res) {
       });
     }
 
-    const result = await authService.forgotPassword(email);
+    const tenantId = req.body.tenantId || null;
+    const result = await authService.forgotPassword(email, tenantId);
 
     res.json({
       success: true,
@@ -440,14 +482,14 @@ async function initAdmin(req, res) {
 
     const adminData = {
       personalInfo: {
-        fullName: 'מנהל מערכת',
+        firstName: 'מנהל',
+        lastName: 'מערכת',
         phone: '0501234567',
         email: 'admin@example.com',
         address: 'כתובת המנהל',
       },
       roles: ['מנהל'],
       teaching: {
-        studentIds: [],
         schedule: [],
       },
       conducting: {
@@ -511,10 +553,12 @@ async function migrateExistingUsers(req, res) {
         if (updateResult.modifiedCount === 1) {
           migratedCount++;
         } else {
-          errors.push(`Failed to update teacher: ${teacher.personalInfo.fullName} (${teacher._id})`);
+          const name = `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || teacher._id;
+          errors.push(`Failed to update teacher: ${name} (${teacher._id})`);
         }
       } catch (error) {
-        errors.push(`Error updating teacher ${teacher.personalInfo.fullName}: ${error.message}`);
+        const name = `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || teacher._id;
+        errors.push(`Error updating teacher ${name}: ${error.message}`);
       }
     }
 
@@ -551,7 +595,8 @@ async function checkTeacherByEmail(req, res) {
         exists: true,
         teacher: {
           id: teacher._id,
-          name: teacher.personalInfo.fullName,
+          firstName: teacher.personalInfo?.firstName || '',
+          lastName: teacher.personalInfo?.lastName || '',
           email: teacher.credentials.email,
           isActive: teacher.isActive,
           invitationAccepted: teacher.credentials.isInvitationAccepted,
@@ -594,13 +639,15 @@ async function removeTeacherByEmail(req, res) {
     });
 
     if (result.deletedCount === 1) {
-      log.info({ email, teacherName: teacher.personalInfo.fullName }, 'Removed teacher')
+      const removedName = `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim();
+      log.info({ email, teacherName: removedName }, 'Removed teacher')
       res.json({
         success: true,
         message: 'Teacher removed successfully',
         removedTeacher: {
           id: teacher._id,
-          name: teacher.personalInfo.fullName,
+          firstName: teacher.personalInfo?.firstName || '',
+          lastName: teacher.personalInfo?.lastName || '',
           email: teacher.credentials.email
         }
       });

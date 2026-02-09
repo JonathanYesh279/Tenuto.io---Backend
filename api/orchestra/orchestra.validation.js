@@ -1,6 +1,10 @@
-import Joi from 'joi'
+import Joi from 'joi';
+import {
+  ORCHESTRA_TYPES,
+  ORCHESTRA_SUB_TYPES,
+  PERFORMANCE_LEVELS,
+} from '../../config/constants.js';
 
-const VALID_TYPES = ['הרכב', 'תזמורת']
 const VALID_LOCATIONS = [
   'אולם ערן',
   'סטודיו קאמרי 1',
@@ -38,12 +42,30 @@ const VALID_LOCATIONS = [
   'חדר תאוריה ב',
 ];
 
+const ministryDataSchema = Joi.object({
+  coordinationHours: Joi.number().min(0).max(50).allow(null).default(null),
+  totalReportingHours: Joi.number().min(0).max(100).allow(null).default(null),
+  ministryUseCode: Joi.number().allow(null).default(null),
+}).default({
+  coordinationHours: null,
+  totalReportingHours: null,
+  ministryUseCode: null,
+});
+
 export const orchestraSchema = Joi.object({
-  // Allow any name string (removed validation against VALID_NAMES)
+  tenantId: Joi.string().required(),
   name: Joi.string().trim().required(),
   type: Joi.string()
-    .valid(...VALID_TYPES)
+    .valid(...ORCHESTRA_TYPES)
     .required(),
+  subType: Joi.string()
+    .valid(...ORCHESTRA_SUB_TYPES)
+    .allow(null)
+    .default(null),
+  performanceLevel: Joi.string()
+    .valid(...PERFORMANCE_LEVELS)
+    .allow(null)
+    .default(null),
   conductorId: Joi.string().required(),
   memberIds: Joi.array().items(Joi.string()).default([]),
   rehearsalIds: Joi.array().items(Joi.string()).default([]),
@@ -51,14 +73,47 @@ export const orchestraSchema = Joi.object({
   location: Joi.string()
     .valid(...VALID_LOCATIONS)
     .default('חדר 1'),
+  ministryData: ministryDataSchema,
   isActive: Joi.boolean().default(true),
 });
 
-export function validateOrchestra(orchestra) {
-  return orchestraSchema.validate(orchestra, { abortEarly: false });
+export const orchestraUpdateSchema = Joi.object({
+  tenantId: Joi.string().optional(),
+  name: Joi.string().trim().optional(),
+  type: Joi.string()
+    .valid(...ORCHESTRA_TYPES)
+    .optional(),
+  subType: Joi.string()
+    .valid(...ORCHESTRA_SUB_TYPES)
+    .allow(null)
+    .optional(),
+  performanceLevel: Joi.string()
+    .valid(...PERFORMANCE_LEVELS)
+    .allow(null)
+    .optional(),
+  conductorId: Joi.string().optional(),
+  memberIds: Joi.array().items(Joi.string()).optional(),
+  rehearsalIds: Joi.array().items(Joi.string()).optional(),
+  schoolYearId: Joi.string().optional(),
+  location: Joi.string()
+    .valid(...VALID_LOCATIONS)
+    .optional(),
+  ministryData: Joi.object({
+    coordinationHours: Joi.number().min(0).max(50).allow(null),
+    totalReportingHours: Joi.number().min(0).max(100).allow(null),
+    ministryUseCode: Joi.number().allow(null),
+  }).optional(),
+  isActive: Joi.boolean().optional(),
+});
+
+export function validateOrchestra(orchestra, isUpdate = false) {
+  const schema = isUpdate ? orchestraUpdateSchema : orchestraSchema;
+  return schema.validate(orchestra, { abortEarly: false });
 }
 
 export const ORCHESTRA_CONSTANTS = {
-  VALID_TYPES,
+  VALID_TYPES: ORCHESTRA_TYPES,
   VALID_LOCATIONS,
+  ORCHESTRA_SUB_TYPES,
+  PERFORMANCE_LEVELS,
 };

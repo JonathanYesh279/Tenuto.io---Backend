@@ -105,90 +105,39 @@ async function validateTeacherStudentSync(req, res) {
         continue;
       }
 
-      // Check bidirectional references
-      const teacherStudentIds = teacher.teaching?.studentIds || [];
-      const missingStudents = group.studentIds.filter(studentId => 
-        !teacherStudentIds.includes(studentId.toString())
-      );
-
-      if (missingStudents.length > 0) {
-        validation.issues.push({
-          type: 'MISSING_BIDIRECTIONAL_REFERENCE',
-          severity: 'HIGH',
-          teacherId,
-          teacherName: teacher.personalInfo?.fullName,
-          missingStudents: missingStudents.map(id => id.toString()),
-          message: `Teacher ${teacherId} missing ${missingStudents.length} student references in studentIds`,
-          impact: 'Teacher lesson queries may not return complete results',
-          fixable: true
-        });
-        validation.summary.totalIssues++;
-      }
     }
 
-    // Phase 2: Find teachers with studentIds but no corresponding student assignments
-    console.log('   👨‍🏫 Phase 2: Analyzing teacher studentIds...');
-    
-    const teachersWithStudents = await teacherCollection.find({
-      'teaching.studentIds': { $exists: true, $ne: [] },
+    // Phase 2: Verify students referenced in assignments are active
+    console.log('   👨‍🏫 Phase 2: Verifying student existence for assignments...');
+
+    const allTeachers = await teacherCollection.find({
       isActive: { $ne: false }
     }).toArray();
 
-    validation.summary.teachersAnalyzed = teachersWithStudents.length;
+    validation.summary.teachersAnalyzed = allTeachers.length;
 
-    for (const teacher of teachersWithStudents) {
+    // For each teacher, find assigned students and verify they exist/are active
+    for (const teacher of allTeachers) {
       const teacherId = teacher._id.toString();
-      const teacherStudentIds = teacher.teaching?.studentIds || [];
 
-      for (const studentId of teacherStudentIds) {
-        if (!ObjectId.isValid(studentId)) {
-          validation.issues.push({
-            type: 'INVALID_STUDENT_ID',
-            severity: 'HIGH',
-            teacherId,
-            teacherName: teacher.personalInfo?.fullName,
-            studentId,
-            message: `Teacher has invalid student ID: ${studentId}`,
-            fixable: true
-          });
-          validation.summary.totalIssues++;
-          continue;
+      // Find students with active assignments for this teacher
+      const assignedStudents = await studentCollection.find({
+        'teacherAssignments': {
+          $elemMatch: { teacherId, isActive: { $ne: false } }
         }
+      }).toArray();
 
-        const student = await studentCollection.findOne({
-          _id: ObjectId.createFromHexString(studentId)
-        });
-
-        if (!student) {
+      for (const student of assignedStudents) {
+        if (student.isActive === false) {
           validation.issues.push({
-            type: 'STUDENT_NOT_FOUND',
-            severity: 'HIGH',
-            teacherId,
-            teacherName: teacher.personalInfo?.fullName,
-            studentId,
-            message: `Teacher references non-existent student: ${studentId}`,
-            impact: 'Orphaned reference in teacher record',
-            fixable: true
-          });
-          validation.summary.totalIssues++;
-          continue;
-        }
-
-        // Check if student has corresponding assignment
-        const hasAssignment = student.teacherAssignments?.some(assignment => 
-          assignment.teacherId === teacherId && assignment.isActive !== false
-        );
-
-        if (!hasAssignment) {
-          validation.issues.push({
-            type: 'MISSING_STUDENT_ASSIGNMENT',
+            type: 'INACTIVE_STUDENT_WITH_ASSIGNMENT',
             severity: 'MEDIUM',
             teacherId,
-            teacherName: teacher.personalInfo?.fullName,
-            studentId,
-            studentName: student.personalInfo?.fullName,
-            message: `Teacher has student in studentIds but student has no active assignment`,
-            impact: 'Data inconsistency, teacher may show in lists without actual lessons',
+            teacherName: `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'Unknown',
+            studentId: student._id.toString(),
+            studentName: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown',
+            message: `Inactive student has active assignment to teacher`,
+            impact: 'Deactivated student still appears in teacher lesson lists',
             fixable: true
           });
           validation.summary.warnings++;
@@ -222,7 +171,7 @@ async function validateTeacherStudentSync(req, res) {
       {
         $project: {
           studentId: '$_id',
-          studentName: '$personalInfo.fullName',
+          studentName: { $concat: [{ $ifNull: ['$personalInfo.firstName', ''] }, ' ', { $ifNull: ['$personalInfo.lastName', ''] }] },
           teacherId: '$teacherAssignments.teacherId',
           assignment: '$teacherAssignments'
         }
@@ -339,12 +288,15 @@ async function getSystemConsistencyReport(req, res) {
         teacherAssignments: { $exists: true, $ne: [] }
       }),
       
-      // Active teachers with students
-      teacherCollection.countDocuments({
-        isActive: { $ne: false },
-        'teaching.studentIds': { $exists: true, $ne: [] }
-      }),
-      
+      // Active teachers (with at least one student assigned via teacherAssignments)
+      studentCollection.aggregate([
+        { $match: { 'teacherAssignments.isActive': { $ne: false }, isActive: { $ne: false } } },
+        { $unwind: '$teacherAssignments' },
+        { $match: { 'teacherAssignments.isActive': { $ne: false } } },
+        { $group: { _id: '$teacherAssignments.teacherId' } },
+        { $count: 'count' }
+      ]).toArray().then(r => r[0]?.count || 0),
+
       // Students with orphaned teacher references
       studentCollection.aggregate([
         { $match: { teacherAssignments: { $exists: true, $ne: [] } } },
@@ -361,28 +313,18 @@ async function getSystemConsistencyReport(req, res) {
         { $count: 'orphanedAssignments' }
       ]).toArray(),
       
-      // Teachers with orphaned student references
-      teacherCollection.aggregate([
-        { $match: { 'teaching.studentIds': { $exists: true, $ne: [] } } },
-        { $unwind: '$teaching.studentIds' },
-        {
-          $lookup: {
-            from: 'student',
-            localField: 'teaching.studentIds',
-            foreignField: '_id',
-            as: 'student'
-          }
-        },
-        { $match: { student: { $size: 0 } } },
-        { $count: 'orphanedReferences' }
-      ]).toArray()
+      // Inactive students with active assignments (stale references)
+      studentCollection.countDocuments({
+        isActive: false,
+        'teacherAssignments': { $elemMatch: { isActive: { $ne: false } } }
+      })
     ]);
 
     report.dataIntegrity = {
       studentsWithAssignments: integrityChecks[0],
       teachersWithStudents: integrityChecks[1],
       orphanedAssignments: integrityChecks[2][0]?.orphanedAssignments || 0,
-      orphanedReferences: integrityChecks[3][0]?.orphanedReferences || 0,
+      staleAssignments: integrityChecks[3],
       integrityScore: calculateIntegrityScore(integrityChecks)
     };
 
@@ -401,7 +343,7 @@ async function getSystemConsistencyReport(req, res) {
     let healthIssues = 0;
     
     if (report.dataIntegrity.orphanedAssignments > 0) healthIssues++;
-    if (report.dataIntegrity.orphanedReferences > 0) healthIssues++;
+    if (report.dataIntegrity.staleAssignments > 0) healthIssues++;
     if (report.dataIntegrity.integrityScore < 0.95) healthIssues++;
     if (queryTime > 2000) healthIssues++;
 
@@ -485,10 +427,9 @@ async function repairDataInconsistencies(req, res) {
     );
 
     repairResults.repaired = {
-      bidirectionalReferences: repairs.repaired.studentTeacherLinks + repairs.repaired.teacherStudentLinks,
       orphanedReferences: repairs.repaired.orphanedReferences,
-      incompleteAssignments: 0, // TODO: Implement if needed
-      invalidIds: 0 // TODO: Implement if needed
+      incompleteAssignments: 0,
+      invalidIds: 0
     };
 
     repairResults.errors = repairs.errors;
@@ -553,7 +494,7 @@ async function validateAllTeacherLessons(req, res) {
           validationResults.invalidTeachers++;
           validationResults.issues.push({
             teacherId,
-            teacherName: teacher.personalInfo?.fullName,
+            teacherName: `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'Unknown',
             issues: validation.issues,
             summary: validation.summary
           });
@@ -571,7 +512,7 @@ async function validateAllTeacherLessons(req, res) {
         validationResults.invalidTeachers++;
         validationResults.issues.push({
           teacherId: teacher._id.toString(),
-          teacherName: teacher.personalInfo?.fullName,
+          teacherName: `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'Unknown',
           error: error.message
         });
         validationResults.summary.criticalIssues++;
@@ -749,14 +690,13 @@ async function performHealthCheck(req, res) {
 
 // Helper functions
 function calculateIntegrityScore(integrityChecks) {
-  const [studentsWithAssignments, teachersWithStudents, orphanedAssignments, orphanedReferences] = integrityChecks;
-  
+  const [studentsWithAssignments, teachersWithStudents, orphanedAssignments, staleAssignments] = integrityChecks;
+
   const totalRelationships = studentsWithAssignments + teachersWithStudents;
-  const totalProblems = (orphanedAssignments[0]?.orphanedAssignments || 0) + 
-                       (orphanedReferences[0]?.orphanedReferences || 0);
-  
+  const totalProblems = (orphanedAssignments[0]?.orphanedAssignments || 0) + (staleAssignments || 0);
+
   if (totalRelationships === 0) return 1.0;
-  
+
   return Math.max(0, (totalRelationships - totalProblems) / totalRelationships);
 }
 

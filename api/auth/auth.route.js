@@ -25,6 +25,7 @@ router.delete('/remove-teacher/:email', authenticateToken, requireAuth(['מנה�
 
 // Public routes
 router.post('/login', loginLimiter, authController.login)
+router.get('/tenants', authController.getTenantsForEmail)
 router.post('/refresh', authController.refresh)
 router.post('/forgot-password', authController.forgotPassword)
 router.post('/reset-password', authController.resetPassword)
