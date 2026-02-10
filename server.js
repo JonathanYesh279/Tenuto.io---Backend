@@ -185,13 +185,6 @@ app.use(
   scheduleRoutes
 );
 app.use(
-  '/api',
-  authenticateToken,
-  buildContext,
-  addSchoolYearToRequest,
-  timeBlockRoutes
-);
-app.use(
   '/api/attendance',
   authenticateToken,
   buildContext,
@@ -258,6 +251,15 @@ app.use(
 );
 // Super admin routes (auth handled internally)
 app.use('/api/super-admin', superAdminRoutes);
+
+// Time block routes — mounted at /api (broad prefix, must come AFTER unauthenticated routes)
+app.use(
+  '/api',
+  authenticateToken,
+  buildContext,
+  addSchoolYearToRequest,
+  timeBlockRoutes
+);
 
 // Health check endpoints (no auth required)
 app.use('/api/health', healthRoutes);
