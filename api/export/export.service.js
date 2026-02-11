@@ -1,20 +1,25 @@
 /**
- * Export Service
+ * Export Service — Mimshak2025
  *
  * Orchestrates Ministry report generation:
- *   1. Ensures hours_summary is up-to-date
- *   2. Loads all data
- *   3. Runs cross-validation
- *   4. Generates mappers → Excel
- *   5. Saves snapshot
+ *   1. Pre-export validation (row limits, unmapped instruments/ensembles)
+ *   2. Ensures hours_summary is up-to-date
+ *   3. Loads all data
+ *   4. Runs mappers
+ *   5. Generates 12-sheet Excel via ExcelJS
+ *   6. Saves snapshot
  */
 
 import { getCollection } from '../../services/mongoDB.service.js';
-import { ObjectId } from 'mongodb';
 import { ministryMappers } from './ministry-mappers.js';
 import { excelGenerator } from './excel-generator.js';
 import { hoursSummaryService } from '../hours-summary/hours-summary.service.js';
 import { roundToQuarterHour } from '../../config/constants.js';
+import {
+  ROW_LIMITS,
+  INSTRUMENT_TO_MINISTRY,
+  ENSEMBLE_TO_COLUMN,
+} from './sheets/_shared.js';
 
 export const exportService = {
   generateFullReport,
@@ -33,25 +38,37 @@ async function generateFullReport(tenantId, schoolYearId, userId) {
   // 2. Load all data
   const data = await ministryMappers.loadExportData(tenantId, schoolYearId);
 
-  // 3. Run all mappers
+  // 3. Pre-export validation (row limits + unmapped data)
+  const preValidation = runPreExportValidation(data);
+  if (preValidation.errors.length > 0) {
+    const err = new Error(preValidation.errors.map((e) => e.message).join('; '));
+    err.status = 400;
+    err.validationErrors = preValidation.errors;
+    throw err;
+  }
+
+  // 4. Run all mappers
   const teacherRoster = ministryMappers.mapTeacherRoster(data);
-  const studentData = ministryMappers.mapStudentData(data);
-  const studentEnsembles = ministryMappers.mapStudentEnsembles(data);
-  const musicTheory = ministryMappers.mapMusicTheory(data);
+  const studentFull = ministryMappers.mapStudentFull(data);
   const ensembleSchedule = ministryMappers.mapEnsembleSchedule(data);
-  const ensembleSummary = ministryMappers.mapEnsembleSummary(data, ensembleSchedule);
+  const musicTheory = ministryMappers.mapMusicTheory(data);
 
-  // 4. Cross-validate
+  const mappedData = { teacherRoster, studentFull, ensembleSchedule, musicTheory };
+
+  // 5. Cross-validate
   const validation = runCrossValidation(data, teacherRoster, ensembleSchedule);
+  // Merge pre-export warnings
+  validation.warnings.push(...preValidation.warnings);
 
-  // 5. Generate Excel
+  // 6. Generate Excel (async — ExcelJS writeBuffer is async)
   const tenantName = data.tenant?.name || '';
-  const buffer = excelGenerator.generateMinistryWorkbook(
-    { teacherRoster, studentData, studentEnsembles, musicTheory, ensembleSchedule, ensembleSummary },
-    { conservatoryName: tenantName, generatedAt: new Date() }
-  );
+  const buffer = await excelGenerator.generateMinistryWorkbook({
+    data,
+    mappedData,
+    metadata: { conservatoryName: tenantName, generatedAt: new Date() },
+  });
 
-  // 6. Save snapshot
+  // 7. Save snapshot
   const snapshotCollection = await getCollection('ministry_report_snapshots');
   const snapshot = {
     tenantId: tenantId || null,
@@ -59,18 +76,95 @@ async function generateFullReport(tenantId, schoolYearId, userId) {
     schoolYearId: schoolYearId || null,
     generatedBy: userId || null,
     generatedAt: new Date(),
+    conservatoryName: tenantName,
     completionPercentage: calculateCompletionPercentage(data),
     validation,
     data: {
       teacherCount: teacherRoster.length,
-      studentCount: studentData.length,
+      studentCount: studentFull.length,
       orchestraCount: ensembleSchedule.length,
-      theoryCategories: musicTheory.length - 3, // exclude summary rows
+      theoryCategories: musicTheory.length,
     },
   };
   await snapshotCollection.insertOne(snapshot);
 
   return { buffer, validation, snapshot };
+}
+
+// ─── Pre-Export Validation ────────────────────────────────────────────────────
+
+function runPreExportValidation(data) {
+  const warnings = [];
+  const errors = [];
+
+  // Row limit validation
+  if (data.students.length > ROW_LIMITS.STUDENT_MAX) {
+    errors.push({
+      type: 'row_limit_students',
+      message: `מספר התלמידים חורג מהפורמט של המשרד (מקסימום ${ROW_LIMITS.STUDENT_MAX}, נמצאו ${data.students.length}). פנה לתמיכה.`,
+    });
+  }
+
+  if (data.teachers.length > ROW_LIMITS.TEACHER_MAX) {
+    errors.push({
+      type: 'row_limit_teachers',
+      message: `מספר המורים חורג מהפורמט של המשרד (מקסימום ${ROW_LIMITS.TEACHER_MAX}, נמצאו ${data.teachers.length}). פנה לתמיכה.`,
+    });
+  }
+
+  // Unmapped instrument validation
+  const studentsWithInstrument = data.students.filter((s) => {
+    const progress = (s.academicInfo?.instrumentProgress || []);
+    const primary = progress.find((p) => p.isPrimary) || progress[0];
+    return primary?.instrumentName;
+  });
+
+  const unmappedInstrStudents = studentsWithInstrument.filter((s) => {
+    const progress = (s.academicInfo?.instrumentProgress || []);
+    const primary = progress.find((p) => p.isPrimary) || progress[0];
+    return !INSTRUMENT_TO_MINISTRY[primary.instrumentName];
+  });
+
+  if (unmappedInstrStudents.length > 0) {
+    const pct = ((unmappedInstrStudents.length / Math.max(data.students.length, 1)) * 100).toFixed(1);
+    if (parseFloat(pct) > 5) {
+      errors.push({
+        type: 'unmapped_instruments',
+        message: `${unmappedInstrStudents.length} תלמידים (${pct}%) עם כלי נגינה לא ממופים. יש לעדכן את מיפוי הכלים.`,
+        unmappedInstruments: [...new Set(unmappedInstrStudents.map((s) => {
+          const p = (s.academicInfo?.instrumentProgress || []);
+          return (p.find((x) => x.isPrimary) || p[0])?.instrumentName;
+        }))],
+      });
+    } else {
+      warnings.push({
+        type: 'unmapped_instruments',
+        message: `${unmappedInstrStudents.length} תלמידים עם כלי נגינה לא ממופים דולגו.`,
+      });
+    }
+  }
+
+  // Unmapped ensemble subType validation
+  const ensemblesWithSubType = data.orchestras.filter((e) => e.subType);
+  const unmappedEnsembles = ensemblesWithSubType.filter((e) => !ENSEMBLE_TO_COLUMN[e.subType]);
+
+  if (unmappedEnsembles.length > 0) {
+    const pct = ((unmappedEnsembles.length / Math.max(data.orchestras.length, 1)) * 100).toFixed(1);
+    if (parseFloat(pct) > 5) {
+      errors.push({
+        type: 'unmapped_ensembles',
+        message: `${unmappedEnsembles.length} הרכבים (${pct}%) עם סוג משנה לא ממופה. יש לעדכן את מיפוי ההרכבים.`,
+        unmappedSubTypes: [...new Set(unmappedEnsembles.map((e) => e.subType))],
+      });
+    } else {
+      warnings.push({
+        type: 'unmapped_ensembles',
+        message: `${unmappedEnsembles.length} הרכבים עם סוג משנה לא ממופה דולגו.`,
+      });
+    }
+  }
+
+  return { warnings, errors };
 }
 
 // ─── Cross-Validation ────────────────────────────────────────────────────────
@@ -82,13 +176,13 @@ function runCrossValidation(data, teacherRosterRows, ensembleScheduleRows) {
   // Rule 1: Total ensemble hours from teacher roster = total from ensemble schedule
   let teacherEnsembleTotal = 0;
   for (const row of teacherRosterRows) {
-    const val = row['ש"ש הרכבים בפועל'];
+    const val = row.ensembleActualHours;
     if (typeof val === 'number') teacherEnsembleTotal += val;
   }
 
   let scheduleEnsembleTotal = 0;
   for (const row of ensembleScheduleRows) {
-    const val = row['סה"כ ש"ש בפועל'];
+    const val = row.totalActualHours;
     if (typeof val === 'number') scheduleEnsembleTotal += val;
   }
 
@@ -132,22 +226,22 @@ function runCrossValidation(data, teacherRosterRows, ensembleScheduleRows) {
 
   // Rule 4: Each teacher's total = sum of parts
   for (const row of teacherRosterRows) {
-    const total = row['סה"כ ש"ש'];
+    const total = row.totalWeeklyHours;
     if (typeof total !== 'number') continue;
 
     const parts =
-      (typeof row['ש"ש הוראה'] === 'number' ? row['ש"ש הוראה'] : 0) +
-      (typeof row['ש"ש ליווי פסנתר'] === 'number' ? row['ש"ש ליווי פסנתר'] : 0) +
-      (typeof row['ש"ש ריכוז'] === 'number' ? row['ש"ש ריכוז'] : 0) +
-      (typeof row['ש"ש תאוריה'] === 'number' ? row['ש"ש תאוריה'] : 0) +
-      (typeof row['ש"ש הרכבים בפועל'] === 'number' ? row['ש"ש הרכבים בפועל'] : 0) +
-      (typeof row['ש"ש ריכוז הרכבים'] === 'number' ? row['ש"ש ריכוז הרכבים'] : 0);
+      (typeof row.teachingHours === 'number' ? row.teachingHours : 0) +
+      (typeof row.accompHours === 'number' ? row.accompHours : 0) +
+      (typeof row.ensembleActualHours === 'number' ? row.ensembleActualHours : 0) +
+      (typeof row.ensembleCoordHours === 'number' ? row.ensembleCoordHours : 0) +
+      (typeof row.theoryHours === 'number' ? row.theoryHours : 0) +
+      (typeof row.managementHours === 'number' ? row.managementHours : 0);
 
     const partsRounded = roundToQuarterHour(parts);
     if (partsRounded !== total) {
       warnings.push({
         type: 'teacher_total_mismatch',
-        message: `סה"כ ש"ש של ${row['שם פרטי']} ${row['שם משפחה']} (${total}) ≠ סכום חלקים (${partsRounded})`,
+        message: `סה"כ ש"ש של ${row.firstName} ${row.lastName} (${total}) ≠ סכום חלקים (${partsRounded})`,
       });
     }
   }
@@ -169,9 +263,14 @@ async function getCompletionStatus(tenantId, schoolYearId) {
   const pct = calculateCompletionPercentage(data);
   const missing = findMissingData(data);
 
+  // Pre-export validation for warnings
+  const preValidation = runPreExportValidation(data);
+
   return {
     completionPercentage: pct,
     missing,
+    preExportWarnings: preValidation.warnings,
+    preExportErrors: preValidation.errors,
     counts: {
       teachers: data.teachers.length,
       students: data.students.length,
@@ -215,7 +314,6 @@ function calculateCompletionPercentage(data) {
       const val = path.split('.').reduce((o, k) => o?.[k], s);
       if (val !== null && val !== undefined && val !== '') filled++;
     }
-    // instrumentProgress must have at least one entry
     total++;
     if ((s.academicInfo?.instrumentProgress || []).length > 0) filled++;
   }
@@ -226,6 +324,19 @@ function calculateCompletionPercentage(data) {
     if (o.conductorId) filled++;
     total++;
     if (o.subType) filled++;
+  }
+
+  // Tenant profile fields
+  const profileFields = [
+    'conservatoryProfile.code', 'conservatoryProfile.ownershipName',
+    'conservatoryProfile.status', 'conservatoryProfile.stage',
+  ];
+  if (data.tenant) {
+    for (const path of profileFields) {
+      total++;
+      const val = path.split('.').reduce((o, k) => o?.[k], data.tenant);
+      if (val !== null && val !== undefined && val !== '') filled++;
+    }
   }
 
   return total > 0 ? Math.round((filled / total) * 100) : 0;
@@ -252,6 +363,13 @@ function findMissingData(data) {
   for (const o of data.orchestras) {
     if (!o.conductorId) missing.push({ type: 'orchestra', name: o.name, field: 'מנצח/מדריך' });
     if (!o.subType) missing.push({ type: 'orchestra', name: o.name, field: 'סוג משנה' });
+  }
+
+  // Tenant profile
+  if (data.tenant) {
+    const cp = data.tenant.conservatoryProfile;
+    if (!cp?.code) missing.push({ type: 'tenant', name: data.tenant.name, field: 'קוד קונסרבטוריון' });
+    if (!cp?.ownershipName) missing.push({ type: 'tenant', name: data.tenant.name, field: 'שם בעלות' });
   }
 
   return missing;

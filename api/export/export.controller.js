@@ -42,7 +42,9 @@ async function downloadFullReport(req, res, next) {
       userId
     );
 
-    const filename = `ministry-report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const conservatoryName = snapshot.conservatoryName || 'conservatory';
+    const year = new Date().getFullYear();
+    const filename = encodeURIComponent(`Mimshak_${conservatoryName}_${year}.xlsx`);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

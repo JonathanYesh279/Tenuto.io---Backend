@@ -1,100 +1,80 @@
 /**
- * Excel Generator
+ * Excel Generator — Mimshak2025 Format
  *
- * Generates Ministry-formatted Excel workbook with RTL layout,
- * styled headers, and 2-decimal number formatting.
- * Uses SheetJS (xlsx) to build the workbook.
+ * Generates Ministry-formatted Excel workbook with 12 sheets using ExcelJS.
+ * RTL layout, exact Ministry colors, multi-row headers, formulas, named ranges.
  */
 
-import XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { SHEET_NAMES, rangeRef } from './sheets/_shared.js';
+import { buildCoverSheet } from './sheets/cover.sheet.js';
+import { buildProfileSheet } from './sheets/profile.sheet.js';
+import { buildTeachersSheet } from './sheets/teachers.sheet.js';
+import { buildStudentsSheet } from './sheets/students.sheet.js';
+import { buildEnsemblesSheet } from './sheets/ensembles.sheet.js';
+import { buildTheorySheet } from './sheets/theory.sheet.js';
+import { buildInitiativesSheet } from './sheets/initiatives.sheet.js';
+import { buildBudgetSheet } from './sheets/budget.sheet.js';
+import { buildAttachmentsSheet } from './sheets/attachments.sheet.js';
+import { buildDataTemplateSheets } from './sheets/data-templates.sheet.js';
 
 export const excelGenerator = {
   generateMinistryWorkbook,
 };
 
-// ─── Ministry Color Palette ──────────────────────────────────────────────────
-
-const COLORS = {
-  headerBg: '4472C4',      // Blue header background
-  headerFont: 'FFFFFF',    // White header text
-  altRowBg: 'D9E2F3',      // Light blue alternating rows
-  summaryBg: 'FFC000',     // Gold summary rows
-  sectionBg: 'E2EFDA',     // Light green section headers
-};
-
-// ─── Sheet Builder ───────────────────────────────────────────────────────────
-
-function buildSheet(rows, options = {}) {
-  if (!rows || rows.length === 0) {
-    return XLSX.utils.aoa_to_sheet([['אין נתונים']]);
-  }
-
-  const ws = XLSX.utils.json_to_sheet(rows);
-
-  // Set RTL
-  if (!ws['!sheetViews']) ws['!sheetViews'] = [{}];
-  // SheetJS doesn't natively support !sheetViews for RTL in community edition,
-  // so we use the '!dir' custom property which some consumers respect
-  ws['!dir'] = 'rtl';
-
-  // Auto-size columns based on content
-  const headers = Object.keys(rows[0]);
-  ws['!cols'] = headers.map((h) => {
-    const maxLen = Math.max(
-      h.length,
-      ...rows.map((r) => String(r[h] ?? '').length)
-    );
-    return { wch: Math.min(Math.max(maxLen + 2, 8), 30) };
-  });
-
-  // Format numbers to 2 decimal places where applicable
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  for (let R = range.s.r + 1; R <= range.e.r; R++) {
-    for (let C = range.s.c; C <= range.e.c; C++) {
-      const addr = XLSX.utils.encode_cell({ r: R, c: C });
-      const cell = ws[addr];
-      if (cell && typeof cell.v === 'number' && !Number.isInteger(cell.v)) {
-        cell.z = '0.00';
-      }
-    }
-  }
-
-  return ws;
-}
-
-// ─── Workbook Generator ──────────────────────────────────────────────────────
-
 /**
- * Generate a complete Ministry Excel workbook with 6 sheets.
+ * Generate the complete Mimshak2025 Ministry Excel workbook with 12 sheets.
  *
- * @param {object} sheetData - { teacherRoster, studentData, studentEnsembles, musicTheory, ensembleSchedule, ensembleSummary }
- * @param {object} metadata - { conservatoryName, schoolYear, generatedAt }
- * @returns {Buffer} Excel file buffer
+ * @param {object} params
+ * @param {object} params.data - Pre-loaded export data from loadExportData()
+ * @param {object} params.mappedData - Pre-mapped data from ministry mappers
+ * @param {object} params.metadata - { conservatoryName, schoolYear, generatedAt }
+ * @returns {Promise<Buffer>} Excel file buffer
  */
-function generateMinistryWorkbook(sheetData, metadata = {}) {
-  const wb = XLSX.utils.book_new();
+async function generateMinistryWorkbook({ data, mappedData, metadata = {} }) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Tenuto.io';
+  workbook.created = metadata.generatedAt || new Date();
 
-  // Sheet order matches Ministry template
-  const sheets = [
-    { name: 'מצבת כח-אדם', data: sheetData.teacherRoster },
-    { name: 'נתוני תלמידים', data: sheetData.studentData },
-    { name: 'שיבוץ להרכבים', data: sheetData.studentEnsembles },
-    { name: 'תורת המוזיקה', data: sheetData.musicTheory },
-    { name: 'לוח הרכבים', data: sheetData.ensembleSchedule },
-    { name: 'סיכום הרכבים', data: sheetData.ensembleSummary },
-  ];
+  const context = { data, mappedData, metadata, workbook };
 
-  for (const sheet of sheets) {
-    const ws = buildSheet(sheet.data || []);
-    XLSX.utils.book_append_sheet(wb, ws, sheet.name);
-  }
+  // Build sheets in Ministry order (1-12)
+  buildCoverSheet(context);
+  buildProfileSheet(context);
+  buildTeachersSheet(context);
+  buildStudentsSheet(context);
+  buildEnsemblesSheet(context);
+  buildTheorySheet(context);
+  buildInitiativesSheet(context);
+  buildBudgetSheet(context);
+  buildAttachmentsSheet(context);
+  buildDataTemplateSheets(context);
+
+  // Define named ranges AFTER all sheets exist
+  defineNamedRanges(workbook);
 
   // Write to buffer
-  const buffer = XLSX.write(wb, {
-    type: 'buffer',
-    bookType: 'xlsx',
-    bookSST: false,
-  });
-
+  const buffer = await workbook.xlsx.writeBuffer();
   return buffer;
+}
+
+/**
+ * Define all named ranges used by formulas across sheets.
+ * Must be called after all sheets are built.
+ */
+function defineNamedRanges(workbook) {
+  const names = workbook.definedNames;
+
+  // Student sheet ranges
+  names.add(rangeRef(SHEET_NAMES.STUDENTS, '$B$6:$B$1177'), 'Talmidim');
+  names.add(rangeRef(SHEET_NAMES.STUDENTS, '$A$6:$A$1177'), 'Siduri_Talmidim');
+
+  // Teacher sheet ranges
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$C$12:$C$6795'), 'List');
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$B$12:$B$6795'), 'Siduri_Morim');
+
+  // Cross-sheet teacher reference ranges (student -> teacher lookups)
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$W$12:$W$6795'), 'MORIMNAME');
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$X$12:$X$6795'), 'MORE');
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$N$12:$N$6795'), 'ZMAN');
 }
