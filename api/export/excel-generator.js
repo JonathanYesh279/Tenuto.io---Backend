@@ -50,8 +50,8 @@ async function generateMinistryWorkbook({ data, mappedData, metadata = {} }) {
   buildAttachmentsSheet(context);
   buildDataTemplateSheets(context);
 
-  // Define named ranges AFTER all sheets exist
-  defineNamedRanges(workbook);
+  // Define named ranges AFTER all sheets exist (dynamic based on actual data)
+  defineNamedRanges(workbook, mappedData);
 
   // Write to buffer
   const buffer = await workbook.xlsx.writeBuffer();
@@ -60,21 +60,23 @@ async function generateMinistryWorkbook({ data, mappedData, metadata = {} }) {
 
 /**
  * Define all named ranges used by formulas across sheets.
- * Must be called after all sheets are built.
+ * Ranges are dynamic — sized to actual data, not fixed template positions.
  */
-function defineNamedRanges(workbook) {
+function defineNamedRanges(workbook, mappedData) {
   const names = workbook.definedNames;
 
-  // Student sheet ranges
-  names.add(rangeRef(SHEET_NAMES.STUDENTS, '$B$6:$B$1177'), 'Talmidim');
-  names.add(rangeRef(SHEET_NAMES.STUDENTS, '$A$6:$A$1177'), 'Siduri_Talmidim');
+  // Student range: row 6 to 6 + studentCount (minimum 1177 for formula compat)
+  const studentEnd = Math.max(6 + (mappedData.studentFull?.length || 0), 1177);
+  names.add(rangeRef(SHEET_NAMES.STUDENTS, `$B$6:$B$${studentEnd}`), 'Talmidim');
+  names.add(rangeRef(SHEET_NAMES.STUDENTS, `$A$6:$A$${studentEnd}`), 'Siduri_Talmidim');
 
-  // Teacher sheet ranges
-  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$C$12:$C$6795'), 'List');
-  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$B$12:$B$6795'), 'Siduri_Morim');
+  // Teacher range: row 12 to 12 + teacherCount (minimum 6795 for formula compat)
+  const teacherEnd = Math.max(12 + (mappedData.teacherRoster?.length || 0), 6795);
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, `$C$12:$C$${teacherEnd}`), 'List');
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, `$B$12:$B$${teacherEnd}`), 'Siduri_Morim');
 
   // Cross-sheet teacher reference ranges (student -> teacher lookups)
-  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$W$12:$W$6795'), 'MORIMNAME');
-  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$X$12:$X$6795'), 'MORE');
-  names.add(rangeRef(SHEET_NAMES.TEACHERS, '$N$12:$N$6795'), 'ZMAN');
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, `$W$12:$W$${teacherEnd}`), 'MORIMNAME');
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, `$X$12:$X$${teacherEnd}`), 'MORE');
+  names.add(rangeRef(SHEET_NAMES.TEACHERS, `$N$12:$N$${teacherEnd}`), 'ZMAN');
 }

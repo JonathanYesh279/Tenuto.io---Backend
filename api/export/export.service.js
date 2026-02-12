@@ -97,18 +97,18 @@ function runPreExportValidation(data) {
   const warnings = [];
   const errors = [];
 
-  // Row limit validation
+  // Row limit validation (warning only — we generate dynamically so layout adapts)
   if (data.students.length > ROW_LIMITS.STUDENT_MAX) {
-    errors.push({
+    warnings.push({
       type: 'row_limit_students',
-      message: `מספר התלמידים חורג מהפורמט של המשרד (מקסימום ${ROW_LIMITS.STUDENT_MAX}, נמצאו ${data.students.length}). פנה לתמיכה.`,
+      message: `מספר התלמידים (${data.students.length}) חורג מתבנית המשרד הסטנדרטית (${ROW_LIMITS.STUDENT_MAX}). הקובץ יופק עם כל התלמידים.`,
     });
   }
 
   if (data.teachers.length > ROW_LIMITS.TEACHER_MAX) {
-    errors.push({
+    warnings.push({
       type: 'row_limit_teachers',
-      message: `מספר המורים חורג מהפורמט של המשרד (מקסימום ${ROW_LIMITS.TEACHER_MAX}, נמצאו ${data.teachers.length}). פנה לתמיכה.`,
+      message: `מספר המורים (${data.teachers.length}) חורג מתבנית המשרד הסטנדרטית (${ROW_LIMITS.TEACHER_MAX}). הקובץ יופק עם כל המורים.`,
     });
   }
 

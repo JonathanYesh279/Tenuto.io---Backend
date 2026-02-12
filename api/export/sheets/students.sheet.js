@@ -203,13 +203,16 @@ export function buildStudentsSheet({ workbook, mappedData, data, metadata }) {
 // ─── Summary Area Builder ────────────────────────────────────────────────────
 
 function buildStudentSummary(sheet, rows, totalStudents, data, metadata) {
-  const summaryStart = 1180;
+  // Dynamic: summary starts 2 rows after the last data row
+  const lastDataRow = ROW_LIMITS.STUDENT_DATA_START + rows.length;
+  const summaryStart = lastDataRow + 2;
 
   // Total students (formula + pre-computed)
   sheet.getCell(summaryStart, 2).value = 'סה"כ תלמידים';
   sheet.getCell(summaryStart, 2).font = { bold: true };
+  const endRow = lastDataRow - 1;
   sheet.getCell(summaryStart, 3).value = {
-    formula: 'COUNTA(B6:B1177)',
+    formula: `COUNTA(B6:B${endRow})`,
     result: totalStudents,
   };
 
@@ -223,7 +226,7 @@ function buildStudentSummary(sheet, rows, totalStudents, data, metadata) {
     sheet.getCell(stageRow + i, 3).value = `שלב ${stages[i]}`;
     const count = rows.filter((r) => r.stage === stages[i]).length;
     sheet.getCell(stageRow + i, 4).value = {
-      formula: `COUNTIF(F6:F1177,"${stages[i]}")`,
+      formula: `COUNTIF(F6:F${endRow},"${stages[i]}")`,
       result: count,
     };
   }
@@ -248,7 +251,7 @@ function buildStudentSummary(sheet, rows, totalStudents, data, metadata) {
     sheet.getCell(r, 3).value = deptCols[i].name;
     const countVal = rows.filter((row) => row.instrMapping?.col === deptCols[i].col).length;
     sheet.getCell(r, 4).value = {
-      formula: `COUNTA(${deptCols[i].col}6:${deptCols[i].col}1177)`,
+      formula: `COUNTA(${deptCols[i].col}6:${deptCols[i].col}${endRow})`,
       result: countVal,
     };
   }
@@ -275,7 +278,7 @@ function buildStudentSummary(sheet, rows, totalStudents, data, metadata) {
     sheet.getCell(r, 3).value = ensCols[i].name;
     const countVal = rows.filter((row) => row.ensembleColumns[ensCols[i].col]).length;
     sheet.getCell(r, 4).value = {
-      formula: `COUNTA(${ensCols[i].col}6:${ensCols[i].col}1177)`,
+      formula: `COUNTA(${ensCols[i].col}6:${ensCols[i].col}${endRow})`,
       result: countVal,
     };
   }
