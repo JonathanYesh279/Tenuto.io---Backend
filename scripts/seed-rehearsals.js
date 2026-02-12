@@ -2,8 +2,8 @@
  * Tenuto.io — Rehearsal Seed Script
  *
  * Enriches existing orchestras with realistic weekly rehearsal data.
- * Reads orchestras + school year from DB, generates ~12 weekly instances
- * per rehearsal slot (Oct 1 – Dec 22, 2024), and updates orchestra.rehearsalIds.
+ * Reads orchestras + school year from DB, generates weekly instances
+ * per rehearsal slot (2 months ago → 3 months ahead), and updates orchestra.rehearsalIds.
  *
  * Usage:
  *   node scripts/seed-rehearsals.js           # Add rehearsals to existing orchestras
@@ -29,9 +29,11 @@ const REHEARSAL_LOCATIONS = [
   'חדר חזרות 1', 'חדר חזרות 2', 'חדר חזרות 3',
 ];
 
-// Date range for generating weekly instances
-const RANGE_START = new Date('2024-10-01');
-const RANGE_END = new Date('2024-12-22');
+// Date range for generating weekly instances — relative to current date
+// Generates rehearsals from 2 months ago to 3 months ahead
+const now = new Date();
+const RANGE_START = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+const RANGE_END = new Date(now.getFullYear(), now.getMonth() + 3, 0);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
