@@ -71,28 +71,34 @@ export function buildTeachersSheet({ workbook, mappedData, data, metadata }) {
 
   // Row 7-8: Section group headers
   setMergedValue(sheet, 'B7:M8', 'פרטים אישיים', {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.LIGHT_BLUE } },
     font: { bold: true, size: 12, color: { argb: COLORS.BLACK } },
     alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2 },
   });
   setMergedValue(sheet, 'N7:V8', 'שעות שבועיות', {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.LIGHT_ORANGE } },
     font: { bold: true, size: 12, color: { argb: COLORS.BLACK } },
     alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2 },
   });
   setMergedValue(sheet, 'Y7:AM8', 'כלי נגינה', {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.GREEN } },
     font: { bold: true, size: 12, color: { argb: COLORS.BLACK } },
     alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2 },
   });
 
-  // Row 9-10: Sub-group headers
+  // Row 9-10: Sub-group headers (matching section colors)
   setMergedValue(sheet, 'N9:O10', 'הוראה', {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.LIGHT_ORANGE } },
     font: { bold: true, size: 11, color: { argb: COLORS.BLACK } },
     alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2 },
   });
   setMergedValue(sheet, 'P9:Q10', 'הרכבים', {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.LIGHT_ORANGE } },
     font: { bold: true, size: 11, color: { argb: COLORS.BLACK } },
     alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2 },
   });
   setMergedValue(sheet, 'R9:T10', 'ריכוז ותאוריה', {
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.LIGHT_ORANGE } },
     font: { bold: true, size: 11, color: { argb: COLORS.BLACK } },
     alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2 },
   });
@@ -125,17 +131,29 @@ export function buildTeachersSheet({ workbook, mappedData, data, metadata }) {
     [24, 'מס"ד'],              // X
   ];
 
+  const headerBaseStyle = { font: { bold: true, size: 10, color: { argb: COLORS.BLACK } }, alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2, wrapText: true } };
   for (const [colNum, label] of headers) {
     const cell = sheet.getCell(headerRow, colNum);
     cell.value = label;
-    applyStyle(cell, { font: { bold: true, size: 10, color: { argb: COLORS.BLACK } }, alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2, wrapText: true } });
+    applyStyle(cell, headerBaseStyle);
   }
 
-  // Instrument column headers (Y-AM, row 11)
+  // Apply section fill colors to row 11 headers
+  // Personal (B-M, cols 2-13): blue
+  for (let c = 2; c <= 13; c++) {
+    applyStyle(sheet.getCell(headerRow, c), { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.LIGHT_BLUE } } });
+  }
+  // Hours (N-U, cols 14-21): orange
+  for (let c = 14; c <= 21; c++) {
+    applyStyle(sheet.getCell(headerRow, c), { fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.LIGHT_ORANGE } } });
+  }
+  // V-X (cols 22-24): no fill
+
+  // Instrument column headers (Y-AM, row 11): green
   for (const ic of INSTRUMENT_COLS) {
     const cell = sheet.getCell(headerRow, ic.col);
     cell.value = ic.abbrev;
-    applyStyle(cell, { font: { bold: true, size: 9, color: { argb: COLORS.BLACK } }, alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2 } });
+    applyStyle(cell, { font: { bold: true, size: 9, color: { argb: COLORS.BLACK } }, alignment: { horizontal: 'center', vertical: 'middle', readingOrder: 2 }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.GREEN } } });
   }
 
   // ─── Data Rows (starting at row 12) ─────────────────────────────────────
@@ -189,7 +207,7 @@ export function buildTeachersSheet({ workbook, mappedData, data, metadata }) {
 
     // V: Total (formula + result)
     sheet.getCell(r, 22).value = {
-      formula: `SUM(N${r}:U${r})`,
+      formula: `SUM(N${r}:T${r})`,
       result: row.totalWeeklyHours ?? 0,
     };
 
@@ -207,8 +225,8 @@ export function buildTeachersSheet({ workbook, mappedData, data, metadata }) {
 
     // Y-AM: Instrument booleans
     for (const ic of INSTRUMENT_COLS) {
-      const val = row.instrumentBooleans[ic.abbrev] || false;
-      sheet.getCell(r, ic.col).value = val;
+      const val = row.instrumentBooleans[ic.abbrev];
+      sheet.getCell(r, ic.col).value = val ? true : null;
     }
 
     // Apply RTL alignment to personal/hours columns

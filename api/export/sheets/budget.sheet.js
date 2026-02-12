@@ -48,8 +48,7 @@ export function buildBudgetSheet({ workbook, data, metadata }) {
   sheet.getCell('C8').value = 'תאריך';
   applyStyle(sheet.getCell('C8'), { font: { bold: true } });
   const dateCell = sheet.getCell('E8');
-  dateCell.value = new Date();
-  dateCell.numFmt = 'DD/MM/YYYY';
+  dateCell.value = new Date().toLocaleDateString('he-IL');
 
   // ─── Budget Template Headers (row 12) ────────────────────────────────────
   const headerDefs = [

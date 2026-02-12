@@ -46,8 +46,7 @@ export function buildProfileSheet({ workbook, data, metadata }) {
   sheet.getCell('M5').value = 'תאריך הגשה';
   applyStyle(sheet.getCell('M5'), { font: { bold: true } });
   const dateCell = sheet.getCell('N5');
-  dateCell.value = new Date();
-  dateCell.numFmt = 'DD/MM/YYYY';
+  dateCell.value = new Date().toLocaleDateString('he-IL');
   applyStyle(dateCell, STYLES.yellowRequired);
 
   // ─── Row 7: Ownership name ──────────────────────────────────────────────

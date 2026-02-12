@@ -279,7 +279,7 @@ function buildStudentSummary(sheet, rows, totalStudents, data, metadata) {
     const countVal = rows.filter((row) => row.ensembleColumns[ensCols[i].col]).length;
     sheet.getCell(r, 4).value = {
       formula: `COUNTA(${ensCols[i].col}6:${ensCols[i].col}${endRow})`,
-      result: countVal,
+      result: countVal || 0,
     };
   }
 

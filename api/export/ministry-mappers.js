@@ -81,11 +81,14 @@ async function loadExportData(tenantId, schoolYearId) {
     rehearsalsByOrchestra.get(key).push(r);
   }
 
-  // Build student → orchestra membership map
+  // Build student → orchestra membership map (reverse lookup from orchestra.memberIds)
   const studentOrchestraMap = new Map();
-  for (const s of students) {
-    const oids = s.enrollments?.orchestraIds || [];
-    studentOrchestraMap.set(s._id.toString(), oids);
+  for (const orch of orchestras) {
+    const oid = orch._id.toString();
+    for (const memberId of (orch.memberIds || [])) {
+      if (!studentOrchestraMap.has(memberId)) studentOrchestraMap.set(memberId, []);
+      studentOrchestraMap.get(memberId).push(oid);
+    }
   }
 
   return {
@@ -222,8 +225,8 @@ function mapStudentFull(data) {
     // Department column (from INSTRUMENT_TO_MINISTRY mapping)
     const instrMapping = INSTRUMENT_TO_MINISTRY[instrumentName] || null;
 
-    // Ensemble columns (from student's orchestraIds → orchestra subType → ENSEMBLE_TO_COLUMN)
-    const orchestraIds = s.enrollments?.orchestraIds || [];
+    // Ensemble columns (from studentOrchestraMap → orchestra subType → ENSEMBLE_TO_COLUMN)
+    const orchestraIds = data.studentOrchestraMap.get(s._id.toString()) || [];
     const ensembleColumns = {};
     for (const oid of orchestraIds) {
       const orch = orchestraMap.get(oid);
