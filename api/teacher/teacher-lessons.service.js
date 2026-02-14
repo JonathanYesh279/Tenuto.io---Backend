@@ -8,6 +8,7 @@
 
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const teacherLessonsService = {
   getTeacherLessons,
@@ -27,6 +28,7 @@ export const teacherLessonsService = {
  */
 async function getTeacherLessons(teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     console.log(`🔍 Getting lessons for teacher ${teacherId} using student records as source of truth`);
 
     // Validate teacher ID
@@ -38,6 +40,7 @@ async function getTeacherLessons(teacherId, options = {}) {
     const teacherCollection = await getCollection('teacher');
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
       isActive: { $ne: false }
     });
 
@@ -50,7 +53,9 @@ async function getTeacherLessons(teacherId, options = {}) {
     const studentCollection = await getCollection('student');
 
     // Build match stage to check BOTH paths where teacherAssignments might be stored
+    // tenantId in first $match ensures only same-tenant students are included
     const matchStage = {
+      tenantId,
       $or: [
         {
           'teacherAssignments.teacherId': teacherId,
@@ -227,6 +232,7 @@ async function getTeacherLessons(teacherId, options = {}) {
  */
 async function getTeacherWeeklySchedule(teacherId, options = {}) {
   try {
+    requireTenantId(options.context?.tenantId);
     console.log(`📅 Getting weekly schedule for teacher ${teacherId}`);
 
     const lessons = await getTeacherLessons(teacherId, options);
@@ -282,11 +288,12 @@ async function getTeacherWeeklySchedule(teacherId, options = {}) {
  * @param {string} day - Day name in Hebrew
  * @returns {Promise<Array>} Lessons for the specified day
  */
-async function getTeacherDaySchedule(teacherId, day) {
+async function getTeacherDaySchedule(teacherId, day, options = {}) {
   try {
+    requireTenantId(options.context?.tenantId);
     console.log(`📅 Getting ${day} schedule for teacher ${teacherId}`);
 
-    const lessons = await getTeacherLessons(teacherId, { day });
+    const lessons = await getTeacherLessons(teacherId, { day, context: options.context });
     
     console.log(`✅ Found ${lessons.length} lessons for ${day}`);
     
@@ -303,11 +310,12 @@ async function getTeacherDaySchedule(teacherId, day) {
  * @param {string} teacherId - Teacher's ID
  * @returns {Promise<Object>} Lesson statistics
  */
-async function getTeacherLessonStats(teacherId) {
+async function getTeacherLessonStats(teacherId, options = {}) {
   try {
+    requireTenantId(options.context?.tenantId);
     console.log(`📊 Calculating lesson statistics for teacher ${teacherId}`);
 
-    const lessons = await getTeacherLessons(teacherId);
+    const lessons = await getTeacherLessons(teacherId, { context: options.context });
 
     const stats = {
       totalLessons: lessons.length,
@@ -362,8 +370,9 @@ async function getTeacherLessonStats(teacherId) {
  * @param {string} teacherId - Teacher's ID
  * @returns {Promise<Object>} Validation report
  */
-async function validateTeacherLessonData(teacherId) {
+async function validateTeacherLessonData(teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     console.log(`🔍 Validating lesson data consistency for teacher ${teacherId}`);
 
     const teacherCollection = await getCollection('teacher');
@@ -383,7 +392,7 @@ async function validateTeacherLessonData(teacherId) {
 
     // Get teacher record
     const teacher = await teacherCollection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId), tenantId
     });
 
     if (!teacher) {
@@ -396,11 +405,12 @@ async function validateTeacherLessonData(teacherId) {
     }
 
     // Get lessons from student records (via teacherAssignments)
-    const lessons = await getTeacherLessons(teacherId);
+    const lessons = await getTeacherLessons(teacherId, { context: options.context });
     validation.summary.lessonsFound = lessons.length;
 
     // Get students who have active teacherAssignments for this teacher
     const assignedStudents = await studentCollection.find({
+      tenantId,
       'teacherAssignments.teacherId': teacherId,
       'teacherAssignments.isActive': true,
       isActive: { $ne: false }
@@ -478,12 +488,13 @@ async function validateTeacherLessonData(teacherId) {
  * @param {string} teacherId - Teacher's ID
  * @returns {Promise<Array>} Students with lesson information
  */
-async function getTeacherStudentsWithLessons(teacherId) {
+async function getTeacherStudentsWithLessons(teacherId, options = {}) {
   try {
+    requireTenantId(options.context?.tenantId);
     console.log(`👥 Getting students with lessons for teacher ${teacherId}`);
 
     // Get all lessons
-    const lessons = await getTeacherLessons(teacherId);
+    const lessons = await getTeacherLessons(teacherId, { context: options.context });
 
     // Group lessons by student
     const studentsMap = new Map();
