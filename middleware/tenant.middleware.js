@@ -35,9 +35,13 @@ export async function buildContext(req, res, next) {
     if (!teacher._studentAccessIds) {
       try {
         const studentCollection = await getCollection('student');
+        const studentFilter = { 'teacherAssignments.teacherId': teacherId, 'teacherAssignments.isActive': true };
+        if (teacher.tenantId) {
+          studentFilter.tenantId = teacher.tenantId;
+        }
         const students = await studentCollection
           .find(
-            { 'teacherAssignments.teacherId': teacherId, 'teacherAssignments.isActive': true },
+            studentFilter,
             { projection: { _id: 1 } }
           )
           .toArray();

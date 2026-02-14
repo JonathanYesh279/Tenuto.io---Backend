@@ -8,13 +8,14 @@ export async function addSchoolYearToRequest(req, res, next) {
   }
 
   try {
-    // If schoolYearId is provided in query params, use it
+    // If schoolYearId is provided in query params, use it (tenant-scoped to prevent IDOR)
     if (req.query.schoolYearId) {
       try {
         const collection = await getCollection('school_year')
-        const schoolYear = await collection.findOne({
-          _id: ObjectId.createFromHexString(req.query.schoolYearId)
-        })
+        const tenantFilter = { _id: ObjectId.createFromHexString(req.query.schoolYearId) }
+        const tenantId = req.context?.tenantId || req.teacher?.tenantId || null
+        if (tenantId) tenantFilter.tenantId = tenantId
+        const schoolYear = await collection.findOne(tenantFilter)
 
         if (schoolYear) {
           req.schoolYear = schoolYear
