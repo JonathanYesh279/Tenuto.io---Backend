@@ -10,12 +10,10 @@
  * @returns {object} filter with tenantId + role-based restrictions applied
  */
 export function buildScopedFilter(collection, baseFilter, context) {
-  const filter = { ...baseFilter };
-
-  // Always scope to tenant when available
-  if (context.tenantId) {
-    filter.tenantId = context.tenantId;
+  if (!context?.tenantId) {
+    throw new Error('TENANT_GUARD: buildScopedFilter requires context.tenantId. Pass { context: req.context } from controller.');
   }
+  const filter = { ...baseFilter, tenantId: context.tenantId };
 
   // Admins see everything within their tenant
   if (context.isAdmin) {
