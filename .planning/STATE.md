@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 2 of 6 (Service Layer Query Hardening)
-Plan: 1 of 8 in current phase
+Plan: 2 of 8 in current phase
 Status: Executing Phase 2
-Last activity: 2026-02-14 - Completed 02-01 (infrastructure query hardening)
+Last activity: 2026-02-14 - Completed 02-02 (school-year and student service hardening)
 
-Progress: [████░░░░░░] 20%
+Progress: [█████░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 5 min
-- Total execution time: 0.32 hours
+- Total execution time: 0.40 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-audit-infrastructure | 3/3 | 17 min | 6 min |
-| 02-service-layer-query-hardening | 1/8 | 2 min | 2 min |
+| 02-service-layer-query-hardening | 2/8 | 7 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (9 min), 01-02 (5 min), 01-03 (3 min), 02-01 (2 min)
-- Trend: Accelerating
+- Last 5 plans: 01-02 (5 min), 01-03 (3 min), 02-01 (2 min), 02-02 (5 min)
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -63,6 +63,11 @@ Recent decisions affecting current work:
 - [02-01] enforceTenant placed between buildContext and addSchoolYearToRequest in middleware chain
 - [02-01] Admin/auth/super-admin/health/files/tenant/config routes exempt from enforceTenant
 - [02-01] School year IDOR fix: schoolYearId lookup now tenant-scoped via req.context.tenantId
+- [02-02] Backward compat for getCurrentSchoolYear: accepts string tenantId (legacy) or options object (new pattern)
+- [02-02] tenantId removed from student _buildCriteria -- exclusively handled by buildScopedFilter at call site
+- [02-02] getStudents context is now mandatory (no more optional conditional scoping)
+- [02-02] Fixed pre-existing bug: undefined teacherRelationshipSyncRequired -> teacherAssignmentsSyncRequired
+- [02-02] All write operations derive tenantId from context (server-side, never from client body)
 
 ### Pending Todos
 
@@ -73,8 +78,8 @@ None yet.
 **Known Gaps from Query Inventory (01-01):**
 - 43 CRITICAL risk queries (no tenantId at all) across 22 API services
 - 98 HIGH risk queries (conditional tenantId via _buildCriteria opt-in pattern)
-- buildScopedFilter used in only 1 of 22 services (student.service.js)
-- Every getById function queries by _id only (no tenant scope)
+- ~~buildScopedFilter used in only 1 of 22 services (student.service.js)~~ FIXED in 02-02 (now used in student + school-year)
+- ~~Every getById function queries by _id only (no tenant scope)~~ PARTIALLY FIXED in 02-02 (school-year and student getById now include tenantId)
 - Aggregation $lookups in orchestra.service.js join cross-tenant
 - ~~enforceTenant middleware exists but is not applied to any route~~ FIXED in 02-01
 - ~~buildContext tolerates null tenantId (does not throw)~~ FIXED in 02-01 (buildScopedFilter throws; buildContext still sets null for enforceTenant to catch)
@@ -88,7 +93,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-14 (Phase 2 started)
-Stopped at: Completed 02-01-PLAN.md (Infrastructure Query Hardening)
-Resume file: .planning/phases/02-service-layer-query-hardening/02-02-PLAN.md
-Resume task: Execute 02-02 (next plan in Phase 2)
+Last session: 2026-02-14 (Phase 2 continuing)
+Stopped at: Completed 02-02-PLAN.md (School-Year and Student Service Hardening)
+Resume file: .planning/phases/02-service-layer-query-hardening/02-03-PLAN.md
+Resume task: Execute 02-03 (next plan in Phase 2)
