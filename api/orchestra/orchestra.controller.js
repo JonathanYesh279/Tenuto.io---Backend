@@ -16,7 +16,6 @@ export const orchestraController = {
 async function getOrchestras(req, res, next) {
   try {
     const filterBy = {
-      tenantId: req.context?.tenantId || null,
       name: req.query.name,
       type: req.query.type,
       conductorId: req.query.conductorId,
@@ -25,7 +24,7 @@ async function getOrchestras(req, res, next) {
       showInActive: req.query.showInactive === 'true',
       ids: req.query.ids // Add support for batch fetching by IDs
     }
-    const orchestras = await orchestraService.getOrchestras(filterBy)
+    const orchestras = await orchestraService.getOrchestras(filterBy, { context: req.context })
     res.json(orchestras)
   } catch (err) {
     next(err)
@@ -35,7 +34,7 @@ async function getOrchestras(req, res, next) {
 async function getOrchestraById(req, res, next) {
   try {
     const { id } = req.params
-    const orchestra = await orchestraService.getOrchestraById(id)
+    const orchestra = await orchestraService.getOrchestraById(id, { context: req.context })
     res.json(orchestra)
   } catch (err) {
     next(err)
@@ -45,10 +44,7 @@ async function getOrchestraById(req, res, next) {
 async function addOrchestra(req, res, next) {
   try {
     const orchestraToAdd = { ...req.body }
-    if (req.context?.tenantId && !orchestraToAdd.tenantId) {
-      orchestraToAdd.tenantId = req.context.tenantId
-    }
-    const addedOrchestra = await orchestraService.addOrchestra(orchestraToAdd)
+    const addedOrchestra = await orchestraService.addOrchestra(orchestraToAdd, { context: req.context })
     res.status(201).json(addedOrchestra)
   } catch (err) {
     next(err)
@@ -68,7 +64,8 @@ async function updateOrchestra(req, res, next) {
       orchestraToUpdate,
       teacherId,
       isAdmin,
-      userRoles
+      userRoles,
+      { context: req.context }
     )
     res.json(updatedOrchestra)
   } catch (err) {
@@ -82,7 +79,7 @@ async function updateOrchestra(req, res, next) {
 
 async function removeOrchestra(req, res, next) {
   try {
-    const { id } = req.params 
+    const { id } = req.params
     const teacherId = req.teacher._id
     const isAdmin = req.teacher.roles.includes('מנהל')
     const userRoles = req.teacher.roles || []
@@ -91,7 +88,8 @@ async function removeOrchestra(req, res, next) {
       id,
       teacherId,
       isAdmin,
-      userRoles
+      userRoles,
+      { context: req.context }
     )
     res.json(removedOrchestra)
   } catch (err) {
@@ -101,7 +99,7 @@ async function removeOrchestra(req, res, next) {
 
     next(err)
   }
-} 
+}
 
 async function addMember(req, res, next) {
   try {
@@ -116,7 +114,8 @@ async function addMember(req, res, next) {
       studentId,
       teacherId,
       isAdmin,
-      userRoles
+      userRoles,
+      { context: req.context }
     )
 
     res.json(updatedOrchestra)
@@ -141,7 +140,8 @@ async function removeMember(req, res, next) {
       studentId,
       teacherId,
       isAdmin,
-      userRoles
+      userRoles,
+      { context: req.context }
     )
     res.json(updatedOrchestra)
   } catch (err) {
@@ -166,14 +166,15 @@ async function updateRehearsalAttendance(req, res, next) {
       attendance,
       teacherId,
       isAdmin,
-      userRoles
+      userRoles,
+      { context: req.context }
     )
     res.json(updatedRehearsal)
   } catch (err) {
     if (err.message === 'Not authorized to modify this orchestra') {
       return res.status(403).json({ error: err.message })
     }
-    
+
     next(err)
   }
 }
@@ -181,7 +182,7 @@ async function updateRehearsalAttendance(req, res, next) {
 async function getRehearsalAttendance(req, res, next) {
   try {
     const { rehearsalId } = req.params
-    const attendance = await orchestraService.getRehearsalAttendance(rehearsalId)
+    const attendance = await orchestraService.getRehearsalAttendance(rehearsalId, { context: req.context })
     res.json(attendance)
   } catch (err) {
     next(err)
@@ -191,7 +192,7 @@ async function getRehearsalAttendance(req, res, next) {
 async function getStudentAttendanceStats(req, res, next) {
   try {
     const { orchestraId, studentId } = req.params
-    const stats = await orchestraService.getStudentAttendanceStats(orchestraId, studentId)
+    const stats = await orchestraService.getStudentAttendanceStats(orchestraId, studentId, { context: req.context })
     res.json(stats)
   } catch(err) {
     next(err)
