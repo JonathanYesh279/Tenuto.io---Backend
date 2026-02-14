@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 2 of 6 (Service Layer Query Hardening)
-Plan: 3 of 8 in current phase
+Plan: 4 of 8 in current phase
 Status: Executing Phase 2
-Last activity: 2026-02-15 - Completed 02-03 (teacher service and teacher-lessons hardening)
+Last activity: 2026-02-15 - Completed 02-04 (orchestra and rehearsal service hardening)
 
-Progress: [██████░░░░] 30%
+Progress: [███████░░░] 35%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 5 min
-- Total execution time: 0.52 hours
+- Total execution time: 0.62 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-audit-infrastructure | 3/3 | 17 min | 6 min |
-| 02-service-layer-query-hardening | 3/8 | 14 min | 5 min |
+| 02-service-layer-query-hardening | 4/8 | 20 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (3 min), 02-01 (2 min), 02-02 (5 min), 02-03 (7 min)
+- Last 5 plans: 02-01 (2 min), 02-02 (5 min), 02-03 (7 min), 02-04 (6 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -73,6 +73,11 @@ Recent decisions affecting current work:
 - [02-03] addTeacher sets tenantId from context (server-derived), removed client tenantId injection from controller
 - [02-03] getTeacherIds now tenant-scoped (was CRITICAL vulnerability -- returned ALL teacher IDs cross-tenant)
 - [02-03] No $lookup in teacher-lessons -- tenantId in first $match of aggregation pipeline is sufficient
+- [02-04] All 4 orchestra $lookup pipelines use let tid: '$tenantId' with $eq filter (prevents cross-tenant joins)
+- [02-04] Orchestra addOrchestra uses dynamic import() for ESM compat with getCurrentSchoolYear context
+- [02-04] Rehearsal addRehearsal/bulkCreate set tenantId from context on document (server-derived)
+- [02-04] All activity_attendance upserts/inserts include tenantId in filter and $set
+- [02-04] Bulk delete/update operations include tenantId in all queries including transaction branches
 
 ### Pending Todos
 
@@ -83,13 +88,14 @@ None yet.
 **Known Gaps from Query Inventory (01-01):**
 - 43 CRITICAL risk queries (no tenantId at all) across 22 API services
 - 98 HIGH risk queries (conditional tenantId via _buildCriteria opt-in pattern)
-- ~~buildScopedFilter used in only 1 of 22 services (student.service.js)~~ FIXED in 02-02/02-03 (now used in student + school-year + teacher)
-- ~~Every getById function queries by _id only (no tenant scope)~~ PARTIALLY FIXED in 02-02/02-03 (school-year, student, and teacher getById now include tenantId)
-- Aggregation $lookups in orchestra.service.js join cross-tenant
+- ~~buildScopedFilter used in only 1 of 22 services (student.service.js)~~ FIXED in 02-02/02-03/02-04 (now used in student + school-year + teacher + orchestra + rehearsal)
+- ~~Every getById function queries by _id only (no tenant scope)~~ PARTIALLY FIXED in 02-02/02-03/02-04 (school-year, student, teacher, orchestra, rehearsal getById now include tenantId)
+- ~~Aggregation $lookups in orchestra.service.js join cross-tenant~~ FIXED in 02-04 (all 4 $lookup pipelines now tenant-scoped)
 - ~~enforceTenant middleware exists but is not applied to any route~~ FIXED in 02-01
 - ~~buildContext tolerates null tenantId (does not throw)~~ FIXED in 02-01 (buildScopedFilter throws; buildContext still sets null for enforceTenant to catch)
 - duplicateDetectionService.js and conflictDetectionService.js query without tenant scope
 - Two cascade deletion systems exist (need unification but not blocking)
+- past-activities.service.js calls rehearsalService.getRehearsals without context (will fail with TENANT_GUARD until admin services hardened)
 
 **Enforcement Checklist Summary (01-02):**
 - 50 FAIL endpoints need tenant isolation (17 P0 data leak + 33 P1 data corruption)
@@ -99,6 +105,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15 (Phase 2 continuing)
-Stopped at: Completed 02-03-PLAN.md (Teacher Service and Teacher-Lessons Hardening)
-Resume file: .planning/phases/02-service-layer-query-hardening/02-04-PLAN.md
-Resume task: Execute 02-04 (next plan in Phase 2)
+Stopped at: Completed 02-04-PLAN.md (Orchestra and Rehearsal Service Hardening)
+Resume file: .planning/phases/02-service-layer-query-hardening/02-05-PLAN.md
+Resume task: Execute 02-05 (next plan in Phase 2)
