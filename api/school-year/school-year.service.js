@@ -1,6 +1,7 @@
 import { getCollection } from '../../services/mongoDB.service.js'
 import { validateSchoolYear } from './school-year.validation.js'
 import { ObjectId } from 'mongodb'
+import { requireTenantId } from '../../middleware/tenant.middleware.js'
 
 export const schoolYearService = {
   getSchoolYears,
@@ -12,11 +13,18 @@ export const schoolYearService = {
   rolloverToNewYear
 }
 
-async function getSchoolYears(tenantId = null) {
+async function getSchoolYears(optionsOrTenantId = {}) {
   try {
+    let tenantId
+    if (typeof optionsOrTenantId === 'string') {
+      // Legacy caller passing tenantId directly -- backward compat
+      tenantId = requireTenantId(optionsOrTenantId)
+    } else {
+      tenantId = requireTenantId(optionsOrTenantId.context?.tenantId)
+    }
+
     const collection = await getCollection('school_year')
-    const filter = { isActive: true }
-    if (tenantId) filter.tenantId = tenantId
+    const filter = { isActive: true, tenantId }
     const query = collection.find(filter)
     const sorted = query.sort({ startDate: -1 })
     const limited = sorted.limit(4)
@@ -27,17 +35,26 @@ async function getSchoolYears(tenantId = null) {
   }
 }
 
-async function getSchoolYearById(schoolYearId) {
+async function getSchoolYearById(schoolYearId, optionsOrTenantId = {}) {
   try {
+    let tenantId
+    if (typeof optionsOrTenantId === 'string') {
+      // Legacy caller passing tenantId directly -- backward compat
+      tenantId = requireTenantId(optionsOrTenantId)
+    } else {
+      tenantId = requireTenantId(optionsOrTenantId.context?.tenantId)
+    }
+
     const collection = await getCollection('school_year')
     const schoolYear = await collection.findOne({
-      _id: ObjectId.createFromHexString(schoolYearId)
+      _id: ObjectId.createFromHexString(schoolYearId),
+      tenantId
     })
 
     if (!schoolYear) {
       throw new Error(`School year with id ${schoolYearId} not found`)
     }
-    
+
     return schoolYear
   } catch (err) {
     console.error(`Error in schoolYearService.getSchoolYearById: ${err}`)
@@ -45,11 +62,18 @@ async function getSchoolYearById(schoolYearId) {
   }
 }
 
-async function getCurrentSchoolYear(tenantId = null) {
+async function getCurrentSchoolYear(optionsOrTenantId = {}) {
   try {
+    let tenantId
+    if (typeof optionsOrTenantId === 'string') {
+      // Legacy caller passing tenantId directly -- backward compat
+      tenantId = requireTenantId(optionsOrTenantId)
+    } else {
+      tenantId = requireTenantId(optionsOrTenantId.context?.tenantId)
+    }
+
     const collection = await getCollection('school_year')
-    const filter = { isCurrent: true }
-    if (tenantId) filter.tenantId = tenantId
+    const filter = { isCurrent: true, tenantId }
     const schoolYear = await collection.findOne(filter)
 
     if (!schoolYear) {
@@ -59,7 +83,8 @@ async function getCurrentSchoolYear(tenantId = null) {
         startDate: new Date(`${currentYear}-08-20`),
         endDate: new Date(`${currentYear + 1}-08-01`),
         isCurrent: true,
-        isActive: true
+        isActive: true,
+        tenantId
       }
 
       const validationResult = validateSchoolYear(defaultYear)
@@ -67,8 +92,8 @@ async function getCurrentSchoolYear(tenantId = null) {
         throw validationResult.error
       }
 
-      const newYear = await createSchoolYear(validationResult.value)
-      return await getSchoolYearById(newYear._id.toString())
+      const newYear = await createSchoolYear(validationResult.value, { context: { tenantId } })
+      return await getSchoolYearById(newYear._id.toString(), { context: { tenantId } })
     }
 
     return schoolYear
@@ -78,23 +103,26 @@ async function getCurrentSchoolYear(tenantId = null) {
   }
 }
 
-async function createSchoolYear(schoolYearData) {
+async function createSchoolYear(schoolYearData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId)
+
     // Validate the data
     const validationResult = validateSchoolYear(schoolYearData)
     if (validationResult.error) {
       throw validationResult.error
     }
-    
+
     const value = validationResult.value
+
+    // Server-derived tenantId (never from client)
+    value.tenantId = tenantId
 
     // If this is a current year, update other years to not be current (scoped by tenant)
     if (value.isCurrent) {
       const collection = await getCollection('school_year')
-      const unsetFilter = { isCurrent: true }
-      if (value.tenantId) unsetFilter.tenantId = value.tenantId
       await collection.updateMany(
-        unsetFilter,
+        { isCurrent: true, tenantId },
         { $set: { isCurrent: false, updatedAt: new Date() } }
       )
     }
@@ -115,32 +143,32 @@ async function createSchoolYear(schoolYearData) {
   }
 }
 
-async function updateSchoolYear(schoolYearId, schoolYearData) {
+async function updateSchoolYear(schoolYearId, schoolYearData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId)
+
     // Validate the data
     const validationResult = validateSchoolYear(schoolYearData)
     if (validationResult.error) {
       throw validationResult.error
     }
-    
+
     const value = validationResult.value
     value.updatedAt = new Date()
 
     // If this is becoming the current year, update other years (scoped by tenant)
     if (value.isCurrent) {
       const collection = await getCollection('school_year')
-      const unsetFilter = { _id: { $ne: ObjectId.createFromHexString(schoolYearId) }, isCurrent: true }
-      if (value.tenantId) unsetFilter.tenantId = value.tenantId
       await collection.updateMany(
-        unsetFilter,
+        { _id: { $ne: ObjectId.createFromHexString(schoolYearId) }, isCurrent: true, tenantId },
         { $set: { isCurrent: false, updatedAt: new Date() } }
       )
     }
 
-    // Update the school year
+    // Update the school year (filter includes tenantId)
     const collection = await getCollection('school_year')
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(schoolYearId) },
+      { _id: ObjectId.createFromHexString(schoolYearId), tenantId },
       { $set: value },
       { returnDocument: 'after' }
     )
@@ -149,7 +177,7 @@ async function updateSchoolYear(schoolYearId, schoolYearData) {
     if (!result) {
       throw new Error(`School year with id ${schoolYearId} not found`)
     }
-    
+
     return result
   } catch (err) {
     console.error(`Error in schoolYearService.updateSchoolYear: ${err}`)
@@ -157,31 +185,29 @@ async function updateSchoolYear(schoolYearId, schoolYearData) {
   }
 }
 
-async function setCurrentSchoolYear(schoolYearId, tenantId = null) {
+async function setCurrentSchoolYear(schoolYearId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId)
     const collection = await getCollection('school_year')
 
-    // First, get the target school year to determine its tenantId
+    // Verify the target school year exists within this tenant
     const target = await collection.findOne({
-      _id: ObjectId.createFromHexString(schoolYearId)
+      _id: ObjectId.createFromHexString(schoolYearId),
+      tenantId
     })
     if (!target) {
       throw new Error(`School year with id ${schoolYearId} not found`)
     }
 
-    // Use provided tenantId or the target's tenantId — scope the unset to this tenant only
-    const scopeTenantId = tenantId || target.tenantId
-    const unsetFilter = { isCurrent: true }
-    if (scopeTenantId) unsetFilter.tenantId = scopeTenantId
-
+    // Unset isCurrent for all school years in this tenant (tenant-scoped, not global)
     await collection.updateMany(
-      unsetFilter,
+      { tenantId, isCurrent: true },
       { $set: { isCurrent: false, updatedAt: new Date() } }
     )
 
-    // Then, set the specified school year as current
+    // Then, set the specified school year as current (filter includes tenantId)
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(schoolYearId) },
+      { _id: ObjectId.createFromHexString(schoolYearId), tenantId },
       { $set: { isCurrent: true, updatedAt: new Date() } },
       { returnDocument: 'after' }
     )
@@ -193,15 +219,18 @@ async function setCurrentSchoolYear(schoolYearId, tenantId = null) {
   }
 }
 
-async function rolloverToNewYear(prevYearId) {
+async function rolloverToNewYear(prevYearId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId)
+
     // Get the previous year details - directly access the collection
     // instead of using getSchoolYearById to avoid test mocking issues
     const collection = await getCollection('school_year')
     const prevYear = await collection.findOne({
-      _id: ObjectId.createFromHexString(prevYearId)
+      _id: ObjectId.createFromHexString(prevYearId),
+      tenantId
     })
-    
+
     if (!prevYear) {
       throw new Error(`School year with id ${prevYearId} not found`)
     }
@@ -227,8 +256,8 @@ async function rolloverToNewYear(prevYearId) {
       isActive: true
     }
 
-    // Create the new school year record
-    const createdYear = await createSchoolYear(newYear)
+    // Create the new school year record (tenantId set from context inside createSchoolYear)
+    const createdYear = await createSchoolYear(newYear, { context: options.context })
     const newYearId = createdYear._id.toString()
 
     // Rest of the function remains the same...
