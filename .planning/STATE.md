@@ -5,32 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Every MongoDB query either includes a tenantId filter or is explicitly allowlisted as cross-tenant. No exceptions.
-**Current focus:** Phase 1 - Audit & Infrastructure
+**Current focus:** Phase 2 - Service Layer Query Hardening
 
 ## Current Position
 
-Phase: 1 of 6 (Audit & Infrastructure)
-Plan: 2 of 3 in current phase
-Status: Executing phase 1
-Last activity: 2026-02-14 - Completed 01-02 (Architecture Guide & Enforcement Checklist)
+Phase: 2 of 6 (Service Layer Query Hardening)
+Plan: 1 of 8 in current phase
+Status: Executing Phase 2
+Last activity: 2026-02-14 - Completed 02-01 (infrastructure query hardening)
 
-Progress: [██░░░░░░░░] 10%
+Progress: [████░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 7 min
-- Total execution time: 0.23 hours
+- Total plans completed: 4
+- Average duration: 5 min
+- Total execution time: 0.32 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-audit-infrastructure | 2/3 | 14 min | 7 min |
+| 01-audit-infrastructure | 3/3 | 17 min | 6 min |
+| 02-service-layer-query-hardening | 1/8 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (9 min), 01-02 (5 min)
+- Last 5 plans: 01-01 (9 min), 01-02 (5 min), 01-03 (3 min), 02-01 (2 min)
 - Trend: Accelerating
 
 *Updated after each plan completion*
@@ -54,6 +55,14 @@ Recent decisions affecting current work:
 - [01-02] 50 FAIL + 17 PARTIAL + 31 EXEMPT + 6 N/A endpoints documented
 - [01-02] 3 shared services flagged for hardening: duplicateDetectionService, conflictDetectionService, permissionService
 - [01-02] 4-wave fix order established: P0 reads -> P1 writes -> P2 fragile -> shared services
+- [01-03] 16 compound indexes across 11 collections (time_block excluded as embedded in teacher docs)
+- [01-03] Background index creation to avoid blocking production database
+- [01-03] Script does not auto-drop old indexes (requires manual verification)
+- [01-03] Unique compound index on tenantId + credentials.email replaces email-only index
+- [02-01] buildScopedFilter now throws TENANT_GUARD on null tenantId (fail-fast over silent skip)
+- [02-01] enforceTenant placed between buildContext and addSchoolYearToRequest in middleware chain
+- [02-01] Admin/auth/super-admin/health/files/tenant/config routes exempt from enforceTenant
+- [02-01] School year IDOR fix: schoolYearId lookup now tenant-scoped via req.context.tenantId
 
 ### Pending Todos
 
@@ -67,8 +76,8 @@ None yet.
 - buildScopedFilter used in only 1 of 22 services (student.service.js)
 - Every getById function queries by _id only (no tenant scope)
 - Aggregation $lookups in orchestra.service.js join cross-tenant
-- enforceTenant middleware exists but is not applied to any route
-- buildContext tolerates null tenantId (does not throw)
+- ~~enforceTenant middleware exists but is not applied to any route~~ FIXED in 02-01
+- ~~buildContext tolerates null tenantId (does not throw)~~ FIXED in 02-01 (buildScopedFilter throws; buildContext still sets null for enforceTenant to catch)
 - duplicateDetectionService.js and conflictDetectionService.js query without tenant scope
 - Two cascade deletion systems exist (need unification but not blocking)
 
@@ -79,6 +88,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-14 (plan 01-02 execution)
-Stopped at: Completed 01-02-PLAN.md (Architecture Guide & Enforcement Checklist)
-Resume file: .planning/phases/01-audit-infrastructure/01-02-SUMMARY.md
+Last session: 2026-02-14 (Phase 2 started)
+Stopped at: Completed 02-01-PLAN.md (Infrastructure Query Hardening)
+Resume file: .planning/phases/02-service-layer-query-hardening/02-02-PLAN.md
+Resume task: Execute 02-02 (next plan in Phase 2)
