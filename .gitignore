@@ -169,7 +169,8 @@ planning/
 !docs/*.md
 
 # Scripts (migrations, seeds, one-off fixes, utilities)
-scripts/
+scripts/*
+!scripts/create-tenant-indexes.js
 
 # Reports and test result JSON files
 reports/
