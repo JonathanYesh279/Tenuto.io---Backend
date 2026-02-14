@@ -32,7 +32,6 @@ export const teacherController = {
 async function getTeachers(req, res, next) {
   try {
     const filterBy = {
-      tenantId: req.context?.tenantId || null,
       name: req.query.name,
       instrument: req.query.instrument,
       role: req.query.role,
@@ -47,7 +46,7 @@ async function getTeachers(req, res, next) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 0; // 0 means no pagination (return all)
 
-    const result = await teacherService.getTeachers(filterBy, page, limit);
+    const result = await teacherService.getTeachers(filterBy, page, limit, { context: req.context });
     res.json(result);
   } catch (err) {
     next(err)
@@ -67,7 +66,7 @@ async function getTeacherById(req, res, next) {
       });
     }
     
-    const teacher = await teacherService.getTeacherById(id, { tenantId: req.context?.tenantId });
+    const teacher = await teacherService.getTeacherById(id, { context: req.context });
 
     res.json({
       success: true,
@@ -102,7 +101,7 @@ async function getMyProfile(req, res, next) {
     const teacherId = req.teacher._id.toString();
     console.log(`Getting profile for authenticated teacher: ${teacherId}`);
     
-    const teacher = await teacherService.getTeacherById(teacherId, { tenantId: req.context?.tenantId });
+    const teacher = await teacherService.getTeacherById(teacherId, { context: req.context });
 
     res.json({
       success: true,
@@ -130,7 +129,7 @@ async function updateMyProfile(req, res, next) {
     console.log(`Updating profile for authenticated teacher: ${teacherId}`);
     console.log('Request body received:', JSON.stringify(req.body, null, 2));
     
-    const updatedTeacher = await teacherService.updateTeacher(teacherId, req.body);
+    const updatedTeacher = await teacherService.updateTeacher(teacherId, req.body, { context: req.context });
     
     res.json({
       success: true,
@@ -163,7 +162,7 @@ async function updateMyProfile(req, res, next) {
 
 async function getTeacherIds(req, res, next) {
   try {
-    const teachers = await teacherService.getTeacherIds();
+    const teachers = await teacherService.getTeacherIds({ context: req.context });
     
     res.json({
       success: true,
@@ -189,12 +188,8 @@ async function addTeacher(req, res, next) {
     console.log('=================================');
     
     const teacherToAdd = { ...req.body }
-    // Inject tenantId from context if not already set
-    if (req.context?.tenantId && !teacherToAdd.tenantId) {
-      teacherToAdd.tenantId = req.context.tenantId;
-    }
     const adminId = req.teacher?._id // Get admin ID from authenticated user
-    const addedTeacher = await teacherService.addTeacher(teacherToAdd, adminId)
+    const addedTeacher = await teacherService.addTeacher(teacherToAdd, adminId, { context: req.context })
     
     // Check if there are warnings (non-blocking duplicates)
     if (addedTeacher.warnings) {
@@ -257,7 +252,7 @@ async function updateTeacher(req, res, next) {
   try {
     const { id } = req.params
     const teacherToUpdate = req.body
-    const updatedTeacher = await teacherService.updateTeacher(id, teacherToUpdate)
+    const updatedTeacher = await teacherService.updateTeacher(id, teacherToUpdate, { context: req.context })
     res.json({ success: true, data: updatedTeacher })
   } catch (err) {
     console.error(`Error updating teacher: ${err.message}`);
@@ -311,7 +306,7 @@ async function updateTeacher(req, res, next) {
 async function removeTeacher(req, res, next) { 
   try {
     const { id } = req.params
-    const removedTeacher = await teacherService.removeTeacher(id)
+    const removedTeacher = await teacherService.removeTeacher(id, { context: req.context })
     res.json(removedTeacher)
   } catch (err) {
     next(err)
@@ -321,7 +316,7 @@ async function removeTeacher(req, res, next) {
 async function getTeacherByRole(req, res, next) {
   try {
     const { role } = req.params
-    const teachers = await teacherService.getTeacherByRole(role, req.context?.tenantId)
+    const teachers = await teacherService.getTeacherByRole(role, { context: req.context })
     res.json(teachers)
   } catch (err) {
     next(err)
@@ -333,7 +328,7 @@ async function updateTeacherSchedule(req, res, next) {
     const { id: teacherId } = req.params
     const scheduleData = req.body
     
-    const result = await teacherService.updateTeacherSchedule(teacherId, scheduleData)
+    const result = await teacherService.updateTeacherSchedule(teacherId, scheduleData, { context: req.context })
     res.json(result)
   } catch (err) {
     next(err)
@@ -367,7 +362,7 @@ async function getTeacherLessons(req, res, next) {
 
     console.log(`🔍 Getting lessons for teacher ${teacherId} using new single source approach`);
     
-    const lessons = await teacherLessonsService.getTeacherLessons(teacherId, options);
+    const lessons = await teacherLessonsService.getTeacherLessons(teacherId, { ...options, context: req.context });
 
     res.json({
       success: true,
@@ -425,7 +420,7 @@ async function getTeacherWeeklySchedule(req, res, next) {
 
     console.log(`📅 Getting weekly schedule for teacher ${teacherId}`);
     
-    const weeklySchedule = await teacherLessonsService.getTeacherWeeklySchedule(teacherId, options);
+    const weeklySchedule = await teacherLessonsService.getTeacherWeeklySchedule(teacherId, { ...options, context: req.context });
 
     res.json({
       success: true,
@@ -467,7 +462,7 @@ async function getTeacherDaySchedule(req, res, next) {
 
     console.log(`📅 Getting ${day} schedule for teacher ${teacherId}`);
     
-    const daySchedule = await teacherLessonsService.getTeacherDaySchedule(teacherId, day);
+    const daySchedule = await teacherLessonsService.getTeacherDaySchedule(teacherId, day, { context: req.context });
 
     res.json({
       success: true,
@@ -513,7 +508,7 @@ async function getTeacherLessonStats(req, res, next) {
 
     console.log(`📊 Getting lesson statistics for teacher ${teacherId}`);
     
-    const stats = await teacherLessonsService.getTeacherLessonStats(teacherId);
+    const stats = await teacherLessonsService.getTeacherLessonStats(teacherId, { context: req.context });
 
     res.json({
       success: true,
@@ -558,7 +553,7 @@ async function getTeacherStudentsWithLessons(req, res, next) {
 
     console.log(`👥 Getting students with lessons for teacher ${teacherId}`);
     
-    const students = await teacherLessonsService.getTeacherStudentsWithLessons(teacherId);
+    const students = await teacherLessonsService.getTeacherStudentsWithLessons(teacherId, { context: req.context });
 
     res.json({
       success: true,
@@ -604,7 +599,7 @@ async function validateTeacherLessonData(req, res, next) {
 
     console.log(`🔍 Validating lesson data for teacher ${teacherId}`);
     
-    const validation = await teacherLessonsService.validateTeacherLessonData(teacherId);
+    const validation = await teacherLessonsService.validateTeacherLessonData(teacherId, { context: req.context });
 
     const statusCode = validation.isValid ? 200 : 400;
     
@@ -641,7 +636,7 @@ async function addStudentToTeacher(req, res, next) {
     
     console.log(`➕ Adding student ${studentId} to teacher ${teacherId}`);
     
-    const result = await teacherService.addStudentToTeacher(teacherId, studentId);
+    const result = await teacherService.addStudentToTeacher(teacherId, studentId, { context: req.context });
     
     res.status(200).json({
       success: true,
@@ -674,7 +669,7 @@ async function removeStudentFromTeacher(req, res, next) {
     
     console.log(`➖ Removing student ${studentId} from teacher ${teacherId}`);
     
-    const result = await teacherService.removeStudentFromTeacher(teacherId, studentId);
+    const result = await teacherService.removeStudentFromTeacher(teacherId, studentId, { context: req.context });
     
     res.status(200).json({
       success: true,
@@ -701,7 +696,7 @@ async function removeStudentFromTeacher(req, res, next) {
 async function getTimeBlocks(req, res, next) {
   try {
     const { teacherId } = req.params;
-    const timeBlocks = await teacherService.getTimeBlocks(teacherId);
+    const timeBlocks = await teacherService.getTimeBlocks(teacherId, { context: req.context });
 
     res.json({
       success: true,
@@ -727,7 +722,7 @@ async function createTimeBlock(req, res, next) {
     const { teacherId } = req.params;
     const timeBlockData = req.body;
 
-    const timeBlock = await teacherService.createTimeBlock(teacherId, timeBlockData);
+    const timeBlock = await teacherService.createTimeBlock(teacherId, timeBlockData, { context: req.context });
 
     res.status(201).json({
       success: true,
@@ -762,7 +757,7 @@ async function updateTimeBlock(req, res, next) {
     const { teacherId, timeBlockId } = req.params;
     const timeBlockData = req.body;
 
-    const result = await teacherService.updateTimeBlock(teacherId, timeBlockId, timeBlockData);
+    const result = await teacherService.updateTimeBlock(teacherId, timeBlockId, timeBlockData, { context: req.context });
 
     res.json({
       success: true,
@@ -796,7 +791,7 @@ async function deleteTimeBlock(req, res, next) {
   try {
     const { teacherId, timeBlockId } = req.params;
 
-    const result = await teacherService.deleteTimeBlock(teacherId, timeBlockId);
+    const result = await teacherService.deleteTimeBlock(teacherId, timeBlockId, { context: req.context });
 
     res.json({
       success: true,

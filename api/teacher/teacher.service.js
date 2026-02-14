@@ -9,6 +9,8 @@ import { DuplicateDetectionService } from '../../services/duplicateDetectionServ
 import { emailService } from '../../services/emailService.js';
 import { invitationConfig } from '../../services/invitationConfig.js';
 import crypto from 'crypto';
+import { buildScopedFilter } from '../../utils/queryScoping.js';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const teacherService = {
   getTeachers,
@@ -28,13 +30,16 @@ export const teacherService = {
   getTimeBlocks,
 };
 
-async function getTeachers(filterBy = {}, page = 1, limit = 0) {
+async function getTeachers(filterBy = {}, page = 1, limit = 0, options = {}) {
   try {
+    const { context } = options;
+    const tenantId = requireTenantId(context?.tenantId);
+
     // If filtering by studentId, resolve to teacher IDs via teacherAssignments
     if (filterBy.studentId) {
       const studentCollection = await getCollection('student');
       const student = await studentCollection.findOne(
-        { _id: ObjectId.createFromHexString(filterBy.studentId) },
+        { _id: ObjectId.createFromHexString(filterBy.studentId), tenantId },
         { projection: { teacherAssignments: 1 } }
       );
       if (student?.teacherAssignments?.length) {
@@ -48,7 +53,7 @@ async function getTeachers(filterBy = {}, page = 1, limit = 0) {
     }
 
     const collection = await getCollection('teacher');
-    const criteria = _buildCriteria(filterBy);
+    const criteria = buildScopedFilter('teacher', _buildCriteria(filterBy), context);
 
     // If limit is 0 or not provided, return all teachers (backward compatibility)
     if (limit === 0) {
@@ -98,6 +103,7 @@ async function getTeachers(filterBy = {}, page = 1, limit = 0) {
 async function getTeacherById(teacherId, options = {}) {
   try {
     console.log(`Getting teacher by ID: ${teacherId}`);
+    const tenantId = requireTenantId(options.context?.tenantId);
 
     // Validate ObjectId format
     if (!teacherId || !ObjectId.isValid(teacherId)) {
@@ -106,8 +112,7 @@ async function getTeacherById(teacherId, options = {}) {
     }
 
     const collection = await getCollection('teacher');
-    const filter = { _id: ObjectId.createFromHexString(teacherId) };
-    if (options.tenantId) filter.tenantId = options.tenantId;
+    const filter = { _id: ObjectId.createFromHexString(teacherId), tenantId };
     const teacher = await collection.findOne(filter);
 
     console.log(`Teacher found: ${teacher ? 'Yes' : 'No'}`);
@@ -126,11 +131,12 @@ async function getTeacherById(teacherId, options = {}) {
   }
 }
 
-async function getTeacherIds() {
+async function getTeacherIds(options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('teacher');
     const teachers = await collection.find(
-      { isActive: true },
+      { isActive: true, tenantId },
       {
         projection: {
           _id: 1,
@@ -165,10 +171,11 @@ async function getTeacherIds() {
   }
 }
 
-async function addTeacher(teacherToAdd, adminId) {
+async function addTeacher(teacherToAdd, adminId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     console.log('🔍 Raw teacher data received:', JSON.stringify(teacherToAdd, null, 2));
-    
+
     // When admin creates a teacher, ensure required fields are present with defaults
     const teacherData = {
       ...teacherToAdd,
@@ -265,6 +272,7 @@ async function addTeacher(teacherToAdd, adminId) {
       if (!value.teaching.timeBlocks) value.teaching.timeBlocks = [];
     }
 
+    value.tenantId = tenantId;
     value.createdAt = new Date();
     value.updatedAt = new Date();
 
@@ -317,8 +325,9 @@ async function addTeacher(teacherToAdd, adminId) {
 }
 
 
-async function updateTeacher(teacherId, teacherToUpdate) {
+async function updateTeacher(teacherId, teacherToUpdate, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     console.log('Updating teacher with data:', JSON.stringify(teacherToUpdate));
 
     // Use the update validation schema instead of the full schema
@@ -329,7 +338,7 @@ async function updateTeacher(teacherId, teacherToUpdate) {
 
     // Get current teacher data to merge for duplicate detection
     const currentTeacher = await collection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId), tenantId
     });
     
     if (!currentTeacher) {
@@ -390,7 +399,7 @@ async function updateTeacher(teacherId, teacherToUpdate) {
     const { _id, ...updateData } = value;
 
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(teacherId) },
+      { _id: ObjectId.createFromHexString(teacherId), tenantId },
       { $set: updateData },
       { returnDocument: 'after' }
     );
@@ -399,12 +408,12 @@ async function updateTeacher(teacherId, teacherToUpdate) {
     return result;
   } catch (err) {
     console.error(`Error updating teacher: ${err.message}`);
-    
+
     // Handle duplicate detection errors specially
     if (err.code === 'DUPLICATE_TEACHER_DETECTED') {
       throw err;
     }
-    
+
     // Handle MongoDB duplicate key errors
     if (err.code === 11000) {
       const field = err.message.includes('credentials.email') ? 'credentials email' : 'personal email';
@@ -417,11 +426,12 @@ async function updateTeacher(teacherId, teacherToUpdate) {
   }
 }
 
-async function removeTeacher(teacherId) {
+async function removeTeacher(teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('teacher');
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(teacherId) },
+      { _id: ObjectId.createFromHexString(teacherId), tenantId },
       {
         $set: {
           isActive: false,
@@ -439,11 +449,15 @@ async function removeTeacher(teacherId) {
   }
 }
 
-async function getTeacherByRole(role, tenantId = null) {
+async function getTeacherByRole(role, options = {}) {
   try {
+    // Backward compat: accept string tenantId (legacy) or options object (new pattern)
+    if (typeof options === 'string') {
+      options = { context: { tenantId: options } };
+    }
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('teacher');
-    const filter = { roles: role, isActive: true };
-    if (tenantId) filter.tenantId = tenantId;
+    const filter = { roles: role, isActive: true, tenantId };
     return await collection
       .find(filter)
       .toArray();
@@ -453,8 +467,9 @@ async function getTeacherByRole(role, tenantId = null) {
   }
 }
 
-async function updateTeacherSchedule(teacherId, scheduleData) {
+async function updateTeacherSchedule(teacherId, scheduleData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     // Validate that all required fields have values
     const { studentId, day, startTime, duration } = scheduleData;
 
@@ -466,19 +481,19 @@ async function updateTeacherSchedule(teacherId, scheduleData) {
 
     const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
-    
+
     // First verify the teacher exists
     const teacher = await teacherCollection.findOne({
-      _id: ObjectId.createFromHexString(teacherId),
+      _id: ObjectId.createFromHexString(teacherId), tenantId
     });
-    
+
     if (!teacher) {
       throw new Error(`Teacher with id ${teacherId} not found`);
     }
 
     // Verify the student exists
     const student = await studentCollection.findOne({
-      _id: ObjectId.createFromHexString(studentId)
+      _id: ObjectId.createFromHexString(studentId), tenantId
     });
 
     if (!student) {
@@ -501,7 +516,9 @@ async function updateTeacherSchedule(teacherId, scheduleData) {
       teacherId,
       day,
       startTime,
-      duration
+      duration,
+      null,
+      tenantId
     );
 
     if (hasStudentConflict) {
@@ -529,7 +546,7 @@ async function updateTeacherSchedule(teacherId, scheduleData) {
 
     // Update the teacher's schedule
     await teacherCollection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
+      { _id: ObjectId.createFromHexString(teacherId), tenantId },
       {
         $push: {
           'teaching.timeBlocks': scheduleSlot,
@@ -552,7 +569,7 @@ async function updateTeacherSchedule(teacherId, scheduleData) {
 
     // Update the student's teacher assignments (single source of truth)
     await studentCollection.updateOne(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       {
         $push: { teacherAssignments: assignment },
         $set: { updatedAt: new Date() }
@@ -598,14 +615,14 @@ function timeToMinutes(timeString) {
 }
 
 // Helper function to check for student schedule conflicts
-async function checkStudentScheduleConflict(studentId, excludeTeacherId, day, startTime, duration, excludeSlotId = null) {
+async function checkStudentScheduleConflict(studentId, excludeTeacherId, day, startTime, duration, excludeSlotId = null, tenantId = null) {
   const teacherCollection = await getCollection('teacher');
 
-  // Find all teachers who have this student assigned
+  // Find all teachers who have this student assigned (tenant-scoped)
+  const filter = { 'teaching.timeBlocks.assignedLessons.studentId': studentId };
+  if (tenantId) filter.tenantId = tenantId;
   const teachers = await teacherCollection
-    .find({
-      'teaching.timeBlocks.assignedLessons.studentId': studentId
-    })
+    .find(filter)
     .toArray();
 
   const newStart = timeToMinutes(startTime);
@@ -647,14 +664,15 @@ function calculateEndTime(startTime, durationMinutes) {
   return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
 }
 
-async function addStudentToTeacher(teacherId, studentId) {
+async function addStudentToTeacher(teacherId, studentId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
 
     // Verify both teacher and student exist
     const teacher = await teacherCollection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId), tenantId
     });
 
     if (!teacher) {
@@ -662,7 +680,7 @@ async function addStudentToTeacher(teacherId, studentId) {
     }
 
     const student = await studentCollection.findOne({
-      _id: ObjectId.createFromHexString(studentId)
+      _id: ObjectId.createFromHexString(studentId), tenantId
     });
 
     if (!student) {
@@ -690,7 +708,7 @@ async function addStudentToTeacher(teacherId, studentId) {
     };
 
     await studentCollection.updateOne(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       {
         $push: { teacherAssignments: assignment },
         $set: { updatedAt: new Date() }
@@ -709,15 +727,16 @@ async function addStudentToTeacher(teacherId, studentId) {
   }
 }
 
-async function removeStudentFromTeacher(teacherId, studentId) {
+async function removeStudentFromTeacher(teacherId, studentId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     console.log(`🔥 ATOMIC CASCADE DELETION: Starting removal of student ${studentId} from teacher ${teacherId}`);
-    
+
     // Validate input parameters
     if (!teacherId || !ObjectId.isValid(teacherId)) {
       throw new Error(`Invalid teacher ID format: ${teacherId}`);
     }
-    
+
     if (!studentId || !ObjectId.isValid(studentId)) {
       throw new Error(`Invalid student ID format: ${studentId}`);
     }
@@ -725,19 +744,19 @@ async function removeStudentFromTeacher(teacherId, studentId) {
     const result = await withTransaction(async (session) => {
       const teacherCollection = await getCollection('teacher');
       const studentCollection = await getCollection('student');
-      
+
       // First, verify both documents exist
       const teacher = await teacherCollection.findOne(
-        { _id: ObjectId.createFromHexString(teacherId) },
+        { _id: ObjectId.createFromHexString(teacherId), tenantId },
         { session }
       );
-      
+
       if (!teacher) {
         throw new Error(`Teacher with id ${teacherId} not found`);
       }
-      
+
       const student = await studentCollection.findOne(
-        { _id: ObjectId.createFromHexString(studentId) },
+        { _id: ObjectId.createFromHexString(studentId), tenantId },
         { session }
       );
       
@@ -772,7 +791,7 @@ async function removeStudentFromTeacher(teacherId, studentId) {
       // ATOMIC OPERATION 1: Deactivate student's lessons in timeBlocks
       const teacherUpdate = await teacherCollection.updateOne(
         {
-          _id: ObjectId.createFromHexString(teacherId),
+          _id: ObjectId.createFromHexString(teacherId), tenantId,
           'teaching.timeBlocks.assignedLessons.studentId': studentId
         },
         {
@@ -797,7 +816,7 @@ async function removeStudentFromTeacher(teacherId, studentId) {
       
       // ATOMIC OPERATION 2: Deactivate teacher assignments on student (single source of truth)
       const studentUpdate = await studentCollection.updateOne(
-        { _id: ObjectId.createFromHexString(studentId) },
+        { _id: ObjectId.createFromHexString(studentId), tenantId },
         {
           $set: {
             'teacherAssignments.$[elem].isActive': false,
@@ -817,7 +836,7 @@ async function removeStudentFromTeacher(teacherId, studentId) {
       
       // ATOMIC OPERATION 3: Clean up orphaned schedule info in student document
       const scheduleCleanup = await studentCollection.updateOne(
-        { _id: ObjectId.createFromHexString(studentId) },
+        { _id: ObjectId.createFromHexString(studentId), tenantId },
         {
           $pull: {
             'scheduleInfo.lessonSchedule': { teacherId: teacherId },
@@ -834,7 +853,7 @@ async function removeStudentFromTeacher(teacherId, studentId) {
       
       // Get updated student to return
       const updatedStudent = await studentCollection.findOne(
-        { _id: ObjectId.createFromHexString(studentId) },
+        { _id: ObjectId.createFromHexString(studentId), tenantId },
         {
           projection: {
             teacherAssignments: 1,
@@ -891,12 +910,13 @@ async function removeStudentFromTeacher(teacherId, studentId) {
   }
 }
 
-async function initializeTeachingStructure(teacherId) {
+async function initializeTeachingStructure(teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('teacher');
-    
+
     const result = await collection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
+      { _id: ObjectId.createFromHexString(teacherId), tenantId },
       {
         $set: {
           'teaching.timeBlocks': [],
@@ -914,11 +934,6 @@ async function initializeTeachingStructure(teacherId) {
 
 function _buildCriteria(filterBy) {
   const criteria = {};
-
-  // Tenant scoping
-  if (filterBy.tenantId) {
-    criteria.tenantId = filterBy.tenantId;
-  }
 
   if (filterBy.name) {
     criteria.$or = [
@@ -968,11 +983,12 @@ function _buildCriteria(filterBy) {
 }
 
 // Time Block Management Functions
-async function getTimeBlocks(teacherId) {
+async function getTimeBlocks(teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('teacher');
     const teacher = await collection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId), tenantId
     });
 
     if (!teacher) {
@@ -987,13 +1003,14 @@ async function getTimeBlocks(teacherId) {
   }
 }
 
-async function createTimeBlock(teacherId, timeBlockData) {
+async function createTimeBlock(teacherId, timeBlockData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('teacher');
 
     // Verify teacher exists
     const teacher = await collection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId), tenantId
     });
 
     if (!teacher) {
@@ -1029,7 +1046,7 @@ async function createTimeBlock(teacherId, timeBlockData) {
 
     // Add time block to teacher's timeBlocks array
     const result = await collection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
+      { _id: ObjectId.createFromHexString(teacherId), tenantId },
       {
         $push: { 'teaching.timeBlocks': newTimeBlock },
         $set: { updatedAt: new Date() }
@@ -1047,13 +1064,14 @@ async function createTimeBlock(teacherId, timeBlockData) {
   }
 }
 
-async function updateTimeBlock(teacherId, timeBlockId, timeBlockData) {
+async function updateTimeBlock(teacherId, timeBlockId, timeBlockData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('teacher');
 
     // Verify teacher exists
     const teacher = await collection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId), tenantId
     });
 
     if (!teacher) {
@@ -1094,7 +1112,7 @@ async function updateTimeBlock(teacherId, timeBlockId, timeBlockData) {
     // Update the time block
     const result = await collection.updateOne(
       {
-        _id: ObjectId.createFromHexString(teacherId),
+        _id: ObjectId.createFromHexString(teacherId), tenantId,
         [`${fieldToUpdate}._id`]: ObjectId.createFromHexString(timeBlockId)
       },
       { $set: updateFields }
@@ -1111,13 +1129,14 @@ async function updateTimeBlock(teacherId, timeBlockId, timeBlockData) {
   }
 }
 
-async function deleteTimeBlock(teacherId, timeBlockId) {
+async function deleteTimeBlock(teacherId, timeBlockId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('teacher');
 
     // Verify teacher exists
     const teacher = await collection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId), tenantId
     });
 
     if (!teacher) {
@@ -1129,7 +1148,7 @@ async function deleteTimeBlock(teacherId, timeBlockId) {
 
     // Remove the time block
     const result = await collection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
+      { _id: ObjectId.createFromHexString(teacherId), tenantId },
       {
         $pull: { [fieldToUpdate]: { _id: ObjectId.createFromHexString(timeBlockId) } },
         $set: { updatedAt: new Date() }
