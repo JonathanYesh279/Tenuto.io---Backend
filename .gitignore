@@ -162,9 +162,11 @@ NOTES.md
 notes.txt
 *.notes
 planning/
+.planning/
 
 # Markdown / documentation files (AI-generated guides, etc.)
 *.md
+!docs/*.md
 
 # Scripts (migrations, seeds, one-off fixes, utilities)
 scripts/
