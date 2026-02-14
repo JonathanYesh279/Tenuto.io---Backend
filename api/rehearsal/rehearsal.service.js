@@ -7,9 +7,9 @@ import {
   validateAttendance,
 } from './rehearsal.validation.js';
 import { ObjectId } from 'mongodb';
-import { 
-  toUTC, 
-  createAppDate, 
+import {
+  toUTC,
+  createAppDate,
   getDayOfWeek,
   generateDatesForDayOfWeek,
   formatDate,
@@ -18,6 +18,8 @@ import {
   isValidDate,
   now
 } from '../../utils/dateHelpers.js';
+import { buildScopedFilter } from '../../utils/queryScoping.js';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const rehearsalService = {
   getRehearsals,
@@ -33,10 +35,12 @@ export const rehearsalService = {
   updateAttendance,
 };
 
-async function getRehearsals(filterBy = {}) {
+async function getRehearsals(filterBy = {}, options = {}) {
   try {
+    const { context } = options;
+    requireTenantId(context?.tenantId);
     const collection = await getCollection('rehearsal');
-    const criteria = _buildCriteria(filterBy);
+    const criteria = buildScopedFilter('rehearsal', _buildCriteria(filterBy), context);
 
     const rehearsal = await collection
       .find(criteria)
@@ -50,11 +54,13 @@ async function getRehearsals(filterBy = {}) {
   }
 }
 
-async function getRehearsalById(rehearsalId) {
+async function getRehearsalById(rehearsalId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('rehearsal');
     const rehearsal = await collection.findOne({
       _id: ObjectId.createFromHexString(rehearsalId),
+      tenantId,
     });
 
     if (!rehearsal)
@@ -66,19 +72,20 @@ async function getRehearsalById(rehearsalId) {
   }
 }
 
-async function getOrchestraRehearsals(orchestraId, filterBy = {}) {
+async function getOrchestraRehearsals(orchestraId, filterBy = {}, options = {}) {
   try {
     filterBy.groupId = orchestraId;
 
-    return await getRehearsals(filterBy);
+    return await getRehearsals(filterBy, options);
   } catch (err) {
     console.error(`Failed to get orchestra rehearsals: ${err}`);
     throw new Error(`Failed to get orchestra rehearsals: ${err}`);
   }
 }
 
-async function addRehearsal(rehearsalToAdd, teacherId, isAdmin = false) {
+async function addRehearsal(rehearsalToAdd, teacherId, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     console.log(
       'Adding rehearsal with data:',
       JSON.stringify(rehearsalToAdd, null, 2)
@@ -89,6 +96,9 @@ async function addRehearsal(rehearsalToAdd, teacherId, isAdmin = false) {
       console.error(`Validation error:`, error.details);
       throw error;
     }
+
+    // Set tenantId from context (server-derived, never from client)
+    value.tenantId = tenantId;
 
     if (!value.schoolYearId) {
       console.error('Missing required schoolYearId in rehearsal data');
@@ -108,6 +118,7 @@ async function addRehearsal(rehearsalToAdd, teacherId, isAdmin = false) {
       const orchestra = await orchestraCollection.findOne({
         _id: ObjectId.createFromHexString(value.groupId),
         conductorId: teacherId.toString(),
+        tenantId,
       });
 
       if (!orchestra) {
@@ -119,10 +130,10 @@ async function addRehearsal(rehearsalToAdd, teacherId, isAdmin = false) {
     if (!isValidDate(value.date)) {
       throw new Error('Invalid rehearsal date provided');
     }
-    
+
     const rehearsalDate = createAppDate(value.date);
     value.date = toUTC(rehearsalDate);
-    
+
     // Calculate day of week if not provided (using timezone-aware calculation)
     if (value.dayOfWeek === undefined) {
       value.dayOfWeek = getDayOfWeek(rehearsalDate);
@@ -157,7 +168,7 @@ async function addRehearsal(rehearsalToAdd, teacherId, isAdmin = false) {
         }
 
         const updateResult = await orchestraCollection.updateOne(
-          { _id: ObjectId.createFromHexString(value.groupId) },
+          { _id: ObjectId.createFromHexString(value.groupId), tenantId },
           { $push: { rehearsalIds: result.insertedId.toString() } }
         );
 
@@ -185,9 +196,11 @@ async function updateRehearsal(
   rehearsalId,
   rehearsalToUpdate,
   teacherId,
-  isAdmin = false
+  isAdmin = false,
+  options = {}
 ) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const { error, value } = validateRehearsalUpdate(rehearsalToUpdate);
 
     if (error) throw error;
@@ -197,14 +210,14 @@ async function updateRehearsal(
       if (!isValidDate(value.date)) {
         throw new Error('Invalid rehearsal date provided for update');
       }
-      
+
       const rehearsalDate = createAppDate(value.date);
       value.date = toUTC(rehearsalDate);
-      
+
       // Recalculate day of week if date changed
       value.dayOfWeek = getDayOfWeek(rehearsalDate);
     }
-    
+
     value.updatedAt = toUTC(now());
 
     if (!isAdmin) {
@@ -217,6 +230,7 @@ async function updateRehearsal(
 
       const orchestra = await orchestraCollection.findOne({
         _id: ObjectId.createFromHexString(value.groupId),
+        tenantId,
       });
 
       if (!orchestra) {
@@ -236,7 +250,7 @@ async function updateRehearsal(
     }
 
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(rehearsalId) },
+      { _id: ObjectId.createFromHexString(rehearsalId), tenantId },
       { $set: value },
       { returnDocument: 'after' }
     );
@@ -249,9 +263,10 @@ async function updateRehearsal(
   }
 }
 
-async function removeRehearsal(rehearsalId, teacherId, isAdmin = false) {
+async function removeRehearsal(rehearsalId, teacherId, isAdmin = false, options = {}) {
   try {
-    const rehearsal = await getRehearsalById(rehearsalId);
+    const tenantId = requireTenantId(options.context?.tenantId);
+    const rehearsal = await getRehearsalById(rehearsalId, options);
 
     if (!isAdmin) {
       const orchestraCollection = await getCollection('orchestra');
@@ -263,6 +278,7 @@ async function removeRehearsal(rehearsalId, teacherId, isAdmin = false) {
 
       const orchestra = await orchestraCollection.findOne({
         _id: ObjectId.createFromHexString(rehearsal.groupId),
+        tenantId,
       });
 
       if (!orchestra)
@@ -279,7 +295,7 @@ async function removeRehearsal(rehearsalId, teacherId, isAdmin = false) {
       const orchestraCollection = await getCollection('orchestra');
       if (orchestraCollection) {
         await orchestraCollection.updateOne(
-          { _id: ObjectId.createFromHexString(rehearsal.groupId) },
+          { _id: ObjectId.createFromHexString(rehearsal.groupId), tenantId },
           { $pull: { rehearsalIds: rehearsalId } }
         );
       }
@@ -292,6 +308,7 @@ async function removeRehearsal(rehearsalId, teacherId, isAdmin = false) {
         await activityCollection.deleteMany({
           sessionId: rehearsalId,
           activityType: 'תזמורת',
+          tenantId,
         });
       }
     } catch (attendanceErr) {
@@ -307,7 +324,7 @@ async function removeRehearsal(rehearsalId, teacherId, isAdmin = false) {
     }
 
     const result = await collection.findOneAndDelete(
-      { _id: ObjectId.createFromHexString(rehearsalId) }
+      { _id: ObjectId.createFromHexString(rehearsalId), tenantId }
     );
 
     if (!result) throw new Error(`Rehearsal with id ${rehearsalId} not found`);
@@ -319,8 +336,9 @@ async function removeRehearsal(rehearsalId, teacherId, isAdmin = false) {
   }
 }
 
-async function bulkCreateRehearsals(data, teacherId, isAdmin = false) {
+async function bulkCreateRehearsals(data, teacherId, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     console.log(
       'Bulk creating rehearsals with data:',
       JSON.stringify(data, null, 2)
@@ -348,6 +366,7 @@ async function bulkCreateRehearsals(data, teacherId, isAdmin = false) {
         const orchestra = await orchestraCollection.findOne({
           _id: ObjectId.createFromHexString(value.orchestraId),
           conductorId: teacherIdStr,
+          tenantId,
         });
 
         if (!orchestra) {
@@ -384,7 +403,7 @@ async function bulkCreateRehearsals(data, teacherId, isAdmin = false) {
     if (!isValidDate(startDate) || !isValidDate(endDate)) {
       throw new Error('Invalid start or end date provided for bulk rehearsal creation');
     }
-    
+
     // Generate dates for rehearsals using timezone-aware helper
     const utcDates = generateDatesForDayOfWeek(startDate, endDate, dayOfWeek, excludeDates || []);
 
@@ -403,6 +422,7 @@ async function bulkCreateRehearsals(data, teacherId, isAdmin = false) {
       attendance: { present: [], absent: [] },
       notes: notes || '',
       schoolYearId: schoolYearId,
+      tenantId,
       createdAt: toUTC(currentTime),
       updatedAt: toUTC(currentTime),
     }));
@@ -463,7 +483,7 @@ async function bulkCreateRehearsals(data, teacherId, isAdmin = false) {
           );
 
           const updateResult = await orchestraCollection.updateOne(
-            { _id: ObjectId.createFromHexString(orchestraId) },
+            { _id: ObjectId.createFromHexString(orchestraId), tenantId },
             { $push: { rehearsalIds: { $each: result.rehearsalIds } } }
           );
 
@@ -489,8 +509,9 @@ async function bulkCreateRehearsals(data, teacherId, isAdmin = false) {
   }
 }
 
-async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = false) {
+async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     // Input validation
     if (!orchestraId || !ObjectId.isValid(orchestraId)) {
       throw new Error('Invalid orchestra ID');
@@ -505,9 +526,10 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
       throw new Error('Database error: Failed to access required collections');
     }
 
-    // Verify orchestra exists
+    // Verify orchestra exists (tenant-scoped)
     const orchestra = await orchestraCollection.findOne({
-      _id: ObjectId.createFromHexString(orchestraId)
+      _id: ObjectId.createFromHexString(orchestraId),
+      tenantId
     });
 
     if (!orchestra) {
@@ -521,9 +543,10 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
       }
     }
 
-    // Get all rehearsals for this orchestra to collect IDs for cleanup
-    const rehearsals = await rehearsalCollection.find({ 
-      groupId: orchestraId 
+    // Get all rehearsals for this orchestra to collect IDs for cleanup (tenant-scoped)
+    const rehearsals = await rehearsalCollection.find({
+      groupId: orchestraId,
+      tenantId
     }).toArray();
 
     const rehearsalIds = rehearsals.map(r => r._id.toString());
@@ -534,23 +557,24 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
     const client = rehearsalCollection.client || rehearsalCollection.s?.client;
     if (client) {
       const session = client.startSession();
-      
+
       try {
         await session.withTransaction(async () => {
-          // Delete all rehearsals for this orchestra
+          // Delete all rehearsals for this orchestra (tenant-scoped)
           const deleteResult = await rehearsalCollection.deleteMany(
-            { groupId: orchestraId },
+            { groupId: orchestraId, tenantId },
             { session }
           );
-          
+
           deletedCount = deleteResult.deletedCount;
 
           // Clean up attendance records if collection exists
           if (activityCollection && rehearsalIds.length > 0) {
             await activityCollection.deleteMany(
-              { 
+              {
                 sessionId: { $in: rehearsalIds },
-                activityType: 'תזמורת'
+                activityType: 'תזמורת',
+                tenantId
               },
               { session }
             );
@@ -558,7 +582,7 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
 
           // Update orchestra to remove rehearsal IDs
           await orchestraCollection.updateOne(
-            { _id: ObjectId.createFromHexString(orchestraId) },
+            { _id: ObjectId.createFromHexString(orchestraId), tenantId },
             { $set: { rehearsalIds: [] } },
             { session }
           );
@@ -569,9 +593,10 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
     } else {
       // Fallback without transaction if session not available
       const deleteResult = await rehearsalCollection.deleteMany({
-        groupId: orchestraId
+        groupId: orchestraId,
+        tenantId
       });
-      
+
       deletedCount = deleteResult.deletedCount;
 
       // Clean up attendance records
@@ -579,7 +604,8 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
         try {
           await activityCollection.deleteMany({
             sessionId: { $in: rehearsalIds },
-            activityType: 'תזמורת'
+            activityType: 'תזמורת',
+            tenantId
           });
         } catch (attendanceErr) {
           console.warn(`Failed to delete attendance records: ${attendanceErr.message}`);
@@ -589,7 +615,7 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
       // Update orchestra
       try {
         await orchestraCollection.updateOne(
-          { _id: ObjectId.createFromHexString(orchestraId) },
+          { _id: ObjectId.createFromHexString(orchestraId), tenantId },
           { $set: { rehearsalIds: [] } }
         );
       } catch (orchestraErr) {
@@ -610,8 +636,9 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
   }
 }
 
-async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, userId, isAdmin = false) {
+async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, userId, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     // Input validation
     if (!orchestraId || !ObjectId.isValid(orchestraId)) {
       throw new Error('Invalid orchestra ID');
@@ -642,9 +669,10 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
       throw new Error('Database error: Failed to access required collections');
     }
 
-    // Verify orchestra exists
+    // Verify orchestra exists (tenant-scoped)
     const orchestra = await orchestraCollection.findOne({
-      _id: ObjectId.createFromHexString(orchestraId)
+      _id: ObjectId.createFromHexString(orchestraId),
+      tenantId
     });
 
     if (!orchestra) {
@@ -658,9 +686,10 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
       }
     }
 
-    // Build query for rehearsals in date range for this orchestra
+    // Build query for rehearsals in date range for this orchestra (tenant-scoped)
     const deleteQuery = {
       groupId: orchestraId,
+      tenantId,
       date: {
         $gte: startUTC,
         $lte: endUTC
@@ -677,7 +706,7 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
     const client = rehearsalCollection.client || rehearsalCollection.s?.client;
     if (client) {
       const session = client.startSession();
-      
+
       try {
         await session.withTransaction(async () => {
           // Delete rehearsals in the date range for this orchestra
@@ -685,15 +714,16 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
             deleteQuery,
             { session }
           );
-          
+
           deletedCount = deleteResult.deletedCount;
 
           // Clean up attendance records if collection exists
           if (activityCollection && rehearsalIds.length > 0) {
             await activityCollection.deleteMany(
-              { 
+              {
                 sessionId: { $in: rehearsalIds },
-                activityType: 'תזמורת'
+                activityType: 'תזמורת',
+                tenantId
               },
               { session }
             );
@@ -702,8 +732,8 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
           // Update orchestra to remove deleted rehearsal IDs
           if (rehearsalIds.length > 0) {
             await orchestraCollection.updateOne(
-              { _id: ObjectId.createFromHexString(orchestraId) },
-              { 
+              { _id: ObjectId.createFromHexString(orchestraId), tenantId },
+              {
                 $pull: { rehearsalIds: { $in: rehearsalIds } },
                 $set: { lastModified: toUTC(now()) }
               },
@@ -724,7 +754,8 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
         try {
           await activityCollection.deleteMany({
             sessionId: { $in: rehearsalIds },
-            activityType: 'תזמורת'
+            activityType: 'תזמורת',
+            tenantId
           });
         } catch (attendanceErr) {
           console.warn(`Failed to delete attendance records: ${attendanceErr.message}`);
@@ -735,8 +766,8 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
       if (rehearsalIds.length > 0) {
         try {
           await orchestraCollection.updateOne(
-            { _id: ObjectId.createFromHexString(orchestraId) },
-            { 
+            { _id: ObjectId.createFromHexString(orchestraId), tenantId },
+            {
               $pull: { rehearsalIds: { $in: rehearsalIds } },
               $set: { lastModified: toUTC(now()) }
             }
@@ -761,8 +792,9 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
   }
 }
 
-async function bulkUpdateRehearsalsByOrchestra(orchestraId, updateData, userId, isAdmin = false) {
+async function bulkUpdateRehearsalsByOrchestra(orchestraId, updateData, userId, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     // Input validation
     if (!orchestraId || !ObjectId.isValid(orchestraId)) {
       throw new Error('Invalid orchestra ID');
@@ -794,9 +826,10 @@ async function bulkUpdateRehearsalsByOrchestra(orchestraId, updateData, userId, 
       throw new Error('Database error: Failed to access required collections');
     }
 
-    // Verify orchestra exists
+    // Verify orchestra exists (tenant-scoped)
     const orchestra = await orchestraCollection.findOne({
-      _id: ObjectId.createFromHexString(orchestraId)
+      _id: ObjectId.createFromHexString(orchestraId),
+      tenantId
     });
 
     if (!orchestra) {
@@ -822,21 +855,21 @@ async function bulkUpdateRehearsalsByOrchestra(orchestraId, updateData, userId, 
     const client = rehearsalCollection.client || rehearsalCollection.s?.client;
     if (client) {
       const session = client.startSession();
-      
+
       try {
         await session.withTransaction(async () => {
-          // Update all rehearsals for this orchestra
+          // Update all rehearsals for this orchestra (tenant-scoped)
           const updateResult = await rehearsalCollection.updateMany(
-            { groupId: orchestraId },
+            { groupId: orchestraId, tenantId },
             { $set: updateObject },
             { session }
           );
-          
+
           updatedCount = updateResult.modifiedCount;
 
           // Update orchestra's last modified timestamp
           await orchestraCollection.updateOne(
-            { _id: ObjectId.createFromHexString(orchestraId) },
+            { _id: ObjectId.createFromHexString(orchestraId), tenantId },
             { $set: { lastModified: toUTC(now()) } },
             { session }
           );
@@ -847,16 +880,16 @@ async function bulkUpdateRehearsalsByOrchestra(orchestraId, updateData, userId, 
     } else {
       // Fallback without transaction if session not available
       const updateResult = await rehearsalCollection.updateMany(
-        { groupId: orchestraId },
+        { groupId: orchestraId, tenantId },
         { $set: updateObject }
       );
-      
+
       updatedCount = updateResult.modifiedCount;
 
       // Update orchestra
       try {
         await orchestraCollection.updateOne(
-          { _id: ObjectId.createFromHexString(orchestraId) },
+          { _id: ObjectId.createFromHexString(orchestraId), tenantId },
           { $set: { lastModified: toUTC(now()) } }
         );
       } catch (orchestraErr) {
@@ -881,16 +914,18 @@ async function updateAttendance(
   rehearsalId,
   attendanceData,
   teacherId,
-  isAdmin = false
+  isAdmin = false,
+  options = {}
 ) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const { error, value } = validateAttendance(attendanceData);
     if (error) throw error;
 
     const { present, absent } = value;
 
-    // Load the rehearsal to get details
-    const rehearsal = await getRehearsalById(rehearsalId);
+    // Load the rehearsal to get details (tenant-scoped via getRehearsalById)
+    const rehearsal = await getRehearsalById(rehearsalId, options);
 
     if (!isAdmin) {
       // Check if teacher has permissions for this orchestra
@@ -904,6 +939,7 @@ async function updateAttendance(
       const orchestra = await orchestraCollection.findOne({
         _id: ObjectId.createFromHexString(rehearsal.groupId),
         conductorId: teacherId.toString(),
+        tenantId,
       });
 
       if (!orchestra) {
@@ -919,7 +955,7 @@ async function updateAttendance(
     }
 
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(rehearsalId) },
+      { _id: ObjectId.createFromHexString(rehearsalId), tenantId },
       {
         $set: {
           attendance: {
@@ -937,10 +973,11 @@ async function updateAttendance(
     try {
       const activityCollection = await getCollection('activity_attendance');
       if (activityCollection) {
-        // Delete existing attendance records
+        // Delete existing attendance records (tenant-scoped)
         await activityCollection.deleteMany({
           sessionId: rehearsalId,
           activityType: 'תזמורת',
+          tenantId,
         });
 
         // Create new attendance records
@@ -953,6 +990,7 @@ async function updateAttendance(
             date: rehearsal.date,
             status: 'הגיע/ה',
             notes: '',
+            tenantId,
             createdAt: toUTC(now()),
           })
         );
@@ -966,6 +1004,7 @@ async function updateAttendance(
             date: rehearsal.date,
             status: 'לא הגיע/ה',
             notes: '',
+            tenantId,
             createdAt: toUTC(now()),
           })
         );
@@ -999,11 +1038,6 @@ function _generateDatesForDayOfWeek(
 // Helper function to build query criteria from filter
 function _buildCriteria(filterBy) {
   const criteria = {};
-
-  // Tenant scoping
-  if (filterBy.tenantId) {
-    criteria.tenantId = filterBy.tenantId;
-  }
 
   if (filterBy.groupId) {
     criteria.groupId = filterBy.groupId;

@@ -17,15 +17,14 @@ export const rehearsalController = {
 async function getRehearsals(req, res, next) {
   try {
     const filterBy = {
-      tenantId: req.context?.tenantId || null,
       groupId: req.query.groupId,
       type: req.query.type,
       fromDate: req.query.fromDate,
       toDate: req.query.toDate,
     }
 
-    const rehearsals = await rehearsalService.getRehearsals(filterBy)
-    res.json(rehearsals)  
+    const rehearsals = await rehearsalService.getRehearsals(filterBy, { context: req.context })
+    res.json(rehearsals)
   } catch (err) {
     next(err)
   }
@@ -34,7 +33,7 @@ async function getRehearsals(req, res, next) {
 async function getRehearsalById(req, res, next) {
   try {
     const { id } = req.params
-    const rehearsal = await rehearsalService.getRehearsalById(id)
+    const rehearsal = await rehearsalService.getRehearsalById(id, { context: req.context })
     res.json(rehearsal)
   } catch (err) {
     next(err)
@@ -51,7 +50,7 @@ async function getOrchestraRehearsals(req, res, next) {
       toDate: req.query.toDate,
     }
 
-    const rehearsals = await rehearsalService.getOrchestraRehearsals(orchestraId, filterBy)
+    const rehearsals = await rehearsalService.getOrchestraRehearsals(orchestraId, filterBy, { context: req.context })
     res.json(rehearsals)
   } catch (err) {
     next(err)
@@ -83,9 +82,10 @@ async function addRehearsal(req, res, next) {
     const addedRehearsal = await rehearsalService.addRehearsal(
       rehearsalToAdd,
       teacherId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     )
-    res.status(201).json(addedRehearsal)  
+    res.status(201).json(addedRehearsal)
   } catch (err) {
     if (err.message.includes('Not authorized')) {
       return res.status(403).json({ error: err.message })
@@ -106,7 +106,8 @@ async function updateRehearsal(req, res, next) {
       id,
       rehearsalToUpdate,
       teacherId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     )
 
     res.json(updatedRehearsal)
@@ -128,7 +129,8 @@ async function removeRehearsal(req, res, next) {
     const removedRehearsal = await rehearsalService.removeRehearsal(
       id,
       teacherId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     )
 
     res.json(removedRehearsal)
@@ -203,7 +205,8 @@ async function bulkCreateRehearsals(req, res) {
     const result = await rehearsalService.bulkCreateRehearsals(
       bulkData,
       teacherId,
-      req.loggedinUser.roles.includes('מנהל')
+      req.loggedinUser.roles.includes('מנהל'),
+      { context: req.context }
     );
 
     res.json(result);
@@ -226,7 +229,8 @@ async function updateAttendance(req, res, next) {
       rehearsalId,
       attendanceData,
       teacherId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     )
     res.json(updateRehearsal)
   } catch (err) {
@@ -263,7 +267,8 @@ async function bulkDeleteRehearsalsByOrchestra(req, res, next) {
     const result = await rehearsalService.bulkDeleteRehearsalsByOrchestra(
       orchestraId,
       userId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     )
 
     res.status(200).json({
@@ -335,7 +340,8 @@ async function bulkDeleteRehearsalsByDateRange(req, res, next) {
       startDate,
       endDate,
       userId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     )
 
     res.status(200).json({
@@ -419,7 +425,8 @@ async function bulkUpdateRehearsalsByOrchestra(req, res, next) {
       orchestraId,
       updateData,
       userId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     )
 
     res.status(200).json({
