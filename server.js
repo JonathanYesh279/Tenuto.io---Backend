@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import { authenticateToken } from './middleware/auth.middleware.js';
 import { addSchoolYearToRequest } from './middleware/school-year.middleware.js';
-import { buildContext } from './middleware/tenant.middleware.js';
+import { buildContext, enforceTenant } from './middleware/tenant.middleware.js';
 import { validateEnvironment } from './config/validateEnv.js';
 import logger from './services/logger.service.js';
 import healthRoutes from './api/health/health.route.js';
@@ -125,6 +125,20 @@ app.get('/api/config', (req, res) => {
 });
 
 // API Routes
+//
+// enforceTenant middleware pattern:
+//   All data-access routes include enforceTenant AFTER buildContext and BEFORE addSchoolYearToRequest.
+//   This rejects requests without tenant context at the route level (defense-in-depth).
+//
+//   EXEMPT from enforceTenant (intentionally):
+//     /api/auth        — public login, no tenant context before authentication
+//     /api/tenant      — manages tenant records themselves
+//     /api/super-admin — cross-tenant by design
+//     /api/health      — system-level health check
+//     /api/files       — static file serving
+//     /api/admin/*     — admin tools (5 route groups)
+//     /api/config      — public config endpoint
+//
 app.use('/api/auth', authRoutes);
 app.use(
   '/api/tenant',
@@ -136,6 +150,7 @@ app.use(
   '/api/student',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   studentRoutes
 );
@@ -143,6 +158,7 @@ app.use(
   '/api/teacher',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   teacherRoutes
 );
@@ -151,6 +167,7 @@ app.use(
   '/api/teachers',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   teacherRoutes
 );
@@ -158,6 +175,7 @@ app.use(
   '/api/orchestra',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   orchestraRoutes
 );
@@ -165,15 +183,17 @@ app.use(
   '/api/rehearsal',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   rehearsalRoutes
 );
-app.use('/api/theory', authenticateToken, buildContext, addSchoolYearToRequest, theoryRoutes);
-app.use('/api/bagrut', authenticateToken, buildContext, addSchoolYearToRequest, bagrutRoutes);
+app.use('/api/theory', authenticateToken, buildContext, enforceTenant, addSchoolYearToRequest, theoryRoutes);
+app.use('/api/bagrut', authenticateToken, buildContext, enforceTenant, addSchoolYearToRequest, bagrutRoutes);
 app.use(
   '/api/school-year',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   schoolYearRoutes
 );
@@ -181,6 +201,7 @@ app.use(
   '/api/schedule',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   scheduleRoutes
 );
@@ -188,6 +209,7 @@ app.use(
   '/api/attendance',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   attendanceRoutes
 );
@@ -195,6 +217,7 @@ app.use(
   '/api/analytics',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   analyticsRoutes
 );
@@ -233,6 +256,7 @@ app.use(
   '/api/hours-summary',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   hoursSummaryRoutes
 );
@@ -240,29 +264,32 @@ app.use(
   '/api/import',
   authenticateToken,
   buildContext,
+  enforceTenant,
   importRoutes
 );
 app.use(
   '/api/export',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   exportRoutes
 );
 // Super admin routes (auth handled internally)
 app.use('/api/super-admin', superAdminRoutes);
 
-// Time block routes — mounted at /api (broad prefix, must come AFTER unauthenticated routes)
+// Health check endpoints (no auth required) — must come BEFORE /api catch-all
+app.use('/api/health', healthRoutes);
+
+// Time block routes — mounted at /api (broad prefix, must come AFTER all specific routes)
 app.use(
   '/api',
   authenticateToken,
   buildContext,
+  enforceTenant,
   addSchoolYearToRequest,
   timeBlockRoutes
 );
-
-// Health check endpoints (no auth required)
-app.use('/api/health', healthRoutes);
 
 // Serve invitation acceptance page
 app.get('/accept-invitation/:token', (req, res) => {
