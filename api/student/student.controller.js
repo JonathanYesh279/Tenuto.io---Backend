@@ -43,7 +43,7 @@ async function getStudentById(req, res, next) {
       return res.status(403).json({ error: 'Access denied: student not assigned to you' });
     }
 
-    const student = await studentService.getStudentById(id, { tenantId: req.context?.tenantId });
+    const student = await studentService.getStudentById(id, { context: req.context });
     res.json(student);
   } catch (err) {
     next(err);
@@ -59,7 +59,8 @@ async function addStudent(req, res, next) {
     const addedStudent = await studentService.addStudent(
       studentToAdd,
       teacherId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     );
     res.status(201).json(addedStudent);
   } catch (err) {
@@ -78,7 +79,8 @@ async function updateStudent(req, res, next) {
       id,
       studentToUpdate,
       teacherId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     );
     res.json(updatedStudent);
   } catch (err) {
@@ -142,7 +144,8 @@ async function updateStudentTest(req, res) {
       testType,
       status,
       teacherId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     );
 
     console.log(`Successfully updated test for student ${id}`);
@@ -163,7 +166,7 @@ async function updateStudentStageLevel(req, res, next) {
     const { id } = req.params;
     const { stageLevel } = req.body;
 
-    console.log(`🎵 Updating stage level for student ${id} to ${stageLevel}`);
+    console.log(`Updating stage level for student ${id} to ${stageLevel}`);
 
     // Validate stage level
     if (!stageLevel || stageLevel < 1 || stageLevel > 8) {
@@ -180,13 +183,14 @@ async function updateStudentStageLevel(req, res, next) {
       id,
       parseInt(stageLevel),
       teacherId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     );
 
-    console.log(`✅ Successfully updated stage level for student ${id} to ${stageLevel}`);
+    console.log(`Successfully updated stage level for student ${id} to ${stageLevel}`);
     res.json(updatedStudent);
   } catch (err) {
-    console.error(`❌ Error updating student stage level: ${err.message}`);
+    console.error(`Error updating student stage level: ${err.message}`);
     next(err);
   }
 }
@@ -197,7 +201,7 @@ async function removeStudent(req, res, next) {
     const teacherId = req.teacher?._id?.toString();
     const isAdmin = req.teacher?.roles?.includes('מנהל') || false;
 
-    const result = await studentService.removeStudent(id, teacherId, isAdmin);
+    const result = await studentService.removeStudent(id, teacherId, isAdmin, { context: req.context });
     res.json(result);
   } catch (err) {
     next(err);

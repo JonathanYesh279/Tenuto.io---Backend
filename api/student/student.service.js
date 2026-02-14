@@ -5,6 +5,7 @@ import { validateStudent } from './student.validation.js';
 import { relationshipValidationService } from '../../services/relationshipValidationService.js';
 import { validateTeacherAssignmentsWithDB } from './student-assignments.validation.js';
 import { buildScopedFilter } from '../../utils/queryScoping.js';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const studentService = {
   getStudents,
@@ -24,20 +25,14 @@ export const studentService = {
 
 async function getStudents(filterBy = {}, page = 1, limit = 0, options = {}) {
   try {
-    const { context, teacherId, isAdmin, tenantId } = options;
+    const { context } = options;
+    requireTenantId(context?.tenantId);
     const collection = await getCollection('student');
-
-    // Inject tenantId into filter (backward compat)
-    if (tenantId) filterBy.tenantId = tenantId;
 
     const criteria = _buildCriteria(filterBy);
 
-    // Role-based scoping: prefer context, fall back to legacy teacherId/isAdmin
-    if (context) {
-      Object.assign(criteria, buildScopedFilter('student', {}, context));
-    } else if (teacherId && !isAdmin) {
-      criteria['teacherAssignments.teacherId'] = teacherId;
-    }
+    // Role-based scoping via buildScopedFilter (context is now mandatory)
+    Object.assign(criteria, buildScopedFilter('student', {}, context));
 
     // If limit is 0 or not provided, return all students (backward compatibility)
     if (limit === 0) {
@@ -63,7 +58,7 @@ async function getStudents(filterBy = {}, page = 1, limit = 0, options = {}) {
     const hasNextPage = page < totalPages;
     const hasPreviousPage = page > 1;
 
-    console.log(`📄 Pagination: Page ${page}/${totalPages}, Limit: ${limit}, Total: ${totalCount}, Returned: ${students.length}`);
+    console.log(`Pagination: Page ${page}/${totalPages}, Limit: ${limit}, Total: ${totalCount}, Returned: ${students.length}`);
 
     // Return paginated response with metadata
     return {
@@ -86,37 +81,42 @@ async function getStudents(filterBy = {}, page = 1, limit = 0, options = {}) {
 
 async function getStudentById(studentId, options = {}) {
   try {
-    console.log(`🔍 Student service: Getting student by ID: ${studentId}`);
+    console.log(`Student service: Getting student by ID: ${studentId}`);
 
     // Validate ObjectId format
     if (!ObjectId.isValid(studentId)) {
       throw new Error(`Invalid student ID format: ${studentId}`);
     }
 
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('student');
-    const filter = { _id: ObjectId.createFromHexString(studentId) };
-    if (options.tenantId) filter.tenantId = options.tenantId;
+    const filter = { _id: ObjectId.createFromHexString(studentId), tenantId };
     const student = await collection.findOne(filter);
 
     if (!student) {
       throw new Error(`Student with id ${studentId} not found`);
     }
-    
+
     const displayName = `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim() || 'Unknown';
-    console.log(`✅ Student service: Found student: ${displayName}`);
+    console.log(`Student service: Found student: ${displayName}`);
     return student;
   } catch (err) {
-    console.error(`❌ Student service error for ID ${studentId}:`, err.message);
+    console.error(`Student service error for ID ${studentId}:`, err.message);
     console.error('Stack trace:', err.stack);
     throw new Error(`Error getting student by id: ${err.message}`);
   }
 }
 
-async function addStudent(studentToAdd, teacherId = null, isAdmin = false) {
+async function addStudent(studentToAdd, teacherId = null, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     // Validate with the standard (strict) schema
     const { error, value } = validateStudent(studentToAdd);
     if (error) throw error;
+
+    // Server-derived tenantId (never from client)
+    value.tenantId = tenantId;
 
     // Ensure we have a primary instrument
     if (value.academicInfo.instrumentProgress) {
@@ -135,7 +135,7 @@ async function addStudent(studentToAdd, teacherId = null, isAdmin = false) {
       const schoolYearService = (
         await import('../school-year/school-year.service.js')
       ).schoolYearService;
-      const currentSchoolYear = await schoolYearService.getCurrentSchoolYear();
+      const currentSchoolYear = await schoolYearService.getCurrentSchoolYear({ context: options.context });
 
       if (!value.enrollments) {
         value.enrollments = {};
@@ -163,13 +163,14 @@ async function addStudent(studentToAdd, teacherId = null, isAdmin = false) {
     if (teacherId && !isAdmin) {
       await associateStudentWithTeacher(
         result.insertedId.toString(),
-        teacherId
+        teacherId,
+        options
       );
     }
 
-    // 🔥 CRITICAL FIX: Sync teacher records if student created with teacherAssignments
+    // Sync teacher records if student created with teacherAssignments
     if (value.teacherAssignments && value.teacherAssignments.length > 0) {
-      console.log(`🔥 SYNC FIX: New student created with ${value.teacherAssignments.length} teacher assignments - syncing teacher records`);
+      console.log(`SYNC FIX: New student created with ${value.teacherAssignments.length} teacher assignments - syncing teacher records`);
       try {
         const studentDisplayName = `${value.personalInfo?.firstName || ''} ${value.personalInfo?.lastName || ''}`.trim();
         await syncTeacherRecordsForStudentUpdate(
@@ -179,15 +180,9 @@ async function addStudent(studentToAdd, teacherId = null, isAdmin = false) {
           []
         );
 
-        // 🔥 SYNC FIX: Also sync teacher IDs from teacherAssignments for new students
-        const teacherIdsFromAssignments = value.teacherAssignments
-          .filter(assignment => assignment.isActive)
-          .map(assignment => assignment.teacherId)
-          .filter(Boolean);
-        
-        // teacherAssignments is the single source of truth — no deprecated sync needed
+        // teacherAssignments is the single source of truth -- no deprecated sync needed
       } catch (syncError) {
-        console.error(`🔥 SYNC ERROR: Failed to sync teacher assignments for new student:`, syncError);
+        console.error(`SYNC ERROR: Failed to sync teacher assignments for new student:`, syncError);
         // Continue with student creation even if sync fails
       }
     }
@@ -203,16 +198,19 @@ async function updateStudent(
   studentId,
   studentToUpdate,
   teacherId = null,
-  isAdmin = false
+  isAdmin = false,
+  options = {}
 ) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   // Get MongoDB client for session management
   const collection = await getCollection('student');
   const session = collection.client.startSession();
-  
+
   try {
     // Start transaction for data consistency
     await session.startTransaction();
-    
+
     // For updates, use the flexible validation schema
     const { error, value } = validateStudent(studentToUpdate, true);
     if (error) throw new Error(`Invalid student data: ${error.message}`);
@@ -220,7 +218,8 @@ async function updateStudent(
     if (teacherId && !isAdmin) {
       const hasAccess = await checkTeacherHasAccessToStudent(
         teacherId,
-        studentId
+        studentId,
+        options
       );
 
       // If teacher doesn't have access, check if they're only adding themselves to teacherAssignments
@@ -234,13 +233,13 @@ async function updateStudent(
           throw new Error('Not authorized to update student');
         }
 
-        console.log(`✅ Authorization granted: Teacher ${teacherId} is adding themselves to student ${studentId}'s teacherAssignments`);
+        console.log(`Authorization granted: Teacher ${teacherId} is adding themselves to student ${studentId}'s teacherAssignments`);
       }
     }
 
-    // Get original student data before update to detect changes
+    // Get original student data before update to detect changes (tenant-scoped)
     const originalStudent = await collection.findOne(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       { session }
     );
 
@@ -261,31 +260,31 @@ async function updateStudent(
       }
     }
 
-    // 🔥 ENHANCED VALIDATION: Advanced teacherAssignments validation with DB consistency checks
+    // ENHANCED VALIDATION: Advanced teacherAssignments validation with DB consistency checks
     let teacherAssignmentsSyncRequired = false;
     let newAssignments = [];
     let removedAssignments = [];
 
     if (value.teacherAssignments) {
-      console.log(`🔍 ENHANCED VALIDATION: Validating teacherAssignments for student ${studentId}`);
-      
+      console.log(`ENHANCED VALIDATION: Validating teacherAssignments for student ${studentId}`);
+
       // Perform comprehensive validation
       const assignmentValidation = await validateTeacherAssignmentsWithDB(value.teacherAssignments, studentId);
-      
+
       if (!assignmentValidation.isValid) {
         const errorMessages = assignmentValidation.errors.map(error => error.message).join('; ');
         throw new Error(`TeacherAssignments validation failed: ${errorMessages}`);
       }
-      
+
       // Use validated and fixed assignments
       value.teacherAssignments = assignmentValidation.validatedAssignments;
-      
+
       if (assignmentValidation.warnings.length > 0) {
-        console.warn(`⚠️  TeacherAssignments validation warnings for student ${studentId}:`, assignmentValidation.warnings);
+        console.warn(`TeacherAssignments validation warnings for student ${studentId}:`, assignmentValidation.warnings);
       }
-      
+
       if (assignmentValidation.fixes.length > 0) {
-        console.log(`🔧 Applied ${assignmentValidation.fixes.length} automatic fixes to teacherAssignments for student ${studentId}`);
+        console.log(`Applied ${assignmentValidation.fixes.length} automatic fixes to teacherAssignments for student ${studentId}`);
       }
 
       teacherAssignmentsSyncRequired = true;
@@ -294,22 +293,22 @@ async function updateStudent(
 
       // Find removed assignments (in original but not in new)
       removedAssignments = originalAssignments.filter(originalAssignment => {
-        return !newAssignments.some(newAssignment => 
+        return !newAssignments.some(newAssignment =>
           newAssignment.teacherId === originalAssignment.teacherId &&
           newAssignment.timeBlockId === originalAssignment.timeBlockId &&
           newAssignment.lessonId === originalAssignment.lessonId
         );
       });
 
-      console.log(`🔥 SYNC FIX: TeacherAssignments update detected for student ${studentId}`);
+      console.log(`SYNC FIX: TeacherAssignments update detected for student ${studentId}`);
       console.log(`Original assignments: ${originalAssignments.length}, New assignments: ${newAssignments.length}`);
       console.log(`Removed assignments: ${removedAssignments.length}`);
       console.log(`Validation fixes applied: ${assignmentValidation.fixes.length}`);
     }
 
-    // Apply the update to student record
+    // Apply the update to student record (tenant-scoped)
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       { $set: value },
       { returnDocument: 'after', session }
     );
@@ -377,7 +376,7 @@ async function updateStudent(
       // ALWAYS sync if there are any changes detected
       // Even if the teacher ID didn't change, the isActive status might have
       if (teachersToAddFromAssignments.length > 0 || teachersToRemoveFromAssignments.length > 0) {
-        console.log(`🔥 ENHANCED SYNC: TeacherAssignments sync - Adding ${teachersToAddFromAssignments.length} teachers, Removing ${teachersToRemoveFromAssignments.length} teachers`);
+        console.log(`ENHANCED SYNC: TeacherAssignments sync - Adding ${teachersToAddFromAssignments.length} teachers, Removing ${teachersToRemoveFromAssignments.length} teachers`);
         console.log(`Teachers to add: [${teachersToAddFromAssignments.join(', ')}]`);
         console.log(`Teachers to remove: [${teachersToRemoveFromAssignments.join(', ')}]`);
         await syncTeacherStudentRelationships(studentId, teachersToAddFromAssignments, teachersToRemoveFromAssignments, session);
@@ -389,42 +388,42 @@ async function updateStudent(
           .map(assignment => assignment.teacherId);
 
         if (allActiveTeacherIds.length > 0) {
-          console.log(`🛡️ SAFETY SYNC: Ensuring ${allActiveTeacherIds.length} active teachers have student ${studentId} in their studentIds`);
+          console.log(`SAFETY SYNC: Ensuring ${allActiveTeacherIds.length} active teachers have student ${studentId} in their studentIds`);
           // Use addToSet which is idempotent - won't duplicate if already exists
           await syncTeacherStudentRelationships(studentId, allActiveTeacherIds, [], session);
         } else {
-          console.log(`🔍 SYNC CHECK: No active teacher assignments for student ${studentId}`);
+          console.log(`SYNC CHECK: No active teacher assignments for student ${studentId}`);
         }
       }
     }
 
-    // 🔥 CRITICAL FIX: Sync teacher assignments (time-block system)
+    // Sync teacher assignments (time-block system)
     if (teacherAssignmentsSyncRequired) {
-      console.log(`🔥 SYNC FIX: Starting teacher assignments sync for student ${studentId}`);
+      console.log(`SYNC FIX: Starting teacher assignments sync for student ${studentId}`);
       const syncDisplayName = `${result.personalInfo?.firstName || ''} ${result.personalInfo?.lastName || ''}`.trim();
       await syncTeacherRecordsForStudentUpdate(studentId, syncDisplayName, newAssignments, removedAssignments, session);
     }
 
     // Validate relationship integrity after sync
-    if (teacherRelationshipSyncRequired) {
+    if (teacherAssignmentsSyncRequired) {
       try {
         const validationResult = await relationshipValidationService.validateStudentTeacherRelationships(studentId);
 
         if (!validationResult.isValid) {
-          console.warn(`⚠️  VALIDATION WARNING: Student ${studentId} has relationship issues:`, validationResult.errors);
+          console.warn(`VALIDATION WARNING: Student ${studentId} has relationship issues:`, validationResult.errors);
         }
 
         if (validationResult.warnings.length > 0) {
-          console.warn(`⚠️  VALIDATION WARNINGS for student ${studentId}:`, validationResult.warnings);
+          console.warn(`VALIDATION WARNINGS for student ${studentId}:`, validationResult.warnings);
         }
       } catch (validationError) {
-        console.error(`❌ VALIDATION ERROR: Failed to validate relationships for student ${studentId}:`, validationError.message);
+        console.error(`VALIDATION ERROR: Failed to validate relationships for student ${studentId}:`, validationError.message);
       }
     }
 
     // Commit the transaction
     await session.commitTransaction();
-    
+
     return result;
   } catch (err) {
     console.error(`Error updating student: ${err.message}`);
@@ -441,9 +440,12 @@ async function updateStudentTest(
   testType,
   status,
   teacherId = null,
-  isAdmin = false
+  isAdmin = false,
+  options = {}
 ) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     console.log(`Processing test update for student ${studentId}`, {
       instrumentName,
       testType,
@@ -452,8 +454,8 @@ async function updateStudentTest(
       isAdmin
     });
 
-    // First, get the current student to find the instrument
-    const student = await getStudentById(studentId);
+    // First, get the current student to find the instrument (tenant-scoped)
+    const student = await getStudentById(studentId, options);
 
     if (!student) {
       throw new Error(`Student with id ${studentId} not found`);
@@ -521,14 +523,14 @@ async function updateStudentTest(
       testType === 'stageTest' &&
       passingStatuses.includes(status) &&
       failingStatuses.includes(previousStatus) &&
-      updateData.academicInfo.instrumentProgress[instrumentIndex].currentStage 
+      updateData.academicInfo.instrumentProgress[instrumentIndex].currentStage
     ) {
       console.log(
         `Incrementing stage for student ${studentId}, instrument ${instrumentName}` +
         ` from ${updateData.academicInfo.instrumentProgress[instrumentIndex].currentStage}` +
         ` to ${updateData.academicInfo.instrumentProgress[instrumentIndex].currentStage + 1}`
       );
-      
+
       updateData.academicInfo.instrumentProgress[instrumentIndex].currentStage =
         student.academicInfo.instrumentProgress[instrumentIndex].currentStage +
         1;
@@ -538,17 +540,18 @@ async function updateStudentTest(
     if (teacherId && !isAdmin) {
       const hasAccess = await checkTeacherHasAccessToStudent(
         teacherId,
-        studentId
+        studentId,
+        options
       );
       if (!hasAccess) {
         throw new Error('Not authorized to update student test');
       }
     }
 
-    // Apply the update
+    // Apply the update (tenant-scoped)
     const collection = await getCollection('student');
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       { $set: updateData },
       { returnDocument: 'after' }
     );
@@ -565,9 +568,11 @@ async function updateStudentTest(
   }
 }
 
-async function updateStudentStageLevel(studentId, newStageLevel, teacherId = null, isAdmin = false) {
+async function updateStudentStageLevel(studentId, newStageLevel, teacherId = null, isAdmin = false, options = {}) {
   try {
-    console.log(`🎵 Service: Updating stage level for student ${studentId} to ${newStageLevel}`);
+    const tenantId = requireTenantId(options.context?.tenantId);
+
+    console.log(`Service: Updating stage level for student ${studentId} to ${newStageLevel}`);
 
     // Validate ObjectId format
     if (!ObjectId.isValid(studentId)) {
@@ -576,20 +581,20 @@ async function updateStudentStageLevel(studentId, newStageLevel, teacherId = nul
 
     // Check authorization if needed
     if (teacherId && !isAdmin) {
-      const hasAccess = await checkTeacherHasAccessToStudent(teacherId, studentId);
+      const hasAccess = await checkTeacherHasAccessToStudent(teacherId, studentId, options);
       if (!hasAccess) {
         throw new Error('Not authorized to update student stage level');
       }
     }
 
-    // First, get the current student to find the primary instrument
-    const student = await getStudentById(studentId);
+    // First, get the current student to find the primary instrument (tenant-scoped)
+    const student = await getStudentById(studentId, options);
     if (!student) {
       throw new Error(`Student with id ${studentId} not found`);
     }
 
     // Find the primary instrument or use the first one if no primary is set
-    const primaryInstrument = student.academicInfo?.instrumentProgress?.find(inst => inst.isPrimary) 
+    const primaryInstrument = student.academicInfo?.instrumentProgress?.find(inst => inst.isPrimary)
       || student.academicInfo?.instrumentProgress?.[0];
 
     if (!primaryInstrument) {
@@ -608,10 +613,10 @@ async function updateStudentStageLevel(studentId, newStageLevel, teacherId = nul
       return instrument;
     });
 
-    // Update the student document
+    // Update the student document (tenant-scoped)
     const collection = await getCollection('student');
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       {
         $set: {
           'academicInfo.instrumentProgress': updatedInstrumentProgress,
@@ -625,31 +630,34 @@ async function updateStudentStageLevel(studentId, newStageLevel, teacherId = nul
       throw new Error(`Student with id ${studentId} not found after update attempt`);
     }
 
-    console.log(`✅ Successfully updated stage level for student ${studentId} to ${newStageLevel}`);
+    console.log(`Successfully updated stage level for student ${studentId} to ${newStageLevel}`);
     return result;
   } catch (err) {
-    console.error(`❌ Error updating student stage level: ${err.message}`);
+    console.error(`Error updating student stage level: ${err.message}`);
     throw new Error(`Error updating student stage level: ${err.message}`);
   }
 }
 
-async function removeStudent(studentId, teacherId = null, isAdmin = false) {
+async function removeStudent(studentId, teacherId = null, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     if (teacherId && !isAdmin) {
       const hasAccess = await checkTeacherHasAccessToStudent(
         teacherId,
-        studentId
+        studentId,
+        options
       );
       if (!hasAccess) {
         throw new Error('Not authorized to remove student');
       }
 
-      return await removeStudentTeacherAssociation(studentId, teacherId);
+      return await removeStudentTeacherAssociation(studentId, teacherId, options);
     }
 
     const collection = await getCollection('student');
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       {
         $set: {
           isActive: false,
@@ -667,12 +675,15 @@ async function removeStudent(studentId, teacherId = null, isAdmin = false) {
   }
 }
 
-async function checkTeacherHasAccessToStudent(teacherId, studentId) {
+async function checkTeacherHasAccessToStudent(teacherId, studentId, options = {}) {
   try {
-    // Check via teacherAssignments on the student (single source of truth)
+    const tenantId = requireTenantId(options.context?.tenantId);
+
+    // Check via teacherAssignments on the student (single source of truth, tenant-scoped)
     const studentCollection = await getCollection('student');
     const student = await studentCollection.findOne({
       _id: ObjectId.createFromHexString(studentId),
+      tenantId,
       'teacherAssignments.teacherId': teacherId,
       isActive: true,
     });
@@ -724,8 +735,9 @@ function checkIfOnlyAddingSelfToAssignments(studentUpdate, teacherId) {
   return hasTeacherInAssignments;
 }
 
-async function associateStudentWithTeacher(studentId, teacherId) {
+async function associateStudentWithTeacher(studentId, teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const studentCollection = await getCollection('student');
 
     // Create teacherAssignment on student (single source of truth)
@@ -741,7 +753,7 @@ async function associateStudentWithTeacher(studentId, teacherId) {
     };
 
     await studentCollection.updateOne(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       {
         $push: { teacherAssignments: assignment },
         $set: { updatedAt: new Date() }
@@ -759,8 +771,9 @@ async function associateStudentWithTeacher(studentId, teacherId) {
   }
 }
 
-async function removeStudentTeacherAssociation(studentId, teacherId) {
+async function removeStudentTeacherAssociation(studentId, teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
 
@@ -768,6 +781,7 @@ async function removeStudentTeacherAssociation(studentId, teacherId) {
     await teacherCollection.updateMany(
       {
         _id: ObjectId.createFromHexString(teacherId),
+        tenantId,
         'teaching.timeBlocks.assignedLessons.studentId': studentId
       },
       {
@@ -785,15 +799,16 @@ async function removeStudentTeacherAssociation(studentId, teacherId) {
       }
     );
 
-    // Mark all teacher assignments for this student as inactive
+    // Mark all teacher assignments for this student as inactive (tenant-scoped)
     await studentCollection.updateMany(
-      { 
+      {
         _id: ObjectId.createFromHexString(studentId),
+        tenantId,
         'teacherAssignments.teacherId': teacherId,
         'teacherAssignments.isActive': true
       },
-      { 
-        $set: { 
+      {
+        $set: {
           'teacherAssignments.$[elem].isActive': false,
           'teacherAssignments.$[elem].endDate': new Date(),
           'teacherAssignments.$[elem].updatedAt': new Date()
@@ -803,7 +818,7 @@ async function removeStudentTeacherAssociation(studentId, teacherId) {
         arrayFilters: [{ 'elem.teacherId': teacherId, 'elem.isActive': true }]
       }
     );
-    
+
     return {
       message: 'Student removed from teacher successfully',
       studentId,
@@ -816,23 +831,23 @@ async function removeStudentTeacherAssociation(studentId, teacherId) {
 }
 
 /**
- * 🔥 CRITICAL FIX: Sync teacher records when student assignments are modified (time-block system)
+ * Sync teacher records when student assignments are modified (time-block system)
  * This function ensures bidirectional consistency between student and teacher records
  */
 async function syncTeacherRecordsForStudentUpdate(studentId, studentName, newAssignments, removedAssignments, session = null) {
   try {
     const teacherCollection = await getCollection('teacher');
 
-    console.log(`🔥 SYNC FIX: Processing ${newAssignments.length} new assignments and ${removedAssignments.length} removed assignments`);
+    console.log(`SYNC FIX: Processing ${newAssignments.length} new assignments and ${removedAssignments.length} removed assignments`);
 
     // Process new/active assignments - add to teacher time blocks
     for (const assignment of newAssignments) {
       if (!assignment.isActive) continue;
 
       const { teacherId, timeBlockId, lessonId } = assignment;
-      
+
       if (!teacherId || !timeBlockId) {
-        console.warn(`🔥 SYNC FIX: Skipping invalid assignment - missing teacherId or timeBlockId`, assignment);
+        console.warn(`SYNC FIX: Skipping invalid assignment - missing teacherId or timeBlockId`, assignment);
         continue;
       }
 
@@ -847,24 +862,24 @@ async function syncTeacherRecordsForStudentUpdate(studentId, studentName, newAss
         );
 
         if (!teacher) {
-          console.warn(`🔥 SYNC FIX: Teacher ${teacherId} or timeBlock ${timeBlockId} not found`);
+          console.warn(`SYNC FIX: Teacher ${teacherId} or timeBlock ${timeBlockId} not found`);
           continue;
         }
 
         const timeBlock = teacher.teaching.timeBlocks.find(tb => tb._id.toString() === timeBlockId);
         if (!timeBlock) {
-          console.warn(`🔥 SYNC FIX: TimeBlock ${timeBlockId} not found in teacher ${teacherId}`);
+          console.warn(`SYNC FIX: TimeBlock ${timeBlockId} not found in teacher ${teacherId}`);
           continue;
         }
 
         // Check if lesson already exists in teacher's time block
-        const existingLesson = timeBlock.assignedLessons?.find(lesson => 
-          lesson.studentId === studentId && 
+        const existingLesson = timeBlock.assignedLessons?.find(lesson =>
+          lesson.studentId === studentId &&
           lesson._id.toString() === (lessonId || 'new')
         );
 
         if (existingLesson) {
-          console.log(`🔥 SYNC FIX: Lesson already exists in teacher time block - skipping`);
+          console.log(`SYNC FIX: Lesson already exists in teacher time block - skipping`);
           continue;
         }
 
@@ -887,7 +902,7 @@ async function syncTeacherRecordsForStudentUpdate(studentId, studentName, newAss
         // Add lesson to teacher's time block
         const updateOptions = session ? { session } : {};
         await teacherCollection.updateOne(
-          { 
+          {
             _id: ObjectId.createFromHexString(teacherId),
             'teaching.timeBlocks._id': ObjectId.createFromHexString(timeBlockId)
           },
@@ -901,10 +916,10 @@ async function syncTeacherRecordsForStudentUpdate(studentId, studentName, newAss
           updateOptions
         );
 
-        console.log(`🔥 SYNC FIX: Added lesson to teacher ${teacherId} timeBlock ${timeBlockId} for student ${studentId}`);
+        console.log(`SYNC FIX: Added lesson to teacher ${teacherId} timeBlock ${timeBlockId} for student ${studentId}`);
 
       } catch (err) {
-        console.error(`🔥 SYNC FIX: Error processing assignment for teacher ${teacherId}:`, err.message);
+        console.error(`SYNC FIX: Error processing assignment for teacher ${teacherId}:`, err.message);
         if (session) throw err; // Re-throw to trigger transaction rollback
       }
     }
@@ -912,20 +927,20 @@ async function syncTeacherRecordsForStudentUpdate(studentId, studentName, newAss
     // Process removed assignments - remove from teacher time blocks
     for (const assignment of removedAssignments) {
       const { teacherId, timeBlockId, lessonId } = assignment;
-      
+
       if (!teacherId || !timeBlockId) continue;
 
       try {
         // Mark lesson as inactive in teacher's time block
         const updateOptions = session ? { session } : {};
         await teacherCollection.updateOne(
-          { 
+          {
             _id: ObjectId.createFromHexString(teacherId),
             'teaching.timeBlocks._id': ObjectId.createFromHexString(timeBlockId),
             'teaching.timeBlocks.assignedLessons._id': ObjectId.createFromHexString(lessonId)
           },
-          { 
-            $set: { 
+          {
+            $set: {
               'teaching.timeBlocks.$[block].assignedLessons.$[lesson].isActive': false,
               'teaching.timeBlocks.$[block].assignedLessons.$[lesson].endDate': new Date(),
               'teaching.timeBlocks.$[block].assignedLessons.$[lesson].updatedAt': new Date(),
@@ -941,18 +956,18 @@ async function syncTeacherRecordsForStudentUpdate(studentId, studentName, newAss
           }
         );
 
-        console.log(`🔥 SYNC FIX: Marked lesson ${lessonId} as inactive in teacher ${teacherId} timeBlock ${timeBlockId}`);
+        console.log(`SYNC FIX: Marked lesson ${lessonId} as inactive in teacher ${teacherId} timeBlock ${timeBlockId}`);
 
       } catch (err) {
-        console.error(`🔥 SYNC FIX: Error removing assignment for teacher ${teacherId}:`, err.message);
+        console.error(`SYNC FIX: Error removing assignment for teacher ${teacherId}:`, err.message);
         if (session) throw err; // Re-throw to trigger transaction rollback
       }
     }
 
-    console.log(`🔥 SYNC FIX: Teacher record sync completed for student ${studentId}`);
+    console.log(`SYNC FIX: Teacher record sync completed for student ${studentId}`);
 
   } catch (err) {
-    console.error(`🔥 SYNC FIX: Error in syncTeacherRecordsForStudentUpdate:`, err.message);
+    console.error(`SYNC FIX: Error in syncTeacherRecordsForStudentUpdate:`, err.message);
     if (session) {
       throw err; // Re-throw to trigger transaction rollback
     }
@@ -962,22 +977,19 @@ async function syncTeacherRecordsForStudentUpdate(studentId, studentName, newAss
 
 function _buildCriteria(filterBy) {
   const criteria = {};
-  console.log('🔍 studentService._buildCriteria called with filterBy:', JSON.stringify(filterBy))
+  console.log('studentService._buildCriteria called with filterBy:', JSON.stringify(filterBy))
 
-  // Tenant scoping — always applied if present
-  if (filterBy.tenantId) {
-    criteria.tenantId = filterBy.tenantId;
-  }
+  // NOTE: tenantId is no longer handled here -- it is applied by buildScopedFilter at the call site
 
   // Handle batch fetching by IDs - highest priority
   if (filterBy.ids) {
-    console.log('🎯 Found student ids parameter:', filterBy.ids)
+    console.log('Found student ids parameter:', filterBy.ids)
     const idsArray = Array.isArray(filterBy.ids) ? filterBy.ids : filterBy.ids.split(',')
-    console.log('🎯 Parsed student IDs array:', idsArray)
+    console.log('Parsed student IDs array:', idsArray)
     criteria._id = {
       $in: idsArray.map(id => ObjectId.createFromHexString(id.trim()))
     }
-    console.log('🎯 Built student criteria with IDs:', JSON.stringify(criteria))
+    console.log('Built student criteria with IDs:', JSON.stringify(criteria))
     // When fetching by specific IDs, return all (active and inactive)
     return criteria
   }
@@ -1051,16 +1063,17 @@ function _buildCriteria(filterBy) {
 
 // Bagrut connection management functions
 
-async function setBagrutId(studentId, bagrutId) {
+async function setBagrutId(studentId, bagrutId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('student');
     const result = await collection.updateOne(
-      { _id: ObjectId.createFromHexString(studentId) },
-      { 
-        $set: { 
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
+      {
+        $set: {
           'academicInfo.tests.bagrutId': bagrutId,
           updatedAt: new Date()
-        } 
+        }
       }
     );
 
@@ -1075,13 +1088,14 @@ async function setBagrutId(studentId, bagrutId) {
   }
 }
 
-async function removeBagrutId(studentId) {
+async function removeBagrutId(studentId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('student');
     const result = await collection.updateOne(
-      { _id: ObjectId.createFromHexString(studentId) },
-      { 
-        $unset: { 
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
+      {
+        $unset: {
           'academicInfo.tests.bagrutId': ""
         },
         $set: {
@@ -1101,16 +1115,17 @@ async function removeBagrutId(studentId) {
   }
 }
 
-async function getStudentBagrut(studentId) {
+async function getStudentBagrut(studentId, options = {}) {
   try {
-    const student = await getStudentById(studentId);
-    
+    requireTenantId(options.context?.tenantId);
+    const student = await getStudentById(studentId, options);
+
     if (!student) {
       throw new Error(`Student with id ${studentId} not found`);
     }
 
     const bagrutId = student.academicInfo?.tests?.bagrutId;
-    
+
     if (!bagrutId) {
       return null; // Student has no bagrut
     }
