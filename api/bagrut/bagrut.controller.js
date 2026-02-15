@@ -28,14 +28,13 @@ export const bagrutController = {
 async function getBagruts(req, res, next) {
   try {
     const filterBy = {
-      tenantId: req.context?.tenantId || null,
       studentId: req.query.studentId,
       teacherId: req.query.teacherId,
       isActive: req.query.isActive,
       showInactive: req.query.showInactive === 'true',
     }
 
-    const bagruts = await bagrutService.getBagruts(filterBy)
+    const bagruts = await bagrutService.getBagruts(filterBy, { context: req.context })
     res.json(bagruts)
   } catch (err) {
     next(err)
@@ -54,7 +53,7 @@ async function getBagrutById(req, res, next) {
 async function getBagrutByStudentId(req, res, next) {
   try {
     const { studentId } = req.params
-    const bagrut = await bagrutService.getBagrutByStudentId(studentId)
+    const bagrut = await bagrutService.getBagrutByStudentId(studentId, { context: req.context })
 
     if (!bagrut) {
       return res
@@ -71,7 +70,7 @@ async function getBagrutByStudentId(req, res, next) {
 async function addBagrut(req, res, next) {
   try {
     const bagrutToAdd = req.body
-    const addedBagrut = await bagrutService.addBagrut(bagrutToAdd)
+    const addedBagrut = await bagrutService.addBagrut(bagrutToAdd, { context: req.context })
     res.status(201).json(addedBagrut)
   } catch (err) {
     next(err)
@@ -84,7 +83,7 @@ async function updateBagrut(req, res, next) {
     const bagrutToUpdate = req.body
 
     // No need to check authorization - middleware already did it
-    const updatedBagrut = await bagrutService.updateBagrut(id, bagrutToUpdate)
+    const updatedBagrut = await bagrutService.updateBagrut(id, bagrutToUpdate, { context: req.context })
     res.json(updatedBagrut)
   } catch (err) {
     next(err)
@@ -96,7 +95,7 @@ async function removeBagrut(req, res, next) {
     const { id } = req.params
 
     // No need to check authorization - middleware already did it
-    const result = await bagrutService.removeBagrut(id)
+    const result = await bagrutService.removeBagrut(id, { context: req.context })
     res.json(result)
   } catch (err) {
     next(err)
@@ -122,7 +121,8 @@ async function updatePresentation(req, res, next) {
       id,
       index,
       presentationData,
-      teacherId
+      teacherId,
+      { context: req.context }
     )
     res.json(updatedBagrut)
   } catch (err) {
@@ -140,7 +140,8 @@ async function updateMagenBagrut(req, res, next) {
     const updatedBagrut = await bagrutService.updateMagenBagrut(
       id,
       magenBagrutData,
-      teacherId
+      teacherId,
+      { context: req.context }
     )
     res.json(updatedBagrut)
   } catch (err) {
@@ -172,7 +173,8 @@ async function addDocument(req, res, next) {
     const updatedBagrut = await bagrutService.addDocument(
       id,
       documentData,
-      teacherId
+      teacherId,
+      { context: req.context }
     )
     res.json(updatedBagrut)
   } catch (err) {
@@ -199,7 +201,7 @@ async function removeDocument(req, res, next) {
     }
 
     // No need to check authorization - middleware already did it
-    const updatedBagrut = await bagrutService.removeDocument(id, documentId)
+    const updatedBagrut = await bagrutService.removeDocument(id, documentId, { context: req.context })
     res.json(updatedBagrut)
   } catch (err) {
     next(err)
@@ -212,7 +214,7 @@ async function addProgramPiece(req, res, next) {
     const pieceData = req.body
 
     // No need to check authorization - middleware already did it
-    const updatedBagrut = await bagrutService.addProgramPiece(id, pieceData)
+    const updatedBagrut = await bagrutService.addProgramPiece(id, pieceData, { context: req.context })
     res.json(updatedBagrut)
   } catch (err) {
     next(err)
@@ -225,7 +227,7 @@ async function updateProgram(req, res, next) {
     const { program } = req.body
 
     // No need to check authorization - middleware already did it
-    const updatedBagrut = await bagrutService.updateProgram(id, program)
+    const updatedBagrut = await bagrutService.updateProgram(id, program, { context: req.context })
     res.json(updatedBagrut)
   } catch (err) {
     next(err)
@@ -237,7 +239,7 @@ async function removeProgramPiece(req, res, next) {
     const { id, pieceId } = req.params
 
     // No need to check authorization - middleware already did it
-    const updatedBagrut = await bagrutService.removeProgramPiece(id, pieceId)
+    const updatedBagrut = await bagrutService.removeProgramPiece(id, pieceId, { context: req.context })
     res.json(updatedBagrut)
   } catch (err) {
     next(err)
@@ -252,7 +254,8 @@ async function addAccompanist(req, res, next) {
     // No need to check authorization - middleware already did it
     const updatedBagrut = await bagrutService.addAccompanist(
       id,
-      accompanistData
+      accompanistData,
+      { context: req.context }
     )
     res.json(updatedBagrut)
   } catch (err) {
@@ -267,7 +270,8 @@ async function removeAccompanist(req, res, next) {
     // No need to check authorization - middleware already did it
     const updatedBagrut = await bagrutService.removeAccompanist(
       id,
-      accompanistId
+      accompanistId,
+      { context: req.context }
     )
     res.json(updatedBagrut)
   } catch (err) {
@@ -327,7 +331,8 @@ async function updateGradingDetails(req, res, next) {
     const updatedBagrut = await bagrutService.updateGradingDetails(
       id,
       detailedGrading,
-      teacherId
+      teacherId,
+      { context: req.context }
     )
     res.json(updatedBagrut)
   } catch (err) {
@@ -340,7 +345,7 @@ async function calculateFinalGrade(req, res, next) {
     const { id } = req.params
 
     // No need to check authorization - middleware already did it
-    const updatedBagrut = await bagrutService.calculateAndUpdateFinalGrade(id)
+    const updatedBagrut = await bagrutService.calculateAndUpdateFinalGrade(id, { context: req.context })
     res.json(updatedBagrut)
   } catch (err) {
     next(err)
@@ -357,7 +362,8 @@ async function completeBagrut(req, res, next) {
     const updatedBagrut = await bagrutService.completeBagrut(
       id,
       teacherId,
-      teacherSignature
+      teacherSignature,
+      { context: req.context }
     )
     res.json(updatedBagrut)
   } catch (err) {
@@ -389,7 +395,7 @@ async function updateDirectorEvaluation(req, res, next) {
     const updatedBagrut = await bagrutService.updateDirectorEvaluation(id, {
       points,
       comments: comments || ''
-    })
+    }, { context: req.context })
     
     res.json(updatedBagrut)
   } catch (err) {
@@ -434,7 +440,7 @@ async function setRecitalConfiguration(req, res, next) {
     }
 
     // No need to check authorization - middleware already did it
-    const updatedBagrut = await bagrutService.setRecitalConfiguration(id, units, field)
+    const updatedBagrut = await bagrutService.setRecitalConfiguration(id, units, field, { context: req.context })
     
     res.json(updatedBagrut)
   } catch (err) {
