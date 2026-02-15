@@ -1,5 +1,6 @@
 import { getCollection } from './mongoDB.service.js';
 import { ObjectId } from 'mongodb';
+import { requireTenantId } from '../middleware/tenant.middleware.js';
 
 /**
  * Professional Role-Based Access Control (RBAC) Service
@@ -183,8 +184,15 @@ export class PermissionService {
   
   /**
    * Check if user can access a specific resource
+   * @param {string} userId - The user's ID
+   * @param {Array} userRoles - The user's roles
+   * @param {string} permission - The permission to check
+   * @param {string} resourceType - The resource type (e.g., 'teacher', 'student')
+   * @param {string|null} resourceId - Optional resource ID
+   * @param {Object} options - Options object with context
+   * @param {Object} options.context - Request context with tenantId
    */
-  static async canAccessResource(userId, userRoles, permission, resourceType, resourceId = null) {
+  static async canAccessResource(userId, userRoles, permission, resourceType, resourceId = null, options = {}) {
     try {
       // Admin can access everything
       if (userRoles.includes('מנהל')) {
@@ -198,12 +206,12 @@ export class PermissionService {
 
       // For "own" permissions, check resource ownership
       if (permission.includes(':own') && resourceId) {
-        return await this.checkResourceOwnership(userId, resourceType, resourceId);
+        return await this.checkResourceOwnership(userId, resourceType, resourceId, options);
       }
 
       // For "assigned" permissions, check if user is assigned to resource
       if (permission.includes(':assigned') && resourceId) {
-        return await this.checkResourceAssignment(userId, resourceType, resourceId);
+        return await this.checkResourceAssignment(userId, resourceType, resourceId, options);
       }
 
       return true;
@@ -216,21 +224,28 @@ export class PermissionService {
   
   /**
    * Check if user owns a resource
+   * @param {string} userId - The user's ID
+   * @param {string} resourceType - The resource type
+   * @param {string} resourceId - The resource ID
+   * @param {Object} options - Options object with context
+   * @param {Object} options.context - Request context with tenantId
    */
-  static async checkResourceOwnership(userId, resourceType, resourceId) {
+  static async checkResourceOwnership(userId, resourceType, resourceId, options = {}) {
     try {
+      const tenantId = requireTenantId(options.context?.tenantId);
       const collection = await getCollection(resourceType);
-      
+
       if (resourceType === 'teacher') {
         const resource = await collection.findOne({
-          _id: ObjectId.createFromHexString(resourceId)
+          _id: ObjectId.createFromHexString(resourceId),
+          tenantId
         });
         return resource && resource._id.toString() === userId;
       }
-      
+
       // Add more resource ownership checks as needed
       return false;
-      
+
     } catch (error) {
       console.error('Error checking resource ownership:', error);
       return false;
@@ -239,31 +254,40 @@ export class PermissionService {
   
   /**
    * Check if user is assigned to a resource
+   * @param {string} userId - The user's ID
+   * @param {string} resourceType - The resource type
+   * @param {string} resourceId - The resource ID
+   * @param {Object} options - Options object with context
+   * @param {Object} options.context - Request context with tenantId
    */
-  static async checkResourceAssignment(userId, resourceType, resourceId) {
+  static async checkResourceAssignment(userId, resourceType, resourceId, options = {}) {
     try {
+      const tenantId = requireTenantId(options.context?.tenantId);
+
       if (resourceType === 'student') {
         const studentCollection = await getCollection('student');
         const student = await studentCollection.findOne({
           _id: ObjectId.createFromHexString(resourceId),
+          tenantId,
           'teacherAssignments': {
             $elemMatch: { teacherId: userId, isActive: { $ne: false } }
           }
         });
         return !!student;
       }
-      
+
       if (resourceType === 'orchestra') {
         const teacherCollection = await getCollection('teacher');
         const teacher = await teacherCollection.findOne({
           _id: ObjectId.createFromHexString(userId),
+          tenantId,
           'conducting.orchestraIds': resourceId
         });
         return !!teacher;
       }
-      
+
       return false;
-      
+
     } catch (error) {
       console.error('Error checking resource assignment:', error);
       return false;
@@ -330,35 +354,45 @@ export class PermissionService {
   
   /**
    * Get filtered data based on user permissions
+   * @param {string} userId - The user's ID
+   * @param {Array} userRoles - The user's roles
+   * @param {string} collection - The collection name
+   * @param {Object} filter - Base filter
+   * @param {Object} options - Options object with context
+   * @param {Object} options.context - Request context with tenantId
    */
-  static async getFilteredData(userId, userRoles, collection, filter = {}) {
+  static async getFilteredData(userId, userRoles, collection, filter = {}, options = {}) {
     try {
+      const tenantId = requireTenantId(options.context?.tenantId);
       const coll = await getCollection(collection);
-      
-      // Admin can see everything
+
+      // Always scope by tenantId (even admin sees only their tenant)
+      const tenantFilter = { ...filter, tenantId };
+
+      // Admin can see everything within their tenant
       if (userRoles.includes('מנהל')) {
-        return await coll.find(filter).toArray();
+        return await coll.find(tenantFilter).toArray();
       }
-      
+
       // Apply role-based filtering
-      let enhancedFilter = { ...filter };
-      
+      let enhancedFilter = { ...tenantFilter };
+
       if (collection === 'teacher') {
         // Teachers can only see themselves unless they have broader permissions
         if (!this.hasPermission(userRoles, PERMISSIONS.TEACHER_READ)) {
           enhancedFilter._id = ObjectId.createFromHexString(userId);
         }
       }
-      
+
       if (collection === 'student') {
         // Teachers can only see assigned students
         if (!this.hasPermission(userRoles, PERMISSIONS.STUDENT_READ)) {
           enhancedFilter['teacherAssignments.teacherId'] = userId;
         }
       }
-      
+
       return await coll.find(enhancedFilter).toArray();
-      
+
     } catch (error) {
       console.error('Error getting filtered data:', error);
       throw error;

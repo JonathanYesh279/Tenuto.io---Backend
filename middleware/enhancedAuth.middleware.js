@@ -134,7 +134,8 @@ export function requirePermission(permission, options = {}) {
         user.roles,
         permission,
         resourceType,
-        resourceId
+        resourceId,
+        { context: req.context }
       );
 
       if (!hasAccess) {
@@ -255,7 +256,7 @@ export function requireOwnership(resourceType) {
         return next();
       }
 
-      const isOwner = await PermissionService.checkResourceOwnership(user._id, resourceType, resourceId);
+      const isOwner = await PermissionService.checkResourceOwnership(user._id, resourceType, resourceId, { context: req.context });
       
       if (!isOwner) {
         await logSecurityEvent(
