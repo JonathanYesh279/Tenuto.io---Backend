@@ -7,9 +7,9 @@ import {
 } from './theory.validation.js';
 import { ObjectId } from 'mongodb';
 import ConflictDetectionService from '../../services/conflictDetectionService.js';
-import { 
-  toUTC, 
-  createAppDate, 
+import {
+  toUTC,
+  createAppDate,
   getDayOfWeek,
   generateDatesForDayOfWeek,
   formatDate,
@@ -19,12 +19,14 @@ import {
   now,
   isSameDay
 } from '../../utils/dateHelpers.js';
-import { 
+import {
   createLessonFilterQuery,
   createPaginationQuery,
-  estimateQueryComplexity 
+  estimateQueryComplexity
 } from '../../utils/queryOptimization.js';
 import queryCacheService from '../../services/queryCacheService.js';
+import { buildScopedFilter } from '../../utils/queryScoping.js';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const theoryService = {
   getTheoryLessons,
@@ -45,8 +47,11 @@ export const theoryService = {
   getStudentTheoryAttendanceStats,
 };
 
-async function getTheoryLessons(filterBy = {}, paginationOptions = {}) {
+async function getTheoryLessons(filterBy = {}, paginationOptions = {}, options = {}) {
   try {
+    const { context } = options;
+    requireTenantId(context?.tenantId);
+
     console.log('🔍 Theory Service: Getting theory lessons with filters:', JSON.stringify(filterBy, null, 2));
     console.log('📄 Theory Service: Pagination options:', JSON.stringify(paginationOptions, null, 2));
 
@@ -59,7 +64,7 @@ async function getTheoryLessons(filterBy = {}, paginationOptions = {}) {
     // }
 
     const collection = await getCollection('theory_lesson');
-    const criteria = createLessonFilterQuery(filterBy);
+    const criteria = buildScopedFilter('theory_lesson', createLessonFilterQuery(filterBy), context);
 
     console.log('🔎 Theory Service: Built query criteria:', JSON.stringify(criteria, null, 2));
 
@@ -132,11 +137,13 @@ async function getTheoryLessons(filterBy = {}, paginationOptions = {}) {
   }
 }
 
-async function getTheoryLessonById(theoryLessonId) {
+async function getTheoryLessonById(theoryLessonId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const collection = await getCollection('theory_lesson');
     const theoryLesson = await collection.findOne({
       _id: ObjectId.createFromHexString(theoryLessonId),
+      tenantId,
     });
 
     if (!theoryLesson) {
@@ -149,10 +156,11 @@ async function getTheoryLessonById(theoryLessonId) {
   }
 }
 
-async function getTheoryLessonsByCategory(category, filterBy = {}, paginationOptions = {}) {
+async function getTheoryLessonsByCategory(category, filterBy = {}, paginationOptions = {}, options = {}) {
   try {
+    requireTenantId(options.context?.tenantId);
     filterBy.category = category;
-    return await getTheoryLessons(filterBy, paginationOptions);
+    return await getTheoryLessons(filterBy, paginationOptions, options);
   } catch (err) {
     console.error(`Error in theoryService.getTheoryLessonsByCategory: ${err}`);
     throw new Error(
@@ -161,29 +169,34 @@ async function getTheoryLessonsByCategory(category, filterBy = {}, paginationOpt
   }
 }
 
-async function getTheoryLessonsByTeacher(teacherId, filterBy = {}, paginationOptions = {}) {
+async function getTheoryLessonsByTeacher(teacherId, filterBy = {}, paginationOptions = {}, options = {}) {
   try {
+    requireTenantId(options.context?.tenantId);
     filterBy.teacherId = teacherId;
-    return await getTheoryLessons(filterBy, paginationOptions);
+    return await getTheoryLessons(filterBy, paginationOptions, options);
   } catch (err) {
     console.error(`Error in theoryService.getTheoryLessonsByTeacher: ${err}`);
     throw new Error(`Error in theoryService.getTheoryLessonsByTeacher: ${err}`);
   }
 }
 
-async function addTheoryLesson(theoryLessonToAdd) {
+async function addTheoryLesson(theoryLessonToAdd, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const { error, value } = validateTheoryLesson(theoryLessonToAdd);
     if (error) {
       throw new Error(`Validation error: ${error.message}`);
     }
+
+    // Set tenantId from context (server-derived, never from client)
+    value.tenantId = tenantId;
 
     // Ensure we have schoolYearId
     if (!value.schoolYearId) {
       const schoolYearService = (
         await import('../school-year/school-year.service.js')
       ).schoolYearService;
-      const currentSchoolYear = await schoolYearService.getCurrentSchoolYear();
+      const currentSchoolYear = await schoolYearService.getCurrentSchoolYear({ context: options.context });
       value.schoolYearId = currentSchoolYear._id.toString();
     }
 
@@ -252,10 +265,11 @@ async function addTheoryLesson(theoryLessonToAdd) {
   }
 }
 
-async function updateTheoryLesson(theoryLessonId, theoryLessonToUpdate) {
+async function updateTheoryLesson(theoryLessonId, theoryLessonToUpdate, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     console.log(`🔄 Theory Service: Updating lesson ${theoryLessonId} with data:`, JSON.stringify(theoryLessonToUpdate, null, 2));
-    
+
     const { error, value } = validateTheoryLessonUpdate(theoryLessonToUpdate);
     if (error) {
       console.error(`❌ Validation error in theory update:`, error.details);
@@ -268,19 +282,19 @@ async function updateTheoryLesson(theoryLessonId, theoryLessonToUpdate) {
     if (value.date && !isValidDate(value.date)) {
       throw new Error('Invalid lesson date provided for update');
     }
-    
+
     if (value.date) {
       const lessonDate = createAppDate(value.date);
       value.date = toUTC(lessonDate);
-      
+
       // Recalculate day of week if date changed
       value.dayOfWeek = getDayOfWeek(lessonDate);
     }
-    
+
     value.updatedAt = toUTC(now());
 
     // Get existing lesson to check for teacher changes
-    const existingLesson = await getTheoryLessonById(theoryLessonId);
+    const existingLesson = await getTheoryLessonById(theoryLessonId, options);
 
     // If teacher changed, update both old and new teacher records
     if (value.teacherId && existingLesson.teacherId !== value.teacherId) {
@@ -311,7 +325,7 @@ async function updateTheoryLesson(theoryLessonId, theoryLessonToUpdate) {
     }
 
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(theoryLessonId) },
+      { _id: ObjectId.createFromHexString(theoryLessonId), tenantId },
       { $set: value },
       { returnDocument: 'after' }
     );
@@ -326,9 +340,10 @@ async function updateTheoryLesson(theoryLessonId, theoryLessonToUpdate) {
   }
 }
 
-async function removeTheoryLesson(theoryLessonId) {
+async function removeTheoryLesson(theoryLessonId, options = {}) {
   try {
-    const theoryLesson = await getTheoryLessonById(theoryLessonId);
+    const tenantId = requireTenantId(options.context?.tenantId);
+    const theoryLesson = await getTheoryLessonById(theoryLessonId, options);
 
     // Remove from teacher record
     try {
@@ -367,6 +382,7 @@ async function removeTheoryLesson(theoryLessonId) {
       await activityCollection.deleteMany({
         sessionId: theoryLessonId,
         activityType: 'תאוריה',
+        tenantId,
       });
     } catch (attendanceErr) {
       console.warn(
@@ -377,7 +393,7 @@ async function removeTheoryLesson(theoryLessonId) {
     // Hard delete - actually remove the document
     const collection = await getCollection('theory_lesson');
     const result = await collection.findOneAndDelete(
-      { _id: ObjectId.createFromHexString(theoryLessonId) }
+      { _id: ObjectId.createFromHexString(theoryLessonId), tenantId }
     );
 
     if (!result) {
@@ -390,8 +406,9 @@ async function removeTheoryLesson(theoryLessonId) {
   }
 }
 
-async function bulkCreateTheoryLessons(bulkData) {
+async function bulkCreateTheoryLessons(bulkData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     console.log(
       'Bulk creating theory lessons with data:',
       JSON.stringify(bulkData, null, 2)
@@ -451,6 +468,7 @@ async function bulkCreateTheoryLessons(bulkData) {
     // Create theory lesson documents with proper timezone handling
     const currentTime = now();
     const theoryLessons = utcDates.map((utcDate) => ({
+      tenantId,
       category,
       teacherId,
       date: utcDate, // Already in UTC from generateDatesForDayOfWeek
@@ -607,19 +625,20 @@ async function bulkCreateTheoryLessons(bulkData) {
   }
 }
 
-async function updateTheoryAttendance(theoryLessonId, attendanceData) {
+async function updateTheoryAttendance(theoryLessonId, attendanceData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const { error, value } = validateTheoryAttendance(attendanceData);
     if (error) throw error;
 
     const { present, absent } = value;
 
     // Get the theory lesson to verify it exists
-    const theoryLesson = await getTheoryLessonById(theoryLessonId);
+    const theoryLesson = await getTheoryLessonById(theoryLessonId, options);
 
     const collection = await getCollection('theory_lesson');
     const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(theoryLessonId) },
+      { _id: ObjectId.createFromHexString(theoryLessonId), tenantId },
       {
         $set: {
           attendance: {
@@ -644,11 +663,13 @@ async function updateTheoryAttendance(theoryLessonId, attendanceData) {
         await activityCollection.deleteMany({
           sessionId: theoryLessonId,
           activityType: 'תאוריה',
+          tenantId,
         });
 
         // Create new attendance records
         const presentPromises = present.map((studentId) =>
           activityCollection.insertOne({
+            tenantId,
             studentId,
             activityType: 'תאוריה',
             groupId: theoryLesson.category,
@@ -662,6 +683,7 @@ async function updateTheoryAttendance(theoryLessonId, attendanceData) {
 
         const absentPromises = absent.map((studentId) =>
           activityCollection.insertOne({
+            tenantId,
             studentId,
             activityType: 'תאוריה',
             groupId: theoryLesson.category,
@@ -687,9 +709,10 @@ async function updateTheoryAttendance(theoryLessonId, attendanceData) {
   }
 }
 
-async function getTheoryAttendance(theoryLessonId) {
+async function getTheoryAttendance(theoryLessonId, options = {}) {
   try {
-    const theoryLesson = await getTheoryLessonById(theoryLessonId);
+    requireTenantId(options.context?.tenantId);
+    const theoryLesson = await getTheoryLessonById(theoryLessonId, options);
     return theoryLesson.attendance || { present: [], absent: [] };
   } catch (err) {
     console.error(`Error in theoryService.getTheoryAttendance: ${err}`);
@@ -697,12 +720,13 @@ async function getTheoryAttendance(theoryLessonId) {
   }
 }
 
-async function addStudentToTheory(theoryLessonId, studentId) {
+async function addStudentToTheory(theoryLessonId, studentId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     // Update the theory lesson to add the student
     const theoryCollection = await getCollection('theory_lesson');
     const result = await theoryCollection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(theoryLessonId) },
+      { _id: ObjectId.createFromHexString(theoryLessonId), tenantId },
       {
         $addToSet: { studentIds: studentId },
         $set: { updatedAt: toUTC(now()) },
@@ -736,12 +760,13 @@ async function addStudentToTheory(theoryLessonId, studentId) {
   }
 }
 
-async function removeStudentFromTheory(theoryLessonId, studentId) {
+async function removeStudentFromTheory(theoryLessonId, studentId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     // Update the theory lesson to remove the student
     const theoryCollection = await getCollection('theory_lesson');
     const result = await theoryCollection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(theoryLessonId) },
+      { _id: ObjectId.createFromHexString(theoryLessonId), tenantId },
       {
         $pull: { studentIds: studentId },
         $set: { updatedAt: toUTC(now()) },
@@ -775,13 +800,15 @@ async function removeStudentFromTheory(theoryLessonId, studentId) {
   }
 }
 
-async function getStudentTheoryAttendanceStats(studentId, category = null) {
+async function getStudentTheoryAttendanceStats(studentId, category = null, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     const activityCollection = await getCollection('activity_attendance');
 
     const matchCriteria = {
       studentId,
       activityType: 'תאוריה',
+      tenantId,
     };
 
     if (category) {
@@ -844,8 +871,9 @@ function _generateDatesForDayOfWeek(
   return generateDatesForDayOfWeek(startDate, endDate, dayOfWeek, excludeDates);
 }
 
-async function bulkDeleteTheoryLessonsByDate(startDate, endDate, userId, isAdmin = false) {
+async function bulkDeleteTheoryLessonsByDate(startDate, endDate, userId, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     // Input validation
     if (!startDate || !endDate) {
       throw new Error('Start date and end date are required');
@@ -872,6 +900,7 @@ async function bulkDeleteTheoryLessonsByDate(startDate, endDate, userId, isAdmin
 
     // Build query criteria
     const criteria = {
+      tenantId,
       date: {
         $gte: start,
         $lte: end
@@ -898,9 +927,10 @@ async function bulkDeleteTheoryLessonsByDate(startDate, endDate, userId, isAdmin
           // Clean up attendance records if collection exists
           if (activityCollection && lessonIds.length > 0) {
             await activityCollection.deleteMany(
-              { 
+              {
                 sessionId: { $in: lessonIds },
-                activityType: 'תאוריה'
+                activityType: 'תאוריה',
+                tenantId
               },
               { session }
             );
@@ -919,7 +949,8 @@ async function bulkDeleteTheoryLessonsByDate(startDate, endDate, userId, isAdmin
         try {
           await activityCollection.deleteMany({
             sessionId: { $in: lessonIds },
-            activityType: 'תאוריה'
+            activityType: 'תאוריה',
+            tenantId
           });
         } catch (attendanceErr) {
           console.warn(`Failed to delete attendance records: ${attendanceErr.message}`);
@@ -943,8 +974,9 @@ async function bulkDeleteTheoryLessonsByDate(startDate, endDate, userId, isAdmin
   }
 }
 
-async function bulkDeleteTheoryLessonsByCategory(category, userId, isAdmin = false) {
+async function bulkDeleteTheoryLessonsByCategory(category, userId, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     // Input validation
     if (!category) {
       throw new Error('Category is required');
@@ -959,7 +991,7 @@ async function bulkDeleteTheoryLessonsByCategory(category, userId, isAdmin = fal
     }
 
     // Build query criteria
-    const criteria = { category };
+    const criteria = { tenantId, category };
 
     // Get all theory lessons for this category to collect IDs for cleanup
     const theoryLessons = await theoryCollection.find(criteria).toArray();
@@ -981,9 +1013,10 @@ async function bulkDeleteTheoryLessonsByCategory(category, userId, isAdmin = fal
           // Clean up attendance records if collection exists
           if (activityCollection && lessonIds.length > 0) {
             await activityCollection.deleteMany(
-              { 
+              {
                 sessionId: { $in: lessonIds },
-                activityType: 'תאוריה'
+                activityType: 'תאוריה',
+                tenantId
               },
               { session }
             );
@@ -1002,7 +1035,8 @@ async function bulkDeleteTheoryLessonsByCategory(category, userId, isAdmin = fal
         try {
           await activityCollection.deleteMany({
             sessionId: { $in: lessonIds },
-            activityType: 'תאוריה'
+            activityType: 'תאוריה',
+            tenantId
           });
         } catch (attendanceErr) {
           console.warn(`Failed to delete attendance records: ${attendanceErr.message}`);
@@ -1026,8 +1060,9 @@ async function bulkDeleteTheoryLessonsByCategory(category, userId, isAdmin = fal
   }
 }
 
-async function bulkDeleteTheoryLessonsByTeacher(teacherId, userId, isAdmin = false) {
+async function bulkDeleteTheoryLessonsByTeacher(teacherId, userId, isAdmin = false, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
     // Input validation
     if (!teacherId || !ObjectId.isValid(teacherId)) {
       throw new Error('Valid teacher ID is required');
@@ -1047,7 +1082,7 @@ async function bulkDeleteTheoryLessonsByTeacher(teacherId, userId, isAdmin = fal
     }
 
     // Build query criteria
-    const criteria = { teacherId };
+    const criteria = { tenantId, teacherId };
 
     // Get all theory lessons for this teacher to collect IDs for cleanup
     const theoryLessons = await theoryCollection.find(criteria).toArray();
@@ -1069,9 +1104,10 @@ async function bulkDeleteTheoryLessonsByTeacher(teacherId, userId, isAdmin = fal
           // Clean up attendance records if collection exists
           if (activityCollection && lessonIds.length > 0) {
             await activityCollection.deleteMany(
-              { 
+              {
                 sessionId: { $in: lessonIds },
-                activityType: 'תאוריה'
+                activityType: 'תאוריה',
+                tenantId
               },
               { session }
             );
@@ -1090,7 +1126,8 @@ async function bulkDeleteTheoryLessonsByTeacher(teacherId, userId, isAdmin = fal
         try {
           await activityCollection.deleteMany({
             sessionId: { $in: lessonIds },
-            activityType: 'תאוריה'
+            activityType: 'תאוריה',
+            tenantId
           });
         } catch (attendanceErr) {
           console.warn(`Failed to delete attendance records: ${attendanceErr.message}`);
@@ -1115,13 +1152,9 @@ async function bulkDeleteTheoryLessonsByTeacher(teacherId, userId, isAdmin = fal
 }
 
 // Helper function to build query criteria
+// NOTE: tenantId is handled exclusively by buildScopedFilter at call site
 function _buildCriteria(filterBy) {
   const criteria = {};
-
-  // Tenant scoping
-  if (filterBy.tenantId) {
-    criteria.tenantId = filterBy.tenantId;
-  }
 
   if (filterBy.category) {
     criteria.category = filterBy.category;

@@ -45,10 +45,8 @@ async function getTheoryLessons(req, res, next) {
 
     const filterBy = {};
 
-    // Tenant scoping
-    if (req.context?.tenantId) filterBy.tenantId = req.context.tenantId;
-
     // Only add filters that have actual values
+    // NOTE: tenantId is handled by buildScopedFilter via context, not in filterBy
     if (req.query.category) filterBy.category = req.query.category;
     if (req.query.teacherId) filterBy.teacherId = req.query.teacherId;
     if (req.query.studentId) filterBy.studentId = req.query.studentId;
@@ -73,7 +71,7 @@ async function getTheoryLessons(req, res, next) {
     console.log('🔧 Theory Controller: Built filter object:', JSON.stringify(filterBy, null, 2));
     console.log('📄 Theory Controller: Pagination options:', JSON.stringify(paginationOptions, null, 2));
 
-    const result = await theoryService.getTheoryLessons(filterBy, paginationOptions);
+    const result = await theoryService.getTheoryLessons(filterBy, paginationOptions, { context: req.context });
     const { data: theoryLessons, pagination } = result;
 
     // Validate and sanitize lesson data before sending to frontend
@@ -167,7 +165,7 @@ async function getTheoryLessonById(req, res, next) {
       });
     }
 
-    const theoryLesson = await theoryService.getTheoryLessonById(id);
+    const theoryLesson = await theoryService.getTheoryLessonById(id, { context: req.context });
 
     // Validate and sanitize the lesson data
     const validatedLesson = TheoryLessonValidationService.sanitizeForResponse(theoryLesson);
@@ -267,7 +265,8 @@ async function getTheoryLessonsByCategory(req, res, next) {
     const result = await theoryService.getTheoryLessonsByCategory(
       category,
       filterBy,
-      paginationOptions
+      paginationOptions,
+      { context: req.context }
     );
     const { data: theoryLessons, pagination } = result;
 
@@ -346,7 +345,8 @@ async function getTheoryLessonsByTeacher(req, res, next) {
     const result = await theoryService.getTheoryLessonsByTeacher(
       teacherId,
       filterBy,
-      paginationOptions
+      paginationOptions,
+      { context: req.context }
     );
 
     res.json(result);
@@ -403,7 +403,8 @@ async function addTheoryLesson(req, res, next) {
     }
 
     const addedTheoryLesson = await theoryService.addTheoryLesson(
-      theoryLessonToAdd
+      theoryLessonToAdd,
+      { context: req.context }
     );
     
     // Return success response with or without conflict override info
@@ -457,7 +458,7 @@ async function updateTheoryLesson(req, res, next) {
     
     if (isScheduleModified) {
       // Get existing lesson to merge with updates
-      const existingLesson = await theoryService.getTheoryLessonById(id);
+      const existingLesson = await theoryService.getTheoryLessonById(id, { context: req.context });
       const mergedLessonData = { ...existingLesson, ...theoryLessonToUpdate };
       
       // Validate time range if both times are provided
@@ -482,7 +483,8 @@ async function updateTheoryLesson(req, res, next) {
 
     const updatedTheoryLesson = await theoryService.updateTheoryLesson(
       id,
-      theoryLessonToUpdate
+      theoryLessonToUpdate,
+      { context: req.context }
     );
     
     // Return success response with or without conflict override info
@@ -514,7 +516,7 @@ async function removeTheoryLesson(req, res, next) {
       return res.status(400).json({ error: 'Theory lesson ID is required' });
     }
 
-    const removedTheoryLesson = await theoryService.removeTheoryLesson(id);
+    const removedTheoryLesson = await theoryService.removeTheoryLesson(id, { context: req.context });
     res.json(removedTheoryLesson);
   } catch (err) {
     console.error(`Error in removeTheoryLesson controller: ${err.message}`);
@@ -606,7 +608,7 @@ async function bulkCreateTheoryLessons(req, res, next) {
       return res.status(409).json(conflictResponse);
     }
 
-    const result = await theoryService.bulkCreateTheoryLessons(bulkData);
+    const result = await theoryService.bulkCreateTheoryLessons(bulkData, { context: req.context });
     
     // Return success response with or without conflict override info
     if (conflictValidation.hasConflicts) {
@@ -640,7 +642,8 @@ async function updateTheoryAttendance(req, res, next) {
 
     const updatedTheoryLesson = await theoryService.updateTheoryAttendance(
       id,
-      attendanceData
+      attendanceData,
+      { context: req.context }
     );
     res.json(updatedTheoryLesson);
   } catch (err) {
@@ -666,7 +669,7 @@ async function getTheoryAttendance(req, res, next) {
       return res.status(400).json({ error: 'Theory lesson ID is required' });
     }
 
-    const attendance = await theoryService.getTheoryAttendance(id);
+    const attendance = await theoryService.getTheoryAttendance(id, { context: req.context });
     res.json(attendance);
   } catch (err) {
     console.error(`Error in getTheoryAttendance controller: ${err.message}`);
@@ -694,7 +697,8 @@ async function addStudentToTheory(req, res, next) {
 
     const updatedTheoryLesson = await theoryService.addStudentToTheory(
       id,
-      studentId
+      studentId,
+      { context: req.context }
     );
     res.json(updatedTheoryLesson);
   } catch (err) {
@@ -722,7 +726,8 @@ async function removeStudentFromTheory(req, res, next) {
 
     const updatedTheoryLesson = await theoryService.removeStudentFromTheory(
       id,
-      studentId
+      studentId,
+      { context: req.context }
     );
     res.json(updatedTheoryLesson);
   } catch (err) {
@@ -749,7 +754,8 @@ async function getStudentTheoryAttendanceStats(req, res, next) {
 
     const stats = await theoryService.getStudentTheoryAttendanceStats(
       studentId,
-      category
+      category,
+      { context: req.context }
     );
     res.json(stats);
   } catch (err) {
@@ -791,7 +797,8 @@ async function bulkDeleteTheoryLessonsByDate(req, res, next) {
       startDate,
       endDate,
       userId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     );
 
     res.status(200).json({
@@ -847,7 +854,8 @@ async function bulkDeleteTheoryLessonsByCategory(req, res, next) {
     const result = await theoryService.bulkDeleteTheoryLessonsByCategory(
       category,
       userId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     );
 
     res.status(200).json({
@@ -905,7 +913,8 @@ async function bulkDeleteTheoryLessonsByTeacher(req, res, next) {
     const result = await theoryService.bulkDeleteTheoryLessonsByTeacher(
       teacherId,
       userId,
-      isAdmin
+      isAdmin,
+      { context: req.context }
     );
 
     res.status(200).json({
