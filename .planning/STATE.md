@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 2 of 6 (Service Layer Query Hardening)
-Plan: 5 of 8 in current phase
+Plan: 6 of 8 in current phase
 Status: Executing Phase 2
-Last activity: 2026-02-15 - Completed 02-05 (theory and bagrut service hardening)
+Last activity: 2026-02-15 - Completed 02-06 (schedule domain service hardening)
 
-Progress: [████████░░] 40%
+Progress: [█████████░] 45%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 6 min
-- Total execution time: 0.82 hours
+- Total execution time: 0.94 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-audit-infrastructure | 3/3 | 17 min | 6 min |
-| 02-service-layer-query-hardening | 5/8 | 32 min | 6 min |
+| 02-service-layer-query-hardening | 6/8 | 39 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (2 min), 02-02 (5 min), 02-03 (7 min), 02-04 (6 min), 02-05 (12 min)
-- Trend: Increasing (larger services take longer)
+- Last 5 plans: 02-02 (5 min), 02-03 (7 min), 02-04 (6 min), 02-05 (12 min), 02-06 (7 min)
+- Trend: Stable (6-7 min typical, outliers for complex services)
 
 *Updated after each plan completion*
 
@@ -83,6 +83,11 @@ Recent decisions affecting current work:
 - [02-05] Theory activity_attendance records include tenantId on inserts and deletes
 - [02-05] Bagrut cross-service calls pass { context: options.context } to student setBagrutId/removeBagrutId
 - [02-05] Both theory and bagrut _buildCriteria cleaned of tenantId handling
+- [02-06] Time-block tenant scoping via parent teacher document query (sub-documents inherit parent's tenantId filter)
+- [02-06] Internal helpers (checkStudentScheduleConflict, validateTimeBlockConflicts) receive tenantId as explicit parameter
+- [02-06] calculateAvailableSlots adds options as 4th param to preserve signature (preferences != system context)
+- [02-06] Analytics exportAttendanceReport threads context to all internal sub-calls
+- [02-06] Context merging pattern: { ...filterOptions, context: req.context } when options already used for filters
 
 ### Pending Todos
 
@@ -94,7 +99,7 @@ None yet.
 - 43 CRITICAL risk queries (no tenantId at all) across 22 API services
 - 98 HIGH risk queries (conditional tenantId via _buildCriteria opt-in pattern)
 - ~~buildScopedFilter used in only 1 of 22 services (student.service.js)~~ FIXED in 02-02/02-03/02-04/02-05 (now used in student + school-year + teacher + orchestra + rehearsal + theory + bagrut)
-- ~~Every getById function queries by _id only (no tenant scope)~~ PARTIALLY FIXED in 02-02/02-03/02-04/02-05 (school-year, student, teacher, orchestra, rehearsal, theory, bagrut getById now include tenantId)
+- ~~Every getById function queries by _id only (no tenant scope)~~ PARTIALLY FIXED in 02-02/02-03/02-04/02-05/02-06 (school-year, student, teacher, orchestra, rehearsal, theory, bagrut, time-block parent queries, attendance queries all include tenantId)
 - ~~Aggregation $lookups in orchestra.service.js join cross-tenant~~ FIXED in 02-04 (all 4 $lookup pipelines now tenant-scoped)
 - ~~enforceTenant middleware exists but is not applied to any route~~ FIXED in 02-01
 - ~~buildContext tolerates null tenantId (does not throw)~~ FIXED in 02-01 (buildScopedFilter throws; buildContext still sets null for enforceTenant to catch)
@@ -110,6 +115,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15 (Phase 2 continuing)
-Stopped at: Completed 02-05-PLAN.md (Theory and Bagrut Service Hardening)
-Resume file: .planning/phases/02-service-layer-query-hardening/02-06-PLAN.md
-Resume task: Execute 02-06 (next plan in Phase 2)
+Stopped at: Completed 02-06-PLAN.md (Schedule Domain Service Hardening)
+Resume file: .planning/phases/02-service-layer-query-hardening/02-07-PLAN.md
+Resume task: Execute 02-07 (next plan in Phase 2)
