@@ -8,10 +8,9 @@ export const exportController = {
 
 async function getCompletionStatus(req, res, next) {
   try {
-    const tenantId = req.context?.tenantId || null;
     const schoolYearId = req.schoolYearId || req.query.schoolYearId || null;
 
-    const status = await exportService.getCompletionStatus(tenantId, schoolYearId);
+    const status = await exportService.getCompletionStatus(schoolYearId, { context: req.context });
     res.json(status);
   } catch (err) {
     next(err);
@@ -20,10 +19,9 @@ async function getCompletionStatus(req, res, next) {
 
 async function crossValidate(req, res, next) {
   try {
-    const tenantId = req.context?.tenantId || null;
     const schoolYearId = req.schoolYearId || req.query.schoolYearId || null;
 
-    const validation = await exportService.crossValidate(tenantId, schoolYearId);
+    const validation = await exportService.crossValidate(schoolYearId, { context: req.context });
     res.json(validation);
   } catch (err) {
     next(err);
@@ -32,14 +30,13 @@ async function crossValidate(req, res, next) {
 
 async function downloadFullReport(req, res, next) {
   try {
-    const tenantId = req.context?.tenantId || null;
     const schoolYearId = req.schoolYearId || req.query.schoolYearId || null;
     const userId = req.teacher?._id || null;
 
     const { buffer, validation, snapshot } = await exportService.generateFullReport(
-      tenantId,
       schoolYearId,
-      userId
+      userId,
+      { context: req.context }
     );
 
     const conservatoryName = snapshot.conservatoryName || 'conservatory';

@@ -11,8 +11,7 @@ async function previewTeacherImport(req, res, next) {
     if (!req.file) {
       return res.status(400).json({ error: 'לא הועלה קובץ' });
     }
-    const tenantId = req.context?.tenantId || null;
-    const result = await importService.previewTeacherImport(req.file.buffer, tenantId);
+    const result = await importService.previewTeacherImport(req.file.buffer, { context: req.context });
     res.json(result);
   } catch (err) {
     next(err);
@@ -24,8 +23,7 @@ async function previewStudentImport(req, res, next) {
     if (!req.file) {
       return res.status(400).json({ error: 'לא הועלה קובץ' });
     }
-    const tenantId = req.context?.tenantId || null;
-    const result = await importService.previewStudentImport(req.file.buffer, tenantId);
+    const result = await importService.previewStudentImport(req.file.buffer, { context: req.context });
     res.json(result);
   } catch (err) {
     next(err);
@@ -36,8 +34,7 @@ async function executeImport(req, res, next) {
   try {
     const { importLogId } = req.params;
     const userId = req.teacher?._id || null;
-    const tenantId = req.context?.tenantId || req.teacher?.tenantId || null;
-    const result = await importService.executeImport(importLogId, userId, tenantId);
+    const result = await importService.executeImport(importLogId, userId, { context: req.context });
     res.json(result);
   } catch (err) {
     next(err);

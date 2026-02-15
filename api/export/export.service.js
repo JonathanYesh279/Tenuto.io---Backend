@@ -20,6 +20,7 @@ import {
   INSTRUMENT_TO_MINISTRY,
   ENSEMBLE_TO_COLUMN,
 } from './sheets/_shared.js';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const exportService = {
   generateFullReport,
@@ -31,9 +32,11 @@ export const exportService = {
  * Generate the full Ministry report package.
  * Returns an Excel buffer + validation results.
  */
-async function generateFullReport(tenantId, schoolYearId, userId) {
+async function generateFullReport(schoolYearId, userId, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   // 1. Recalculate all teacher hours (ensure up-to-date)
-  await hoursSummaryService.calculateAllTeacherHours(tenantId, schoolYearId);
+  await hoursSummaryService.calculateAllTeacherHours(schoolYearId, options);
 
   // 2. Load all data
   const data = await ministryMappers.loadExportData(tenantId, schoolYearId);
@@ -71,7 +74,7 @@ async function generateFullReport(tenantId, schoolYearId, userId) {
   // 7. Save snapshot
   const snapshotCollection = await getCollection('ministry_report_snapshots');
   const snapshot = {
-    tenantId: tenantId || null,
+    tenantId,
     reportType: 'full_package',
     schoolYearId: schoolYearId || null,
     generatedBy: userId || null,
@@ -249,7 +252,9 @@ function runCrossValidation(data, teacherRosterRows, ensembleScheduleRows) {
   return { warnings, errors, isValid: errors.length === 0 };
 }
 
-async function crossValidate(tenantId, schoolYearId) {
+async function crossValidate(schoolYearId, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   const data = await ministryMappers.loadExportData(tenantId, schoolYearId);
   const teacherRoster = ministryMappers.mapTeacherRoster(data);
   const ensembleSchedule = ministryMappers.mapEnsembleSchedule(data);
@@ -258,7 +263,9 @@ async function crossValidate(tenantId, schoolYearId) {
 
 // ─── Completion Status ───────────────────────────────────────────────────────
 
-async function getCompletionStatus(tenantId, schoolYearId) {
+async function getCompletionStatus(schoolYearId, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   const data = await ministryMappers.loadExportData(tenantId, schoolYearId);
   const pct = calculateCompletionPercentage(data);
   const missing = findMissingData(data);

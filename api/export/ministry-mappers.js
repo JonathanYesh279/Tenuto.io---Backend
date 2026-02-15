@@ -24,6 +24,7 @@ import {
   composeName,
   timeDiffMinutes,
 } from './sheets/_shared.js';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const ministryMappers = {
   loadExportData,
@@ -36,6 +37,8 @@ export const ministryMappers = {
 // ─── Shared Data Loader ──────────────────────────────────────────────────────
 
 async function loadExportData(tenantId, schoolYearId) {
+  requireTenantId(tenantId);
+
   const [
     teacherCollection,
     studentCollection,
@@ -54,18 +57,17 @@ async function loadExportData(tenantId, schoolYearId) {
     getCollection('tenant'),
   ]);
 
-  const tenantFilter = tenantId ? { tenantId } : {};
   const syFilter = schoolYearId ? { schoolYearId } : {};
 
   const [teachers, students, orchestras, rehearsals, theoryLessons, hoursSummaries, tenant] =
     await Promise.all([
-      teacherCollection.find({ isActive: true, ...tenantFilter }).sort({ 'personalInfo.lastName': 1 }).toArray(),
-      studentCollection.find({ isActive: true, ...tenantFilter }).sort({ 'personalInfo.lastName': 1 }).toArray(),
-      orchestraCollection.find({ isActive: true, ...tenantFilter, ...syFilter }).toArray(),
-      rehearsalCollection.find({ isActive: true, ...tenantFilter, ...syFilter }).toArray(),
-      theoryCollection.find({ isActive: true, ...tenantFilter, ...syFilter }).toArray(),
-      hoursSummaryCollection.find({ ...tenantFilter, ...(schoolYearId ? { schoolYearId } : {}) }).toArray(),
-      tenantId ? tenantCollection.findOne({ tenantId }) : null,
+      teacherCollection.find({ isActive: true, tenantId }).sort({ 'personalInfo.lastName': 1 }).toArray(),
+      studentCollection.find({ isActive: true, tenantId }).sort({ 'personalInfo.lastName': 1 }).toArray(),
+      orchestraCollection.find({ isActive: true, tenantId, ...syFilter }).toArray(),
+      rehearsalCollection.find({ isActive: true, tenantId, ...syFilter }).toArray(),
+      theoryCollection.find({ isActive: true, tenantId, ...syFilter }).toArray(),
+      hoursSummaryCollection.find({ tenantId, ...(schoolYearId ? { schoolYearId } : {}) }).toArray(),
+      tenantCollection.findOne({ tenantId }),
     ]);
 
   // Build lookup maps

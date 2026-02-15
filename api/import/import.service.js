@@ -17,6 +17,7 @@ import {
   TEACHER_DEGREES,
   VALID_INSTRUMENTS,
 } from '../../config/constants.js';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const importService = {
   previewTeacherImport,
@@ -339,7 +340,9 @@ function calculateStudentChanges(student, mapped) {
 
 // ─── Preview (Dry Run) ──────────────────────────────────────────────────────
 
-async function previewTeacherImport(buffer, tenantId) {
+async function previewTeacherImport(buffer, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   const { sheets, sheetNames } = parseExcelBuffer(buffer);
   const rows = sheets[sheetNames[0]] || [];
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
@@ -349,8 +352,7 @@ async function previewTeacherImport(buffer, tenantId) {
 
   // Load all teachers in tenant
   const teacherCollection = await getCollection('teacher');
-  const filter = { isActive: true };
-  if (tenantId) filter.tenantId = tenantId;
+  const filter = { isActive: true, tenantId };
   const teachers = await teacherCollection.find(filter).toArray();
 
   const preview = {
@@ -401,7 +403,7 @@ async function previewTeacherImport(buffer, tenantId) {
   const importLogCollection = await getCollection('import_log');
   const logEntry = {
     importType: 'teachers',
-    tenantId: tenantId || null,
+    tenantId,
     status: 'pending',
     createdAt: new Date(),
     preview,
@@ -411,14 +413,15 @@ async function previewTeacherImport(buffer, tenantId) {
   return { importLogId: result.insertedId.toString(), preview };
 }
 
-async function previewStudentImport(buffer, tenantId) {
+async function previewStudentImport(buffer, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   const { sheets, sheetNames } = parseExcelBuffer(buffer);
   const rows = sheets[sheetNames[0]] || [];
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
 
   const studentCollection = await getCollection('student');
-  const filter = { isActive: true };
-  if (tenantId) filter.tenantId = tenantId;
+  const filter = { isActive: true, tenantId };
   const students = await studentCollection.find(filter).toArray();
 
   const preview = {
@@ -473,7 +476,7 @@ async function previewStudentImport(buffer, tenantId) {
   const importLogCollection = await getCollection('import_log');
   const logEntry = {
     importType: 'students',
-    tenantId: tenantId || null,
+    tenantId,
     status: 'pending',
     createdAt: new Date(),
     preview,
@@ -485,38 +488,39 @@ async function previewStudentImport(buffer, tenantId) {
 
 // ─── Execute Import ──────────────────────────────────────────────────────────
 
-async function executeImport(importLogId, userId, tenantId = null) {
+async function executeImport(importLogId, userId, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   const importLogCollection = await getCollection('import_log');
-  const filter = { _id: ObjectId.createFromHexString(importLogId) };
-  if (tenantId) filter.tenantId = tenantId;
+  const filter = { _id: ObjectId.createFromHexString(importLogId), tenantId };
   const log = await importLogCollection.findOne(filter);
 
   if (!log) throw new Error('ייבוא לא נמצא');
   if (log.status !== 'pending') throw new Error('הייבוא כבר בוצע או נכשל');
 
   await importLogCollection.updateOne(
-    { _id: log._id },
+    { _id: log._id, tenantId },
     { $set: { status: 'processing', startedAt: new Date(), uploadedBy: userId || null } }
   );
 
   try {
     if (log.importType === 'teachers') {
-      return await executeTeacherImport(log, importLogCollection);
+      return await executeTeacherImport(log, importLogCollection, tenantId);
     } else if (log.importType === 'students') {
-      return await executeStudentImport(log, importLogCollection);
+      return await executeStudentImport(log, importLogCollection, tenantId);
     } else {
       throw new Error(`סוג ייבוא לא מוכר: ${log.importType}`);
     }
   } catch (err) {
     await importLogCollection.updateOne(
-      { _id: log._id },
+      { _id: log._id, tenantId },
       { $set: { status: 'failed', error: err.message, completedAt: new Date() } }
     );
     throw err;
   }
 }
 
-async function executeTeacherImport(log, importLogCollection) {
+async function executeTeacherImport(log, importLogCollection, tenantId) {
   const teacherCollection = await getCollection('teacher');
   const matched = log.preview.matched || [];
   let successCount = 0;
@@ -535,7 +539,7 @@ async function executeTeacherImport(log, importLogCollection) {
       updateDoc.updatedAt = new Date();
 
       await teacherCollection.updateOne(
-        { _id: ObjectId.createFromHexString(entry.teacherId) },
+        { _id: ObjectId.createFromHexString(entry.teacherId), tenantId },
         { $set: updateDoc }
       );
       successCount++;
@@ -559,14 +563,14 @@ async function executeTeacherImport(log, importLogCollection) {
 
   const status = errorCount > 0 && successCount > 0 ? 'partial' : errorCount > 0 ? 'failed' : 'completed';
   await importLogCollection.updateOne(
-    { _id: log._id },
+    { _id: log._id, tenantId },
     { $set: { status, results, affectedDocIds, completedAt: new Date() } }
   );
 
   return results;
 }
 
-async function executeStudentImport(log, importLogCollection) {
+async function executeStudentImport(log, importLogCollection, tenantId) {
   const studentCollection = await getCollection('student');
   const matched = log.preview.matched || [];
   let successCount = 0;
@@ -585,7 +589,7 @@ async function executeStudentImport(log, importLogCollection) {
       updateDoc.updatedAt = new Date();
 
       await studentCollection.updateOne(
-        { _id: ObjectId.createFromHexString(entry.studentId) },
+        { _id: ObjectId.createFromHexString(entry.studentId), tenantId },
         { $set: updateDoc }
       );
       successCount++;
@@ -609,7 +613,7 @@ async function executeStudentImport(log, importLogCollection) {
 
   const status = errorCount > 0 && successCount > 0 ? 'partial' : errorCount > 0 ? 'failed' : 'completed';
   await importLogCollection.updateOne(
-    { _id: log._id },
+    { _id: log._id, tenantId },
     { $set: { status, results, affectedDocIds, completedAt: new Date() } }
   );
 
