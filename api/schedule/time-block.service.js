@@ -5,6 +5,7 @@ import {
   validateUpdateTimeBlock,
   validateLessonAssignment,
 } from './time-block.validation.js';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const timeBlockService = {
   createTimeBlock,
@@ -25,8 +26,10 @@ export const timeBlockService = {
  * @param {object} blockData - Time block data
  * @returns {Promise<object>} - Created time block
  */
-async function createTimeBlock(teacherId, blockData) {
+async function createTimeBlock(teacherId, blockData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     // Validate block data
     const { error, value } = validateCreateTimeBlock(blockData);
     if (error) throw new Error(`Invalid time block data: ${error.message}`);
@@ -34,6 +37,7 @@ async function createTimeBlock(teacherId, blockData) {
     const teacherCollection = await getCollection('teacher');
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
     });
 
     if (!teacher) {
@@ -45,7 +49,9 @@ async function createTimeBlock(teacherId, blockData) {
       teacherId,
       value.day,
       value.startTime,
-      value.endTime
+      value.endTime,
+      null,
+      tenantId
     );
 
     if (hasConflict) {
@@ -70,8 +76,8 @@ async function createTimeBlock(teacherId, blockData) {
 
     // Add time block to teacher's schedule
     await teacherCollection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
-      { 
+      { _id: ObjectId.createFromHexString(teacherId), tenantId },
+      {
         $push: { 'teaching.timeBlocks': timeBlock },
         $set: { updatedAt: new Date() }
       }
@@ -95,8 +101,10 @@ async function createTimeBlock(teacherId, blockData) {
  * @param {object} updateData - Update data
  * @returns {Promise<object>} - Updated time block
  */
-async function updateTimeBlock(teacherId, blockId, updateData) {
+async function updateTimeBlock(teacherId, blockId, updateData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     // Validate update data
     const { error, value } = validateUpdateTimeBlock(updateData);
     if (error) throw new Error(`Invalid update data: ${error.message}`);
@@ -105,7 +113,8 @@ async function updateTimeBlock(teacherId, blockId, updateData) {
 
     // First get the teacher
     const teacher = await teacherCollection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
     });
 
     if (!teacher) {
@@ -149,7 +158,8 @@ async function updateTimeBlock(teacherId, blockId, updateData) {
         newDay,
         newStart,
         newEnd,
-        blockId
+        blockId,
+        tenantId
       );
 
       if (hasBlockConflict) {
@@ -173,6 +183,7 @@ async function updateTimeBlock(teacherId, blockId, updateData) {
     let result = await teacherCollection.updateOne(
       {
         _id: ObjectId.createFromHexString(teacherId),
+        tenantId,
         'teaching.timeBlocks._id': ObjectId.createFromHexString(blockId)
       },
       { $set: updateObject }
@@ -183,6 +194,7 @@ async function updateTimeBlock(teacherId, blockId, updateData) {
       result = await teacherCollection.updateOne(
         {
           _id: ObjectId.createFromHexString(teacherId),
+          tenantId,
           'teaching.timeBlocks._id': blockId
         },
         { $set: updateObject }
@@ -195,7 +207,8 @@ async function updateTimeBlock(teacherId, blockId, updateData) {
 
     // Get updated time block
     const updatedTeacher = await teacherCollection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
     });
 
     const updatedBlock = updatedTeacher.teaching.timeBlocks.find(
@@ -219,13 +232,16 @@ async function updateTimeBlock(teacherId, blockId, updateData) {
  * @param {string} blockId - Time block ID
  * @returns {Promise<object>} - Success message
  */
-async function deleteTimeBlock(teacherId, blockId) {
+async function deleteTimeBlock(teacherId, blockId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
 
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
       'teaching.timeBlocks._id': ObjectId.createFromHexString(blockId)
     });
 
@@ -249,8 +265,9 @@ async function deleteTimeBlock(teacherId, blockId) {
       // Update student records to mark assignments as inactive
       for (const lesson of activeAssignments) {
         await studentCollection.updateOne(
-          { 
+          {
             _id: ObjectId.createFromHexString(lesson.studentId),
+            tenantId,
             'teacherAssignments.timeBlockId': blockId
           },
           { 
@@ -269,8 +286,8 @@ async function deleteTimeBlock(teacherId, blockId) {
 
     // Remove the time block
     await teacherCollection.updateOne(
-      { _id: ObjectId.createFromHexString(teacherId) },
-      { 
+      { _id: ObjectId.createFromHexString(teacherId), tenantId },
+      {
         $pull: { 'teaching.timeBlocks': { _id: ObjectId.createFromHexString(blockId) } },
         $set: { updatedAt: new Date() }
       }
@@ -295,9 +312,12 @@ async function deleteTimeBlock(teacherId, blockId) {
  */
 async function getTeacherTimeBlocks(teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const teacherCollection = await getCollection('teacher');
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
     });
 
     if (!teacher) {
@@ -350,11 +370,14 @@ async function getTeacherTimeBlocks(teacherId, options = {}) {
  * @param {object} preferences - Student preferences
  * @returns {Promise<Array>} - Available lesson slots
  */
-async function calculateAvailableSlots(teacherId, duration, preferences = {}) {
+async function calculateAvailableSlots(teacherId, duration, preferences = {}, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const teacherCollection = await getCollection('teacher');
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
     });
 
     if (!teacher) {
@@ -416,20 +439,23 @@ async function calculateAvailableSlots(teacherId, duration, preferences = {}) {
  * @param {object} assignmentData - Assignment data
  * @returns {Promise<object>} - Assignment result
  */
-async function assignLessonToBlock(assignmentData) {
+async function assignLessonToBlock(assignmentData, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     // Validate assignment data
     const { error, value } = validateLessonAssignment(assignmentData);
     if (error) throw new Error(`Invalid assignment data: ${error.message}`);
 
     const { teacherId, studentId, timeBlockId, startTime, duration } = value;
-    
+
     const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
 
     // Find teacher and time block
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
       'teaching.timeBlocks._id': ObjectId.createFromHexString(timeBlockId)
     });
 
@@ -439,7 +465,8 @@ async function assignLessonToBlock(assignmentData) {
 
     // Find student
     const student = await studentCollection.findOne({
-      _id: ObjectId.createFromHexString(studentId)
+      _id: ObjectId.createFromHexString(studentId),
+      tenantId,
     });
 
     if (!student) {
@@ -488,7 +515,8 @@ async function assignLessonToBlock(assignmentData) {
       teacherId,
       timeBlock.day,
       startTime,
-      duration
+      duration,
+      tenantId
     );
 
     if (hasStudentConflict) {
@@ -511,8 +539,9 @@ async function assignLessonToBlock(assignmentData) {
 
     // Add lesson to time block
     await teacherCollection.updateOne(
-      { 
+      {
         _id: ObjectId.createFromHexString(teacherId),
+        tenantId,
         'teaching.timeBlocks._id': ObjectId.createFromHexString(timeBlockId)
       },
       {
@@ -546,7 +575,7 @@ async function assignLessonToBlock(assignmentData) {
 
     // Update student record — teacherAssignments is single source of truth
     await studentCollection.updateOne(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       {
         $push: { teacherAssignments: teacherAssignment },
         $set: { updatedAt: new Date() }
@@ -575,14 +604,17 @@ async function assignLessonToBlock(assignmentData) {
  * @param {string} lessonId - Lesson ID
  * @returns {Promise<object>} - Removal result
  */
-async function removeLessonFromBlock(teacherId, timeBlockId, lessonId) {
+async function removeLessonFromBlock(teacherId, timeBlockId, lessonId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
 
     // Find teacher and time block
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
       'teaching.timeBlocks._id': ObjectId.createFromHexString(timeBlockId)
     });
 
@@ -611,8 +643,9 @@ async function removeLessonFromBlock(teacherId, timeBlockId, lessonId) {
 
     // Mark lesson as inactive in time block
     await teacherCollection.updateOne(
-      { 
+      {
         _id: ObjectId.createFromHexString(teacherId),
+        tenantId,
         'teaching.timeBlocks._id': ObjectId.createFromHexString(timeBlockId),
         'teaching.timeBlocks.assignedLessons._id': ObjectId.createFromHexString(lessonId)
       },
@@ -634,8 +667,9 @@ async function removeLessonFromBlock(teacherId, timeBlockId, lessonId) {
 
     // Mark teacher assignment as inactive for student
     await studentCollection.updateOne(
-      { 
+      {
         _id: ObjectId.createFromHexString(studentId),
+        tenantId,
         'teacherAssignments.lessonId': lessonId
       },
       { 
@@ -652,7 +686,8 @@ async function removeLessonFromBlock(teacherId, timeBlockId, lessonId) {
 
     // Check if this was the last active lesson with this teacher
     const updatedStudent = await studentCollection.findOne({
-      _id: ObjectId.createFromHexString(studentId)
+      _id: ObjectId.createFromHexString(studentId),
+      tenantId,
     });
 
     if (updatedStudent) {
@@ -681,9 +716,12 @@ async function removeLessonFromBlock(teacherId, timeBlockId, lessonId) {
  */
 async function getTeacherScheduleWithBlocks(teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const teacherCollection = await getCollection('teacher');
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
     });
 
     if (!teacher) {
@@ -744,8 +782,9 @@ async function getTeacherScheduleWithBlocks(teacherId, options = {}) {
 
       if (allStudentIds.length > 0) {
         const students = await studentCollection
-          .find({ 
-            _id: { $in: allStudentIds.map(id => ObjectId.createFromHexString(id)) }
+          .find({
+            _id: { $in: allStudentIds.map(id => ObjectId.createFromHexString(id)) },
+            tenantId,
           })
           .project({
             _id: 1,
@@ -797,15 +836,15 @@ async function getTeacherScheduleWithBlocks(teacherId, options = {}) {
  * @param {object} preferences - Student preferences
  * @returns {Promise<object>} - Optimal slot recommendation
  */
-async function findOptimalSlot(teacherId, duration, preferences = {}) {
+async function findOptimalSlot(teacherId, duration, preferences = {}, options = {}) {
   try {
-    const availableSlots = await calculateAvailableSlots(teacherId, duration, preferences);
-    
+    const availableSlots = await calculateAvailableSlots(teacherId, duration, preferences, options);
+
     if (availableSlots.length === 0) {
       return {
         success: false,
         message: 'No available slots found for the requested duration and preferences',
-        alternatives: await calculateAvailableSlots(teacherId, duration) // Without preferences
+        alternatives: await calculateAvailableSlots(teacherId, duration, {}, options) // Without preferences
       };
     }
 
@@ -839,11 +878,14 @@ async function findOptimalSlot(teacherId, duration, preferences = {}) {
  * @param {string} excludeBlockId - Block ID to exclude from check
  * @returns {Promise<boolean>} - Whether there's a conflict
  */
-async function validateTimeBlockConflicts(teacherId, day, startTime, endTime, excludeBlockId = null) {
+async function validateTimeBlockConflicts(teacherId, day, startTime, endTime, excludeBlockId = null, tenantId = null) {
   try {
+    const tid = requireTenantId(tenantId);
+
     const teacherCollection = await getCollection('teacher');
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId: tid,
     });
 
     if (!teacher || !teacher.teaching?.timeBlocks) {
@@ -1036,11 +1078,13 @@ function calculateSlotScore(slot, preferences) {
 }
 
 // Check student schedule conflicts across all teachers
-async function checkStudentScheduleConflict(studentId, excludeTeacherId, day, startTime, duration) {
+async function checkStudentScheduleConflict(studentId, excludeTeacherId, day, startTime, duration, tenantId) {
+  const tid = requireTenantId(tenantId);
+
   const teacherCollection = await getCollection('teacher');
-  
+
   const teachers = await teacherCollection
-    .find({ 'teaching.timeBlocks.assignedLessons.studentId': studentId })
+    .find({ tenantId: tid, 'teaching.timeBlocks.assignedLessons.studentId': studentId })
     .toArray();
 
   const lessonStart = timeToMinutes(startTime);

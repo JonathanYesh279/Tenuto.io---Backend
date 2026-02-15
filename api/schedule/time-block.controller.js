@@ -46,7 +46,7 @@ async function createTimeBlock(req, res) {
       });
     }
 
-    const result = await timeBlockService.createTimeBlock(teacherId, value);
+    const result = await timeBlockService.createTimeBlock(teacherId, value, { context: req.context });
 
     res.status(201).json(result);
   } catch (err) {
@@ -87,7 +87,7 @@ async function updateTimeBlock(req, res) {
       });
     }
 
-    const result = await timeBlockService.updateTimeBlock(teacherId, blockId, value);
+    const result = await timeBlockService.updateTimeBlock(teacherId, blockId, value, { context: req.context });
 
     res.status(200).json(result);
   } catch (err) {
@@ -120,7 +120,7 @@ async function deleteTimeBlock(req, res) {
       });
     }
 
-    const result = await timeBlockService.deleteTimeBlock(teacherId, blockId);
+    const result = await timeBlockService.deleteTimeBlock(teacherId, blockId, { context: req.context });
 
     res.status(200).json(result);
   } catch (err) {
@@ -157,7 +157,7 @@ async function getTeacherTimeBlocks(req, res) {
       });
     }
 
-    const timeBlocks = await timeBlockService.getTeacherTimeBlocks(teacherId, value);
+    const timeBlocks = await timeBlockService.getTeacherTimeBlocks(teacherId, { ...value, context: req.context });
 
     res.status(200).json({
       success: true,
@@ -200,9 +200,10 @@ async function getAvailableSlots(req, res) {
 
     const { duration, ...preferences } = value;
     const availableSlots = await timeBlockService.calculateAvailableSlots(
-      teacherId, 
-      duration, 
-      preferences
+      teacherId,
+      duration,
+      preferences,
+      { context: req.context }
     );
 
     res.status(200).json({
@@ -244,7 +245,7 @@ async function assignLessonToBlock(req, res) {
       });
     }
 
-    const result = await timeBlockService.assignLessonToBlock(value);
+    const result = await timeBlockService.assignLessonToBlock(value, { context: req.context });
 
     res.status(200).json(result);
   } catch (err) {
@@ -282,9 +283,10 @@ async function removeLessonFromBlock(req, res) {
     }
 
     const result = await timeBlockService.removeLessonFromBlock(
-      teacherId, 
-      timeBlockId, 
-      lessonId
+      teacherId,
+      timeBlockId,
+      lessonId,
+      { context: req.context }
     );
 
     res.status(200).json(result);
@@ -322,7 +324,7 @@ async function getTeacherScheduleWithBlocks(req, res) {
       });
     }
 
-    const schedule = await timeBlockService.getTeacherScheduleWithBlocks(teacherId, value);
+    const schedule = await timeBlockService.getTeacherScheduleWithBlocks(teacherId, { ...value, context: req.context });
 
     res.status(200).json(schedule);
   } catch (err) {
@@ -360,7 +362,7 @@ async function findOptimalSlot(req, res) {
     }
 
     const { duration, preferences } = value;
-    const result = await timeBlockService.findOptimalSlot(teacherId, duration, preferences);
+    const result = await timeBlockService.findOptimalSlot(teacherId, duration, preferences, { context: req.context });
 
     res.status(200).json(result);
   } catch (err) {
@@ -399,7 +401,7 @@ async function getLessonScheduleOptions(req, res) {
     const teacherOptions = await Promise.all(
       teacherIds.map(async (teacherId) => {
         try {
-          const options = await timeBlockService.findOptimalSlot(teacherId, duration, preferences);
+          const options = await timeBlockService.findOptimalSlot(teacherId, duration, preferences, { context: req.context });
           return {
             teacherId,
             ...options
@@ -450,7 +452,8 @@ async function getBlockUtilizationStats(req, res) {
 
     const timeBlocks = await timeBlockService.getTeacherTimeBlocks(teacherId, {
       includeAvailableSlots: true,
-      activeOnly: true
+      activeOnly: true,
+      context: req.context
     });
 
     // Calculate detailed utilization statistics
