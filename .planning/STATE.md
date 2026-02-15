@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 2 of 6 (Service Layer Query Hardening)
-Plan: 6 of 8 in current phase
+Plan: 7 of 8 in current phase
 Status: Executing Phase 2
-Last activity: 2026-02-15 - Completed 02-06 (schedule domain service hardening)
+Last activity: 2026-02-15 - Completed 02-07 (cross-cutting services hardening)
 
-Progress: [█████████░] 45%
+Progress: [██████████░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Average duration: 6 min
-- Total execution time: 0.94 hours
+- Total execution time: 1.02 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-audit-infrastructure | 3/3 | 17 min | 6 min |
-| 02-service-layer-query-hardening | 6/8 | 39 min | 7 min |
+| 02-service-layer-query-hardening | 7/8 | 44 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (5 min), 02-03 (7 min), 02-04 (6 min), 02-05 (12 min), 02-06 (7 min)
-- Trend: Stable (6-7 min typical, outliers for complex services)
+- Last 5 plans: 02-03 (7 min), 02-04 (6 min), 02-05 (12 min), 02-06 (7 min), 02-07 (5 min)
+- Trend: Stable (5-7 min typical, outliers for complex services)
 
 *Updated after each plan completion*
 
@@ -88,6 +88,10 @@ Recent decisions affecting current work:
 - [02-06] calculateAvailableSlots adds options as 4th param to preserve signature (preferences != system context)
 - [02-06] Analytics exportAttendanceReport threads context to all internal sub-calls
 - [02-06] Context merging pattern: { ...filterOptions, context: req.context } when options already used for filters
+- [02-07] Hours-summary signatures changed from positional tenantId to options.context pattern
+- [02-07] Export service signatures reordered: generateFullReport(schoolYearId, userId, options) instead of (tenantId, schoolYearId, userId)
+- [02-07] Ministry-mappers loadExportData hardened with requireTenantId guard (defense-in-depth, caller already validates)
+- [02-07] Import internal helpers receive tenantId as explicit param (private functions, not via options)
 
 ### Pending Todos
 
@@ -115,6 +119,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15 (Phase 2 continuing)
-Stopped at: Completed 02-06-PLAN.md (Schedule Domain Service Hardening)
-Resume file: .planning/phases/02-service-layer-query-hardening/02-07-PLAN.md
-Resume task: Execute 02-07 (next plan in Phase 2)
+Stopped at: Completed 02-07-PLAN.md (Cross-Cutting Services Hardening)
+Resume file: .planning/phases/02-service-layer-query-hardening/02-08-PLAN.md
+Resume task: Execute 02-08 (final plan in Phase 2 - shared services)
