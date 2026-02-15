@@ -9,30 +9,30 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 2 of 6 (Service Layer Query Hardening)
-Plan: 7 of 8 in current phase
-Status: Executing Phase 2
-Last activity: 2026-02-15 - Completed 02-07 (cross-cutting services hardening)
+Phase: 2 of 6 (Service Layer Query Hardening) -- COMPLETE
+Plan: 8 of 8 in current phase (all plans complete)
+Status: Phase 2 Complete -- Ready for Phase 3
+Last activity: 2026-02-15 - Completed 02-08 (shared services hardening)
 
-Progress: [██████████░] 50%
+Progress: [████████████░] 58%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 6 min
-- Total execution time: 1.02 hours
+- Total execution time: 1.09 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-audit-infrastructure | 3/3 | 17 min | 6 min |
-| 02-service-layer-query-hardening | 7/8 | 44 min | 6 min |
+| 02-service-layer-query-hardening | 8/8 | 48 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (7 min), 02-04 (6 min), 02-05 (12 min), 02-06 (7 min), 02-07 (5 min)
-- Trend: Stable (5-7 min typical, outliers for complex services)
+- Last 5 plans: 02-04 (6 min), 02-05 (12 min), 02-06 (7 min), 02-07 (5 min), 02-08 (4 min)
+- Trend: Stable (4-7 min typical, outliers for complex services)
 
 *Updated after each plan completion*
 
@@ -92,6 +92,10 @@ Recent decisions affecting current work:
 - [02-07] Export service signatures reordered: generateFullReport(schoolYearId, userId, options) instead of (tenantId, schoolYearId, userId)
 - [02-07] Ministry-mappers loadExportData hardened with requireTenantId guard (defense-in-depth, caller already validates)
 - [02-07] Import internal helpers receive tenantId as explicit param (private functions, not via options)
+- [02-08] tenantId injected via baseQuery in duplicateDetectionService (all 7 checks inherit from single baseQuery spread)
+- [02-08] conflictDetectionService requireTenantId at leaf query methods (checkRoomConflicts/checkTeacherConflicts)
+- [02-08] permissionService getFilteredData scopes admin queries by tenantId (admin sees own tenant only)
+- [02-08] enhancedAuth.middleware.js updated despite being deprecated (defense-in-depth)
 
 ### Pending Todos
 
@@ -107,7 +111,7 @@ None yet.
 - ~~Aggregation $lookups in orchestra.service.js join cross-tenant~~ FIXED in 02-04 (all 4 $lookup pipelines now tenant-scoped)
 - ~~enforceTenant middleware exists but is not applied to any route~~ FIXED in 02-01
 - ~~buildContext tolerates null tenantId (does not throw)~~ FIXED in 02-01 (buildScopedFilter throws; buildContext still sets null for enforceTenant to catch)
-- duplicateDetectionService.js and conflictDetectionService.js query without tenant scope
+- ~~duplicateDetectionService.js and conflictDetectionService.js query without tenant scope~~ FIXED in 02-08
 - Two cascade deletion systems exist (need unification but not blocking)
 - past-activities.service.js calls rehearsalService.getRehearsals without context (will fail with TENANT_GUARD until admin services hardened)
 
@@ -118,7 +122,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15 (Phase 2 continuing)
-Stopped at: Completed 02-07-PLAN.md (Cross-Cutting Services Hardening)
-Resume file: .planning/phases/02-service-layer-query-hardening/02-08-PLAN.md
-Resume task: Execute 02-08 (final plan in Phase 2 - shared services)
+Last session: 2026-02-15 (Phase 2 COMPLETE)
+Stopped at: Completed 02-08-PLAN.md (Shared Services Hardening -- final plan in Phase 2)
+Resume file: .planning/phases/03-middleware-route-hardening/ (Phase 3 plans)
+Resume task: Begin Phase 3 planning/execution
