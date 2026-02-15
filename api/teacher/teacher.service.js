@@ -207,8 +207,8 @@ async function addTeacher(teacherToAdd, adminId, options = {}) {
     if (error) throw new Error(`Invalid teacher data: ${error.message}`);
 
     // Comprehensive duplicate detection
-    const duplicateResult = await DuplicateDetectionService.detectTeacherDuplicates(value);
-    
+    const duplicateResult = await DuplicateDetectionService.detectTeacherDuplicates(value, null, { context: options.context });
+
     if (duplicateResult.hasDuplicates) {
       // Check if creation should be blocked based on severity
       if (DuplicateDetectionService.shouldBlockCreation(duplicateResult)) {
@@ -360,8 +360,9 @@ async function updateTeacher(teacherId, teacherToUpdate, options = {}) {
     // Run duplicate detection excluding current teacher
     if (value.personalInfo || value.credentials) {
       const duplicateResult = await DuplicateDetectionService.detectTeacherDuplicates(
-        mergedTeacherData, 
-        teacherId
+        mergedTeacherData,
+        teacherId,
+        { context: options.context }
       );
       
       if (duplicateResult.hasDuplicates) {

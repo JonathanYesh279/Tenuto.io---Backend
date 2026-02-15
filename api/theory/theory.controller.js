@@ -394,8 +394,8 @@ async function addTheoryLesson(req, res, next) {
     }
 
     // Check for conflicts
-    const conflictValidation = await ConflictDetectionService.validateSingleLesson(theoryLessonToAdd);
-    
+    const conflictValidation = await ConflictDetectionService.validateSingleLesson(theoryLessonToAdd, null, { context: req.context });
+
     if (conflictValidation.hasConflicts && !theoryLessonToAdd.forceCreate) {
       const conflictResponse = formatConflictResponse(conflictValidation.roomConflicts, conflictValidation.teacherConflicts);
       conflictResponse.message = 'Use forceCreate=true to override these conflicts';
@@ -470,8 +470,9 @@ async function updateTheoryLesson(req, res, next) {
       
       // Validate conflicts (excluding current lesson)
       conflictValidation = await ConflictDetectionService.validateSingleLesson(
-        mergedLessonData, 
-        id
+        mergedLessonData,
+        id,
+        { context: req.context }
       );
       
       if (conflictValidation.hasConflicts && !theoryLessonToUpdate.forceUpdate) {
@@ -598,8 +599,8 @@ async function bulkCreateTheoryLessons(req, res, next) {
     }
 
     // Check for conflicts
-    const conflictValidation = await ConflictDetectionService.validateBulkLessons(bulkData);
-    
+    const conflictValidation = await ConflictDetectionService.validateBulkLessons(bulkData, { context: req.context });
+
     // If conflicts exist and not forced, return conflict information
     if (conflictValidation.hasConflicts && !bulkData.forceCreate) {
       const conflictResponse = formatConflictResponse(conflictValidation.roomConflicts, conflictValidation.teacherConflicts);

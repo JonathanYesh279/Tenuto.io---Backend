@@ -1,16 +1,17 @@
 import { getCollection } from './mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { doTimesOverlap } from '../utils/timeUtils.js';
-import { 
-  toUTC, 
-  createAppDate, 
-  getStartOfDay, 
+import {
+  toUTC,
+  createAppDate,
+  getStartOfDay,
   getEndOfDay,
   formatDate,
   generateDatesForDayOfWeek,
   isValidDate,
   isSameDay
 } from '../utils/dateHelpers.js';
+import { requireTenantId } from '../middleware/tenant.middleware.js';
 
 class ConflictDetectionService {
   
@@ -18,12 +19,15 @@ class ConflictDetectionService {
    * Check for room booking conflicts
    * @param {Object} lessonData - The lesson data to check
    * @param {string} excludeId - Optional lesson ID to exclude from conflict check
+   * @param {Object} options - Options object with context
+   * @param {Object} options.context - Request context with tenantId
    * @returns {Array} Array of room conflicts
    */
-  async checkRoomConflicts(lessonData, excludeId = null) {
+  async checkRoomConflicts(lessonData, excludeId = null, options = {}) {
     try {
+      const tenantId = requireTenantId(options.context?.tenantId);
       const { date, startTime, endTime, location } = lessonData;
-      
+
       if (!date || !startTime || !endTime || !location) {
         return [];
       }
@@ -34,14 +38,15 @@ class ConflictDetectionService {
       }
 
       const collection = await getCollection('theory_lesson');
-      
+
       // Use timezone-aware date range query for better accuracy
       const targetDate = createAppDate(date);
       const startOfDay = getStartOfDay(targetDate);
       const endOfDay = getEndOfDay(targetDate);
-      
-      // Build query to find lessons on the same date and location
+
+      // Build query to find lessons on the same date and location (tenant-scoped)
       const query = {
+        tenantId,
         date: {
           $gte: startOfDay,
           $lte: endOfDay
@@ -84,12 +89,15 @@ class ConflictDetectionService {
    * Check for teacher scheduling conflicts
    * @param {Object} lessonData - The lesson data to check
    * @param {string} excludeId - Optional lesson ID to exclude from conflict check
+   * @param {Object} options - Options object with context
+   * @param {Object} options.context - Request context with tenantId
    * @returns {Array} Array of teacher conflicts
    */
-  async checkTeacherConflicts(lessonData, excludeId = null) {
+  async checkTeacherConflicts(lessonData, excludeId = null, options = {}) {
     try {
+      const tenantId = requireTenantId(options.context?.tenantId);
       const { date, startTime, endTime, teacherId, location } = lessonData;
-      
+
       if (!date || !startTime || !endTime || !teacherId) {
         return [];
       }
@@ -100,14 +108,15 @@ class ConflictDetectionService {
       }
 
       const collection = await getCollection('theory_lesson');
-      
+
       // Use timezone-aware date range query
       const targetDate = createAppDate(date);
       const startOfDay = getStartOfDay(targetDate);
       const endOfDay = getEndOfDay(targetDate);
-      
-      // Build query to find lessons with the same teacher on the same date
+
+      // Build query to find lessons with the same teacher on the same date (tenant-scoped)
       const query = {
+        tenantId,
         date: {
           $gte: startOfDay,
           $lte: endOfDay
@@ -152,12 +161,14 @@ class ConflictDetectionService {
    * Validate a single lesson for conflicts
    * @param {Object} lessonData - The lesson data to validate
    * @param {string} excludeId - Optional lesson ID to exclude from conflict check
+   * @param {Object} options - Options object with context
+   * @param {Object} options.context - Request context with tenantId
    * @returns {Object} Conflict validation result
    */
-  async validateSingleLesson(lessonData, excludeId = null) {
+  async validateSingleLesson(lessonData, excludeId = null, options = {}) {
     try {
-      const roomConflicts = await this.checkRoomConflicts(lessonData, excludeId);
-      const teacherConflicts = await this.checkTeacherConflicts(lessonData, excludeId);
+      const roomConflicts = await this.checkRoomConflicts(lessonData, excludeId, options);
+      const teacherConflicts = await this.checkTeacherConflicts(lessonData, excludeId, options);
       
       return {
         hasConflicts: roomConflicts.length > 0 || teacherConflicts.length > 0,
@@ -174,9 +185,11 @@ class ConflictDetectionService {
   /**
    * Validate bulk lesson creation for conflicts
    * @param {Object} bulkData - The bulk creation data
+   * @param {Object} options - Options object with context
+   * @param {Object} options.context - Request context with tenantId
    * @returns {Object} Bulk conflict validation result
    */
-  async validateBulkLessons(bulkData) {
+  async validateBulkLessons(bulkData, options = {}) {
     try {
       const { startDate, endDate, dayOfWeek, startTime, endTime, location, teacherId, excludeDates = [] } = bulkData;
       
@@ -199,8 +212,8 @@ class ConflictDetectionService {
         
         const lessonData = { date: dateString, startTime, endTime, location, teacherId };
         
-        const roomConflicts = await this.checkRoomConflicts(lessonData);
-        const teacherConflicts = await this.checkTeacherConflicts(lessonData);
+        const roomConflicts = await this.checkRoomConflicts(lessonData, null, options);
+        const teacherConflicts = await this.checkTeacherConflicts(lessonData, null, options);
         
         allRoomConflicts.push(...roomConflicts);
         allTeacherConflicts.push(...teacherConflicts);

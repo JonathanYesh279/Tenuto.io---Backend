@@ -219,7 +219,7 @@ async function addTheoryLesson(theoryLessonToAdd, options = {}) {
     value.updatedAt = toUTC(currentTime);
 
     // CRITICAL: Final conflict check right before insertion to prevent race conditions
-    const conflictValidation = await ConflictDetectionService.validateSingleLesson(value);
+    const conflictValidation = await ConflictDetectionService.validateSingleLesson(value, null, { context: options.context });
     if (conflictValidation.hasConflicts && !theoryLessonToAdd.forceCreate) {
       const conflicts = [...conflictValidation.roomConflicts, ...conflictValidation.teacherConflicts];
       throw new Error(`Conflicts detected: ${conflicts.map(c => c.description).join('; ')}`);
@@ -510,7 +510,7 @@ async function bulkCreateTheoryLessons(bulkData, options = {}) {
       location,
       teacherId,
       excludeDates
-    });
+    }, { context: options.context });
 
     if (finalConflictCheck.hasConflicts && !bulkData.forceCreate) {
       const conflicts = [...finalConflictCheck.roomConflicts, ...finalConflictCheck.teacherConflicts];

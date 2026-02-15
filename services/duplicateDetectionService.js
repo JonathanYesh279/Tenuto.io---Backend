@@ -1,5 +1,6 @@
 import { getCollection } from './mongoDB.service.js';
 import { ObjectId } from 'mongodb';
+import { requireTenantId } from '../middleware/tenant.middleware.js';
 
 /**
  * Advanced Duplicate Detection Service
@@ -8,25 +9,31 @@ import { ObjectId } from 'mongodb';
  */
 
 export class DuplicateDetectionService {
-  
+
   /**
    * Comprehensive duplicate detection for teachers
    * Checks various combinations of personal information to identify potential duplicates
+   * @param {Object} teacherData - Teacher data to check for duplicates
+   * @param {string|null} excludeId - Optional teacher ID to exclude (for updates)
+   * @param {Object} options - Options object with context
+   * @param {Object} options.context - Request context with tenantId
    */
-  static async detectTeacherDuplicates(teacherData, excludeId = null) {
+  static async detectTeacherDuplicates(teacherData, excludeId = null, options = {}) {
     try {
+      const tenantId = requireTenantId(options.context?.tenantId);
       const collection = await getCollection('teacher');
       const { personalInfo } = teacherData;
-      
+
       // Normalize data for comparison — supports both old (fullName) and new (firstName+lastName) schemas
       const composedName = personalInfo.fullName || `${personalInfo.firstName || ''} ${personalInfo.lastName || ''}`.trim();
       const normalizedName = this.normalizeName(composedName);
       const normalizedPhone = this.normalizePhone(personalInfo.phone);
       const normalizedAddress = this.normalizeAddress(personalInfo.address);
       const normalizedEmail = personalInfo.email?.toLowerCase().trim();
-      
-      // Build base query (exclude current teacher if updating)
+
+      // Build base query (exclude current teacher if updating, scoped by tenantId)
       const baseQuery = {
+        tenantId,
         isActive: true,
         ...(excludeId && { _id: { $ne: ObjectId.createFromHexString(excludeId) } })
       };
