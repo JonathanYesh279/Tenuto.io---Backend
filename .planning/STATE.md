@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 2 of 6 (Service Layer Query Hardening)
-Plan: 4 of 8 in current phase
+Plan: 5 of 8 in current phase
 Status: Executing Phase 2
-Last activity: 2026-02-15 - Completed 02-04 (orchestra and rehearsal service hardening)
+Last activity: 2026-02-15 - Completed 02-05 (theory and bagrut service hardening)
 
-Progress: [███████░░░] 35%
+Progress: [████████░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 5 min
-- Total execution time: 0.62 hours
+- Total plans completed: 8
+- Average duration: 6 min
+- Total execution time: 0.82 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-audit-infrastructure | 3/3 | 17 min | 6 min |
-| 02-service-layer-query-hardening | 4/8 | 20 min | 5 min |
+| 02-service-layer-query-hardening | 5/8 | 32 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (2 min), 02-02 (5 min), 02-03 (7 min), 02-04 (6 min)
-- Trend: Stable
+- Last 5 plans: 02-01 (2 min), 02-02 (5 min), 02-03 (7 min), 02-04 (6 min), 02-05 (12 min)
+- Trend: Increasing (larger services take longer)
 
 *Updated after each plan completion*
 
@@ -78,6 +78,11 @@ Recent decisions affecting current work:
 - [02-04] Rehearsal addRehearsal/bulkCreate set tenantId from context on document (server-derived)
 - [02-04] All activity_attendance upserts/inserts include tenantId in filter and $set
 - [02-04] Bulk delete/update operations include tenantId in all queries including transaction branches
+- [02-05] Theory getTheoryLessons wraps createLessonFilterQuery with buildScopedFilter (two-layer filter composition)
+- [02-05] Theory bulk operations set tenantId on each document and include tenantId in all delete criteria
+- [02-05] Theory activity_attendance records include tenantId on inserts and deletes
+- [02-05] Bagrut cross-service calls pass { context: options.context } to student setBagrutId/removeBagrutId
+- [02-05] Both theory and bagrut _buildCriteria cleaned of tenantId handling
 
 ### Pending Todos
 
@@ -88,8 +93,8 @@ None yet.
 **Known Gaps from Query Inventory (01-01):**
 - 43 CRITICAL risk queries (no tenantId at all) across 22 API services
 - 98 HIGH risk queries (conditional tenantId via _buildCriteria opt-in pattern)
-- ~~buildScopedFilter used in only 1 of 22 services (student.service.js)~~ FIXED in 02-02/02-03/02-04 (now used in student + school-year + teacher + orchestra + rehearsal)
-- ~~Every getById function queries by _id only (no tenant scope)~~ PARTIALLY FIXED in 02-02/02-03/02-04 (school-year, student, teacher, orchestra, rehearsal getById now include tenantId)
+- ~~buildScopedFilter used in only 1 of 22 services (student.service.js)~~ FIXED in 02-02/02-03/02-04/02-05 (now used in student + school-year + teacher + orchestra + rehearsal + theory + bagrut)
+- ~~Every getById function queries by _id only (no tenant scope)~~ PARTIALLY FIXED in 02-02/02-03/02-04/02-05 (school-year, student, teacher, orchestra, rehearsal, theory, bagrut getById now include tenantId)
 - ~~Aggregation $lookups in orchestra.service.js join cross-tenant~~ FIXED in 02-04 (all 4 $lookup pipelines now tenant-scoped)
 - ~~enforceTenant middleware exists but is not applied to any route~~ FIXED in 02-01
 - ~~buildContext tolerates null tenantId (does not throw)~~ FIXED in 02-01 (buildScopedFilter throws; buildContext still sets null for enforceTenant to catch)
@@ -105,6 +110,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15 (Phase 2 continuing)
-Stopped at: Completed 02-04-PLAN.md (Orchestra and Rehearsal Service Hardening)
-Resume file: .planning/phases/02-service-layer-query-hardening/02-05-PLAN.md
-Resume task: Execute 02-05 (next plan in Phase 2)
+Stopped at: Completed 02-05-PLAN.md (Theory and Bagrut Service Hardening)
+Resume file: .planning/phases/02-service-layer-query-hardening/02-06-PLAN.md
+Resume task: Execute 02-06 (next plan in Phase 2)
