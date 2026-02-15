@@ -1,5 +1,6 @@
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const attendanceAnalyticsService = {
   getStudentAttendanceStats,
@@ -19,6 +20,8 @@ export const attendanceAnalyticsService = {
  */
 async function getStudentAttendanceStats(studentId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const {
       includePrivateLessons = true,
       includeTheory = true,
@@ -34,7 +37,8 @@ async function getStudentAttendanceStats(studentId, options = {}) {
 
     // Get student info
     const student = await studentCollection.findOne({
-      _id: ObjectId.createFromHexString(studentId)
+      _id: ObjectId.createFromHexString(studentId),
+      tenantId,
     });
 
     if (!student) {
@@ -49,7 +53,7 @@ async function getStudentAttendanceStats(studentId, options = {}) {
     if (includeOrchestra) activityTypes.push('תזמורת');
 
     // Build time filter
-    const timeFilter = { studentId };
+    const timeFilter = { studentId, tenantId };
     if (startDate || endDate) {
       timeFilter.date = {};
       if (startDate) timeFilter.date.$gte = new Date(startDate);
@@ -108,10 +112,11 @@ async function getStudentAttendanceStats(studentId, options = {}) {
     // Add comparison with previous period if requested
     if (compareWithPrevious && (startDate || endDate)) {
       const comparisonStats = await getComparisonPeriodStats(
-        studentId, 
-        activityTypes, 
-        startDate, 
-        endDate
+        studentId,
+        activityTypes,
+        startDate,
+        endDate,
+        tenantId
       );
       result.comparison = comparisonStats;
     }
@@ -131,6 +136,8 @@ async function getStudentAttendanceStats(studentId, options = {}) {
  */
 async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const {
       startDate,
       endDate,
@@ -144,7 +151,8 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
 
     // Get teacher info
     const teacher = await teacherCollection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
     });
 
     if (!teacher) {
@@ -154,6 +162,7 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
     // Build time filter
     const filter = {
       teacherId,
+      tenantId,
       activityType: 'שיעור פרטי'
     };
 
@@ -196,7 +205,7 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
     if (includeStudentBreakdown) {
       const studentIds = [...new Set(records.map(r => r.studentId))];
       const students = await studentCollection
-        .find({ _id: { $in: studentIds.map(id => ObjectId.createFromHexString(id)) } })
+        .find({ _id: { $in: studentIds.map(id => ObjectId.createFromHexString(id)) }, tenantId })
         .project({ _id: 1, 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 })
         .toArray();
 
@@ -245,6 +254,8 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
  */
 async function getOverallAttendanceReport(options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const {
       startDate,
       endDate,
@@ -255,7 +266,7 @@ async function getOverallAttendanceReport(options = {}) {
     const activityCollection = await getCollection('activity_attendance');
 
     // Build time filter
-    const filter = {};
+    const filter = { tenantId };
     if (startDate || endDate) {
       filter.date = {};
       if (startDate) filter.date.$gte = new Date(startDate);
@@ -300,7 +311,7 @@ async function getOverallAttendanceReport(options = {}) {
 
     // Add comparisons if requested
     if (includeComparisons && (startDate || endDate)) {
-      const comparisonData = await getSystemComparisonData(startDate, endDate);
+      const comparisonData = await getSystemComparisonData(startDate, endDate, tenantId);
       report.comparison = comparisonData;
     }
 
@@ -318,6 +329,8 @@ async function getOverallAttendanceReport(options = {}) {
  */
 async function getAttendanceTrends(options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const {
       period = '3months', // '1month', '3months', '6months', '1year'
       activityType = 'שיעור פרטי',
@@ -348,6 +361,7 @@ async function getAttendanceTrends(options = {}) {
 
     // Build filter
     const filter = {
+      tenantId,
       date: { $gte: startDate, $lte: endDate },
       activityType
     };
@@ -387,6 +401,8 @@ async function getAttendanceTrends(options = {}) {
  */
 async function getAttendanceComparison(comparisonOptions = {}) {
   try {
+    const tenantId = requireTenantId(comparisonOptions.context?.tenantId);
+
     const {
       type = 'period', // 'period', 'students', 'teachers', 'activities'
       baseline,
@@ -401,6 +417,7 @@ async function getAttendanceComparison(comparisonOptions = {}) {
     if (type === 'period') {
       baselineData = await activityCollection
         .find({
+          tenantId,
           date: {
             $gte: new Date(baseline.startDate),
             $lte: new Date(baseline.endDate)
@@ -410,6 +427,7 @@ async function getAttendanceComparison(comparisonOptions = {}) {
 
       comparisonData = await activityCollection
         .find({
+          tenantId,
           date: {
             $gte: new Date(comparison.startDate),
             $lte: new Date(comparison.endDate)
@@ -458,6 +476,8 @@ async function getAttendanceComparison(comparisonOptions = {}) {
  */
 async function generateAttendanceInsights(entityId, entityType, options = {}) {
   try {
+    requireTenantId(options.context?.tenantId);
+
     const insights = {
       entityId,
       entityType,
@@ -529,6 +549,8 @@ async function generateAttendanceInsights(entityId, entityType, options = {}) {
  */
 async function exportAttendanceReport(reportOptions = {}) {
   try {
+    requireTenantId(reportOptions.context?.tenantId);
+
     const {
       format = 'json', // 'json', 'csv', 'summary'
       scope = 'overall', // 'overall', 'teacher', 'student'
@@ -548,7 +570,8 @@ async function exportAttendanceReport(reportOptions = {}) {
           includePrivateLessons: true,
           includeTheory: true,
           includeRehearsal: true,
-          includeOrchestra: true
+          includeOrchestra: true,
+          context: reportOptions.context
         });
         break;
       case 'teacher':
@@ -556,7 +579,8 @@ async function exportAttendanceReport(reportOptions = {}) {
           startDate,
           endDate,
           includeStudentBreakdown: includeDetails,
-          includeTimeAnalysis: includeDetails
+          includeTimeAnalysis: includeDetails,
+          context: reportOptions.context
         });
         break;
       case 'overall':
@@ -564,7 +588,8 @@ async function exportAttendanceReport(reportOptions = {}) {
         reportData = await getOverallAttendanceReport({
           startDate,
           endDate,
-          includeComparisons: includeDetails
+          includeComparisons: includeDetails,
+          context: reportOptions.context
         });
         break;
     }
@@ -771,20 +796,21 @@ function generateTrendInsights(weeklyTrends, monthlyTrends) {
   return insights;
 }
 
-async function getComparisonPeriodStats(studentId, activityTypes, startDate, endDate) {
+async function getComparisonPeriodStats(studentId, activityTypes, startDate, endDate, tenantId) {
   // Calculate previous period of same duration
   const start = new Date(startDate);
   const end = new Date(endDate);
   const duration = end - start;
-  
+
   const prevEnd = new Date(start);
   const prevStart = new Date(start - duration);
-  
+
   const activityCollection = await getCollection('activity_attendance');
-  
+
   const prevRecords = await activityCollection
     .find({
       studentId,
+      tenantId,
       activityType: { $in: activityTypes },
       date: { $gte: prevStart, $lte: prevEnd }
     })
@@ -803,19 +829,20 @@ async function getComparisonPeriodStats(studentId, activityTypes, startDate, end
   };
 }
 
-async function getSystemComparisonData(startDate, endDate) {
+async function getSystemComparisonData(startDate, endDate, tenantId) {
   // Similar logic for system-wide comparison
   const start = new Date(startDate);
   const end = new Date(endDate);
   const duration = end - start;
-  
+
   const prevEnd = new Date(start);
   const prevStart = new Date(start - duration);
-  
+
   const activityCollection = await getCollection('activity_attendance');
-  
+
   const prevRecords = await activityCollection
     .find({
+      tenantId,
       date: { $gte: prevStart, $lte: prevEnd }
     })
     .toArray();

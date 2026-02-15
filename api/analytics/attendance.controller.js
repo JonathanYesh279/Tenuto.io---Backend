@@ -46,7 +46,7 @@ async function getStudentAttendanceStats(req, res) {
       compareWithPrevious: compareWithPrevious === 'true'
     };
 
-    const stats = await attendanceAnalyticsService.getStudentAttendanceStats(studentId, options);
+    const stats = await attendanceAnalyticsService.getStudentAttendanceStats(studentId, { ...options, context: req.context });
 
     res.status(200).json(stats);
   } catch (err) {
@@ -88,7 +88,7 @@ async function getTeacherAttendanceAnalytics(req, res) {
       includeTimeAnalysis: includeTimeAnalysis === 'true'
     };
 
-    const analytics = await attendanceAnalyticsService.getTeacherAttendanceAnalytics(teacherId, options);
+    const analytics = await attendanceAnalyticsService.getTeacherAttendanceAnalytics(teacherId, { ...options, context: req.context });
 
     res.status(200).json(analytics);
   } catch (err) {
@@ -129,7 +129,7 @@ async function getOverallAttendanceReport(req, res) {
       groupBy
     };
 
-    const report = await attendanceAnalyticsService.getOverallAttendanceReport(options);
+    const report = await attendanceAnalyticsService.getOverallAttendanceReport({ ...options, context: req.context });
 
     res.status(200).json(report);
   } catch (err) {
@@ -179,7 +179,7 @@ async function getAttendanceTrends(req, res) {
       studentId
     };
 
-    const trends = await attendanceAnalyticsService.getAttendanceTrends(options);
+    const trends = await attendanceAnalyticsService.getAttendanceTrends({ ...options, context: req.context });
 
     res.status(200).json(trends);
   } catch (err) {
@@ -210,7 +210,7 @@ async function getAttendanceComparison(req, res) {
       });
     }
 
-    const comparison = await attendanceAnalyticsService.getAttendanceComparison(comparisonOptions);
+    const comparison = await attendanceAnalyticsService.getAttendanceComparison({ ...comparisonOptions, context: req.context });
 
     res.status(200).json(comparison);
   } catch (err) {
@@ -251,9 +251,9 @@ async function generateAttendanceInsights(req, res) {
     }
 
     const insights = await attendanceAnalyticsService.generateAttendanceInsights(
-      entityId, 
-      entityType, 
-      options
+      entityId,
+      entityType,
+      { ...options, context: req.context }
     );
 
     res.status(200).json(insights);
@@ -297,7 +297,7 @@ async function exportAttendanceReport(req, res) {
       }
     }
 
-    const exportData = await attendanceAnalyticsService.exportAttendanceReport(reportOptions);
+    const exportData = await attendanceAnalyticsService.exportAttendanceReport({ ...reportOptions, context: req.context });
 
     // Set appropriate headers for file download if needed
     if (reportOptions.format === 'csv') {

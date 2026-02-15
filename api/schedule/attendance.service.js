@@ -1,5 +1,6 @@
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const attendanceService = {
   getStudentPrivateLessonStats,
@@ -11,12 +12,15 @@ export const attendanceService = {
  * Get private lesson attendance statistics for a student
  * Reads from activity_attendance collection
  */
-async function getStudentPrivateLessonStats(studentId, teacherId = null) {
+async function getStudentPrivateLessonStats(studentId, teacherId = null, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const activityCollection = await getCollection('activity_attendance');
 
     const filter = {
       studentId,
+      tenantId,
       activityType: 'שיעור פרטי'
     };
 
@@ -56,13 +60,16 @@ async function getStudentPrivateLessonStats(studentId, teacherId = null) {
  * Get teacher's attendance overview for their private lessons
  * Reads from activity_attendance collection
  */
-async function getTeacherAttendanceOverview(teacherId, dateRange = {}) {
+async function getTeacherAttendanceOverview(teacherId, dateRange = {}, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const activityCollection = await getCollection('activity_attendance');
     const studentCollection = await getCollection('student');
 
     const filter = {
       teacherId,
+      tenantId,
       activityType: 'שיעור פרטי'
     };
 
@@ -80,7 +87,7 @@ async function getTeacherAttendanceOverview(teacherId, dateRange = {}) {
     const studentIds = [...new Set(attendanceRecords.map(r => r.studentId))];
 
     const students = await studentCollection
-      .find({ _id: { $in: studentIds.map(id => ObjectId.createFromHexString(id)) } })
+      .find({ _id: { $in: studentIds.map(id => ObjectId.createFromHexString(id)) }, tenantId })
       .project({ _id: 1, 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 })
       .toArray();
 
@@ -133,10 +140,13 @@ async function getTeacherAttendanceOverview(teacherId, dateRange = {}) {
  */
 async function getStudentAttendanceHistory(studentId, options = {}) {
   try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
     const activityCollection = await getCollection('activity_attendance');
 
     const filter = {
       studentId,
+      tenantId,
       activityType: 'שיעור פרטי'
     };
 

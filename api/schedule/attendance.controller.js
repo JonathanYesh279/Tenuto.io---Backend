@@ -33,7 +33,8 @@ async function getStudentPrivateLessonStats(req, res) {
 
     const stats = await attendanceService.getStudentPrivateLessonStats(
       studentId,
-      teacherId || (!req.isAdmin ? req.teacher._id.toString() : null)
+      teacherId || (!req.isAdmin ? req.teacher._id.toString() : null),
+      { context: req.context }
     );
 
     res.status(200).json(stats);
@@ -71,7 +72,7 @@ async function getStudentAttendanceHistory(req, res) {
       limit: limit ? parseInt(limit) : undefined
     };
 
-    const history = await attendanceService.getStudentAttendanceHistory(studentId, options);
+    const history = await attendanceService.getStudentAttendanceHistory(studentId, { ...options, context: req.context });
 
     res.status(200).json({
       studentId,
@@ -104,7 +105,7 @@ async function getTeacherAttendanceOverview(req, res) {
     if (startDate) dateRange.startDate = startDate;
     if (endDate) dateRange.endDate = endDate;
 
-    const overview = await attendanceService.getTeacherAttendanceOverview(teacherId, dateRange);
+    const overview = await attendanceService.getTeacherAttendanceOverview(teacherId, dateRange, { context: req.context });
 
     res.status(200).json(overview);
   } catch (err) {
