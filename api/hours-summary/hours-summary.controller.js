@@ -9,10 +9,9 @@ export const hoursSummaryController = {
 
 async function getHoursSummary(req, res, next) {
   try {
-    const tenantId = req.context?.tenantId || null;
     const schoolYearId = req.schoolYearId || req.query.schoolYearId || null;
 
-    const summaries = await hoursSummaryService.getHoursSummary(tenantId, schoolYearId);
+    const summaries = await hoursSummaryService.getHoursSummary(schoolYearId, { context: req.context });
     res.json(summaries);
   } catch (err) {
     next(err);
@@ -24,7 +23,7 @@ async function getTeacherHours(req, res, next) {
     const { teacherId } = req.params;
     const schoolYearId = req.schoolYearId || req.query.schoolYearId || null;
 
-    const summary = await hoursSummaryService.getHoursSummaryByTeacher(teacherId, schoolYearId);
+    const summary = await hoursSummaryService.getHoursSummaryByTeacher(teacherId, schoolYearId, { context: req.context });
     if (!summary) {
       return res.status(404).json({ error: 'Hours summary not found for this teacher' });
     }
@@ -37,10 +36,9 @@ async function getTeacherHours(req, res, next) {
 async function calculateTeacherHours(req, res, next) {
   try {
     const { teacherId } = req.params;
-    const tenantId = req.context?.tenantId || null;
     const schoolYearId = req.schoolYearId || req.query.schoolYearId || null;
 
-    const summary = await hoursSummaryService.calculateTeacherHours(teacherId, schoolYearId, tenantId);
+    const summary = await hoursSummaryService.calculateTeacherHours(teacherId, schoolYearId, { context: req.context });
     res.json(summary);
   } catch (err) {
     next(err);
@@ -49,10 +47,9 @@ async function calculateTeacherHours(req, res, next) {
 
 async function calculateAllHours(req, res, next) {
   try {
-    const tenantId = req.context?.tenantId || null;
     const schoolYearId = req.schoolYearId || req.query.schoolYearId || null;
 
-    const result = await hoursSummaryService.calculateAllTeacherHours(tenantId, schoolYearId);
+    const result = await hoursSummaryService.calculateAllTeacherHours(schoolYearId, { context: req.context });
     res.json(result);
   } catch (err) {
     next(err);

@@ -15,6 +15,7 @@
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { minutesToWeeklyHours, roundToQuarterHour } from '../../config/constants.js';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 export const hoursSummaryService = {
   calculateTeacherHours,
@@ -26,7 +27,9 @@ export const hoursSummaryService = {
 /**
  * Calculate weekly hours for a single teacher and persist to hours_summary.
  */
-async function calculateTeacherHours(teacherId, schoolYearId, tenantId) {
+async function calculateTeacherHours(teacherId, schoolYearId, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   try {
     const teacherCollection = await getCollection('teacher');
     const studentCollection = await getCollection('student');
@@ -35,6 +38,7 @@ async function calculateTeacherHours(teacherId, schoolYearId, tenantId) {
 
     const teacher = await teacherCollection.findOne({
       _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
     });
     if (!teacher) throw new Error(`Teacher ${teacherId} not found`);
 
@@ -43,7 +47,7 @@ async function calculateTeacherHours(teacherId, schoolYearId, tenantId) {
       .find({
         'teacherAssignments.teacherId': teacherId,
         'teacherAssignments.isActive': true,
-        ...(tenantId ? { tenantId } : {}),
+        tenantId,
       })
       .toArray();
 
@@ -81,6 +85,7 @@ async function calculateTeacherHours(teacherId, schoolYearId, tenantId) {
             ),
           },
           isActive: true,
+          tenantId,
         })
         .toArray();
 
@@ -108,6 +113,7 @@ async function calculateTeacherHours(teacherId, schoolYearId, tenantId) {
     const theoryLessons = await theoryCollection
       .find({
         teacherId,
+        tenantId,
         ...(schoolYearId ? { schoolYearId } : {}),
       })
       .toArray();
@@ -155,7 +161,7 @@ async function calculateTeacherHours(teacherId, schoolYearId, tenantId) {
 
     const summary = {
       teacherId,
-      tenantId: tenantId || teacher.tenantId || null,
+      tenantId,
       schoolYearId: schoolYearId || null,
       calculatedAt: new Date(),
       totals: {
@@ -186,7 +192,7 @@ async function calculateTeacherHours(teacherId, schoolYearId, tenantId) {
     // Persist to hours_summary collection (upsert)
     const hsCollection = await getCollection('hours_summary');
     await hsCollection.updateOne(
-      { teacherId, schoolYearId: schoolYearId || null, tenantId: tenantId || null },
+      { teacherId, schoolYearId: schoolYearId || null, tenantId },
       { $set: summary },
       { upsert: true }
     );
@@ -201,11 +207,12 @@ async function calculateTeacherHours(teacherId, schoolYearId, tenantId) {
 /**
  * Re-calculate hours for all teachers in a tenant/school-year.
  */
-async function calculateAllTeacherHours(tenantId, schoolYearId) {
+async function calculateAllTeacherHours(schoolYearId, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   try {
     const teacherCollection = await getCollection('teacher');
-    const filter = { isActive: true };
-    if (tenantId) filter.tenantId = tenantId;
+    const filter = { isActive: true, tenantId };
 
     const teachers = await teacherCollection
       .find(filter, { projection: { _id: 1 } })
@@ -217,7 +224,7 @@ async function calculateAllTeacherHours(tenantId, schoolYearId) {
         const summary = await calculateTeacherHours(
           teacher._id.toString(),
           schoolYearId,
-          tenantId
+          options
         );
         results.push(summary);
       } catch (err) {
@@ -241,11 +248,12 @@ async function calculateAllTeacherHours(tenantId, schoolYearId) {
 /**
  * Get cached hours summaries for a tenant/school-year.
  */
-async function getHoursSummary(tenantId, schoolYearId) {
+async function getHoursSummary(schoolYearId, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   try {
     const hsCollection = await getCollection('hours_summary');
-    const filter = {};
-    if (tenantId) filter.tenantId = tenantId;
+    const filter = { tenantId };
     if (schoolYearId) filter.schoolYearId = schoolYearId;
 
     return await hsCollection.find(filter).sort({ 'teacherInfo.lastName': 1 }).toArray();
@@ -258,10 +266,12 @@ async function getHoursSummary(tenantId, schoolYearId) {
 /**
  * Get cached hours summary for a specific teacher.
  */
-async function getHoursSummaryByTeacher(teacherId, schoolYearId) {
+async function getHoursSummaryByTeacher(teacherId, schoolYearId, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
   try {
     const hsCollection = await getCollection('hours_summary');
-    const filter = { teacherId };
+    const filter = { teacherId, tenantId };
     if (schoolYearId) filter.schoolYearId = schoolYearId;
 
     return await hsCollection.findOne(filter);
