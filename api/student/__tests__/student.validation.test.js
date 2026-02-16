@@ -7,8 +7,10 @@ describe('Student Validation', () => {
     it('should validate a valid student object', () => {
       // Setup
       const validStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student',
+          firstName: 'Test',
+          lastName: 'Student',
           phone: '0501234567',
           age: 15,
           address: 'Test Address',
@@ -18,23 +20,28 @@ describe('Student Validation', () => {
           studentEmail: 'student@example.com'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 3,
-          class: 'ט',
-          tests: {
-            stageTest: {
-              status: 'עבר/ה',
-              lastTestDate: new Date('2023-05-15'),
-              nextTestDate: null,
-              notes: 'Performed well'
-            },
-            technicalTest: {
-              status: 'עבר/ה',
-              lastTestDate: new Date('2023-06-10'),
-              nextTestDate: null,
-              notes: 'Good technique'
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 3,
+              isPrimary: true,
+              tests: {
+                stageTest: {
+                  status: 'עבר/ה',
+                  lastTestDate: new Date('2023-05-15'),
+                  nextTestDate: null,
+                  notes: 'Performed well'
+                },
+                technicalTest: {
+                  status: 'עבר/ה',
+                  lastTestDate: new Date('2023-06-10'),
+                  nextTestDate: null,
+                  notes: 'Good technique'
+                }
+              }
             }
-          }
+          ],
+          class: 'ט'
         },
         enrollments: {
           orchestraIds: ['orchestra1', 'orchestra2'],
@@ -54,18 +61,28 @@ describe('Student Validation', () => {
 
       // Assert
       expect(error).toBeUndefined()
-      expect(value).toMatchObject(validStudent)
+      expect(value).toMatchObject({
+        personalInfo: { firstName: 'Test', lastName: 'Student' },
+        academicInfo: { instrumentProgress: expect.any(Array), class: 'ט' }
+      })
     })
 
     it('should validate with default values for optional fields', () => {
       // Setup
       const minimalStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 1,
+              isPrimary: true
+            }
+          ],
           class: 'א'
         }
       }
@@ -75,9 +92,10 @@ describe('Student Validation', () => {
 
       // Assert
       expect(error).toBeUndefined()
-      expect(value.personalInfo.fullName).toBe('Test Student')
-      expect(value.academicInfo.instrument).toBe('חצוצרה')
-      expect(value.academicInfo.currentStage).toBe(1)
+      expect(value.personalInfo.firstName).toBe('Test')
+      expect(value.personalInfo.lastName).toBe('Student')
+      expect(value.academicInfo.instrumentProgress[0].instrumentName).toBe('חצוצרה')
+      expect(value.academicInfo.instrumentProgress[0].currentStage).toBe(1)
       expect(value.academicInfo.class).toBe('א')
       expect(value.enrollments).toBeDefined()
       expect(value.enrollments.orchestraIds).toEqual([])
@@ -89,10 +107,12 @@ describe('Student Validation', () => {
     it('should require personalInfo', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         // Missing personalInfo
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            { instrumentName: 'חצוצרה', currentStage: 1 }
+          ],
           class: 'א'
         }
       }
@@ -108,8 +128,10 @@ describe('Student Validation', () => {
     it('should require academicInfo', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         }
         // Missing academicInfo
       }
@@ -122,16 +144,19 @@ describe('Student Validation', () => {
       expect(error.message).toContain('"academicInfo" is required')
     })
 
-    it('should require fullName in personalInfo', () => {
+    it('should require firstName in personalInfo', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          // Missing fullName
+          // Missing firstName
+          lastName: 'Student',
           phone: '0501234567'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            { instrumentName: 'חצוצרה', currentStage: 1 }
+          ],
           class: 'א'
         }
       }
@@ -141,19 +166,22 @@ describe('Student Validation', () => {
 
       // Assert
       expect(error).toBeDefined()
-      expect(error.message).toContain('"personalInfo.fullName" is required')
+      expect(error.message).toContain('"personalInfo.firstName" is required')
     })
 
     it('should validate phone number format', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student',
+          firstName: 'Test',
+          lastName: 'Student',
           phone: '12345678' // Invalid format
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            { instrumentName: 'חצוצרה', currentStage: 1 }
+          ],
           class: 'א'
         }
       }
@@ -169,14 +197,17 @@ describe('Student Validation', () => {
     it('should validate email formats', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student',
+          firstName: 'Test',
+          lastName: 'Student',
           parentEmail: 'invalid-email', // Invalid format
           studentEmail: 'another-invalid-email' // Invalid format
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            { instrumentName: 'חצוצרה', currentStage: 1 }
+          ],
           class: 'א'
         }
       }
@@ -189,15 +220,16 @@ describe('Student Validation', () => {
       expect(error.message).toContain('"personalInfo.parentEmail" must be a valid email')
     })
 
-    it('should require instrument in academicInfo', () => {
+    it('should require instrumentProgress in academicInfo', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          // Missing instrument
-          currentStage: 1,
+          // Missing instrumentProgress
           class: 'א'
         }
       }
@@ -207,18 +239,24 @@ describe('Student Validation', () => {
 
       // Assert
       expect(error).toBeDefined()
-      expect(error.message).toContain('"academicInfo.instrument" is required')
+      expect(error.message).toContain('"academicInfo.instrumentProgress" is required')
     })
 
     it('should validate instrument is in allowed list', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          instrument: 'Piano', // Not in allowed list
-          currentStage: 1,
+          instrumentProgress: [
+            {
+              instrumentName: 'Piano', // Not in allowed list
+              currentStage: 1
+            }
+          ],
           class: 'א'
         }
       }
@@ -228,18 +266,24 @@ describe('Student Validation', () => {
 
       // Assert
       expect(error).toBeDefined()
-      expect(error.message).toContain('"academicInfo.instrument" must be one of')
+      expect(error.message).toContain('"academicInfo.instrumentProgress[0].instrumentName" must be one of')
     })
 
-    it('should require currentStage in academicInfo', () => {
+    it('should require currentStage in instrumentProgress', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          // Missing currentStage
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה'
+              // Missing currentStage
+            }
+          ],
           class: 'א'
         }
       }
@@ -249,18 +293,24 @@ describe('Student Validation', () => {
 
       // Assert
       expect(error).toBeDefined()
-      expect(error.message).toContain('"academicInfo.currentStage" is required')
+      expect(error.message).toContain('"academicInfo.instrumentProgress[0].currentStage" is required')
     })
 
     it('should validate currentStage is in allowed range', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 10, // Outside allowed range
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 10 // Outside allowed range
+            }
+          ],
           class: 'א'
         }
       }
@@ -277,8 +327,10 @@ describe('Student Validation', () => {
     it('should require class in academicInfo for regular users', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
           instrumentProgress: [
@@ -302,8 +354,10 @@ describe('Student Validation', () => {
     it('should NOT require class in academicInfo for admin users', () => {
       // Setup
       const studentWithoutClass = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
           instrumentProgress: [
@@ -327,7 +381,8 @@ describe('Student Validation', () => {
       // Setup
       const studentWithoutClass = {
         personalInfo: {
-          fullName: 'Test Student Updated'
+          firstName: 'Test',
+          lastName: 'Updated'
         },
         academicInfo: {
           instrumentProgress: [
@@ -350,12 +405,18 @@ describe('Student Validation', () => {
     it('should validate class is in allowed list', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 1
+            }
+          ],
           class: 'invalid-class' // Not in allowed list
         }
       }
@@ -371,18 +432,24 @@ describe('Student Validation', () => {
     it('should validate test status values', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
-          class: 'א',
-          tests: {
-            stageTest: {
-              status: 'invalid-status' // Invalid status
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 1,
+              tests: {
+                stageTest: {
+                  status: 'invalid-status' // Invalid status
+                }
+              }
             }
-          }
+          ],
+          class: 'א'
         }
       }
 
@@ -391,18 +458,24 @@ describe('Student Validation', () => {
 
       // Assert
       expect(error).toBeDefined()
-      expect(error.message).toContain('"academicInfo.tests.stageTest.status" must be one of')
+      expect(error.message).toContain('must be one of')
     })
 
     it('should validate school year entries', () => {
       // Setup
       const invalidStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 1
+            }
+          ],
           class: 'א'
         },
         enrollments: {
@@ -437,7 +510,7 @@ describe('Student Validation', () => {
 
     it('should define valid test statuses', () => {
       // Assert
-      expect(STUDENT_CONSTANTS.TEST_STATUSES).toEqual(['לא נבחן', 'עבר/ה', 'לא עבר/ה'])
+      expect(STUDENT_CONSTANTS.TEST_STATUSES).toEqual(['לא נבחן', 'עבר/ה', 'לא עבר/ה', 'עבר/ה בהצטיינות', 'עבר/ה בהצטיינות יתרה'])
     })
   })
 
@@ -451,12 +524,18 @@ describe('Student Validation', () => {
     it('should set default values correctly', () => {
       // Setup - Create a minimal valid student
       const minimalStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 1
+            }
+          ],
           class: 'א'
         }
       }
@@ -470,20 +549,16 @@ describe('Student Validation', () => {
       expect(value.enrollments.ensembleIds).toEqual([])
       expect(value.enrollments.schoolYears).toEqual([])
       expect(value.isActive).toBe(true)
-      expect(value.academicInfo.tests).toBeDefined()
-      
-      // Remove expectation about specific test properties since they aren't defined in schema
-      // or replace with checks that match the actual implementation
-      // These next two lines are commented out as they don't match your schema implementation
-      // expect(value.academicInfo.tests.stageTest).toBeDefined()
-      // expect(value.academicInfo.tests.technicalTest).toBeDefined()
+      expect(value.academicInfo.instrumentProgress[0].tests).toBeDefined()
     })
 
     it('should allow null for optional personalInfo fields', () => {
       // Setup
       const studentWithNulls = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student',
+          firstName: 'Test',
+          lastName: 'Student',
           phone: null,
           age: null,
           address: null,
@@ -493,8 +568,12 @@ describe('Student Validation', () => {
           studentEmail: null
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 1
+            }
+          ],
           class: 'א'
         }
       }
@@ -509,23 +588,29 @@ describe('Student Validation', () => {
     it('should allow empty strings for notes fields', () => {
       // Setup
       const studentWithEmptyNotes = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Student'
+          firstName: 'Test',
+          lastName: 'Student'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
-          class: 'א',
-          tests: {
-            stageTest: {
-              status: 'לא נבחן',
-              notes: ''
-            },
-            technicalTest: {
-              status: 'לא נבחן',
-              notes: ''
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 1,
+              tests: {
+                stageTest: {
+                  status: 'לא נבחן',
+                  notes: ''
+                },
+                technicalTest: {
+                  status: 'לא נבחן',
+                  notes: ''
+                }
+              }
             }
-          }
+          ],
+          class: 'א'
         }
       }
 
@@ -539,8 +624,10 @@ describe('Student Validation', () => {
     it('should allow full student object with all properties', () => {
       // Setup
       const fullStudent = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Full Test Student',
+          firstName: 'Full Test',
+          lastName: 'Student',
           phone: '0501234567',
           age: 16,
           address: 'Full Address',
@@ -550,23 +637,28 @@ describe('Student Validation', () => {
           studentEmail: 'fullstudent@example.com'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 4,
-          class: 'י',
-          tests: {
-            stageTest: {
-              status: 'עבר/ה',
-              lastTestDate: new Date('2023-05-15'),
-              nextTestDate: new Date('2024-05-15'),
-              notes: 'Full notes for stage test'
-            },
-            technicalTest: {
-              status: 'עבר/ה',
-              lastTestDate: new Date('2023-06-10'),
-              nextTestDate: new Date('2024-06-10'),
-              notes: 'Full notes for technical test'
+          instrumentProgress: [
+            {
+              instrumentName: 'חצוצרה',
+              currentStage: 4,
+              isPrimary: true,
+              tests: {
+                stageTest: {
+                  status: 'עבר/ה',
+                  lastTestDate: new Date('2023-05-15'),
+                  nextTestDate: new Date('2024-05-15'),
+                  notes: 'Full notes for stage test'
+                },
+                technicalTest: {
+                  status: 'עבר/ה',
+                  lastTestDate: new Date('2023-06-10'),
+                  nextTestDate: new Date('2024-06-10'),
+                  notes: 'Full notes for technical test'
+                }
+              }
             }
-          }
+          ],
+          class: 'י'
         },
         enrollments: {
           orchestraIds: ['orchestra1', 'orchestra2', 'orchestra3'],

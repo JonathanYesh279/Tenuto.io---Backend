@@ -3,6 +3,9 @@ import { studentController } from '../student.controller.js'
 import { studentService } from '../student.service.js'
 import { ObjectId } from 'mongodb'
 
+const TEST_TENANT_ID = 'test-tenant-id'
+const TEST_CONTEXT = { tenantId: TEST_TENANT_ID, isAdmin: true, userId: 'test-user-id', scopes: { studentIds: [] } }
+
 // Mock the student service
 vi.mock('../student.service.js', () => ({
   studentService: {
@@ -14,6 +17,11 @@ vi.mock('../student.service.js', () => ({
   }
 }))
 
+// Mock queryScoping (canAccessStudent used by getStudentById controller)
+vi.mock('../../../utils/queryScoping.js', () => ({
+  canAccessStudent: vi.fn().mockReturnValue(true)
+}))
+
 describe('Student Controller', () => {
   let req, res, next
 
@@ -21,7 +29,7 @@ describe('Student Controller', () => {
     // Reset mocks
     vi.clearAllMocks()
 
-    // Setup request object
+    // Setup request object with context
     req = {
       params: {},
       query: {},
@@ -30,7 +38,8 @@ describe('Student Controller', () => {
         _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
         roles: ['מורה']
       },
-      isAdmin: false
+      isAdmin: false,
+      context: TEST_CONTEXT
     }
 
     // Setup response object with chainable methods
@@ -55,22 +64,28 @@ describe('Student Controller', () => {
       }
 
       const mockStudents = [
-        { _id: '1', personalInfo: { fullName: 'Student 1' } },
-        { _id: '2', personalInfo: { fullName: 'Student 2' } }
+        { _id: '1', personalInfo: { firstName: 'Student', lastName: '1' } },
+        { _id: '2', personalInfo: { firstName: 'Student', lastName: '2' } }
       ]
       studentService.getStudents.mockResolvedValue(mockStudents)
 
       // Execute
       await studentController.getStudents(req, res, next)
 
-      // Assert
-      expect(studentService.getStudents).toHaveBeenCalledWith({
-        name: 'Test Student',
-        instrument: 'Violin',
-        stage: '3',
-        isActive: 'true',
-        showInactive: true  // This should match what the controller passes
-      })
+      // Assert - controller passes filterBy, page, limit, { context: req.context }
+      expect(studentService.getStudents).toHaveBeenCalledWith(
+        {
+          name: 'Test Student',
+          instrument: 'Violin',
+          stage: '3',
+          isActive: 'true',
+          showInactive: true,
+          ids: undefined
+        },
+        1,
+        0,
+        { context: TEST_CONTEXT }
+      )
       expect(res.json).toHaveBeenCalledWith(mockStudents)
     })
 
@@ -95,7 +110,7 @@ describe('Student Controller', () => {
 
       const mockStudent = {
         _id: studentId,
-        personalInfo: { fullName: 'Test Student' }
+        personalInfo: { firstName: 'Test', lastName: 'Student' }
       }
       studentService.getStudentById.mockResolvedValue(mockStudent)
 
@@ -103,7 +118,10 @@ describe('Student Controller', () => {
       await studentController.getStudentById(req, res, next)
 
       // Assert
-      expect(studentService.getStudentById).toHaveBeenCalledWith(studentId.toString())
+      expect(studentService.getStudentById).toHaveBeenCalledWith(
+        studentId.toString(),
+        { context: TEST_CONTEXT }
+      )
       expect(res.json).toHaveBeenCalledWith(mockStudent)
     })
 
@@ -125,14 +143,14 @@ describe('Student Controller', () => {
     it('should add a new student', async () => {
       // Setup - Admin user
       req.teacher.roles = ['מנהל']
-      
+
       const studentToAdd = {
-        personalInfo: { fullName: 'New Student' },
+        personalInfo: { firstName: 'New', lastName: 'Student' },
         academicInfo: { instrument: 'Violin', currentStage: 1, class: 'א' }
       }
       req.body = studentToAdd
 
-      const addedStudent = { 
+      const addedStudent = {
         _id: new ObjectId(),
         ...studentToAdd
       }
@@ -141,11 +159,12 @@ describe('Student Controller', () => {
       // Execute
       await studentController.addStudent(req, res, next)
 
-      // Assert
+      // Assert - controller passes (body, teacherId, isAdmin, { context })
       expect(studentService.addStudent).toHaveBeenCalledWith(
-        studentToAdd, 
+        studentToAdd,
         req.teacher._id.toString(),
-        true // isAdmin should be true for this test
+        true, // isAdmin should be true for מנהל
+        { context: TEST_CONTEXT }
       )
       expect(res.status).toHaveBeenCalledWith(201)
       expect(res.json).toHaveBeenCalledWith(addedStudent)
@@ -153,18 +172,18 @@ describe('Student Controller', () => {
 
     it('should add student with teacher role (not admin)', async () => {
       // Setup - Teacher (not admin)
-      req.teacher = { 
+      req.teacher = {
         _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
         roles: ['מורה']
       }
-      
+
       const studentToAdd = {
-        personalInfo: { fullName: 'New Student' },
+        personalInfo: { firstName: 'New', lastName: 'Student' },
         academicInfo: { instrument: 'Violin', currentStage: 1, class: 'א' }
       }
       req.body = studentToAdd
 
-      const addedStudent = { 
+      const addedStudent = {
         _id: new ObjectId(),
         ...studentToAdd
       }
@@ -175,9 +194,10 @@ describe('Student Controller', () => {
 
       // Assert
       expect(studentService.addStudent).toHaveBeenCalledWith(
-        studentToAdd, 
+        studentToAdd,
         req.teacher._id.toString(),
-        false // isAdmin should be false for this test
+        false, // isAdmin should be false for this test
+        { context: TEST_CONTEXT }
       )
       expect(res.status).toHaveBeenCalledWith(201)
       expect(res.json).toHaveBeenCalledWith(addedStudent)
@@ -201,17 +221,17 @@ describe('Student Controller', () => {
     it('should update an existing student as admin', async () => {
       // Setup - Admin user
       req.teacher.roles = ['מנהל']
-      
+
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: studentId.toString() }
-      
+
       const studentToUpdate = {
-        personalInfo: { fullName: 'Updated Student' },
+        personalInfo: { firstName: 'Updated', lastName: 'Student' },
         academicInfo: { instrument: 'Violin', currentStage: 2, class: 'ב' }
       }
       req.body = studentToUpdate
 
-      const updatedStudent = { 
+      const updatedStudent = {
         _id: studentId,
         ...studentToUpdate
       }
@@ -220,33 +240,34 @@ describe('Student Controller', () => {
       // Execute
       await studentController.updateStudent(req, res, next)
 
-      // Assert
+      // Assert - controller passes (id, body, teacherId, isAdmin, { context })
       expect(studentService.updateStudent).toHaveBeenCalledWith(
-        studentId.toString(), 
+        studentId.toString(),
         studentToUpdate,
         req.teacher._id.toString(),
-        true // isAdmin should be true for this test
+        true, // isAdmin
+        { context: TEST_CONTEXT }
       )
       expect(res.json).toHaveBeenCalledWith(updatedStudent)
     })
 
     it('should update student as teacher (not admin)', async () => {
       // Setup - Teacher (not admin)
-      req.teacher = { 
+      req.teacher = {
         _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
         roles: ['מורה']
       }
-      
+
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: studentId.toString() }
-      
+
       const studentToUpdate = {
-        personalInfo: { fullName: 'Updated Student' },
+        personalInfo: { firstName: 'Updated', lastName: 'Student' },
         academicInfo: { instrument: 'Violin', currentStage: 2, class: 'ב' }
       }
       req.body = studentToUpdate
 
-      const updatedStudent = { 
+      const updatedStudent = {
         _id: studentId,
         ...studentToUpdate
       }
@@ -257,10 +278,11 @@ describe('Student Controller', () => {
 
       // Assert
       expect(studentService.updateStudent).toHaveBeenCalledWith(
-        studentId.toString(), 
+        studentId.toString(),
         studentToUpdate,
         req.teacher._id.toString(),
-        false // isAdmin should be false for this test
+        false, // isAdmin should be false for this test
+        { context: TEST_CONTEXT }
       )
       expect(res.json).toHaveBeenCalledWith(updatedStudent)
     })
@@ -284,13 +306,13 @@ describe('Student Controller', () => {
     it('should remove (deactivate) a student as admin', async () => {
       // Setup - Admin user
       req.teacher.roles = ['מנהל']
-      
+
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: studentId.toString() }
 
-      const removedStudent = { 
+      const removedStudent = {
         _id: studentId,
-        personalInfo: { fullName: 'Removed Student' },
+        personalInfo: { firstName: 'Removed', lastName: 'Student' },
         isActive: false
       }
       studentService.removeStudent.mockResolvedValue(removedStudent)
@@ -298,28 +320,29 @@ describe('Student Controller', () => {
       // Execute
       await studentController.removeStudent(req, res, next)
 
-      // Assert
+      // Assert - controller passes (id, teacherId, isAdmin, { context })
       expect(studentService.removeStudent).toHaveBeenCalledWith(
         studentId.toString(),
         req.teacher._id.toString(),
-        true // isAdmin should be true for this test
+        true, // isAdmin
+        { context: TEST_CONTEXT }
       )
       expect(res.json).toHaveBeenCalledWith(removedStudent)
     })
 
     it('should remove student as teacher (not admin)', async () => {
       // Setup - Teacher (not admin)
-      req.teacher = { 
+      req.teacher = {
         _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
         roles: ['מורה']
       }
-      
+
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: studentId.toString() }
 
-      const removedStudent = { 
+      const removedStudent = {
         _id: studentId,
-        personalInfo: { fullName: 'Removed Student' },
+        personalInfo: { firstName: 'Removed', lastName: 'Student' },
         isActive: false
       }
       studentService.removeStudent.mockResolvedValue(removedStudent)
@@ -331,7 +354,8 @@ describe('Student Controller', () => {
       expect(studentService.removeStudent).toHaveBeenCalledWith(
         studentId.toString(),
         req.teacher._id.toString(),
-        false // isAdmin should be false for this test
+        false, // isAdmin
+        { context: TEST_CONTEXT }
       )
       expect(res.json).toHaveBeenCalledWith(removedStudent)
     })

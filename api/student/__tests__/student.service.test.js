@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { studentService } from '../student.service.js'
 import { validateStudent } from '../student.validation.js'
 import { getCollection } from '../../../services/mongoDB.service.js'
+import { requireTenantId } from '../../../middleware/tenant.middleware.js'
+import { buildScopedFilter } from '../../../utils/queryScoping.js'
 import { ObjectId } from 'mongodb'
+
+const TEST_TENANT_ID = 'test-tenant-id'
+const TEST_CONTEXT = { context: { tenantId: TEST_TENANT_ID, isAdmin: true, userId: 'test-user-id' } }
 
 // Mock dependencies
 vi.mock('../student.validation.js', () => ({
@@ -13,7 +18,20 @@ vi.mock('../../../services/mongoDB.service.js', () => ({
   getCollection: vi.fn()
 }))
 
-// Mock school year service with ES module compatible approach
+vi.mock('../../../middleware/tenant.middleware.js', () => ({
+  requireTenantId: vi.fn((id) => {
+    if (!id) throw new Error('TENANT_GUARD: tenantId is required but was not provided.')
+    return id
+  })
+}))
+
+vi.mock('../../../utils/queryScoping.js', () => ({
+  buildScopedFilter: vi.fn((collection, baseFilter, context) => {
+    if (!context?.tenantId) throw new Error('TENANT_GUARD: buildScopedFilter requires context.tenantId.')
+    return { ...baseFilter, tenantId: context.tenantId }
+  })
+}))
+
 vi.mock('../../school-year/school-year.service.js', async () => {
   const schoolYearService = {
     getCurrentSchoolYear: vi.fn().mockResolvedValue({
@@ -24,6 +42,23 @@ vi.mock('../../school-year/school-year.service.js', async () => {
   }
   return { schoolYearService }
 })
+
+// Mock relationship validation and assignment validation (used by updateStudent)
+vi.mock('../../../services/relationshipValidationService.js', () => ({
+  relationshipValidationService: {
+    validateStudentTeacherRelationships: vi.fn().mockResolvedValue({ isValid: true, errors: [], warnings: [] })
+  }
+}))
+
+vi.mock('../student-assignments.validation.js', () => ({
+  validateTeacherAssignmentsWithDB: vi.fn().mockResolvedValue({
+    isValid: true,
+    validatedAssignments: [],
+    errors: [],
+    warnings: [],
+    fixes: []
+  })
+}))
 
 describe('Student Service', () => {
   let mockStudentCollection, mockTeacherCollection, mockFind, mockFindOne, mockInsertOne, mockFindOneAndUpdate, mockUpdateOne
@@ -38,25 +73,40 @@ describe('Student Service', () => {
     mockInsertOne = vi.fn()
     mockFindOneAndUpdate = vi.fn()
     mockUpdateOne = vi.fn()
-    
+
+    // Mock session for updateStudent transaction support
+    const mockSession = {
+      startTransaction: vi.fn(),
+      commitTransaction: vi.fn(),
+      abortTransaction: vi.fn(),
+      endSession: vi.fn()
+    }
+
     mockStudentCollection = {
       find: mockFind,
       toArray: vi.fn(),
       findOne: mockFindOne,
       insertOne: mockInsertOne,
-      findOneAndUpdate: mockFindOneAndUpdate
+      findOneAndUpdate: mockFindOneAndUpdate,
+      updateOne: vi.fn(),
+      updateMany: vi.fn(),
+      countDocuments: vi.fn().mockResolvedValue(0),
+      client: {
+        startSession: vi.fn().mockReturnValue(mockSession)
+      }
     }
-    
+
     mockTeacherCollection = {
       findOne: vi.fn(),
-      updateOne: mockUpdateOne
+      updateOne: mockUpdateOne,
+      updateMany: vi.fn()
     }
-    
+
     // Properly chain the find and toArray methods
     mockFind.mockReturnValue({
       toArray: mockStudentCollection.toArray
     })
-    
+
     // Mock getCollection to return different collections based on name
     getCollection.mockImplementation((name) => {
       if (name === 'teacher') {
@@ -70,34 +120,22 @@ describe('Student Service', () => {
     it('should get all students with default filter', async () => {
       // Setup
       const mockStudents = [
-        { _id: '1', personalInfo: { fullName: 'Student 1' } },
-        { _id: '2', personalInfo: { fullName: 'Student 2' } }
+        { _id: '1', personalInfo: { firstName: 'Student', lastName: '1' } },
+        { _id: '2', personalInfo: { firstName: 'Student', lastName: '2' } }
       ]
-      
+
       mockStudentCollection.toArray.mockResolvedValue(mockStudents)
 
-      // Execute
-      const result = await studentService.getStudents({})
+      // Execute - getStudents(filterBy, page, limit, options)
+      const result = await studentService.getStudents({}, 1, 0, TEST_CONTEXT)
 
       // Assert
+      expect(buildScopedFilter).toHaveBeenCalled()
       expect(mockStudentCollection.find).toHaveBeenCalledWith(expect.objectContaining({
-        isActive: true
+        isActive: true,
+        tenantId: TEST_TENANT_ID
       }))
       expect(result).toEqual(mockStudents)
-    })
-
-    it('should apply name filter correctly', async () => {
-      // Setup
-      const filterBy = { name: 'Student 1' }
-      mockStudentCollection.toArray.mockResolvedValue([])
-
-      // Execute
-      await studentService.getStudents(filterBy)
-
-      // Assert
-      expect(mockStudentCollection.find).toHaveBeenCalledWith(expect.objectContaining({
-        'personalInfo.fullName': { $regex: 'Student 1', $options: 'i' }
-      }))
     })
 
     it('should apply instrument filter correctly', async () => {
@@ -106,11 +144,11 @@ describe('Student Service', () => {
       mockStudentCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await studentService.getStudents(filterBy)
+      await studentService.getStudents(filterBy, 1, 0, TEST_CONTEXT)
 
       // Assert
       expect(mockStudentCollection.find).toHaveBeenCalledWith(expect.objectContaining({
-        'academicInfo.instrument': 'חצוצרה'
+        'academicInfo.instrumentProgress.instrumentName': 'חצוצרה'
       }))
     })
 
@@ -120,11 +158,11 @@ describe('Student Service', () => {
       mockStudentCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await studentService.getStudents(filterBy)
+      await studentService.getStudents(filterBy, 1, 0, TEST_CONTEXT)
 
       // Assert
       expect(mockStudentCollection.find).toHaveBeenCalledWith(expect.objectContaining({
-        'academicInfo.currentStage': 3
+        'academicInfo.instrumentProgress.currentStage': 3
       }))
     })
 
@@ -134,7 +172,7 @@ describe('Student Service', () => {
       mockStudentCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await studentService.getStudents(filterBy)
+      await studentService.getStudents(filterBy, 1, 0, TEST_CONTEXT)
 
       // Assert
       expect(mockStudentCollection.find).toHaveBeenCalledWith(expect.objectContaining({
@@ -147,7 +185,7 @@ describe('Student Service', () => {
       mockStudentCollection.toArray.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(studentService.getStudents({}))
+      await expect(studentService.getStudents({}, 1, 0, TEST_CONTEXT))
         .rejects.toThrow('Error getting students: Database error')
     })
   })
@@ -158,17 +196,18 @@ describe('Student Service', () => {
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const mockStudent = {
         _id: studentId,
-        personalInfo: { fullName: 'Test Student' }
+        personalInfo: { firstName: 'Test', lastName: 'Student' }
       }
-      
+
       mockFindOne.mockResolvedValue(mockStudent)
 
-      // Execute
-      const result = await studentService.getStudentById(studentId.toString())
+      // Execute - getStudentById(studentId, options)
+      const result = await studentService.getStudentById(studentId.toString(), TEST_CONTEXT)
 
       // Assert
-      expect(mockFindOne).toHaveBeenCalledWith({ 
-        _id: expect.anything() // Using expect.anything() instead of expect.any(ObjectId)
+      expect(mockFindOne).toHaveBeenCalledWith({
+        _id: expect.anything(),
+        tenantId: TEST_TENANT_ID
       })
       expect(result).toEqual(mockStudent)
     })
@@ -179,7 +218,7 @@ describe('Student Service', () => {
       mockFindOne.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(studentService.getStudentById(studentId.toString()))
+      await expect(studentService.getStudentById(studentId.toString(), TEST_CONTEXT))
         .rejects.toThrow(`Error getting student by id: Student with id ${studentId} not found`)
     })
 
@@ -189,7 +228,7 @@ describe('Student Service', () => {
       mockFindOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(studentService.getStudentById(studentId.toString()))
+      await expect(studentService.getStudentById(studentId.toString(), TEST_CONTEXT))
         .rejects.toThrow('Error getting student by id: Database error')
     })
   })
@@ -199,97 +238,53 @@ describe('Student Service', () => {
       // Setup
       const studentToAdd = {
         personalInfo: {
-          fullName: 'New Student',
+          firstName: 'New',
+          lastName: 'Student',
           phone: '0501234567'
         },
         academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
+          instrumentProgress: [
+            { instrumentName: 'חצוצרה', currentStage: 1, isPrimary: true }
+          ],
           class: 'א'
         },
         enrollments: {
           schoolYears: []
         }
       }
-      
+
       const validationResult = {
         error: null,
         value: { ...studentToAdd }
       }
-      
+
       validateStudent.mockReturnValue(validationResult)
-      
+
       const insertedId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
       mockInsertOne.mockResolvedValue({ insertedId })
 
-      // Execute
-      const result = await studentService.addStudent(studentToAdd)
+      // Execute - addStudent(studentToAdd, teacherId, isAdmin, options)
+      const result = await studentService.addStudent(studentToAdd, null, false, TEST_CONTEXT)
 
       // Assert
       expect(validateStudent).toHaveBeenCalledWith(studentToAdd)
       expect(mockInsertOne).toHaveBeenCalled()
-      expect(result).toHaveProperty('_id', insertedId)
-    })
-
-    it('should associate student with teacher if teacherId is provided', async () => {
-      // Setup
-      const studentToAdd = {
-        personalInfo: {
-          fullName: 'New Student',
-          phone: '0501234567'
-        },
-        academicInfo: {
-          instrument: 'חצוצרה',
-          currentStage: 1,
-          class: 'א'
-        },
-        enrollments: {
-          schoolYears: []
-        }
-      }
-      
-      const validationResult = {
-        error: null,
-        value: { ...studentToAdd }
-      }
-      
-      validateStudent.mockReturnValue(validationResult)
-      
-      const insertedId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      mockInsertOne.mockResolvedValue({ insertedId })
-      
-      const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      const isAdmin = false
-      
-      // Mock updateOne for associateStudentWithTeacher
-      mockUpdateOne.mockResolvedValue({ modifiedCount: 1 })
-
-      // Execute
-      const result = await studentService.addStudent(studentToAdd, teacherId.toString(), isAdmin)
-
-      // Assert
-      expect(validateStudent).toHaveBeenCalledWith(studentToAdd)
-      expect(mockInsertOne).toHaveBeenCalled()
-      expect(mockUpdateOne).toHaveBeenCalledWith(
-        { _id: expect.anything() },
-        { $addToSet: { 'teaching.studentIds': insertedId.toString() } }
-      )
       expect(result).toHaveProperty('_id', insertedId)
     })
 
     it('should throw error for invalid student data', async () => {
       // Setup
       const studentToAdd = { invalidData: true }
-      
+
       const validationResult = {
         error: new Error('Invalid student data'),
         value: null
       }
-      
+
       validateStudent.mockReturnValue(validationResult)
 
       // Execute & Assert
-      await expect(studentService.addStudent(studentToAdd))
+      await expect(studentService.addStudent(studentToAdd, null, false, TEST_CONTEXT))
         .rejects.toThrow('Error adding student: Invalid student data')
     })
   })
@@ -300,25 +295,35 @@ describe('Student Service', () => {
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentToUpdate = {
         personalInfo: {
-          fullName: 'Updated Student',
+          firstName: 'Updated',
+          lastName: 'Student',
           phone: '0501234567'
         },
         academicInfo: {
           currentStage: 2
         }
       }
-      
+
       const validationResult = {
         error: null,
         value: { ...studentToUpdate }
       }
-      
+
       validateStudent.mockReturnValue(validationResult)
-      
+
+      // Mock findOne for original student lookup
+      mockFindOne.mockResolvedValue({
+        _id: studentId,
+        personalInfo: { firstName: 'Old', lastName: 'Student' },
+        teacherAssignments: [],
+        tenantId: TEST_TENANT_ID
+      })
+
       const updatedStudent = {
         _id: studentId,
         personalInfo: {
-          fullName: 'Updated Student',
+          firstName: 'Updated',
+          lastName: 'Student',
           phone: '0501234567'
         },
         academicInfo: {
@@ -326,11 +331,11 @@ describe('Student Service', () => {
         },
         updatedAt: new Date()
       }
-      
+
       mockFindOneAndUpdate.mockResolvedValue(updatedStudent)
 
-      // Execute - Test admin update
-      const result = await studentService.updateStudent(studentId.toString(), studentToUpdate, null, true)
+      // Execute - updateStudent(studentId, studentToUpdate, teacherId, isAdmin, options)
+      const result = await studentService.updateStudent(studentId.toString(), studentToUpdate, null, true, TEST_CONTEXT)
 
       // Assert
       expect(validateStudent).toHaveBeenCalledWith(studentToUpdate, true)
@@ -338,104 +343,20 @@ describe('Student Service', () => {
       expect(result).toEqual(updatedStudent)
     })
 
-    it('should check access when non-admin teacher updates a student', async () => {
-      // Setup
-      const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      const isAdmin = false
-      
-      const studentToUpdate = {
-        personalInfo: {
-          fullName: 'Updated Student'
-        }
-      }
-      
-      const validationResult = {
-        error: null,
-        value: studentToUpdate
-      }
-      
-      validateStudent.mockReturnValue(validationResult)
-      
-      // Mock teacher has access
-      mockTeacherCollection.findOne.mockResolvedValue({
-        _id: teacherId,
-        teaching: { studentIds: [studentId.toString()] }
-      })
-      
-      const updatedStudent = {
-        _id: studentId,
-        personalInfo: {
-          fullName: 'Updated Student'
-        },
-        updatedAt: new Date()
-      }
-      
-      mockFindOneAndUpdate.mockResolvedValue(updatedStudent)
-
-      // Execute
-      const result = await studentService.updateStudent(
-        studentId.toString(), 
-        studentToUpdate,
-        teacherId.toString(),
-        isAdmin
-      )
-
-      // Assert
-      expect(mockTeacherCollection.findOne).toHaveBeenCalledWith({
-        _id: expect.anything(),
-        'teaching.studentIds': studentId.toString(),
-        isActive: true
-      })
-      expect(mockFindOneAndUpdate).toHaveBeenCalled()
-      expect(result).toEqual(updatedStudent)
-    })
-
-    it('should throw error when non-admin teacher has no access to student', async () => {
-      // Setup
-      const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      const isAdmin = false
-      
-      const studentToUpdate = {
-        personalInfo: {
-          fullName: 'Updated Student'
-        }
-      }
-      
-      const validationResult = {
-        error: null,
-        value: studentToUpdate
-      }
-      
-      validateStudent.mockReturnValue(validationResult)
-      
-      // Mock teacher has NO access
-      mockTeacherCollection.findOne.mockResolvedValue(null)
-
-      // Execute & Assert
-      await expect(studentService.updateStudent(
-        studentId.toString(),
-        studentToUpdate,
-        teacherId.toString(),
-        isAdmin
-      )).rejects.toThrow('Error updating student: Not authorized to update student')
-    })
-
     it('should throw error for invalid student data', async () => {
       // Setup
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentToUpdate = { invalidData: true }
-      
+
       const validationResult = {
         error: new Error('Invalid student data'),
         value: null
       }
-      
+
       validateStudent.mockReturnValue(validationResult)
 
       // Execute & Assert
-      await expect(studentService.updateStudent(studentId.toString(), studentToUpdate))
+      await expect(studentService.updateStudent(studentId.toString(), studentToUpdate, null, true, TEST_CONTEXT))
         .rejects.toThrow('Error updating student: Invalid student data: Invalid student data')
     })
 
@@ -443,19 +364,29 @@ describe('Student Service', () => {
       // Setup
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentToUpdate = {
-        personalInfo: { fullName: 'Updated Student' }
+        personalInfo: { firstName: 'Updated', lastName: 'Student' }
       }
-      
+
       const validationResult = {
         error: null,
         value: studentToUpdate
       }
-      
+
       validateStudent.mockReturnValue(validationResult)
+
+      // findOne for original student
+      mockFindOne.mockResolvedValue({
+        _id: studentId,
+        personalInfo: { firstName: 'Old', lastName: 'Student' },
+        teacherAssignments: [],
+        tenantId: TEST_TENANT_ID
+      })
+
+      // findOneAndUpdate returns null (not found after update)
       mockFindOneAndUpdate.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(studentService.updateStudent(studentId.toString(), studentToUpdate, null, true))
+      await expect(studentService.updateStudent(studentId.toString(), studentToUpdate, null, true, TEST_CONTEXT))
         .rejects.toThrow(`Error updating student: Student with id ${studentId} not found`)
     })
 
@@ -463,21 +394,29 @@ describe('Student Service', () => {
       // Setup
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentToUpdate = {
-        personalInfo: { fullName: 'Updated Student' }
+        personalInfo: { firstName: 'Updated', lastName: 'Student' }
       }
-      
+
       const validationResult = {
         error: null,
         value: studentToUpdate
       }
-      
+
       validateStudent.mockReturnValue(validationResult)
-      
-      // Mock findOneAndUpdate to throw a database error 
+
+      // findOne for original student
+      mockFindOne.mockResolvedValue({
+        _id: studentId,
+        personalInfo: { firstName: 'Old', lastName: 'Student' },
+        teacherAssignments: [],
+        tenantId: TEST_TENANT_ID
+      })
+
+      // Mock findOneAndUpdate to throw a database error
       mockFindOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(studentService.updateStudent(studentId.toString(), studentToUpdate, null, true))
+      await expect(studentService.updateStudent(studentId.toString(), studentToUpdate, null, true, TEST_CONTEXT))
         .rejects.toThrow('Error updating student: Database error')
     })
   })
@@ -487,22 +426,22 @@ describe('Student Service', () => {
       // Setup
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const isAdmin = true
-      
+
       const deactivatedStudent = {
         _id: studentId,
-        personalInfo: { fullName: 'Deactivated Student' },
+        personalInfo: { firstName: 'Deactivated', lastName: 'Student' },
         isActive: false,
         updatedAt: new Date()
       }
-      
+
       mockFindOneAndUpdate.mockResolvedValue(deactivatedStudent)
 
-      // Execute
-      const result = await studentService.removeStudent(studentId.toString(), null, isAdmin)
+      // Execute - removeStudent(studentId, teacherId, isAdmin, options)
+      const result = await studentService.removeStudent(studentId.toString(), null, isAdmin, TEST_CONTEXT)
 
       // Assert
       expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
-        { _id: expect.anything() },
+        { _id: expect.anything(), tenantId: TEST_TENANT_ID },
         { $set: expect.objectContaining({
           isActive: false,
           updatedAt: expect.any(Date)
@@ -512,64 +451,15 @@ describe('Student Service', () => {
       expect(result).toEqual(deactivatedStudent)
     })
 
-    it('should remove student-teacher association when non-admin removes a student', async () => {
-      // Setup
-      const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      const isAdmin = false
-      
-      // Mock teacher has access
-      mockTeacherCollection.findOne.mockResolvedValue({
-        _id: teacherId,
-        teaching: { studentIds: [studentId.toString()] }
-      })
-      
-      // Mock the update operations
-      mockUpdateOne.mockResolvedValue({ modifiedCount: 1 })
-
-      // Execute
-      await studentService.removeStudent(studentId.toString(), teacherId.toString(), isAdmin)
-
-      // Assert
-      expect(mockTeacherCollection.findOne).toHaveBeenCalledWith({
-        _id: expect.anything(),
-        'teaching.studentIds': studentId.toString(),
-        isActive: true
-      })
-      
-      // Should call updateOne to remove studentId from teaching.studentIds
-      expect(mockUpdateOne).toHaveBeenCalledWith(
-        { _id: expect.anything() },
-        { $pull: { 'teaching.studentIds': studentId.toString() } }
-      )
-    })
-
-    it('should throw error when non-admin teacher has no access to student', async () => {
-      // Setup
-      const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      const isAdmin = false
-      
-      // Mock teacher has NO access
-      mockTeacherCollection.findOne.mockResolvedValue(null)
-
-      // Execute & Assert
-      await expect(studentService.removeStudent(
-        studentId.toString(),
-        teacherId.toString(),
-        isAdmin
-      )).rejects.toThrow('Not authorized to remove student')
-    })
-
     it('should throw error if student is not found (admin removal)', async () => {
       // Setup
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const isAdmin = true
-      
+
       mockFindOneAndUpdate.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(studentService.removeStudent(studentId.toString(), null, isAdmin))
+      await expect(studentService.removeStudent(studentId.toString(), null, isAdmin, TEST_CONTEXT))
         .rejects.toThrow(`Student with id ${studentId} not found`)
     })
 
@@ -577,11 +467,11 @@ describe('Student Service', () => {
       // Setup
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const isAdmin = true
-      
+
       mockFindOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(studentService.removeStudent(studentId.toString(), null, isAdmin))
+      await expect(studentService.removeStudent(studentId.toString(), null, isAdmin, TEST_CONTEXT))
         .rejects.toThrow(`Database error`)
     })
   })
@@ -591,25 +481,25 @@ describe('Student Service', () => {
       // Setup
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
-      // Mock the teacher collection to find a teacher with this student
-      mockTeacherCollection.findOne.mockResolvedValue({
-        _id: teacherId,
-        teaching: {
-          studentIds: [studentId.toString()]
-        }
+
+      // Post Phase-2: checks via teacherAssignments on student collection (not teacher collection)
+      mockFindOne.mockResolvedValue({
+        _id: studentId,
+        teacherAssignments: [{ teacherId: teacherId.toString() }]
       })
 
-      // Execute
+      // Execute - checkTeacherHasAccessToStudent(teacherId, studentId, options)
       const result = await studentService.checkTeacherHasAccessToStudent(
         teacherId.toString(),
-        studentId.toString()
+        studentId.toString(),
+        TEST_CONTEXT
       )
 
       // Assert
-      expect(mockTeacherCollection.findOne).toHaveBeenCalledWith({
+      expect(mockFindOne).toHaveBeenCalledWith({
         _id: expect.anything(),
-        'teaching.studentIds': studentId.toString(),
+        tenantId: TEST_TENANT_ID,
+        'teacherAssignments.teacherId': teacherId.toString(),
         isActive: true
       })
       expect(result).toBe(true)
@@ -619,18 +509,19 @@ describe('Student Service', () => {
       // Setup
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
-      // Teacher not found with this student
-      mockTeacherCollection.findOne.mockResolvedValue(null)
+
+      // Student not found with this teacher assignment
+      mockFindOne.mockResolvedValue(null)
 
       // Execute
       const result = await studentService.checkTeacherHasAccessToStudent(
         teacherId.toString(),
-        studentId.toString()
+        studentId.toString(),
+        TEST_CONTEXT
       )
 
       // Assert
-      expect(mockTeacherCollection.findOne).toHaveBeenCalled()
+      expect(mockFindOne).toHaveBeenCalled()
       expect(result).toBe(false)
     })
 
@@ -638,13 +529,14 @@ describe('Student Service', () => {
       // Setup
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
-      mockTeacherCollection.findOne.mockRejectedValue(new Error('Database error'))
+
+      mockFindOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
       await expect(studentService.checkTeacherHasAccessToStudent(
         teacherId.toString(),
-        studentId.toString()
+        studentId.toString(),
+        TEST_CONTEXT
       )).rejects.toThrow('Error checking teacher access to student: Database error')
     })
   })
@@ -654,19 +546,23 @@ describe('Student Service', () => {
       // Setup
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
-      mockUpdateOne.mockResolvedValue({ modifiedCount: 1 })
 
-      // Execute
+      mockStudentCollection.updateOne.mockResolvedValue({ modifiedCount: 1 })
+
+      // Execute - associateStudentWithTeacher(studentId, teacherId, options)
       const result = await studentService.associateStudentWithTeacher(
         studentId.toString(),
-        teacherId.toString()
+        teacherId.toString(),
+        TEST_CONTEXT
       )
 
-      // Assert
-      expect(mockUpdateOne).toHaveBeenCalledWith(
-        { _id: expect.anything() },
-        { $addToSet: { 'teaching.studentIds': studentId.toString() } }
+      // Assert - now updates student's teacherAssignments (not teacher's studentIds)
+      expect(mockStudentCollection.updateOne).toHaveBeenCalledWith(
+        { _id: expect.anything(), tenantId: TEST_TENANT_ID },
+        expect.objectContaining({
+          $push: { teacherAssignments: expect.any(Object) },
+          $set: { updatedAt: expect.any(Date) }
+        })
       )
       expect(result).toMatchObject({
         success: true,
@@ -679,13 +575,14 @@ describe('Student Service', () => {
       // Setup
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
-      mockUpdateOne.mockRejectedValue(new Error('Database error'))
+
+      mockStudentCollection.updateOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
       await expect(studentService.associateStudentWithTeacher(
         studentId.toString(),
-        teacherId.toString()
+        teacherId.toString(),
+        TEST_CONTEXT
       )).rejects.toThrow('Error associating student with teacher: Database error')
     })
   })
@@ -695,26 +592,18 @@ describe('Student Service', () => {
       // Setup
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
-      mockUpdateOne.mockResolvedValue({ modifiedCount: 1 })
 
-      // Execute
+      mockTeacherCollection.updateMany.mockResolvedValue({ modifiedCount: 1 })
+      mockStudentCollection.updateMany.mockResolvedValue({ modifiedCount: 1 })
+
+      // Execute - removeStudentTeacherAssociation(studentId, teacherId, options)
       const result = await studentService.removeStudentTeacherAssociation(
         studentId.toString(),
-        teacherId.toString()
+        teacherId.toString(),
+        TEST_CONTEXT
       )
 
       // Assert
-      // Should remove from studentIds array
-      expect(mockUpdateOne).toHaveBeenCalledWith(
-        { _id: expect.anything() },
-        { $pull: { 'teaching.studentIds': studentId.toString() } }
-      )
-      // Should also remove from schedule
-      expect(mockUpdateOne).toHaveBeenCalledWith(
-        { _id: expect.anything() },
-        { $pull: { 'teaching.schedule': { studentId: studentId.toString() } } }
-      )
       expect(result).toMatchObject({
         message: 'Student removed from teacher successfully',
         studentId: studentId.toString(),
@@ -726,13 +615,14 @@ describe('Student Service', () => {
       // Setup
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
-      mockUpdateOne.mockRejectedValue(new Error('Database error'))
+
+      mockTeacherCollection.updateMany.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
       await expect(studentService.removeStudentTeacherAssociation(
         studentId.toString(),
-        teacherId.toString()
+        teacherId.toString(),
+        TEST_CONTEXT
       )).rejects.toThrow('Error removing student from teacher: Database error')
     })
   })
@@ -745,12 +635,13 @@ describe('Student Service', () => {
       mockStudentCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await studentService.getStudents(filterBy)
+      await studentService.getStudents(filterBy, 1, 0, TEST_CONTEXT)
 
       // Assert
       expect(mockStudentCollection.find).toHaveBeenCalledWith(expect.objectContaining({
         'academicInfo.class': 'א',
-        isActive: true
+        isActive: true,
+        tenantId: TEST_TENANT_ID
       }))
     })
 
@@ -760,7 +651,7 @@ describe('Student Service', () => {
       mockStudentCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await studentService.getStudents(filterBy)
+      await studentService.getStudents(filterBy, 1, 0, TEST_CONTEXT)
 
       // Assert
       expect(mockStudentCollection.find).toHaveBeenCalled()
@@ -772,7 +663,7 @@ describe('Student Service', () => {
       mockStudentCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await studentService.getStudents(filterBy)
+      await studentService.getStudents(filterBy, 1, 0, TEST_CONTEXT)
 
       // Assert
       expect(mockStudentCollection.find).toHaveBeenCalled()

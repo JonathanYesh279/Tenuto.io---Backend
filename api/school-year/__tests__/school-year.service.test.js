@@ -3,7 +3,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { schoolYearService } from '../school-year.service.js'
 import { validateSchoolYear } from '../school-year.validation.js'
 import { getCollection } from '../../../services/mongoDB.service.js'
+import { requireTenantId } from '../../../middleware/tenant.middleware.js'
 import { ObjectId } from 'mongodb'
+
+const TEST_TENANT_ID = 'test-tenant-id'
+const TEST_CONTEXT = { context: { tenantId: TEST_TENANT_ID } }
 
 // Mock dependencies
 vi.mock('../school-year.validation.js', () => ({
@@ -12,6 +16,13 @@ vi.mock('../school-year.validation.js', () => ({
 
 vi.mock('../../../services/mongoDB.service.js', () => ({
   getCollection: vi.fn()
+}))
+
+vi.mock('../../../middleware/tenant.middleware.js', () => ({
+  requireTenantId: vi.fn((id) => {
+    if (!id) throw new Error('TENANT_GUARD: tenantId is required but was not provided.')
+    return id
+  })
 }))
 
 describe('School Year Service', () => {
@@ -91,10 +102,10 @@ describe('School Year Service', () => {
       mockSchoolYearCollection.toArray.mockResolvedValue(mockSchoolYears)
 
       // Execute
-      const result = await schoolYearService.getSchoolYears()
+      const result = await schoolYearService.getSchoolYears(TEST_CONTEXT)
 
       // Assert
-      expect(mockSchoolYearCollection.find).toHaveBeenCalledWith({ isActive: true })
+      expect(mockSchoolYearCollection.find).toHaveBeenCalledWith({ isActive: true, tenantId: TEST_TENANT_ID })
       expect(mockSchoolYearCollection.sort).toHaveBeenCalledWith({ startDate: -1 })
       expect(mockSchoolYearCollection.limit).toHaveBeenCalledWith(4)
       expect(result).toEqual(mockSchoolYears)
@@ -105,7 +116,7 @@ describe('School Year Service', () => {
       mockSchoolYearCollection.toArray.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(schoolYearService.getSchoolYears()).rejects.toThrow('Database error')
+      await expect(schoolYearService.getSchoolYears(TEST_CONTEXT)).rejects.toThrow('Database error')
     })
   })
 
@@ -123,11 +134,12 @@ describe('School Year Service', () => {
       mockSchoolYearCollection.findOne.mockResolvedValue(mockSchoolYear)
 
       // Execute
-      const result = await schoolYearService.getSchoolYearById(schoolYearId.toString())
+      const result = await schoolYearService.getSchoolYearById(schoolYearId.toString(), TEST_CONTEXT)
 
       // Assert
       expect(mockSchoolYearCollection.findOne).toHaveBeenCalledWith({
-        _id: expect.any(ObjectId)
+        _id: expect.any(ObjectId),
+        tenantId: TEST_TENANT_ID
       })
       expect(result).toEqual(mockSchoolYear)
     })
@@ -138,7 +150,7 @@ describe('School Year Service', () => {
       mockSchoolYearCollection.findOne.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(schoolYearService.getSchoolYearById(schoolYearId.toString()))
+      await expect(schoolYearService.getSchoolYearById(schoolYearId.toString(), TEST_CONTEXT))
         .rejects.toThrow('not found')
     })
 
@@ -148,7 +160,7 @@ describe('School Year Service', () => {
       mockSchoolYearCollection.findOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(schoolYearService.getSchoolYearById(schoolYearId.toString()))
+      await expect(schoolYearService.getSchoolYearById(schoolYearId.toString(), TEST_CONTEXT))
         .rejects.toThrow('Database error')
     })
   })
@@ -166,10 +178,10 @@ describe('School Year Service', () => {
       mockSchoolYearCollection.findOne.mockResolvedValue(mockCurrentYear)
 
       // Execute
-      const result = await schoolYearService.getCurrentSchoolYear()
+      const result = await schoolYearService.getCurrentSchoolYear(TEST_CONTEXT)
 
       // Assert
-      expect(mockSchoolYearCollection.findOne).toHaveBeenCalledWith({ isCurrent: true })
+      expect(mockSchoolYearCollection.findOne).toHaveBeenCalledWith({ isCurrent: true, tenantId: TEST_TENANT_ID })
       expect(result).toEqual(mockCurrentYear)
     })
 
@@ -177,7 +189,7 @@ describe('School Year Service', () => {
       // Setup
       // First findOne call returns null (no current year)
       mockSchoolYearCollection.findOne.mockResolvedValue(null)
-      
+
       const mockDate = new Date('2023-11-01')
       const originalDate = global.Date
       global.Date = class extends Date {
@@ -189,10 +201,10 @@ describe('School Year Service', () => {
         }
       }
       global.Date.now = originalDate.now
-      
+
       const insertedId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       mockSchoolYearCollection.insertOne.mockResolvedValue({ insertedId })
-      
+
       // Mock validateSchoolYear to return valid data
       validateSchoolYear.mockReturnValue({
         error: null,
@@ -201,10 +213,11 @@ describe('School Year Service', () => {
           startDate: new Date('2023-08-20'),
           endDate: new Date('2024-08-01'),
           isCurrent: true,
-          isActive: true
+          isActive: true,
+          tenantId: TEST_TENANT_ID
         }
       })
-      
+
       // Second findOne call (in getSchoolYearById) returns the created year
       const defaultYear = {
         _id: insertedId,
@@ -213,22 +226,23 @@ describe('School Year Service', () => {
         endDate: new Date('2024-08-01'),
         isCurrent: true,
         isActive: true,
+        tenantId: TEST_TENANT_ID,
         createdAt: mockDate,
         updatedAt: mockDate
       }
-      
+
       // Setup findOne to return null first, then the created year on second call
       mockSchoolYearCollection.findOne.mockResolvedValueOnce(null)
         .mockResolvedValueOnce(defaultYear)
 
       // Execute
-      const result = await schoolYearService.getCurrentSchoolYear()
-      
+      const result = await schoolYearService.getCurrentSchoolYear(TEST_CONTEXT)
+
       // Restore Date
       global.Date = originalDate
 
       // Assert
-      expect(mockSchoolYearCollection.findOne).toHaveBeenCalledWith({ isCurrent: true })
+      expect(mockSchoolYearCollection.findOne).toHaveBeenCalledWith({ isCurrent: true, tenantId: TEST_TENANT_ID })
       expect(validateSchoolYear).toHaveBeenCalled()
       expect(mockSchoolYearCollection.insertOne).toHaveBeenCalled()
       expect(result.name).toBe('2023-2024')
@@ -240,7 +254,7 @@ describe('School Year Service', () => {
       mockSchoolYearCollection.findOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(schoolYearService.getCurrentSchoolYear())
+      await expect(schoolYearService.getCurrentSchoolYear(TEST_CONTEXT))
         .rejects.toThrow('Database error')
     })
   })
@@ -254,24 +268,24 @@ describe('School Year Service', () => {
         endDate: new Date('2025-07-31'),
         isCurrent: false
       }
-      
+
       validateSchoolYear.mockReturnValue({
         error: null,
         value: { ...schoolYearData }
       })
-      
+
       const insertedId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       mockSchoolYearCollection.insertOne.mockResolvedValue({ insertedId })
 
       // Execute
-      const result = await schoolYearService.createSchoolYear(schoolYearData)
+      const result = await schoolYearService.createSchoolYear(schoolYearData, TEST_CONTEXT)
 
       // Assert
       expect(validateSchoolYear).toHaveBeenCalledWith(schoolYearData)
-      
+
       // Should not update other years since isCurrent is false
       expect(mockSchoolYearCollection.updateMany).not.toHaveBeenCalled()
-      
+
       expect(mockSchoolYearCollection.insertOne).toHaveBeenCalled()
       expect(result).toHaveProperty('_id', insertedId)
       expect(result.name).toBe('2024-2025')
@@ -286,28 +300,28 @@ describe('School Year Service', () => {
         endDate: new Date('2025-07-31'),
         isCurrent: true
       }
-      
+
       validateSchoolYear.mockReturnValue({
         error: null,
         value: { ...schoolYearData }
       })
-      
+
       const insertedId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
       mockSchoolYearCollection.insertOne.mockResolvedValue({ insertedId })
       mockSchoolYearCollection.updateMany.mockResolvedValue({ modifiedCount: 1 })
 
       // Execute
-      const result = await schoolYearService.createSchoolYear(schoolYearData)
+      const result = await schoolYearService.createSchoolYear(schoolYearData, TEST_CONTEXT)
 
       // Assert
       expect(validateSchoolYear).toHaveBeenCalledWith(schoolYearData)
-      
-      // Should update other years to not be current
+
+      // Should update other years to not be current (tenant-scoped)
       expect(mockSchoolYearCollection.updateMany).toHaveBeenCalledWith(
-        { isCurrent: true },
+        { isCurrent: true, tenantId: TEST_TENANT_ID },
         expect.objectContaining({ $set: { isCurrent: false, updatedAt: expect.any(Date) } })
       )
-      
+
       expect(mockSchoolYearCollection.insertOne).toHaveBeenCalled()
       expect(result).toHaveProperty('_id', insertedId)
       expect(result.name).toBe('2024-2025')
@@ -317,14 +331,14 @@ describe('School Year Service', () => {
     it('should throw error for invalid school year data', async () => {
       // Setup
       const schoolYearData = { invalidData: true }
-      
+
       validateSchoolYear.mockReturnValue({
         error: new Error('Invalid school year data'),
         value: schoolYearData
       })
 
       // Execute & Assert
-      await expect(schoolYearService.createSchoolYear(schoolYearData))
+      await expect(schoolYearService.createSchoolYear(schoolYearData, TEST_CONTEXT))
         .rejects.toThrow('Invalid school year data')
     })
 
@@ -335,16 +349,16 @@ describe('School Year Service', () => {
         startDate: new Date('2024-08-01'),
         endDate: new Date('2025-07-31')
       }
-      
+
       validateSchoolYear.mockReturnValue({
         error: null,
         value: schoolYearData
       })
-      
+
       mockSchoolYearCollection.insertOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(schoolYearService.createSchoolYear(schoolYearData))
+      await expect(schoolYearService.createSchoolYear(schoolYearData, TEST_CONTEXT))
         .rejects.toThrow('Database error')
     })
   })
@@ -359,22 +373,22 @@ describe('School Year Service', () => {
         endDate: new Date('2024-07-15'),
         isCurrent: false
       }
-      
+
       validateSchoolYear.mockReturnValue({
         error: null,
         value: { ...schoolYearUpdates }
       })
-      
+
       const updatedSchoolYear = {
         _id: schoolYearId,
         ...schoolYearUpdates,
         updatedAt: new Date()
       }
-      
+
       mockSchoolYearCollection.findOneAndUpdate.mockResolvedValue(updatedSchoolYear)
 
       // Execute
-      const result = await schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates)
+      const result = await schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates, TEST_CONTEXT)
 
       // Assert
       expect(validateSchoolYear).toHaveBeenCalledWith(schoolYearUpdates)
@@ -389,23 +403,23 @@ describe('School Year Service', () => {
         name: 'Updated Year',
         isCurrent: true
       }
-      
+
       validateSchoolYear.mockReturnValue({
         error: null,
         value: { ...schoolYearUpdates }
       })
-      
+
       const updatedSchoolYear = {
         _id: schoolYearId,
         ...schoolYearUpdates,
         updatedAt: new Date()
       }
-      
+
       mockSchoolYearCollection.findOneAndUpdate.mockResolvedValue(updatedSchoolYear)
       mockSchoolYearCollection.updateMany.mockResolvedValue({ modifiedCount: 1 })
 
       // Execute
-      const result = await schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates)
+      const result = await schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates, TEST_CONTEXT)
 
       // Assert
       expect(validateSchoolYear).toHaveBeenCalledWith(schoolYearUpdates)
@@ -418,14 +432,14 @@ describe('School Year Service', () => {
       // Setup
       const schoolYearId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const schoolYearUpdates = { invalidData: true }
-      
+
       validateSchoolYear.mockReturnValue({
         error: new Error('Invalid school year data'),
         value: schoolYearUpdates
       })
 
       // Execute & Assert
-      await expect(schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates))
+      await expect(schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates, TEST_CONTEXT))
         .rejects.toThrow('Invalid school year data')
     })
 
@@ -435,16 +449,16 @@ describe('School Year Service', () => {
       const schoolYearUpdates = {
         name: 'Updated Year'
       }
-      
+
       validateSchoolYear.mockReturnValue({
         error: null,
         value: schoolYearUpdates
       })
-      
+
       mockSchoolYearCollection.findOneAndUpdate.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates))
+      await expect(schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates, TEST_CONTEXT))
         .rejects.toThrow('not found')
     })
 
@@ -454,16 +468,16 @@ describe('School Year Service', () => {
       const schoolYearUpdates = {
         name: 'Updated Year'
       }
-      
+
       validateSchoolYear.mockReturnValue({
         error: null,
         value: schoolYearUpdates
       })
-      
+
       mockSchoolYearCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates))
+      await expect(schoolYearService.updateSchoolYear(schoolYearId.toString(), schoolYearUpdates, TEST_CONTEXT))
         .rejects.toThrow('Database error')
     })
   })
@@ -472,21 +486,31 @@ describe('School Year Service', () => {
     it('should set a school year as current', async () => {
       // Setup
       const schoolYearId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      
+
+      const targetSchoolYear = {
+        _id: schoolYearId,
+        name: '2023-2024',
+        isCurrent: false,
+        tenantId: TEST_TENANT_ID
+      }
+
       const updatedSchoolYear = {
         _id: schoolYearId,
         name: '2023-2024',
         isCurrent: true,
         updatedAt: new Date()
       }
-      
+
+      // findOne for target verification, then updateMany, then findOneAndUpdate
+      mockSchoolYearCollection.findOne.mockResolvedValue(targetSchoolYear)
       mockSchoolYearCollection.findOneAndUpdate.mockResolvedValue(updatedSchoolYear)
       mockSchoolYearCollection.updateMany.mockResolvedValue({ modifiedCount: 1 })
 
       // Execute
-      const result = await schoolYearService.setCurrentSchoolYear(schoolYearId.toString())
+      const result = await schoolYearService.setCurrentSchoolYear(schoolYearId.toString(), TEST_CONTEXT)
 
       // Assert
+      expect(mockSchoolYearCollection.findOne).toHaveBeenCalled()
       expect(mockSchoolYearCollection.updateMany).toHaveBeenCalled()
       expect(mockSchoolYearCollection.findOneAndUpdate).toHaveBeenCalled()
       expect(result).toEqual(updatedSchoolYear)
@@ -495,21 +519,21 @@ describe('School Year Service', () => {
     it('should throw error if school year is not found', async () => {
       // Setup
       const schoolYearId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      mockSchoolYearCollection.updateMany.mockResolvedValue({ modifiedCount: 1 })
-      mockSchoolYearCollection.findOneAndUpdate.mockResolvedValue(null)
+      // findOne returns null - target not found
+      mockSchoolYearCollection.findOne.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(schoolYearService.setCurrentSchoolYear(schoolYearId.toString()))
+      await expect(schoolYearService.setCurrentSchoolYear(schoolYearId.toString(), TEST_CONTEXT))
         .rejects.toThrow('not found')
     })
 
     it('should handle database errors', async () => {
       // Setup
       const schoolYearId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      mockSchoolYearCollection.updateMany.mockRejectedValue(new Error('Database error'))
+      mockSchoolYearCollection.findOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(schoolYearService.setCurrentSchoolYear(schoolYearId.toString()))
+      await expect(schoolYearService.setCurrentSchoolYear(schoolYearId.toString(), TEST_CONTEXT))
         .rejects.toThrow('Database error')
     })
   })
@@ -518,33 +542,21 @@ describe('School Year Service', () => {
     it('should rollover to a new school year', async () => {
       // Setup
       const prevYearId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      
+
       const prevYear = {
         _id: prevYearId,
         name: '2022-2023',
         startDate: new Date('2022-08-01'),
         endDate: new Date('2023-07-31'),
-        isCurrent: false
+        isCurrent: false,
+        tenantId: TEST_TENANT_ID
       }
-      
+
       const newYearId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      const newYear = {
-        _id: newYearId,
-        name: '2023-2024',
-        startDate: new Date('2023-08-01'),
-        endDate: new Date('2024-07-31'),
-        isCurrent: true,
-        isActive: true
-      }
-      
-      // Mock at DB level instead of function level
-      mockSchoolYearCollection.findOne.mockImplementation((query) => {
-        if (query && query._id && query._id.toString() === prevYearId.toString()) {
-          return Promise.resolve(prevYear)
-        }
-        return Promise.resolve(null)
-      })
-      
+
+      // Mock findOne for prevYear lookup (rolloverToNewYear does direct collection access)
+      mockSchoolYearCollection.findOne.mockResolvedValue(prevYear)
+
       // Mock for createSchoolYear by mocking insertOne
       validateSchoolYear.mockReturnValue({
         error: null,
@@ -556,20 +568,21 @@ describe('School Year Service', () => {
           isActive: true
         }
       })
-      
+
       mockSchoolYearCollection.insertOne.mockResolvedValue({ insertedId: newYearId })
-      
+
       // Mock student, teacher and orchestra collections
       mockStudentCollection.toArray.mockResolvedValue([])
       mockTeacherCollection.toArray.mockResolvedValue([])
       mockOrchestraCollection.toArray.mockResolvedValue([])
 
       // Execute
-      const result = await schoolYearService.rolloverToNewYear(prevYearId.toString())
+      const result = await schoolYearService.rolloverToNewYear(prevYearId.toString(), TEST_CONTEXT)
 
       // Assert
       expect(mockSchoolYearCollection.findOne).toHaveBeenCalledWith({
-        _id: expect.any(ObjectId)
+        _id: expect.any(ObjectId),
+        tenantId: TEST_TENANT_ID
       })
       expect(mockSchoolYearCollection.insertOne).toHaveBeenCalled()
       expect(result).toHaveProperty('_id')
@@ -580,12 +593,12 @@ describe('School Year Service', () => {
     it('should handle database errors', async () => {
       // Setup
       const prevYearId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      
+
       // Mock collection to throw database error
       mockSchoolYearCollection.findOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(schoolYearService.rolloverToNewYear(prevYearId.toString()))
+      await expect(schoolYearService.rolloverToNewYear(prevYearId.toString(), TEST_CONTEXT))
         .rejects.toThrow('Database error')
     })
   })

@@ -3,6 +3,9 @@ import { schoolYearController } from '../school-year-controller.js'
 import { schoolYearService } from '../school-year.service.js'
 import { ObjectId } from 'mongodb'
 
+const TEST_TENANT_ID = 'test-tenant-id'
+const TEST_CONTEXT = { tenantId: TEST_TENANT_ID }
+
 // Mock dependencies
 vi.mock('../school-year.service.js', () => ({
   schoolYearService: {
@@ -23,11 +26,12 @@ describe('School Year Controller', () => {
     // Reset mocks
     vi.clearAllMocks()
 
-    // Setup request object
+    // Setup request object with context
     req = {
       params: {},
       query: {},
-      body: {}
+      body: {},
+      context: TEST_CONTEXT
     }
 
     // Setup response object with chainable methods
@@ -53,7 +57,7 @@ describe('School Year Controller', () => {
       await schoolYearController.getSchoolYears(req, res, next)
 
       // Assert
-      expect(schoolYearService.getSchoolYears).toHaveBeenCalled()
+      expect(schoolYearService.getSchoolYears).toHaveBeenCalledWith({ context: TEST_CONTEXT })
       expect(res.json).toHaveBeenCalledWith(mockSchoolYears)
     })
 
@@ -89,7 +93,10 @@ describe('School Year Controller', () => {
       await schoolYearController.getSchoolYearById(req, res, next)
 
       // Assert
-      expect(schoolYearService.getSchoolYearById).toHaveBeenCalledWith(schoolYearId.toString())
+      expect(schoolYearService.getSchoolYearById).toHaveBeenCalledWith(
+        schoolYearId.toString(),
+        { context: TEST_CONTEXT }
+      )
       expect(res.json).toHaveBeenCalledWith(mockSchoolYear)
     })
 
@@ -123,7 +130,7 @@ describe('School Year Controller', () => {
       await schoolYearController.getCurrentSchoolYear(req, res, next)
 
       // Assert
-      expect(schoolYearService.getCurrentSchoolYear).toHaveBeenCalled()
+      expect(schoolYearService.getCurrentSchoolYear).toHaveBeenCalledWith({ context: TEST_CONTEXT })
       expect(res.json).toHaveBeenCalledWith(mockCurrentYear)
     })
 
@@ -151,7 +158,7 @@ describe('School Year Controller', () => {
       }
       req.body = schoolYearData
 
-      const createdSchoolYear = { 
+      const createdSchoolYear = {
         _id: new ObjectId(),
         ...schoolYearData
       }
@@ -161,7 +168,10 @@ describe('School Year Controller', () => {
       await schoolYearController.createSchoolYear(req, res, next)
 
       // Assert
-      expect(schoolYearService.createSchoolYear).toHaveBeenCalledWith(schoolYearData)
+      expect(schoolYearService.createSchoolYear).toHaveBeenCalledWith(
+        schoolYearData,
+        { context: TEST_CONTEXT }
+      )
       expect(res.status).toHaveBeenCalledWith(201)
       expect(res.json).toHaveBeenCalledWith(createdSchoolYear)
     })
@@ -176,7 +186,8 @@ describe('School Year Controller', () => {
       await schoolYearController.createSchoolYear(req, res, next)
 
       // Assert
-      expect(next).toHaveBeenCalledWith(error)
+      // Controller returns 400 for validation errors
+      expect(res.status).toHaveBeenCalledWith(400)
     })
   })
 
@@ -185,14 +196,14 @@ describe('School Year Controller', () => {
       // Setup
       const schoolYearId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: schoolYearId.toString() }
-      
+
       const schoolYearUpdates = {
         name: 'Updated Year',
         isCurrent: true
       }
       req.body = schoolYearUpdates
 
-      const updatedSchoolYear = { 
+      const updatedSchoolYear = {
         _id: schoolYearId,
         name: 'Updated Year',
         startDate: new Date('2023-08-01'),
@@ -206,8 +217,9 @@ describe('School Year Controller', () => {
 
       // Assert
       expect(schoolYearService.updateSchoolYear).toHaveBeenCalledWith(
-        schoolYearId.toString(), 
-        schoolYearUpdates
+        schoolYearId.toString(),
+        schoolYearUpdates,
+        { context: TEST_CONTEXT }
       )
       expect(res.json).toHaveBeenCalledWith(updatedSchoolYear)
     })
@@ -233,7 +245,7 @@ describe('School Year Controller', () => {
       const schoolYearId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: schoolYearId.toString() }
 
-      const updatedSchoolYear = { 
+      const updatedSchoolYear = {
         _id: schoolYearId,
         name: '2023-2024',
         isCurrent: true
@@ -244,7 +256,10 @@ describe('School Year Controller', () => {
       await schoolYearController.setCurrentSchoolYear(req, res, next)
 
       // Assert
-      expect(schoolYearService.setCurrentSchoolYear).toHaveBeenCalledWith(schoolYearId.toString())
+      expect(schoolYearService.setCurrentSchoolYear).toHaveBeenCalledWith(
+        schoolYearId.toString(),
+        { context: TEST_CONTEXT }
+      )
       expect(res.json).toHaveBeenCalledWith(updatedSchoolYear)
     })
 
@@ -268,7 +283,7 @@ describe('School Year Controller', () => {
       const prevYearId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: prevYearId.toString() }
 
-      const newSchoolYear = { 
+      const newSchoolYear = {
         _id: new ObjectId('6579e36c83c8b3a5c2df8a8c'),
         name: '2024-2025',
         isCurrent: true
@@ -279,7 +294,10 @@ describe('School Year Controller', () => {
       await schoolYearController.rolloverToNewYear(req, res, next)
 
       // Assert
-      expect(schoolYearService.rolloverToNewYear).toHaveBeenCalledWith(prevYearId.toString())
+      expect(schoolYearService.rolloverToNewYear).toHaveBeenCalledWith(
+        prevYearId.toString(),
+        { context: TEST_CONTEXT }
+      )
       expect(res.json).toHaveBeenCalledWith(newSchoolYear)
     })
 
