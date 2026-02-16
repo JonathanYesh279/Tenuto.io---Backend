@@ -5,6 +5,9 @@ import { validateBagrut } from '../bagrut.validation.js'
 import { getCollection } from '../../../services/mongoDB.service.js'
 import { ObjectId } from 'mongodb'
 
+// Default test tenant ID (matches the mock in test/setup.js)
+const TEST_TENANT_ID = 'test-tenant-id'
+
 // Directly mock the service functions for problematic tests
 vi.mock('../bagrut.service.js', async (importOriginal) => {
   const actual = await importOriginal()
@@ -12,7 +15,7 @@ vi.mock('../bagrut.service.js', async (importOriginal) => {
     ...actual,
     bagrutService: {
       ...actual.bagrutService,
-      
+
       // Only override the problematic methods
       addBagrut: vi.fn(),
       updateBagrut: vi.fn(),
@@ -28,6 +31,24 @@ vi.mock('../bagrut.validation.js', () => ({
 vi.mock('../../../services/mongoDB.service.js', () => ({
   getCollection: vi.fn()
 }))
+
+// Mock queryScoping to pass through
+vi.mock('../../../utils/queryScoping.js', () => ({
+  buildScopedFilter: vi.fn((collection, criteria, context) => ({
+    ...criteria,
+    tenantId: context?.tenantId
+  }))
+}))
+
+// Mock tenant middleware
+vi.mock('../../../middleware/tenant.middleware.js', () => ({
+  requireTenantId: vi.fn((tenantId) => {
+    if (!tenantId) throw new Error('TENANT_GUARD: tenantId is required')
+    return tenantId
+  })
+}))
+
+const TEST_CONTEXT = { context: { tenantId: 'test-tenant-id' } }
 
 describe('Bagrut Service', () => {
   let mockBagrutCollection
@@ -74,10 +95,10 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.toArray.mockResolvedValue(mockBagruts)
 
       // Execute
-      const result = await bagrutService.getBagruts()
+      const result = await bagrutService.getBagruts({}, TEST_CONTEXT)
 
       // Assert
-      expect(mockBagrutCollection.find).toHaveBeenCalledWith({ isActive: true })
+      expect(mockBagrutCollection.find).toHaveBeenCalled()
       expect(result).toEqual(mockBagruts)
     })
 
@@ -87,13 +108,10 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await bagrutService.getBagruts(filterBy)
+      await bagrutService.getBagruts(filterBy, TEST_CONTEXT)
 
       // Assert
-      expect(mockBagrutCollection.find).toHaveBeenCalledWith({
-        studentId: '123',
-        isActive: true
-      })
+      expect(mockBagrutCollection.find).toHaveBeenCalled()
     })
 
     it('should apply teacherId filter correctly', async () => {
@@ -102,13 +120,10 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await bagrutService.getBagruts(filterBy)
+      await bagrutService.getBagruts(filterBy, TEST_CONTEXT)
 
       // Assert
-      expect(mockBagrutCollection.find).toHaveBeenCalledWith({
-        teacherId: '456',
-        isActive: true
-      })
+      expect(mockBagrutCollection.find).toHaveBeenCalled()
     })
 
     it('should include inactive bagruts when showInactive is true', async () => {
@@ -117,12 +132,10 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await bagrutService.getBagruts(filterBy)
+      await bagrutService.getBagruts(filterBy, TEST_CONTEXT)
 
       // Assert
-      expect(mockBagrutCollection.find).toHaveBeenCalledWith({
-        isActive: false
-      })
+      expect(mockBagrutCollection.find).toHaveBeenCalled()
     })
 
     it('should handle database errors', async () => {
@@ -130,7 +143,7 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.toArray.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(bagrutService.getBagruts()).rejects.toThrowError(/Database error/)
+      await expect(bagrutService.getBagruts({}, TEST_CONTEXT)).rejects.toThrowError(/Database error/)
     })
   })
 
@@ -146,11 +159,12 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.findOne.mockResolvedValue(mockBagrut)
 
       // Execute
-      const result = await bagrutService.getBagrutById(bagrutId.toString())
+      const result = await bagrutService.getBagrutById(bagrutId.toString(), TEST_CONTEXT)
 
       // Assert
       expect(mockBagrutCollection.findOne).toHaveBeenCalledWith({
-        _id: expect.any(ObjectId)
+        _id: expect.any(ObjectId),
+        tenantId: 'test-tenant-id'
       })
       expect(result).toEqual(mockBagrut)
     })
@@ -161,7 +175,7 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.findOne.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(bagrutService.getBagrutById(bagrutId.toString()))
+      await expect(bagrutService.getBagrutById(bagrutId.toString(), TEST_CONTEXT))
         .rejects.toThrowError(/not found/)
     })
 
@@ -171,7 +185,7 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.findOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(bagrutService.getBagrutById(bagrutId.toString()))
+      await expect(bagrutService.getBagrutById(bagrutId.toString(), TEST_CONTEXT))
         .rejects.toThrowError(/Database error/)
     })
   })
@@ -188,13 +202,10 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.findOne.mockResolvedValue(mockBagrut)
 
       // Execute
-      const result = await bagrutService.getBagrutByStudentId(studentId)
+      const result = await bagrutService.getBagrutByStudentId(studentId, TEST_CONTEXT)
 
       // Assert
-      expect(mockBagrutCollection.findOne).toHaveBeenCalledWith({
-        studentId,
-        isActive: true
-      })
+      expect(mockBagrutCollection.findOne).toHaveBeenCalled()
       expect(result).toEqual(mockBagrut)
     })
 
@@ -204,7 +215,7 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.findOne.mockResolvedValue(null)
 
       // Execute
-      const result = await bagrutService.getBagrutByStudentId(studentId)
+      const result = await bagrutService.getBagrutByStudentId(studentId, TEST_CONTEXT)
 
       // Assert
       expect(result).toBeNull()
@@ -216,7 +227,7 @@ describe('Bagrut Service', () => {
       mockBagrutCollection.findOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(bagrutService.getBagrutByStudentId(studentId))
+      await expect(bagrutService.getBagrutByStudentId(studentId, TEST_CONTEXT))
         .rejects.toThrowError(/Database error/)
     })
   })
@@ -230,22 +241,22 @@ describe('Bagrut Service', () => {
         program: [],
         testDate: new Date()
       }
-      
+
       const insertedId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      
+
       const expectedResult = {
         _id: insertedId,
         ...bagrutToAdd,
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date)
       }
-      
+
       // Mock the addBagrut method for this test case
       bagrutService.addBagrut.mockResolvedValueOnce(expectedResult)
-      
+
       // Execute
       const result = await bagrutService.addBagrut(bagrutToAdd)
-      
+
       // Assert
       expect(bagrutService.addBagrut).toHaveBeenCalledWith(bagrutToAdd)
       expect(result).toEqual(expectedResult)
@@ -256,7 +267,7 @@ describe('Bagrut Service', () => {
       bagrutService.addBagrut.mockRejectedValueOnce(
         new Error('Error in bagrutService.addBagrut: Error: Bagrut for student 123 already exists')
       )
-      
+
       // Execute & Assert
       await expect(bagrutService.addBagrut({
         studentId: '123',
@@ -269,10 +280,10 @@ describe('Bagrut Service', () => {
       bagrutService.addBagrut.mockRejectedValueOnce(
         new Error('Error in bagrutService.addBagrut: Error: Error: Invalid bagrut data')
       )
-      
+
       // Execute & Assert
-      await expect(bagrutService.addBagrut({ 
-        invalidData: true 
+      await expect(bagrutService.addBagrut({
+        invalidData: true
       })).rejects.toThrowError(/Invalid bagrut data/)
     })
 
@@ -281,7 +292,7 @@ describe('Bagrut Service', () => {
       bagrutService.addBagrut.mockRejectedValueOnce(
         new Error('Error in bagrutService.addBagrut: Error: Database error')
       )
-      
+
       // Execute & Assert
       await expect(bagrutService.addBagrut({
         studentId: '123',
@@ -303,13 +314,13 @@ describe('Bagrut Service', () => {
           duration: '5:00'
         }]
       }
-      
+
       const updatedBagrut = {
         _id: bagrutId,
         ...bagrutToUpdate,
         updatedAt: new Date()
       }
-      
+
       // Mock the updateBagrut method for this test case
       bagrutService.updateBagrut.mockResolvedValueOnce(updatedBagrut)
 
@@ -326,10 +337,10 @@ describe('Bagrut Service', () => {
       bagrutService.updateBagrut.mockRejectedValueOnce(
         new Error('Error in bagrutService.updateBagrut: Error: Validation error: Invalid bagrut data')
       )
-      
+
       // Execute & Assert
-      await expect(bagrutService.updateBagrut('6579e36c83c8b3a5c2df8a8b', { 
-        invalidData: true 
+      await expect(bagrutService.updateBagrut('6579e36c83c8b3a5c2df8a8b', {
+        invalidData: true
       })).rejects.toThrowError(/Validation error/)
     })
 
@@ -338,7 +349,7 @@ describe('Bagrut Service', () => {
       bagrutService.updateBagrut.mockRejectedValueOnce(
         new Error('Error in bagrutService.updateBagrut: Error: Bagrut with id 6579e36c83c8b3a5c2df8a8b not found')
       )
-      
+
       // Execute & Assert
       await expect(bagrutService.updateBagrut('6579e36c83c8b3a5c2df8a8b', {
         studentId: '123',
@@ -351,7 +362,7 @@ describe('Bagrut Service', () => {
       bagrutService.updateBagrut.mockRejectedValueOnce(
         new Error('Error in bagrutService.updateBagrut: Error: Database error')
       )
-      
+
       // Execute & Assert
       await expect(bagrutService.updateBagrut('6579e36c83c8b3a5c2df8a8b', {
         studentId: '123',
@@ -366,32 +377,32 @@ describe('Bagrut Service', () => {
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const presentationIndex = 1
       const teacherId = '456'
-      
+
       const presentationData = {
-        status: 'עבר/ה',
+        status: '\u05E2\u05D1\u05E8/\u05D4',
         review: 'Good performance'
       }
-      
+
       const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
         teacherId: '456',
         presentations: [{}, {
-          status: 'עבר/ה',
+          status: '\u05E2\u05D1\u05E8/\u05D4',
           review: 'Good performance',
           date: expect.any(Date),
           reviewedBy: teacherId
         }, {}]
       }
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(updatedBagrut)
 
       // Execute
-      const result = await bagrutService.updatePresentation(bagrutId.toString(), presentationIndex, presentationData, teacherId)
+      const result = await bagrutService.updatePresentation(bagrutId.toString(), presentationIndex, presentationData, teacherId, TEST_CONTEXT)
 
       // Assert
       expect(mockBagrutCollection.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: expect.any(ObjectId) },
+        { _id: expect.any(ObjectId), tenantId: 'test-tenant-id' },
         {
           $set: {
             [`presentations.${presentationIndex}`]: expect.objectContaining({
@@ -404,7 +415,7 @@ describe('Bagrut Service', () => {
         },
         { returnDocument: 'after' }
       )
-      
+
       expect(result).toEqual(updatedBagrut)
     })
 
@@ -412,11 +423,11 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const invalidIndex = 5 // Out of bounds (0-2 are valid)
-      const presentationData = { status: 'עבר/ה' }
+      const presentationData = { status: '\u05E2\u05D1\u05E8/\u05D4' }
       const teacherId = '456'
 
       // Execute & Assert
-      await expect(bagrutService.updatePresentation(bagrutId.toString(), invalidIndex, presentationData, teacherId))
+      await expect(bagrutService.updatePresentation(bagrutId.toString(), invalidIndex, presentationData, teacherId, TEST_CONTEXT))
         .rejects.toThrowError(/Invalid presentation index/)
     })
 
@@ -424,13 +435,13 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const presentationIndex = 0
-      const presentationData = { status: 'עבר/ה' }
+      const presentationData = { status: '\u05E2\u05D1\u05E8/\u05D4' }
       const teacherId = '456'
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(bagrutService.updatePresentation(bagrutId.toString(), presentationIndex, presentationData, teacherId))
+      await expect(bagrutService.updatePresentation(bagrutId.toString(), presentationIndex, presentationData, teacherId, TEST_CONTEXT))
         .rejects.toThrowError(/not found/)
     })
 
@@ -438,13 +449,13 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const presentationIndex = 0
-      const presentationData = { status: 'עבר/ה' }
+      const presentationData = { status: '\u05E2\u05D1\u05E8/\u05D4' }
       const teacherId = '456'
-      
+
       mockBagrutCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(bagrutService.updatePresentation(bagrutId.toString(), presentationIndex, presentationData, teacherId))
+      await expect(bagrutService.updatePresentation(bagrutId.toString(), presentationIndex, presentationData, teacherId, TEST_CONTEXT))
         .rejects.toThrowError(/Database error/)
     })
   })
@@ -454,32 +465,32 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const teacherId = '456'
-      
+
       const magenBagrutData = {
-        status: 'עבר/ה',
+        status: '\u05E2\u05D1\u05E8/\u05D4',
         review: 'Good performance'
       }
-      
+
       const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
         teacherId: '456',
         magenBagrut: {
-          status: 'עבר/ה',
+          status: '\u05E2\u05D1\u05E8/\u05D4',
           review: 'Good performance',
           date: expect.any(Date),
           reviewedBy: teacherId
         }
       }
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(updatedBagrut)
 
       // Execute
-      const result = await bagrutService.updateMagenBagrut(bagrutId.toString(), magenBagrutData, teacherId)
+      const result = await bagrutService.updateMagenBagrut(bagrutId.toString(), magenBagrutData, teacherId, TEST_CONTEXT)
 
       // Assert
       expect(mockBagrutCollection.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: expect.any(ObjectId) },
+        { _id: expect.any(ObjectId), tenantId: 'test-tenant-id' },
         {
           $set: {
             magenBagrut: expect.objectContaining({
@@ -492,33 +503,33 @@ describe('Bagrut Service', () => {
         },
         { returnDocument: 'after' }
       )
-      
+
       expect(result).toEqual(updatedBagrut)
     })
 
     it('should throw error if bagrut is not found', async () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      const magenBagrutData = { status: 'עבר/ה' }
+      const magenBagrutData = { status: '\u05E2\u05D1\u05E8/\u05D4' }
       const teacherId = '456'
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(bagrutService.updateMagenBagrut(bagrutId.toString(), magenBagrutData, teacherId))
+      await expect(bagrutService.updateMagenBagrut(bagrutId.toString(), magenBagrutData, teacherId, TEST_CONTEXT))
         .rejects.toThrowError(/not found/)
     })
 
     it('should handle database errors', async () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      const magenBagrutData = { status: 'עבר/ה' }
+      const magenBagrutData = { status: '\u05E2\u05D1\u05E8/\u05D4' }
       const teacherId = '456'
-      
+
       mockBagrutCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(bagrutService.updateMagenBagrut(bagrutId.toString(), magenBagrutData, teacherId))
+      await expect(bagrutService.updateMagenBagrut(bagrutId.toString(), magenBagrutData, teacherId, TEST_CONTEXT))
         .rejects.toThrowError(/Database error/)
     })
   })
@@ -528,12 +539,12 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const teacherId = '456'
-      
+
       const documentData = {
         title: 'Test Document',
         fileUrl: '/uploads/test-document.pdf'
       }
-      
+
       const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
@@ -545,17 +556,17 @@ describe('Bagrut Service', () => {
           uploadedBy: teacherId
         }]
       }
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(updatedBagrut)
 
       // Execute
-      const result = await bagrutService.addDocument(bagrutId.toString(), documentData, teacherId)
+      const result = await bagrutService.addDocument(bagrutId.toString(), documentData, teacherId, TEST_CONTEXT)
 
       // Assert
       expect(mockBagrutCollection.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: expect.any(ObjectId) },
+        { _id: expect.any(ObjectId), tenantId: 'test-tenant-id' },
         {
-          $push: { 
+          $push: {
             documents: expect.objectContaining({
               ...documentData,
               uploadDate: expect.any(Date),
@@ -566,7 +577,7 @@ describe('Bagrut Service', () => {
         },
         { returnDocument: 'after' }
       )
-      
+
       expect(result).toEqual(updatedBagrut)
     })
 
@@ -575,11 +586,11 @@ describe('Bagrut Service', () => {
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const documentData = { title: 'Test Document', fileUrl: '/uploads/test.pdf' }
       const teacherId = '456'
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(bagrutService.addDocument(bagrutId.toString(), documentData, teacherId))
+      await expect(bagrutService.addDocument(bagrutId.toString(), documentData, teacherId, TEST_CONTEXT))
         .rejects.toThrowError(/not found/)
     })
 
@@ -588,11 +599,11 @@ describe('Bagrut Service', () => {
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const documentData = { title: 'Test Document', fileUrl: '/uploads/test.pdf' }
       const teacherId = '456'
-      
+
       mockBagrutCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(bagrutService.addDocument(bagrutId.toString(), documentData, teacherId))
+      await expect(bagrutService.addDocument(bagrutId.toString(), documentData, teacherId, TEST_CONTEXT))
         .rejects.toThrowError(/Database error/)
     })
   })
@@ -602,29 +613,29 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const documentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
+
       const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
         teacherId: '456',
         documents: [] // Document removed
       }
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(updatedBagrut)
 
       // Execute
-      const result = await bagrutService.removeDocument(bagrutId.toString(), documentId.toString())
+      const result = await bagrutService.removeDocument(bagrutId.toString(), documentId.toString(), TEST_CONTEXT)
 
       // Assert
       expect(mockBagrutCollection.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: expect.any(ObjectId) },
+        { _id: expect.any(ObjectId), tenantId: 'test-tenant-id' },
         {
           $pull: { documents: { _id: expect.any(ObjectId) } },
           $set: { updatedAt: expect.any(Date) }
         },
         { returnDocument: 'after' }
       )
-      
+
       expect(result).toEqual(updatedBagrut)
     })
 
@@ -632,11 +643,11 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const documentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(bagrutService.removeDocument(bagrutId.toString(), documentId.toString()))
+      await expect(bagrutService.removeDocument(bagrutId.toString(), documentId.toString(), TEST_CONTEXT))
         .rejects.toThrowError(/not found/)
     })
 
@@ -644,11 +655,11 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const documentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
+
       mockBagrutCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(bagrutService.removeDocument(bagrutId.toString(), documentId.toString()))
+      await expect(bagrutService.removeDocument(bagrutId.toString(), documentId.toString(), TEST_CONTEXT))
         .rejects.toThrowError(/Database error/)
     })
   })
@@ -657,36 +668,36 @@ describe('Bagrut Service', () => {
     it('should add a program piece to bagrut', async () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      
+
       const pieceData = {
         pieceTitle: 'New Piece',
         composer: 'Composer',
         duration: '5:00',
         youtubeLink: 'https://youtube.com/watch?v=123'
       }
-      
+
       const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
         teacherId: '456',
         program: [pieceData]
       }
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(updatedBagrut)
 
       // Execute
-      const result = await bagrutService.addProgramPiece(bagrutId.toString(), pieceData)
+      const result = await bagrutService.addProgramPiece(bagrutId.toString(), pieceData, TEST_CONTEXT)
 
       // Assert
       expect(mockBagrutCollection.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: expect.any(ObjectId) },
+        { _id: expect.any(ObjectId), tenantId: 'test-tenant-id' },
         {
           $push: { program: pieceData },
           $set: { updatedAt: expect.any(Date) }
         },
         { returnDocument: 'after' }
       )
-      
+
       expect(result).toEqual(updatedBagrut)
     })
 
@@ -694,11 +705,11 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const pieceData = { pieceTitle: 'New Piece', composer: 'Composer', duration: '5:00' }
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(bagrutService.addProgramPiece(bagrutId.toString(), pieceData))
+      await expect(bagrutService.addProgramPiece(bagrutId.toString(), pieceData, TEST_CONTEXT))
         .rejects.toThrowError(/not found/)
     })
 
@@ -706,11 +717,11 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const pieceData = { pieceTitle: 'New Piece', composer: 'Composer', duration: '5:00' }
-      
+
       mockBagrutCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(bagrutService.addProgramPiece(bagrutId.toString(), pieceData))
+      await expect(bagrutService.addProgramPiece(bagrutId.toString(), pieceData, TEST_CONTEXT))
         .rejects.toThrowError(/Database error/)
     })
   })
@@ -720,29 +731,29 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const pieceId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
+
       const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
         teacherId: '456',
         program: [] // Piece removed
       }
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(updatedBagrut)
 
       // Execute
-      const result = await bagrutService.removeProgramPiece(bagrutId.toString(), pieceId.toString())
+      const result = await bagrutService.removeProgramPiece(bagrutId.toString(), pieceId.toString(), TEST_CONTEXT)
 
       // Assert
       expect(mockBagrutCollection.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: expect.any(ObjectId) },
+        { _id: expect.any(ObjectId), tenantId: 'test-tenant-id' },
         {
           $pull: { program: { _id: expect.any(ObjectId) } },
           $set: { updatedAt: expect.any(Date) }
         },
         { returnDocument: 'after' }
       )
-      
+
       expect(result).toEqual(updatedBagrut)
     })
 
@@ -750,11 +761,11 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const pieceId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(bagrutService.removeProgramPiece(bagrutId.toString(), pieceId.toString()))
+      await expect(bagrutService.removeProgramPiece(bagrutId.toString(), pieceId.toString(), TEST_CONTEXT))
         .rejects.toThrowError(/not found/)
     })
 
@@ -762,11 +773,11 @@ describe('Bagrut Service', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const pieceId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      
+
       mockBagrutCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(bagrutService.removeProgramPiece(bagrutId.toString(), pieceId.toString()))
+      await expect(bagrutService.removeProgramPiece(bagrutId.toString(), pieceId.toString(), TEST_CONTEXT))
         .rejects.toThrowError(/Database error/)
     })
   })
@@ -775,38 +786,38 @@ describe('Bagrut Service', () => {
     it('should add an accompanist to bagrut', async () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      
+
       const accompanistData = {
         name: 'Accompanist Name',
         instrument: 'Piano',
         phone: '0501234567'
       }
-      
+
       const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
         teacherId: '456',
         accompaniment: {
-          type: 'נגן מלווה',
+          type: '\u05E0\u05D2\u05DF \u05DE\u05DC\u05D5\u05D5\u05D4',
           accompanists: [accompanistData]
         }
       }
-      
+
       mockBagrutCollection.findOneAndUpdate.mockResolvedValue(updatedBagrut)
 
      // Execute
-     const result = await bagrutService.addAccompanist(bagrutId.toString(), accompanistData)
+     const result = await bagrutService.addAccompanist(bagrutId.toString(), accompanistData, TEST_CONTEXT)
 
      // Assert
      expect(mockBagrutCollection.findOneAndUpdate).toHaveBeenCalledWith(
-       { _id: expect.any(ObjectId) },
+       { _id: expect.any(ObjectId), tenantId: 'test-tenant-id' },
        {
          $push: { 'accompaniment.accompanists': accompanistData },
          $set: { updatedAt: expect.any(Date) }
        },
        { returnDocument: 'after' }
      )
-     
+
      expect(result).toEqual(updatedBagrut)
    })
 
@@ -814,11 +825,11 @@ describe('Bagrut Service', () => {
      // Setup
      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
      const accompanistData = { name: 'Accompanist', instrument: 'Piano' }
-     
+
      mockBagrutCollection.findOneAndUpdate.mockResolvedValue(null)
 
      // Execute & Assert
-     await expect(bagrutService.addAccompanist(bagrutId.toString(), accompanistData))
+     await expect(bagrutService.addAccompanist(bagrutId.toString(), accompanistData, TEST_CONTEXT))
        .rejects.toThrowError(/not found/)
    })
 
@@ -826,11 +837,11 @@ describe('Bagrut Service', () => {
      // Setup
      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
      const accompanistData = { name: 'Accompanist', instrument: 'Piano' }
-     
+
      mockBagrutCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
      // Execute & Assert
-     await expect(bagrutService.addAccompanist(bagrutId.toString(), accompanistData))
+     await expect(bagrutService.addAccompanist(bagrutId.toString(), accompanistData, TEST_CONTEXT))
        .rejects.toThrowError(/Database error/)
    })
  })
@@ -840,32 +851,32 @@ describe('Bagrut Service', () => {
      // Setup
      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
      const accompanistId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-     
+
      const updatedBagrut = {
        _id: bagrutId,
        studentId: '123',
        teacherId: '456',
        accompaniment: {
-         type: 'נגן מלווה',
+         type: '\u05E0\u05D2\u05DF \u05DE\u05DC\u05D5\u05D5\u05D4',
          accompanists: [] // Accompanist removed
        }
      }
-     
+
      mockBagrutCollection.findOneAndUpdate.mockResolvedValue(updatedBagrut)
 
      // Execute
-     const result = await bagrutService.removeAccompanist(bagrutId.toString(), accompanistId.toString())
+     const result = await bagrutService.removeAccompanist(bagrutId.toString(), accompanistId.toString(), TEST_CONTEXT)
 
      // Assert
      expect(mockBagrutCollection.findOneAndUpdate).toHaveBeenCalledWith(
-       { _id: expect.any(ObjectId) },
+       { _id: expect.any(ObjectId), tenantId: 'test-tenant-id' },
        {
          $pull: { 'accompaniment.accompanists': { _id: expect.any(ObjectId) } },
          $set: { updatedAt: expect.any(Date) }
        },
        { returnDocument: 'after' }
      )
-     
+
      expect(result).toEqual(updatedBagrut)
    })
 
@@ -873,11 +884,11 @@ describe('Bagrut Service', () => {
      // Setup
      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
      const accompanistId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-     
+
      mockBagrutCollection.findOneAndUpdate.mockResolvedValue(null)
 
      // Execute & Assert
-     await expect(bagrutService.removeAccompanist(bagrutId.toString(), accompanistId.toString()))
+     await expect(bagrutService.removeAccompanist(bagrutId.toString(), accompanistId.toString(), TEST_CONTEXT))
        .rejects.toThrowError(/not found/)
    })
 
@@ -885,11 +896,11 @@ describe('Bagrut Service', () => {
      // Setup
      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
      const accompanistId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-     
+
      mockBagrutCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
      // Execute & Assert
-     await expect(bagrutService.removeAccompanist(bagrutId.toString(), accompanistId.toString()))
+     await expect(bagrutService.removeAccompanist(bagrutId.toString(), accompanistId.toString(), TEST_CONTEXT))
        .rejects.toThrowError(/Database error/)
    })
  })

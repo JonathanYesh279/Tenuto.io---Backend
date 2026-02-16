@@ -1,7 +1,7 @@
 // api/bagrut/__tests__/bagrut.integration-workflow.test.js
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { bagrutService } from '../bagrut.service.js'
-import { 
+import {
   getGradeLevelFromScore,
   calculateFinalGradeWithDirectorEvaluation,
   validateBagrutCompletion
@@ -21,6 +21,18 @@ vi.mock('../../student/student.service.js', () => ({
     removeBagrutId: vi.fn()
   }
 }))
+
+// Mock tenant middleware to bypass tenantId guard
+vi.mock('../../../middleware/tenant.middleware.js', () => ({
+  requireTenantId: vi.fn((tenantId) => tenantId || 'test-tenant-id'),
+}))
+
+// Mock query scoping to return filters as-is
+vi.mock('../../../utils/queryScoping.js', () => ({
+  buildScopedFilter: vi.fn((type, filter) => filter),
+}))
+
+const TEST_CONTEXT = { context: { tenantId: 'test-tenant-id' } }
 
 describe('Bagrut Integration Workflow Tests', () => {
   let mockCollection
@@ -56,10 +68,10 @@ describe('Bagrut Integration Workflow Tests', () => {
         { completed: true, status: 'עבר/ה', notes: 'Good performance', recordingLinks: [] },
         { completed: true, status: 'עבר/ה', notes: 'Excellent technique', recordingLinks: [] },
         { completed: true, status: 'עבר/ה', notes: 'Musical interpretation', recordingLinks: [] },
-        { 
-          completed: true, 
-          status: 'עבר/ה', 
-          grade: 85, 
+        {
+          completed: true,
+          status: 'עבר/ה',
+          grade: 85,
           gradeLevel: 'טוב',
           detailedGrading: {
             playingSkills: { points: 35, maxPoints: 40 },
@@ -97,7 +109,7 @@ describe('Bagrut Integration Workflow Tests', () => {
       mockCollection.findOne.mockResolvedValueOnce(null) // No existing bagrut
       mockCollection.insertOne.mockResolvedValueOnce(insertResult)
 
-      const result = await bagrutService.addBagrut(newBagrutData)
+      const result = await bagrutService.addBagrut(newBagrutData, TEST_CONTEXT)
 
       expect(result).toMatchObject({
         _id: insertResult.insertedId,
@@ -144,7 +156,8 @@ describe('Bagrut Integration Workflow Tests', () => {
         mockBagrutData._id.toString(),
         3,
         presentationData,
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       expect(result.presentations[3].grade).toBe(88)
@@ -191,7 +204,8 @@ describe('Bagrut Integration Workflow Tests', () => {
 
       const result = await bagrutService.updateDirectorEvaluation(
         mockBagrutData._id.toString(),
-        evaluation
+        evaluation,
+        TEST_CONTEXT
       )
 
       expect(result.directorEvaluation.points).toBe(9)
@@ -235,7 +249,8 @@ describe('Bagrut Integration Workflow Tests', () => {
       const result = await bagrutService.completeBagrut(
         mockBagrutData._id.toString(),
         'teacherId',
-        'Teacher Name'
+        'Teacher Name',
+        TEST_CONTEXT
       )
 
       expect(result.isCompleted).toBe(true)
@@ -274,7 +289,7 @@ describe('Bagrut Integration Workflow Tests', () => {
       mockCollection.findOne.mockResolvedValueOnce(incompleteProgramBagrut)
 
       await expect(
-        bagrutService.completeBagrut(mockBagrutData._id.toString(), 'teacherId', 'signature')
+        bagrutService.completeBagrut(mockBagrutData._id.toString(), 'teacherId', 'signature', TEST_CONTEXT)
       ).rejects.toThrow('כל 5 יצירות התוכנית חייבות להיות מוזנות')
     })
 
@@ -287,7 +302,7 @@ describe('Bagrut Integration Workflow Tests', () => {
       mockCollection.findOne.mockResolvedValueOnce(noDirectorBagrut)
 
       await expect(
-        bagrutService.completeBagrut(mockBagrutData._id.toString(), 'teacherId', 'signature')
+        bagrutService.completeBagrut(mockBagrutData._id.toString(), 'teacherId', 'signature', TEST_CONTEXT)
       ).rejects.toThrow('הערכת מנהל חייבת להיות מושלמת')
     })
 
@@ -300,7 +315,7 @@ describe('Bagrut Integration Workflow Tests', () => {
       mockCollection.findOne.mockResolvedValueOnce(noRecitalUnitsBagrut)
 
       await expect(
-        bagrutService.completeBagrut(mockBagrutData._id.toString(), 'teacherId', 'signature')
+        bagrutService.completeBagrut(mockBagrutData._id.toString(), 'teacherId', 'signature', TEST_CONTEXT)
       ).rejects.toThrow('יחידות רסיטל חייבות להיות מוגדרות')
     })
   })
@@ -329,7 +344,8 @@ describe('Bagrut Integration Workflow Tests', () => {
       const result = await bagrutService.updateGradingDetails(
         mockBagrutData._id.toString(),
         newDetailedGrading,
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       expect(result['presentations.3.grade']).toBe(94)
@@ -372,7 +388,8 @@ describe('Bagrut Integration Workflow Tests', () => {
       const result = await bagrutService.setRecitalConfiguration(
         mockBagrutData._id.toString(),
         units,
-        field
+        field,
+        TEST_CONTEXT
       )
 
       expect(result.recitalUnits).toBe(3)
@@ -384,7 +401,8 @@ describe('Bagrut Integration Workflow Tests', () => {
         bagrutService.setRecitalConfiguration(
           mockBagrutData._id.toString(),
           4, // Invalid units (must be 3 or 5)
-          'קלאסי'
+          'קלאסי',
+          TEST_CONTEXT
         )
       ).rejects.toThrow('Recital units must be either 3 or 5')
 
@@ -392,7 +410,8 @@ describe('Bagrut Integration Workflow Tests', () => {
         bagrutService.setRecitalConfiguration(
           mockBagrutData._id.toString(),
           5,
-          'invalid-field' // Invalid field
+          'invalid-field', // Invalid field
+          TEST_CONTEXT
         )
       ).rejects.toThrow('Recital field must be one of')
     })
@@ -403,13 +422,13 @@ describe('Bagrut Integration Workflow Tests', () => {
       mockCollection.findOne.mockRejectedValueOnce(new Error('Database connection failed'))
 
       await expect(
-        bagrutService.getBagrutById(mockBagrutData._id.toString())
+        bagrutService.getBagrutById(mockBagrutData._id.toString(), TEST_CONTEXT)
       ).rejects.toThrow('Database connection failed')
     })
 
     it('should handle invalid ObjectId gracefully', async () => {
       await expect(
-        bagrutService.getBagrutById('invalid-object-id')
+        bagrutService.getBagrutById('invalid-object-id', TEST_CONTEXT)
       ).rejects.toThrow('Invalid ObjectId')
     })
 
@@ -417,7 +436,7 @@ describe('Bagrut Integration Workflow Tests', () => {
       mockCollection.findOne.mockResolvedValueOnce(null)
 
       await expect(
-        bagrutService.getBagrutById(mockBagrutData._id.toString())
+        bagrutService.getBagrutById(mockBagrutData._id.toString(), TEST_CONTEXT)
       ).rejects.toThrow('not found')
     })
   })
@@ -434,7 +453,7 @@ describe('Bagrut Integration Workflow Tests', () => {
       for (let i = 0; i < 3; i++) {
         const updatedBagrut = {
           ...mockBagrutData,
-          presentations: mockBagrutData.presentations.map((p, index) => 
+          presentations: mockBagrutData.presentations.map((p, index) =>
             index === i ? { ...p, ...presentationUpdate, notes: presentationUpdate.notes } : p
           )
         }
@@ -445,7 +464,8 @@ describe('Bagrut Integration Workflow Tests', () => {
           mockBagrutData._id.toString(),
           i,
           presentationUpdate,
-          'teacherId'
+          'teacherId',
+          TEST_CONTEXT
         )
 
         expect(result.presentations[i]).not.toHaveProperty('grade')
@@ -473,7 +493,8 @@ describe('Bagrut Integration Workflow Tests', () => {
         mockBagrutData._id.toString(),
         0,
         partialUpdate,
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       // Should preserve other fields

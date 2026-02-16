@@ -35,11 +35,12 @@ describe('Bagrut API Endpoint Tests', () => {
     // Setup Express app with middleware
     app = express()
     app.use(express.json())
-    
+
     // Mock authentication middleware
     app.use((req, res, next) => {
       req.teacher = mockTeacher
       req.bagrut = mockBagrut
+      req.context = { tenantId: 'test-tenant-id' }
       next()
     })
 
@@ -97,7 +98,8 @@ describe('Bagrut API Endpoint Tests', () => {
         {
           points: 8,
           comments: evaluationData.comments
-        }
+        },
+        { context: { tenantId: 'test-tenant-id' } }
       )
     })
 
@@ -182,7 +184,8 @@ describe('Bagrut API Endpoint Tests', () => {
 
       expect(bagrutService.updateDirectorEvaluation).toHaveBeenCalledWith(
         '6579e36c83c8b3a5c2df8a8b',
-        { points: 0, comments: validData.comments }
+        { points: 0, comments: validData.comments },
+        { context: { tenantId: 'test-tenant-id' } }
       )
     })
 
@@ -206,7 +209,8 @@ describe('Bagrut API Endpoint Tests', () => {
 
       expect(bagrutService.updateDirectorEvaluation).toHaveBeenCalledWith(
         '6579e36c83c8b3a5c2df8a8b',
-        { points: 10, comments: validData.comments }
+        { points: 10, comments: validData.comments },
+        { context: { tenantId: 'test-tenant-id' } }
       )
     })
 
@@ -230,7 +234,8 @@ describe('Bagrut API Endpoint Tests', () => {
 
       expect(bagrutService.updateDirectorEvaluation).toHaveBeenCalledWith(
         '6579e36c83c8b3a5c2df8a8b',
-        { points: 7, comments: '' }
+        { points: 7, comments: '' },
+        { context: { tenantId: 'test-tenant-id' } }
       )
     })
   })
@@ -259,7 +264,8 @@ describe('Bagrut API Endpoint Tests', () => {
       expect(bagrutService.setRecitalConfiguration).toHaveBeenCalledWith(
         '6579e36c83c8b3a5c2df8a8b',
         5,
-        'ג\'אז'
+        'ג\'אז',
+        { context: { tenantId: 'test-tenant-id' } }
       )
     })
 
@@ -285,7 +291,8 @@ describe('Bagrut API Endpoint Tests', () => {
       expect(bagrutService.setRecitalConfiguration).toHaveBeenCalledWith(
         '6579e36c83c8b3a5c2df8a8b',
         3,
-        'שירה'
+        'שירה',
+        { context: { tenantId: 'test-tenant-id' } }
       )
     })
 
@@ -382,7 +389,8 @@ describe('Bagrut API Endpoint Tests', () => {
           expect(bagrutService.setRecitalConfiguration).toHaveBeenCalledWith(
             '6579e36c83c8b3a5c2df8a8b',
             units,
-            field
+            field,
+            { context: { tenantId: 'test-tenant-id' } }
           )
         }
       }
@@ -529,7 +537,8 @@ describe('Bagrut API Endpoint Tests', () => {
       expect(bagrutService.updateGradingDetails).toHaveBeenCalledWith(
         '6579e36c83c8b3a5c2df8a8b',
         validGradingDetails,
-        mockTeacher._id.toString()
+        mockTeacher._id.toString(),
+        { context: { tenantId: 'test-tenant-id' } }
       )
     })
   })
@@ -617,7 +626,8 @@ describe('Bagrut API Endpoint Tests', () => {
 
       expect(bagrutService.updateDirectorEvaluation).toHaveBeenCalledWith(
         '6579e36c83c8b3a5c2df8a8b',
-        { points: 7.5, comments: validData.comments }
+        { points: 7.5, comments: validData.comments },
+        { context: { tenantId: 'test-tenant-id' } }
       )
     })
   })

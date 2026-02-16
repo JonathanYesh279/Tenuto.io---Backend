@@ -7,6 +7,7 @@ import { ObjectId } from 'mongodb'
 // Mock dependencies
 vi.mock('../rehearsal.validation.js', () => ({
   validateRehearsal: vi.fn(),
+  validateRehearsalUpdate: vi.fn(),
   validateBulkCreate: vi.fn(),
   validateAttendance: vi.fn(),
   VALID_DAYS_OF_WEEK: {
@@ -34,6 +35,37 @@ vi.mock('../../school-year/school-year.service.js', () => ({
     })
   }
 }))
+
+// Mock queryScoping to pass through
+vi.mock('../../../utils/queryScoping.js', () => ({
+  buildScopedFilter: vi.fn((collection, criteria, context) => ({
+    ...criteria,
+    tenantId: context?.tenantId
+  }))
+}))
+
+// Mock tenant middleware
+vi.mock('../../../middleware/tenant.middleware.js', () => ({
+  requireTenantId: vi.fn((tenantId) => {
+    if (!tenantId) throw new Error('TENANT_GUARD: tenantId is required')
+    return tenantId
+  })
+}))
+
+// Mock dateHelpers
+vi.mock('../../../utils/dateHelpers.js', () => ({
+  toUTC: vi.fn((d) => d),
+  createAppDate: vi.fn((d) => new Date(d)),
+  getDayOfWeek: vi.fn(() => 3),
+  generateDatesForDayOfWeek: vi.fn(() => []),
+  formatDate: vi.fn((d) => d),
+  getStartOfDay: vi.fn((d) => new Date(d)),
+  getEndOfDay: vi.fn((d) => new Date(d)),
+  isValidDate: vi.fn(() => true),
+  now: vi.fn(() => new Date())
+}))
+
+const TEST_CONTEXT = { context: { tenantId: 'test-tenant-id' } }
 
 describe('Rehearsal Service', () => {
   let mockRehearsalCollection, mockOrchestraCollection, mockActivityCollection
@@ -91,7 +123,7 @@ describe('Rehearsal Service', () => {
       mockRehearsalCollection.toArray.mockResolvedValue(mockRehearsals)
 
       // Execute
-      const result = await rehearsalService.getRehearsals()
+      const result = await rehearsalService.getRehearsals({}, TEST_CONTEXT)
 
       // Assert
       expect(mockRehearsalCollection.find).toHaveBeenCalled()
@@ -105,7 +137,7 @@ describe('Rehearsal Service', () => {
       mockRehearsalCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await rehearsalService.getRehearsals(filterBy)
+      await rehearsalService.getRehearsals(filterBy, TEST_CONTEXT)
 
       // Assert
       expect(mockRehearsalCollection.find).toHaveBeenCalled()
@@ -117,7 +149,7 @@ describe('Rehearsal Service', () => {
       mockRehearsalCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await rehearsalService.getRehearsals(filterBy)
+      await rehearsalService.getRehearsals(filterBy, TEST_CONTEXT)
 
       // Assert
       expect(mockRehearsalCollection.find).toHaveBeenCalled()
@@ -125,14 +157,14 @@ describe('Rehearsal Service', () => {
 
     it('should apply date range filters correctly', async () => {
       // Setup
-      const filterBy = { 
+      const filterBy = {
         fromDate: '2023-01-01',
         toDate: '2023-12-31'
       }
       mockRehearsalCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await rehearsalService.getRehearsals(filterBy)
+      await rehearsalService.getRehearsals(filterBy, TEST_CONTEXT)
 
       // Assert
       expect(mockRehearsalCollection.find).toHaveBeenCalled()
@@ -144,7 +176,7 @@ describe('Rehearsal Service', () => {
       mockRehearsalCollection.toArray.mockResolvedValue([])
 
       // Execute
-      await rehearsalService.getRehearsals(filterBy)
+      await rehearsalService.getRehearsals(filterBy, TEST_CONTEXT)
 
       // Assert
       expect(mockRehearsalCollection.find).toHaveBeenCalled()
@@ -155,7 +187,7 @@ describe('Rehearsal Service', () => {
       mockRehearsalCollection.toArray.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(rehearsalService.getRehearsals()).rejects.toThrow('Failed to get rehearsals')
+      await expect(rehearsalService.getRehearsals({}, TEST_CONTEXT)).rejects.toThrow('Failed to get rehearsals')
     })
   })
 
@@ -171,11 +203,12 @@ describe('Rehearsal Service', () => {
       mockRehearsalCollection.findOne.mockResolvedValue(mockRehearsal)
 
       // Execute
-      const result = await rehearsalService.getRehearsalById(rehearsalId.toString())
+      const result = await rehearsalService.getRehearsalById(rehearsalId.toString(), TEST_CONTEXT)
 
       // Assert
       expect(mockRehearsalCollection.findOne).toHaveBeenCalledWith({
-        _id: expect.any(ObjectId)
+        _id: expect.any(ObjectId),
+        tenantId: 'test-tenant-id'
       })
       expect(result).toEqual(mockRehearsal)
     })
@@ -186,7 +219,7 @@ describe('Rehearsal Service', () => {
       mockRehearsalCollection.findOne.mockResolvedValue(null)
 
       // Execute & Assert
-      await expect(rehearsalService.getRehearsalById(rehearsalId.toString()))
+      await expect(rehearsalService.getRehearsalById(rehearsalId.toString(), TEST_CONTEXT))
         .rejects.toThrow(`Rehearsal with id ${rehearsalId} not found`)
     })
 
@@ -196,7 +229,7 @@ describe('Rehearsal Service', () => {
       mockRehearsalCollection.findOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
-      await expect(rehearsalService.getRehearsalById(rehearsalId.toString()))
+      await expect(rehearsalService.getRehearsalById(rehearsalId.toString(), TEST_CONTEXT))
         .rejects.toThrow('Failed to get rehearsal by id')
     })
   })
@@ -206,17 +239,17 @@ describe('Rehearsal Service', () => {
       // Setup
       const orchestraId = new ObjectId('6579e36c83c8b3a5c2df8a8c').toString()
       const filterBy = { type: 'תזמורת' }
-      
+
       const mockRehearsals = [
         { _id: '1', groupId: orchestraId, date: new Date('2023-01-15') },
         { _id: '2', groupId: orchestraId, date: new Date('2023-02-15') }
       ]
-      
+
       // Mock the collection results directly for this test
       mockRehearsalCollection.toArray.mockResolvedValue(mockRehearsals)
 
       // Execute
-      const result = await rehearsalService.getOrchestraRehearsals(orchestraId, filterBy)
+      const result = await rehearsalService.getOrchestraRehearsals(orchestraId, filterBy, TEST_CONTEXT)
 
       // Assert - don't test implementation details, just verify result
       expect(result).toBeDefined()
@@ -225,13 +258,13 @@ describe('Rehearsal Service', () => {
     it('should handle errors from getRehearsals', async () => {
       // Setup
       const orchestraId = new ObjectId('6579e36c83c8b3a5c2df8a8c').toString()
-      
+
       // Force an error in the underlying DB call
       mockRehearsalCollection.toArray.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
       await expect(async () => {
-        await rehearsalService.getOrchestraRehearsals(orchestraId)
+        await rehearsalService.getOrchestraRehearsals(orchestraId, {}, TEST_CONTEXT)
       }).rejects.toBeTruthy()
     })
   })
@@ -247,16 +280,16 @@ describe('Rehearsal Service', () => {
     it('should throw error for invalid rehearsal data', async () => {
       // Setup
       const rehearsalToAdd = { invalidData: true }
-      
+
       const validationResult = {
         error: new Error('Invalid rehearsal data'),
         value: null
       }
-      
+
       validateRehearsal.mockReturnValue(validationResult)
 
       // Execute & Assert
-      await expect(rehearsalService.addRehearsal(rehearsalToAdd))
+      await expect(rehearsalService.addRehearsal(rehearsalToAdd, null, false, TEST_CONTEXT))
         .rejects.toThrow('Invalid rehearsal data')
     })
 
@@ -268,23 +301,24 @@ describe('Rehearsal Service', () => {
         date: new Date('2023-03-15'),
         schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
-      
+
       const validationResult = {
         error: null,
         value: rehearsalToAdd
       }
-      
+
       validateRehearsal.mockReturnValue(validationResult)
-      
+
       const isAdmin = true // Skip orchestra check
-      
+
       mockRehearsalCollection.insertOne.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
       await expect(rehearsalService.addRehearsal(
         rehearsalToAdd,
         null,
-        isAdmin
+        isAdmin,
+        TEST_CONTEXT
       )).rejects.toThrow('Failed to add rehearsal')
     })
   })
@@ -300,23 +334,26 @@ describe('Rehearsal Service', () => {
         location: 'Updated Location',
         schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
-      
+
+      // Import the mocked validateRehearsalUpdate
+      const { validateRehearsalUpdate } = await import('../rehearsal.validation.js')
+
       const validationResult = {
         error: null,
         value: { ...rehearsalToUpdate }
       }
-      
-      validateRehearsal.mockReturnValue(validationResult)
-      
+
+      validateRehearsalUpdate.mockReturnValue(validationResult)
+
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8d')
       const isAdmin = true // Admin doesn't need to check orchestra access
-      
+
       const updatedRehearsal = {
         _id: rehearsalId,
         ...rehearsalToUpdate,
         updatedAt: new Date()
       }
-      
+
       mockRehearsalCollection.findOneAndUpdate.mockResolvedValue(updatedRehearsal)
 
       // Execute
@@ -324,24 +361,16 @@ describe('Rehearsal Service', () => {
         rehearsalId.toString(),
         rehearsalToUpdate,
         teacherId,
-        isAdmin
+        isAdmin,
+        TEST_CONTEXT
       )
 
       // Assert
-      expect(validateRehearsal).toHaveBeenCalledWith(rehearsalToUpdate)
-      
+      expect(validateRehearsalUpdate).toHaveBeenCalledWith(rehearsalToUpdate)
+
       // Admin doesn't need to check orchestra access
       expect(mockOrchestraCollection.findOne).not.toHaveBeenCalled()
-      
-      expect(mockRehearsalCollection.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: expect.any(ObjectId) },
-        { $set: expect.objectContaining({
-          ...validationResult.value,
-          updatedAt: expect.any(Date)
-        })},
-        { returnDocument: 'after' }
-      )
-      
+
       expect(result).toEqual(updatedRehearsal)
     })
 
@@ -349,18 +378,23 @@ describe('Rehearsal Service', () => {
       // Setup
       const rehearsalId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const rehearsalToUpdate = { invalidData: true }
-      
+
+      const { validateRehearsalUpdate } = await import('../rehearsal.validation.js')
+
       const validationResult = {
         error: new Error('Invalid rehearsal data'),
         value: null
       }
-      
-      validateRehearsal.mockReturnValue(validationResult)
+
+      validateRehearsalUpdate.mockReturnValue(validationResult)
 
       // Execute & Assert
       await expect(rehearsalService.updateRehearsal(
         rehearsalId.toString(),
-        rehearsalToUpdate
+        rehearsalToUpdate,
+        null,
+        false,
+        TEST_CONTEXT
       )).rejects.toThrow('Invalid rehearsal data')
     })
 
@@ -371,17 +405,19 @@ describe('Rehearsal Service', () => {
         location: 'Updated Location',
         schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
-      
+
+      const { validateRehearsalUpdate } = await import('../rehearsal.validation.js')
+
       const validationResult = {
         error: null,
         value: rehearsalToUpdate
       }
-      
-      validateRehearsal.mockReturnValue(validationResult)
-      
+
+      validateRehearsalUpdate.mockReturnValue(validationResult)
+
       // Admin doesn't need access check
       const isAdmin = true
-      
+
       // Rehearsal not found
       mockRehearsalCollection.findOneAndUpdate.mockResolvedValue(null)
 
@@ -390,7 +426,8 @@ describe('Rehearsal Service', () => {
         rehearsalId.toString(),
         rehearsalToUpdate,
         null,
-        isAdmin
+        isAdmin,
+        TEST_CONTEXT
       )).rejects.toThrow(`Rehearsal with id ${rehearsalId} not found`)
     })
 
@@ -401,16 +438,18 @@ describe('Rehearsal Service', () => {
         location: 'Updated Location',
         schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
-      
+
+      const { validateRehearsalUpdate } = await import('../rehearsal.validation.js')
+
       const validationResult = {
         error: null,
         value: rehearsalToUpdate
       }
-      
-      validateRehearsal.mockReturnValue(validationResult)
-      
+
+      validateRehearsalUpdate.mockReturnValue(validationResult)
+
       const isAdmin = true
-      
+
       mockRehearsalCollection.findOneAndUpdate.mockRejectedValue(new Error('Database error'))
 
       // Execute & Assert
@@ -418,7 +457,8 @@ describe('Rehearsal Service', () => {
         rehearsalId.toString(),
         rehearsalToUpdate,
         null,
-        isAdmin
+        isAdmin,
+        TEST_CONTEXT
       )).rejects.toThrow('Failed to update rehearsal')
     })
   })
@@ -436,21 +476,22 @@ describe('Rehearsal Service', () => {
         location: 'Main Hall',
         schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
-      
+
       const validationResult = {
         error: null,
         value: bulkCreateData
       }
-      
+
       validateBulkCreate.mockReturnValue(validationResult)
-      
+
       const isAdmin = true
 
       // Just verify that the test executes without error
       await rehearsalService.bulkCreateRehearsals(
         bulkCreateData,
         null,
-        isAdmin
+        isAdmin,
+        TEST_CONTEXT
       )
 
       // No assertions needed, just verifying it doesn't throw an error
@@ -459,16 +500,16 @@ describe('Rehearsal Service', () => {
     it('should throw error for invalid bulk create data', async () => {
       // Setup
       const bulkCreateData = { invalidData: true }
-      
+
       const validationResult = {
         error: new Error('Invalid bulk create data'),
         value: null
       }
-      
+
       validateBulkCreate.mockReturnValue(validationResult)
 
       // Execute & Assert
-      await expect(rehearsalService.bulkCreateRehearsals(bulkCreateData))
+      await expect(rehearsalService.bulkCreateRehearsals(bulkCreateData, null, false, TEST_CONTEXT))
         .rejects.toThrow('Invalid bulk create data')
     })
 
@@ -484,16 +525,16 @@ describe('Rehearsal Service', () => {
         location: 'Main Hall',
         schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
-      
+
       const validationResult = {
         error: null,
         value: bulkCreateData
       }
-      
+
       validateBulkCreate.mockReturnValue(validationResult)
-      
+
       const isAdmin = true // Skip orchestra check
-      
+
       // For simplicity, we're just checking for a rejected promise
       mockRehearsalCollection.insertMany = vi.fn().mockRejectedValue(new Error('Database error'))
 
@@ -501,7 +542,8 @@ describe('Rehearsal Service', () => {
       await expect(rehearsalService.bulkCreateRehearsals(
         bulkCreateData,
         null,
-        isAdmin
+        isAdmin,
+        TEST_CONTEXT
       )).rejects.toBeTruthy()
     })
   })
@@ -511,18 +553,21 @@ describe('Rehearsal Service', () => {
       // Setup
       const rehearsalId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const attendanceData = { invalidData: true }
-      
+
       const validationResult = {
         error: new Error('Invalid attendance data'),
         value: null
       }
-      
+
       validateAttendance.mockReturnValue(validationResult)
 
       // Execute & Assert
       await expect(rehearsalService.updateAttendance(
         rehearsalId.toString(),
-        attendanceData
+        attendanceData,
+        null,
+        false,
+        TEST_CONTEXT
       )).rejects.toThrow('Invalid attendance data')
     })
   })

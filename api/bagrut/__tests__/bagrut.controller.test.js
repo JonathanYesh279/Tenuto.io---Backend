@@ -53,7 +53,8 @@ describe('Bagrut Controller', () => {
         _id: new ObjectId('6579e36c83c8b3a5c2df8a8b').toString()
       },
       bagrut: null,
-      processedFile: null
+      processedFile: null,
+      context: { tenantId: 'test-tenant-id' }
     }
 
     // Setup response object with chainable methods
@@ -86,12 +87,15 @@ describe('Bagrut Controller', () => {
       await bagrutController.getBagruts(req, res, next)
 
       // Assert
-      expect(bagrutService.getBagruts).toHaveBeenCalledWith({
-        studentId: '123',
-        teacherId: '456',
-        isActive: 'true',
-        showInactive: true
-      })
+      expect(bagrutService.getBagruts).toHaveBeenCalledWith(
+        {
+          studentId: '123',
+          teacherId: '456',
+          isActive: 'true',
+          showInactive: true
+        },
+        { context: req.context }
+      )
       expect(res.json).toHaveBeenCalledWith(mockBagruts)
     })
 
@@ -130,7 +134,7 @@ describe('Bagrut Controller', () => {
     it('should handle errors and pass them to next middleware', async () => {
       // Setup
       const error = new Error('Failed to get bagrut')
-      
+
       // Set request to throw when accessing req.bagrut
       Object.defineProperty(req, 'bagrut', {
         get: () => { throw error }
@@ -161,7 +165,10 @@ describe('Bagrut Controller', () => {
       await bagrutController.getBagrutByStudentId(req, res, next)
 
       // Assert
-      expect(bagrutService.getBagrutByStudentId).toHaveBeenCalledWith(studentId)
+      expect(bagrutService.getBagrutByStudentId).toHaveBeenCalledWith(
+        studentId,
+        { context: req.context }
+      )
       expect(res.json).toHaveBeenCalledWith(mockBagrut)
     })
 
@@ -203,7 +210,7 @@ describe('Bagrut Controller', () => {
       }
       req.body = bagrutToAdd
 
-      const addedBagrut = { 
+      const addedBagrut = {
         _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
         ...bagrutToAdd
       }
@@ -213,7 +220,10 @@ describe('Bagrut Controller', () => {
       await bagrutController.addBagrut(req, res, next)
 
       // Assert
-      expect(bagrutService.addBagrut).toHaveBeenCalledWith(bagrutToAdd)
+      expect(bagrutService.addBagrut).toHaveBeenCalledWith(
+        bagrutToAdd,
+        { context: req.context }
+      )
       expect(res.status).toHaveBeenCalledWith(201)
       expect(res.json).toHaveBeenCalledWith(addedBagrut)
     })
@@ -237,7 +247,7 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: bagrutId.toString() }
-      
+
       const bagrutToUpdate = {
         studentId: '123',
         teacherId: '456',
@@ -249,7 +259,7 @@ describe('Bagrut Controller', () => {
       }
       req.body = bagrutToUpdate
 
-      const updatedBagrut = { 
+      const updatedBagrut = {
         _id: bagrutId,
         ...bagrutToUpdate
       }
@@ -259,7 +269,11 @@ describe('Bagrut Controller', () => {
       await bagrutController.updateBagrut(req, res, next)
 
       // Assert
-      expect(bagrutService.updateBagrut).toHaveBeenCalledWith(bagrutId.toString(), bagrutToUpdate)
+      expect(bagrutService.updateBagrut).toHaveBeenCalledWith(
+        bagrutId.toString(),
+        bagrutToUpdate,
+        { context: req.context }
+      )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
 
@@ -283,20 +297,20 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const presentationIndex = '1'
-      req.params = { 
+      req.params = {
         id: bagrutId.toString(),
         presentationIndex
       }
-      
+
       const presentationData = {
-        status: 'עבר/ה',
+        status: '\u05E2\u05D1\u05E8/\u05D4',
         review: 'Good performance'
       }
       req.body = presentationData
-      
+
       const teacherId = req.teacher._id
-      
-      const updatedBagrut = { 
+
+      const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
         teacherId: '456',
@@ -312,20 +326,21 @@ describe('Bagrut Controller', () => {
         bagrutId.toString(),
         parseInt(presentationIndex),
         presentationData,
-        teacherId
+        teacherId,
+        { context: req.context }
       )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
 
     it('should handle errors and pass them to next middleware', async () => {
       // Setup
-      req.params = { 
+      req.params = {
         id: 'invalid-id',
         presentationIndex: '1'  // Valid index so it reaches the service
       }
-      req.body = { status: 'עבר/ה' }
+      req.body = { status: '\u05E2\u05D1\u05E8/\u05D4' }
       req.teacher = { _id: new ObjectId('6579e36c83c8b3a5c2df8a8c') }
-      
+
       const error = new Error('Failed to update presentation')
       bagrutService.updatePresentation.mockRejectedValue(error)
 
@@ -342,16 +357,16 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: bagrutId.toString() }
-      
+
       const magenBagrutData = {
-        status: 'עבר/ה',
+        status: '\u05E2\u05D1\u05E8/\u05D4',
         review: 'Good performance'
       }
       req.body = magenBagrutData
-      
+
       const teacherId = req.teacher._id
-      
-      const updatedBagrut = { 
+
+      const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
         teacherId: '456',
@@ -366,7 +381,8 @@ describe('Bagrut Controller', () => {
       expect(bagrutService.updateMagenBagrut).toHaveBeenCalledWith(
         bagrutId.toString(),
         magenBagrutData,
-        teacherId
+        teacherId,
+        { context: req.context }
       )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
@@ -374,8 +390,8 @@ describe('Bagrut Controller', () => {
     it('should handle errors and pass them to next middleware', async () => {
       // Setup
       req.params = { id: 'invalid-id' }
-      req.body = { status: 'עבר/ה' }
-      
+      req.body = { status: '\u05E2\u05D1\u05E8/\u05D4' }
+
       const error = new Error('Failed to update magen bagrut')
       bagrutService.updateMagenBagrut.mockRejectedValue(error)
 
@@ -393,13 +409,16 @@ describe('Bagrut Controller', () => {
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: bagrutId.toString() }
       req.processedFile = null // No file information
-      
+
       // Execute
       await bagrutController.addDocument(req, res, next)
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(400)
-      expect(res.json).toHaveBeenCalledWith({ error: 'No file information available' })
+      expect(res.json).toHaveBeenCalledWith({
+        error: '\u05D0\u05D9\u05DF \u05DE\u05D9\u05D3\u05E2 \u05D6\u05DE\u05D9\u05DF \u05E2\u05DC \u05D4\u05E7\u05D5\u05D1\u05E5',
+        errorEn: 'No file information available'
+      })
       expect(bagrutService.addDocument).not.toHaveBeenCalled()
     })
 
@@ -407,17 +426,17 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: bagrutId.toString() }
-      
+
       req.body = { title: 'Test Document' }
       req.processedFile = {
         originalname: 'test-document.pdf',
         url: '/uploads/test-document.pdf',
         key: 'uploads/test-document.pdf'
       }
-      
+
       const teacherId = req.teacher._id
-      
-      const updatedBagrut = { 
+
+      const updatedBagrut = {
         _id: bagrutId,
         studentId: '123',
         teacherId: '456',
@@ -442,7 +461,8 @@ describe('Bagrut Controller', () => {
           uploadDate: expect.any(Date),
           uploadedBy: teacherId
         },
-        teacherId
+        teacherId,
+        { context: req.context }
       )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
@@ -451,15 +471,15 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: bagrutId.toString() }
-      
+
       req.body = {} // No title provided
       req.processedFile = {
         originalname: 'test-document.pdf',
         url: '/uploads/test-document.pdf'
       }
-      
+
       const teacherId = req.teacher._id
-      
+
       bagrutService.addDocument.mockResolvedValue({})
 
       // Execute
@@ -472,7 +492,8 @@ describe('Bagrut Controller', () => {
           title: 'test-document.pdf', // Uses originalname
           fileUrl: '/uploads/test-document.pdf'
         }),
-        teacherId
+        teacherId,
+        { context: req.context }
       )
     })
 
@@ -483,7 +504,7 @@ describe('Bagrut Controller', () => {
         originalname: 'test-document.pdf',
         url: '/uploads/test-document.pdf'
       }
-      
+
       const error = new Error('Failed to add document')
       bagrutService.addDocument.mockRejectedValue(error)
 
@@ -500,11 +521,11 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const documentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      req.params = { 
+      req.params = {
         id: bagrutId.toString(),
         documentId: documentId.toString()
       }
-      
+
       // Set up req.bagrut with documents
       req.bagrut = {
         _id: bagrutId,
@@ -513,8 +534,8 @@ describe('Bagrut Controller', () => {
           fileUrl: '/uploads/test-document.pdf'
         }]
       }
-      
-      const updatedBagrut = { 
+
+      const updatedBagrut = {
         _id: bagrutId,
         documents: [] // Document removed
       }
@@ -527,7 +548,8 @@ describe('Bagrut Controller', () => {
       expect(deleteFile).toHaveBeenCalledWith('/uploads/test-document.pdf')
       expect(bagrutService.removeDocument).toHaveBeenCalledWith(
         bagrutId.toString(),
-        documentId.toString()
+        documentId.toString(),
+        { context: req.context }
       )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
@@ -536,11 +558,11 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const documentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      req.params = { 
+      req.params = {
         id: bagrutId.toString(),
         documentId: documentId.toString()
       }
-      
+
       // Set up req.bagrut with documents
       req.bagrut = {
         _id: bagrutId,
@@ -549,16 +571,16 @@ describe('Bagrut Controller', () => {
           fileUrl: '/uploads/test-document.pdf'
         }]
       }
-      
-      const updatedBagrut = { 
+
+      const updatedBagrut = {
         _id: bagrutId,
         documents: [] // Document removed
       }
-      
+
       const deleteError = new Error('File not found')
       deleteFile.mockRejectedValueOnce(deleteError)
       bagrutService.removeDocument.mockResolvedValue(updatedBagrut)
-      
+
       // Spy on console.warn
       const consoleSpy = vi.spyOn(console, 'warn')
 
@@ -570,7 +592,8 @@ describe('Bagrut Controller', () => {
       expect(consoleSpy).toHaveBeenCalledWith(`Error deleting file: ${deleteError.message}`)
       expect(bagrutService.removeDocument).toHaveBeenCalledWith(
         bagrutId.toString(),
-        documentId.toString()
+        documentId.toString(),
+        { context: req.context }
       )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
@@ -579,11 +602,11 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const documentId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      req.params = { 
+      req.params = {
         id: bagrutId.toString(),
         documentId: documentId.toString()
       }
-      
+
       // Set up req.bagrut with documents
       req.bagrut = {
         _id: bagrutId,
@@ -592,7 +615,7 @@ describe('Bagrut Controller', () => {
           fileUrl: '/uploads/test-document.pdf'
         }]
       }
-      
+
       const error = new Error('Failed to remove document')
       bagrutService.removeDocument.mockRejectedValue(error)
 
@@ -609,7 +632,7 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: bagrutId.toString() }
-      
+
       const pieceData = {
         pieceTitle: 'New Piece',
         composer: 'Composer',
@@ -617,8 +640,8 @@ describe('Bagrut Controller', () => {
         youtubeLink: 'https://youtube.com/watch?v=123'
       }
       req.body = pieceData
-      
-      const updatedBagrut = { 
+
+      const updatedBagrut = {
         _id: bagrutId,
         program: [pieceData]
       }
@@ -630,7 +653,8 @@ describe('Bagrut Controller', () => {
       // Assert
       expect(bagrutService.addProgramPiece).toHaveBeenCalledWith(
         bagrutId.toString(),
-        pieceData
+        pieceData,
+        { context: req.context }
       )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
@@ -639,7 +663,7 @@ describe('Bagrut Controller', () => {
       // Setup
       req.params = { id: 'invalid-id' }
       req.body = { pieceTitle: 'New Piece' }
-      
+
       const error = new Error('Failed to add program piece')
       bagrutService.addProgramPiece.mockRejectedValue(error)
 
@@ -656,12 +680,12 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const pieceId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      req.params = { 
+      req.params = {
         id: bagrutId.toString(),
         pieceId: pieceId.toString()
       }
-      
-      const updatedBagrut = { 
+
+      const updatedBagrut = {
         _id: bagrutId,
         program: [] // Piece removed
       }
@@ -673,18 +697,19 @@ describe('Bagrut Controller', () => {
       // Assert
       expect(bagrutService.removeProgramPiece).toHaveBeenCalledWith(
         bagrutId.toString(),
-        pieceId.toString()
+        pieceId.toString(),
+        { context: req.context }
       )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
 
     it('should handle errors and pass them to next middleware', async () => {
       // Setup
-      req.params = { 
+      req.params = {
         id: 'invalid-id',
         pieceId: 'invalid-piece-id'
       }
-      
+
       const error = new Error('Failed to remove program piece')
       bagrutService.removeProgramPiece.mockRejectedValue(error)
 
@@ -701,18 +726,18 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: bagrutId.toString() }
-      
+
       const accompanistData = {
         name: 'Accompanist Name',
         instrument: 'Piano',
         phone: '0501234567'
       }
       req.body = accompanistData
-      
-      const updatedBagrut = { 
+
+      const updatedBagrut = {
         _id: bagrutId,
         accompaniment: {
-          type: 'נגן מלווה',
+          type: '\u05E0\u05D2\u05DF \u05DE\u05DC\u05D5\u05D5\u05D4',
           accompanists: [accompanistData]
         }
       }
@@ -724,7 +749,8 @@ describe('Bagrut Controller', () => {
       // Assert
       expect(bagrutService.addAccompanist).toHaveBeenCalledWith(
         bagrutId.toString(),
-        accompanistData
+        accompanistData,
+        { context: req.context }
       )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
@@ -733,7 +759,7 @@ describe('Bagrut Controller', () => {
       // Setup
       req.params = { id: 'invalid-id' }
       req.body = { name: 'Accompanist' }
-      
+
       const error = new Error('Failed to add accompanist')
       bagrutService.addAccompanist.mockRejectedValue(error)
 
@@ -750,15 +776,15 @@ describe('Bagrut Controller', () => {
       // Setup
       const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const accompanistId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      req.params = { 
+      req.params = {
         id: bagrutId.toString(),
         accompanistId: accompanistId.toString()
       }
-      
-      const updatedBagrut = { 
+
+      const updatedBagrut = {
         _id: bagrutId,
         accompaniment: {
-          type: 'נגן מלווה',
+          type: '\u05E0\u05D2\u05DF \u05DE\u05DC\u05D5\u05D5\u05D4',
           accompanists: [] // Accompanist removed
         }
       }
@@ -770,18 +796,19 @@ describe('Bagrut Controller', () => {
       // Assert
       expect(bagrutService.removeAccompanist).toHaveBeenCalledWith(
         bagrutId.toString(),
-        accompanistId.toString()
+        accompanistId.toString(),
+        { context: req.context }
       )
       expect(res.json).toHaveBeenCalledWith(updatedBagrut)
     })
 
     it('should handle errors and pass them to next middleware', async () => {
       // Setup
-      req.params = { 
+      req.params = {
         id: 'invalid-id',
         accompanistId: 'invalid-accompanist-id'
       }
-      
+
       const error = new Error('Failed to remove accompanist')
       bagrutService.removeAccompanist.mockRejectedValue(error)
 

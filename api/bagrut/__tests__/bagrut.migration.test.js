@@ -16,6 +16,18 @@ vi.mock('../../student/student.service.js', () => ({
   }
 }))
 
+// Mock tenant middleware to bypass tenantId guard
+vi.mock('../../../middleware/tenant.middleware.js', () => ({
+  requireTenantId: vi.fn((tenantId) => tenantId || 'test-tenant-id'),
+}))
+
+// Mock query scoping to return filters as-is
+vi.mock('../../../utils/queryScoping.js', () => ({
+  buildScopedFilter: vi.fn((type, filter) => filter),
+}))
+
+const TEST_CONTEXT = { context: { tenantId: 'test-tenant-id' } }
+
 describe('Bagrut Migration Verification Tests', () => {
   let mockCollection
 
@@ -101,7 +113,8 @@ describe('Bagrut Migration Verification Tests', () => {
         oldBagrutWith3Presentations._id.toString(),
         1,
         { notes: 'Updated notes' },
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       expect(mockCollection.updateOne).toHaveBeenCalledWith(
@@ -153,7 +166,8 @@ describe('Bagrut Migration Verification Tests', () => {
         bagrutWith4Presentations._id.toString(),
         1,
         { notes: 'Updated notes' },
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       // Should not call updateOne for migration since it already has 4 presentations
@@ -169,7 +183,7 @@ describe('Bagrut Migration Verification Tests', () => {
 
       // Should not throw error, just log warning
       await expect(
-        bagrutService.updatePresentation('invalid-object-id', 0, { notes: 'test' }, 'teacherId')
+        bagrutService.updatePresentation('invalid-object-id', 0, { notes: 'test' }, 'teacherId', TEST_CONTEXT)
       ).rejects.toThrow('Invalid ObjectId')
     })
   })
@@ -195,7 +209,8 @@ describe('Bagrut Migration Verification Tests', () => {
         incompleteOldBagrut._id.toString(),
         0,
         { notes: 'test' },
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       expect(mockCollection.updateOne).toHaveBeenCalledWith(
@@ -254,7 +269,8 @@ describe('Bagrut Migration Verification Tests', () => {
         bagrutWithExistingValues._id.toString(),
         0,
         { notes: 'test' },
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       expect(mockCollection.updateOne).toHaveBeenCalledWith(
@@ -302,7 +318,8 @@ describe('Bagrut Migration Verification Tests', () => {
         oldBagrutWithOldGrading._id.toString(),
         0,
         { notes: 'test' },
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       expect(mockCollection.updateOne).toHaveBeenCalledWith(
@@ -351,7 +368,8 @@ describe('Bagrut Migration Verification Tests', () => {
         bagrutWithExistingDetailedGrading._id.toString(),
         0,
         { notes: 'test' },
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       expect(mockCollection.updateOne).toHaveBeenCalledWith(
@@ -372,9 +390,9 @@ describe('Bagrut Migration Verification Tests', () => {
         studentId: '6579e36c83c8b3a5c2df8a8c',
         teacherId: '6579e36c83c8b3a5c2df8a8d',
         presentations: [
-          { 
-            completed: true, 
-            status: 'עבר/ה', 
+          {
+            completed: true,
+            status: 'עבר/ה',
             date: new Date('2024-01-15'),
             review: 'Excellent performance',
             reviewedBy: 'teacher123',
@@ -407,7 +425,8 @@ describe('Bagrut Migration Verification Tests', () => {
         originalBagrut._id.toString(),
         0,
         { notes: 'Updated notes' },
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       expect(mockCollection.updateOne).toHaveBeenCalledWith(
@@ -453,7 +472,8 @@ describe('Bagrut Migration Verification Tests', () => {
           malformedBagrut._id.toString(),
           0,
           { notes: 'test' },
-          'teacherId'
+          'teacherId',
+          TEST_CONTEXT
         )
       ).not.toThrow()
     })
@@ -469,9 +489,9 @@ describe('Bagrut Migration Verification Tests', () => {
           { completed: true, status: 'עבר/ה', notes: '' },
           { completed: true, status: 'עבר/ה', notes: '' },
           { completed: true, status: 'עבר/ה', notes: '' },
-          { 
-            completed: true, 
-            status: 'עבר/ה', 
+          {
+            completed: true,
+            status: 'עבר/ה',
             grade: 88,
             gradeLevel: 'טוב',
             detailedGrading: {
@@ -491,7 +511,8 @@ describe('Bagrut Migration Verification Tests', () => {
         modernBagrut._id.toString(),
         0,
         { notes: 'test' },
-        'teacherId'
+        'teacherId',
+        TEST_CONTEXT
       )
 
       // Should not call migration updateOne since bagrut is already modern
@@ -526,7 +547,8 @@ describe('Bagrut Migration Verification Tests', () => {
           bagrut._id.toString(),
           0,
           { notes: 'test' },
-          'teacherId'
+          'teacherId',
+          TEST_CONTEXT
         )
       }
 
