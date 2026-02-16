@@ -9,7 +9,7 @@ export async function authorizeBagrutAccess(req, res, next) {
       return res.status(400).json({ error: 'Bagrut ID is required' })
     }
 
-    const bagrut = await bagrutService.getBagrutById(bagrutId)
+    const bagrut = await bagrutService.getBagrutById(bagrutId, { context: req.context })
 
     if (!bagrut) {
       return res.status(404).json({ error: `Bagrut with id ${bagrutId} not found` })
