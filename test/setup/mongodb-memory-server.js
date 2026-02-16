@@ -43,7 +43,6 @@ export async function setupTestDatabase() {
       maxIdleTimeMS: 30000,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
-      bufferMaxEntries: 0,
       connectTimeoutMS: 10000,
     });
 

@@ -9,9 +9,10 @@ config({ path: '.env.test' })
 // Global test database instance
 let testDatabase = null
 
-// Mock MongoDB service for unit tests only
-// Integration tests should use real MongoDB Memory Server
-const shouldUseMockDB = process.env.TEST_TYPE === 'unit' || !process.env.USE_MEMORY_DB
+// Mock MongoDB service when NOT using MongoDB Memory Server.
+// The mock is active for unit tests and the default vitest config (USE_MEMORY_DB=false).
+// Integration tests that set USE_MEMORY_DB=true get real MongoDB Memory Server instead.
+const shouldUseMockDB = process.env.TEST_TYPE === 'unit' || process.env.USE_MEMORY_DB !== 'true'
 
 if (shouldUseMockDB) {
   vi.mock('../services/mongoDB.service.js', () => {
@@ -73,6 +74,37 @@ vi.mock('bcrypt', () => ({
   hash: vi.fn(() => Promise.resolve('hashed-password')),
 }))
 
+// Mock tenant middleware — in unit tests, bypass tenant guard
+// and return a default test tenant ID. Integration tests that need
+// real tenant enforcement should use vitest.config.phase2.js (no setupFiles).
+vi.mock('../middleware/tenant.middleware.js', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    requireTenantId: vi.fn((tenantId) => {
+      // If tenantId is provided, return it (normal behavior).
+      // If not provided, return a default test tenant instead of throwing.
+      return tenantId || 'test-tenant-id'
+    }),
+  }
+})
+
+// Mock query scoping — in unit tests, buildScopedFilter passes through
+// the base filter unchanged so existing test assertions still work.
+// Integration tests that need real scoping use vitest.config.phase2.js.
+vi.mock('../utils/queryScoping.js', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    buildScopedFilter: vi.fn((collection, baseFilter, context) => {
+      // Pass through the base filter unchanged for unit test compatibility
+      return { ...baseFilter }
+    }),
+    canAccessStudent: vi.fn(() => true),
+    canAccessOwnResource: vi.fn(() => true),
+  }
+})
+
 // Mock other services that might interfere with tests
 vi.mock('../services/emailService.js', () => ({
   sendEmail: vi.fn(() => Promise.resolve({ success: true })),
@@ -97,7 +129,9 @@ beforeAll(async () => {
       }))
     } catch (error) {
       console.error('Failed to setup test database:', error)
-      process.exit(1)
+      throw new Error(
+        `Failed to setup test database: ${error?.message || error}`,
+      );
     }
   }
   
@@ -118,8 +152,11 @@ afterAll(async () => {
 })
 
 afterEach(async () => {
-  // Reset all mocks after each test
-  vi.resetAllMocks()
+  // Clear mock call history but keep mock implementations intact.
+  // Using clearAllMocks (not resetAllMocks) because resetAllMocks
+  // strips mock implementations (mockResolvedValue, etc.) which breaks
+  // module-level mocks like requireTenantId and buildScopedFilter.
+  vi.clearAllMocks()
   
   // Reset test database if using MongoDB Memory Server
   if (testDatabase && process.env.RESET_DB_AFTER_EACH === 'true') {

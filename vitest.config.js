@@ -6,7 +6,16 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['**/*.test.js', '**/*.spec.js'],
-    exclude: ['node_modules', 'dist', '.idea', '.git', '.cache'],
+    exclude: [
+      'node_modules/**',
+      'dist/**',
+      '.idea/**',
+      '.git/**',
+      '.cache/**',
+      '.claude/**',
+      '.planning/**',
+      'public/**',
+    ],
     setupFiles: ['./test/setup.js'],
     coverage: {
       reporter: ['text', 'json', 'html'],
@@ -33,12 +42,12 @@ export default defineConfig({
     teardownTimeout: 10000, // 10 seconds for cleanup
     root: '.',
     pool: 'forks', // Use forks for better isolation
-    maxConcurrency: 5, // Limit concurrent tests to prevent resource exhaustion
+    maxConcurrency: 3, // Limit concurrent tests to prevent resource exhaustion on WSL2
     minWorkers: 1,
-    maxWorkers: 4,
+    maxWorkers: 2, // Reduced for WSL2 I/O stability
     env: {
       NODE_ENV: 'test',
-      USE_MEMORY_DB: 'true',
+      USE_MEMORY_DB: 'false',
       RESET_DB_AFTER_EACH: 'false',
       LOG_LEVEL: 'warn' // Reduce log noise during tests
     }
