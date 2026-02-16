@@ -2,6 +2,12 @@
 
 Always read `.claude/AGENT_IMPLEMENTATION_GUIDE.md` at the start of each session for the current implementation roadmap.
 
+## Related Repositories
+
+- **Frontend:** `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Frontend` (React 18 + TypeScript + Vite + Tailwind)
+- **Frontend Guide:** `.claude/FRONTEND_IMPLEMENTATION_GUIDE.md` — comprehensive guide for frontend agent work
+- When working on frontend tasks, explore the frontend repo first to understand current structure before making changes.
+
 ## Commit Workflow (MANDATORY)
 
 After completing each phase, sub-phase, or significant batch of changes (e.g. a bug fix round, a new feature, a refactor):
