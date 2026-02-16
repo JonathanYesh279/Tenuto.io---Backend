@@ -264,7 +264,8 @@ describe('Rehearsal Validation', () => {
         dayOfWeek: 3, // Wednesday
         startTime: '18:00',
         endTime: '20:00',
-        location: 'Main Hall'
+        location: 'Main Hall',
+        schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
 
       // Execute
@@ -284,7 +285,8 @@ describe('Rehearsal Validation', () => {
         dayOfWeek: 3,
         startTime: '18:00',
         endTime: '20:00',
-        location: 'Main Hall'
+        location: 'Main Hall',
+        schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
 
       // Execute
@@ -409,6 +411,7 @@ describe('Rehearsal Validation', () => {
         startTime: '18:00',
         endTime: '20:00',
         location: 'Main Hall',
+        schoolYearId: '6579e36c83c8b3a5c2df8a8c',
         excludeDates: [
           new Date('2023-01-25'),
           new Date('2023-02-08')

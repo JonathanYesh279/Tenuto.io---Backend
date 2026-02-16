@@ -28,7 +28,7 @@ vi.mock('../../../utils/queryScoping.js', () => ({
 
 const TEST_CONTEXT = { context: { tenantId: 'test-tenant-id' } }
 
-describe('Bagrut Migration Verification Tests', () => {
+describe('Bagrut Presentation Update Tests (Post-Migration)', () => {
   let mockCollection
 
   beforeEach(() => {
@@ -45,514 +45,284 @@ describe('Bagrut Migration Verification Tests', () => {
     getCollection.mockResolvedValue(mockCollection)
   })
 
-  describe('Migration from 3 to 4 Presentations', () => {
-    it('should migrate bagrut with 3 presentations to 4 presentations', async () => {
-      const oldBagrutWith3Presentations = {
-        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        studentId: '6579e36c83c8b3a5c2df8a8c',
-        teacherId: '6579e36c83c8b3a5c2df8a8d',
+  describe('Presentations 0-2 (Regular Presentations)', () => {
+    it('should update a regular presentation and strip grade/gradeLevel', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
+
+      const updatedBagrut = {
+        _id: bagrutId,
         presentations: [
-          { completed: true, status: 'עבר/ה', review: 'Good', grade: 85, gradeLevel: 'טוב' },
-          { completed: true, status: 'עבר/ה', review: 'Very good', grade: 90, gradeLevel: 'טוב מאוד' },
-          { completed: false, status: 'לא נבחן', review: null, grade: null, gradeLevel: null }
+          { completed: true, status: 'passed', notes: 'Updated notes', reviewedBy: 'teacherId', lastUpdatedBy: 'teacherId', date: expect.any(Date) },
+          { completed: true, status: 'passed', notes: '' },
+          { completed: false, status: 'not tested', notes: '' },
+          { completed: false, status: 'not tested', grade: null, detailedGrading: {} }
         ]
       }
 
-      const expectedMigratedBagrut = {
-        ...oldBagrutWith3Presentations,
-        presentations: [
-          // First 3 presentations should have grades/gradeLevel removed and notes added
-          { completed: true, status: 'עבר/ה', review: 'Good', notes: '', recordingLinks: [] },
-          { completed: true, status: 'עבר/ה', review: 'Very good', notes: '', recordingLinks: [] },
-          { completed: false, status: 'לא נבחן', review: null, notes: '', recordingLinks: [] },
-          // Fourth presentation should be the new מגן בגרות presentation
-          {
-            completed: false,
-            status: 'לא נבחן',
-            date: null,
-            review: null,
-            reviewedBy: null,
-            grade: null,
-            gradeLevel: null,
-            recordingLinks: [],
-            detailedGrading: {
-              playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
-              musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
-              textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
-              playingByHeart: { grade: 'לא הוערך', points: null, maxPoints: 10, comments: 'אין הערות' }
-            }
-          }
-        ],
-        // Should add missing fields with defaults
-        gradingDetails: {
-          technique: { grade: null, maxPoints: 20, comments: '' },
-          interpretation: { grade: null, maxPoints: 30, comments: '' },
-          musicality: { grade: null, maxPoints: 40, comments: '' },
-          overall: { grade: null, maxPoints: 10, comments: '' }
-        },
-        directorEvaluation: {
-          points: null,
-          percentage: 10,
-          comments: ''
-        },
-        recitalUnits: 5,
-        recitalField: 'קלאסי',
-        conservatoryName: '',
-        finalGrade: null,
-        finalGradeLevel: null,
-        teacherSignature: '',
-        completionDate: null,
-        isCompleted: false
-      }
+      mockCollection.findOneAndUpdate.mockResolvedValueOnce(updatedBagrut)
 
-      mockCollection.findOne.mockResolvedValueOnce(oldBagrutWith3Presentations)
-      mockCollection.updateOne.mockResolvedValueOnce({ modifiedCount: 1 })
-
-      // Trigger migration by calling updatePresentation
-      await bagrutService.updatePresentation(
-        oldBagrutWith3Presentations._id.toString(),
-        1,
-        { notes: 'Updated notes' },
+      const result = await bagrutService.updatePresentation(
+        bagrutId.toString(),
+        0,
+        { notes: 'Updated notes', grade: 85, gradeLevel: 'good' },
         'teacherId',
         TEST_CONTEXT
       )
 
-      expect(mockCollection.updateOne).toHaveBeenCalledWith(
-        { _id: oldBagrutWith3Presentations._id },
+      expect(mockCollection.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: bagrutId, tenantId: 'test-tenant-id' },
         expect.objectContaining({
           $set: expect.objectContaining({
-            presentations: expect.arrayContaining([
-              expect.objectContaining({ notes: expect.any(String) }),
-              expect.objectContaining({ notes: expect.any(String) }),
-              expect.objectContaining({ notes: expect.any(String) }),
-              expect.objectContaining({
-                detailedGrading: expect.objectContaining({
-                  playingSkills: expect.objectContaining({ maxPoints: 40 }),
-                  musicalUnderstanding: expect.objectContaining({ maxPoints: 30 }),
-                  textKnowledge: expect.objectContaining({ maxPoints: 20 }),
-                  playingByHeart: expect.objectContaining({ maxPoints: 10 })
-                })
-              })
-            ])
+            'presentations.0': expect.objectContaining({
+              notes: 'Updated notes',
+              lastUpdatedBy: 'teacherId'
+            })
           })
-        })
+        }),
+        { returnDocument: 'after' }
       )
+
+      // Verify grade/gradeLevel were stripped from the update data
+      const setArg = mockCollection.findOneAndUpdate.mock.calls[0][1].$set['presentations.0']
+      expect(setArg).not.toHaveProperty('grade')
+      expect(setArg).not.toHaveProperty('gradeLevel')
     })
 
-    it('should not migrate bagrut that already has 4 presentations', async () => {
-      const bagrutWith4Presentations = {
-        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        studentId: '6579e36c83c8b3a5c2df8a8c',
-        teacherId: '6579e36c83c8b3a5c2df8a8d',
-        presentations: [
-          { completed: true, status: 'עבר/ה', notes: '' },
-          { completed: true, status: 'עבר/ה', notes: '' },
-          { completed: true, status: 'עבר/ה', notes: '' },
-          { completed: false, status: 'לא נבחן', grade: null, detailedGrading: {} }
-        ]
+    it('should set default notes when not provided', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
+
+      mockCollection.findOneAndUpdate.mockResolvedValueOnce({
+        _id: bagrutId,
+        presentations: [{ completed: true, notes: '' }]
+      })
+
+      await bagrutService.updatePresentation(
+        bagrutId.toString(),
+        1,
+        { completed: true, status: 'passed' },
+        'teacherId',
+        TEST_CONTEXT
+      )
+
+      const setArg = mockCollection.findOneAndUpdate.mock.calls[0][1].$set['presentations.1']
+      expect(setArg.notes).toBe('')
+    })
+
+    it('should set reviewedBy to teacherId when not provided', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
+
+      mockCollection.findOneAndUpdate.mockResolvedValueOnce({
+        _id: bagrutId,
+        presentations: [{ completed: true }]
+      })
+
+      await bagrutService.updatePresentation(
+        bagrutId.toString(),
+        0,
+        { notes: 'test' },
+        'teacher123',
+        TEST_CONTEXT
+      )
+
+      const setArg = mockCollection.findOneAndUpdate.mock.calls[0][1].$set['presentations.0']
+      expect(setArg.reviewedBy).toBe('teacher123')
+      expect(setArg.lastUpdatedBy).toBe('teacher123')
+    })
+
+    it('should preserve reviewedBy when provided by frontend', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
+
+      mockCollection.findOneAndUpdate.mockResolvedValueOnce({
+        _id: bagrutId,
+        presentations: [{ completed: true }]
+      })
+
+      await bagrutService.updatePresentation(
+        bagrutId.toString(),
+        0,
+        { notes: 'test', reviewedBy: 'Examiner Name' },
+        'teacher123',
+        TEST_CONTEXT
+      )
+
+      const setArg = mockCollection.findOneAndUpdate.mock.calls[0][1].$set['presentations.0']
+      expect(setArg.reviewedBy).toBe('Examiner Name')
+      expect(setArg.lastUpdatedBy).toBe('teacher123')
+    })
+  })
+
+  describe('Presentation 3 (Graded Presentation)', () => {
+    it('should calculate grade from detailedGrading for presentation 3', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
+
+      const presentationData = {
+        completed: true,
+        status: 'passed',
+        detailedGrading: {
+          playingSkills: { points: 35, maxPoints: 40 },
+          musicalUnderstanding: { points: 26, maxPoints: 30 },
+          textKnowledge: { points: 18, maxPoints: 20 },
+          playingByHeart: { points: 9, maxPoints: 10 }
+        }
       }
 
-      mockCollection.findOne.mockResolvedValueOnce(bagrutWith4Presentations)
       mockCollection.findOneAndUpdate.mockResolvedValueOnce({
-        ...bagrutWith4Presentations,
+        _id: bagrutId,
         presentations: [
-          ...bagrutWith4Presentations.presentations.slice(0, 1),
-          { ...bagrutWith4Presentations.presentations[1], notes: 'Updated notes' },
-          ...bagrutWith4Presentations.presentations.slice(2)
+          { completed: true }, { completed: true }, { completed: true },
+          { ...presentationData, grade: 88, gradeLevel: 'good' }
         ]
       })
 
       await bagrutService.updatePresentation(
-        bagrutWith4Presentations._id.toString(),
-        1,
-        { notes: 'Updated notes' },
+        bagrutId.toString(),
+        3,
+        presentationData,
         'teacherId',
         TEST_CONTEXT
       )
 
-      // Should not call updateOne for migration since it already has 4 presentations
-      expect(mockCollection.updateOne).not.toHaveBeenCalled()
-      expect(mockCollection.findOneAndUpdate).toHaveBeenCalled()
+      const setArg = mockCollection.findOneAndUpdate.mock.calls[0][1].$set['presentations.3']
+      expect(setArg.grade).toBe(88) // 35 + 26 + 18 + 9 = 88
+      expect(setArg.gradeLevel).toBeDefined()
     })
 
-    it('should handle migration errors gracefully', async () => {
-      const problematicBagrut = {
-        _id: 'invalid-object-id', // Invalid ObjectId
-        presentations: [{ completed: true }, { completed: true }, { completed: true }]
+    it('should preserve grade fields for presentation 3 (not strip them)', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
+
+      const presentationData = {
+        completed: true,
+        grade: 85,
+        gradeLevel: 'good',
+        detailedGrading: {
+          playingSkills: { points: 34, maxPoints: 40 },
+          musicalUnderstanding: { points: 25, maxPoints: 30 },
+          textKnowledge: { points: 17, maxPoints: 20 },
+          playingByHeart: { points: 9, maxPoints: 10 }
+        }
       }
 
-      // Should not throw error, just log warning
+      mockCollection.findOneAndUpdate.mockResolvedValueOnce({
+        _id: bagrutId,
+        presentations: [{}, {}, {}, presentationData]
+      })
+
+      await bagrutService.updatePresentation(
+        bagrutId.toString(),
+        3,
+        presentationData,
+        'teacherId',
+        TEST_CONTEXT
+      )
+
+      const setArg = mockCollection.findOneAndUpdate.mock.calls[0][1].$set['presentations.3']
+      // Grade should be calculated from detailedGrading, not stripped
+      expect(setArg.grade).toBe(85) // 34 + 25 + 17 + 9 = 85
+    })
+  })
+
+  describe('Index Validation', () => {
+    it('should reject negative presentation index', async () => {
+      await expect(
+        bagrutService.updatePresentation('6579e36c83c8b3a5c2df8a8b', -1, { notes: 'test' }, 'teacherId', TEST_CONTEXT)
+      ).rejects.toThrow('Invalid presentation index')
+    })
+
+    it('should reject presentation index above 3', async () => {
+      await expect(
+        bagrutService.updatePresentation('6579e36c83c8b3a5c2df8a8b', 4, { notes: 'test' }, 'teacherId', TEST_CONTEXT)
+      ).rejects.toThrow('Invalid presentation index')
+    })
+
+    it('should accept all valid indices (0-3)', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
+
+      for (let i = 0; i <= 3; i++) {
+        mockCollection.findOneAndUpdate.mockResolvedValueOnce({
+          _id: bagrutId,
+          presentations: [{}, {}, {}, {}]
+        })
+
+        await expect(
+          bagrutService.updatePresentation(
+            bagrutId.toString(),
+            i,
+            i === 3 ? { detailedGrading: { playingSkills: { points: 30, maxPoints: 40 }, musicalUnderstanding: { points: 20, maxPoints: 30 }, textKnowledge: { points: 15, maxPoints: 20 }, playingByHeart: { points: 7, maxPoints: 10 } } } : { notes: 'test' },
+            'teacherId',
+            TEST_CONTEXT
+          )
+        ).resolves.toBeDefined()
+      }
+    })
+
+    it('should handle invalid ObjectId gracefully', async () => {
       await expect(
         bagrutService.updatePresentation('invalid-object-id', 0, { notes: 'test' }, 'teacherId', TEST_CONTEXT)
       ).rejects.toThrow('Invalid ObjectId')
     })
   })
 
-  describe('Migration of Default Values', () => {
-    it('should apply default values for missing fields during migration', async () => {
-      const incompleteOldBagrut = {
-        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        studentId: '6579e36c83c8b3a5c2df8a8c',
-        teacherId: '6579e36c83c8b3a5c2df8a8d',
-        presentations: [
-          { completed: true, status: 'עבר/ה' },
-          { completed: true, status: 'עבר/ה' },
-          { completed: false, status: 'לא נבחן' }
-        ]
-        // Missing many fields that should get defaults
-      }
+  describe('Data Integrity', () => {
+    it('should always set date on presentation update', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
 
-      mockCollection.findOne.mockResolvedValueOnce(incompleteOldBagrut)
-      mockCollection.updateOne.mockResolvedValueOnce({ modifiedCount: 1 })
+      mockCollection.findOneAndUpdate.mockResolvedValueOnce({
+        _id: bagrutId,
+        presentations: [{ completed: true }]
+      })
 
       await bagrutService.updatePresentation(
-        incompleteOldBagrut._id.toString(),
+        bagrutId.toString(),
         0,
         { notes: 'test' },
         'teacherId',
         TEST_CONTEXT
       )
 
-      expect(mockCollection.updateOne).toHaveBeenCalledWith(
-        { _id: incompleteOldBagrut._id },
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            // Should set default values
-            recitalUnits: 5,
-            recitalField: 'קלאסי',
-            conservatoryName: '',
-            finalGrade: null,
-            finalGradeLevel: null,
-            teacherSignature: '',
-            completionDate: null,
-            isCompleted: false,
-            directorEvaluation: {
-              points: null,
-              percentage: 10,
-              comments: ''
-            },
-            gradingDetails: {
-              technique: { grade: null, maxPoints: 20, comments: '' },
-              interpretation: { grade: null, maxPoints: 30, comments: '' },
-              musicality: { grade: null, maxPoints: 40, comments: '' },
-              overall: { grade: null, maxPoints: 10, comments: '' }
-            }
-          })
-        })
-      )
+      const setArg = mockCollection.findOneAndUpdate.mock.calls[0][1].$set['presentations.0']
+      expect(setArg.date).toBeInstanceOf(Date)
     })
 
-    it('should preserve existing values during migration', async () => {
-      const bagrutWithExistingValues = {
-        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        studentId: '6579e36c83c8b3a5c2df8a8c',
-        teacherId: '6579e36c83c8b3a5c2df8a8d',
-        presentations: [
-          { completed: true, status: 'עבר/ה' },
-          { completed: true, status: 'עבר/ה' },
-          { completed: false, status: 'לא נבחן' }
-        ],
-        // Existing values that should be preserved
-        conservatoryName: 'Jerusalem Academy',
-        finalGrade: 88,
-        finalGradeLevel: 'טוב',
-        teacherSignature: 'John Doe',
-        isCompleted: true,
-        recitalUnits: 3,
-        recitalField: 'ג\'אז'
-      }
+    it('should use provided date when available', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
+      const customDate = '2024-06-15'
 
-      mockCollection.findOne.mockResolvedValueOnce(bagrutWithExistingValues)
-      mockCollection.updateOne.mockResolvedValueOnce({ modifiedCount: 1 })
+      mockCollection.findOneAndUpdate.mockResolvedValueOnce({
+        _id: bagrutId,
+        presentations: [{ completed: true }]
+      })
 
       await bagrutService.updatePresentation(
-        bagrutWithExistingValues._id.toString(),
+        bagrutId.toString(),
+        0,
+        { notes: 'test', date: customDate },
+        'teacherId',
+        TEST_CONTEXT
+      )
+
+      const setArg = mockCollection.findOneAndUpdate.mock.calls[0][1].$set['presentations.0']
+      expect(setArg.date).toBeInstanceOf(Date)
+      expect(setArg.date.toISOString()).toContain('2024-06-15')
+    })
+
+    it('should always update updatedAt timestamp', async () => {
+      const bagrutId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
+
+      mockCollection.findOneAndUpdate.mockResolvedValueOnce({
+        _id: bagrutId,
+        presentations: [{ completed: true }]
+      })
+
+      await bagrutService.updatePresentation(
+        bagrutId.toString(),
         0,
         { notes: 'test' },
         'teacherId',
         TEST_CONTEXT
       )
 
-      expect(mockCollection.updateOne).toHaveBeenCalledWith(
-        { _id: bagrutWithExistingValues._id },
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            // Should preserve existing values
-            conservatoryName: 'Jerusalem Academy',
-            finalGrade: 88,
-            finalGradeLevel: 'טוב',
-            teacherSignature: 'John Doe',
-            isCompleted: true,
-            recitalUnits: 3,
-            recitalField: 'ג\'אז'
-          })
-        })
-      )
-    })
-  })
-
-  describe('Migration of Detailed Grading System', () => {
-    it('should migrate old grading to new detailed grading system', async () => {
-      const oldBagrutWithOldGrading = {
-        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        studentId: '6579e36c83c8b3a5c2df8a8c',
-        teacherId: '6579e36c83c8b3a5c2df8a8d',
-        presentations: [
-          { completed: true, status: 'עבר/ה', grade: 85, gradeLevel: 'טוב' },
-          { completed: true, status: 'עבר/ה', grade: 90, gradeLevel: 'טוב מאוד' },
-          { completed: false, status: 'לא נבחן' }
-        ],
-        magenBagrut: {
-          completed: true,
-          status: 'עבר/ה',
-          grade: 88,
-          gradeLevel: 'טוב'
-          // Missing detailedGrading - should be added
-        }
-      }
-
-      mockCollection.findOne.mockResolvedValueOnce(oldBagrutWithOldGrading)
-      mockCollection.updateOne.mockResolvedValueOnce({ modifiedCount: 1 })
-
-      await bagrutService.updatePresentation(
-        oldBagrutWithOldGrading._id.toString(),
-        0,
-        { notes: 'test' },
-        'teacherId',
-        TEST_CONTEXT
-      )
-
-      expect(mockCollection.updateOne).toHaveBeenCalledWith(
-        { _id: oldBagrutWithOldGrading._id },
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            'magenBagrut.detailedGrading': {
-              playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
-              musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
-              textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
-              playingByHeart: { grade: 'לא הוערך', points: null, maxPoints: 10, comments: 'אין הערות' }
-            }
-          })
-        })
-      )
-    })
-
-    it('should preserve existing detailed grading during migration', async () => {
-      const bagrutWithExistingDetailedGrading = {
-        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        studentId: '6579e36c83c8b3a5c2df8a8c',
-        teacherId: '6579e36c83c8b3a5c2df8a8d',
-        presentations: [
-          { completed: true, status: 'עבר/ה' },
-          { completed: true, status: 'עבר/ה' },
-          { completed: false, status: 'לא נבחן' }
-        ],
-        magenBagrut: {
-          completed: true,
-          status: 'עבר/ה',
-          grade: 88,
-          gradeLevel: 'טוב',
-          detailedGrading: {
-            playingSkills: { grade: 'טוב', points: 32, maxPoints: 40, comments: 'Good technique' },
-            musicalUnderstanding: { grade: 'מעולה', points: 28, maxPoints: 30, comments: 'Excellent' },
-            textKnowledge: { grade: 'טוב מאוד', points: 18, maxPoints: 20, comments: 'Very good' },
-            playingByHeart: { grade: 'טוב', points: 8, maxPoints: 10, comments: 'Good memory' }
-          }
-        }
-      }
-
-      mockCollection.findOne.mockResolvedValueOnce(bagrutWithExistingDetailedGrading)
-      mockCollection.updateOne.mockResolvedValueOnce({ modifiedCount: 1 })
-
-      await bagrutService.updatePresentation(
-        bagrutWithExistingDetailedGrading._id.toString(),
-        0,
-        { notes: 'test' },
-        'teacherId',
-        TEST_CONTEXT
-      )
-
-      expect(mockCollection.updateOne).toHaveBeenCalledWith(
-        { _id: bagrutWithExistingDetailedGrading._id },
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            'magenBagrut.detailedGrading': bagrutWithExistingDetailedGrading.magenBagrut.detailedGrading
-          })
-        })
-      )
-    })
-  })
-
-  describe('Migration Data Integrity Tests', () => {
-    it('should ensure no data loss during migration', async () => {
-      const originalBagrut = {
-        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        studentId: '6579e36c83c8b3a5c2df8a8c',
-        teacherId: '6579e36c83c8b3a5c2df8a8d',
-        presentations: [
-          {
-            completed: true,
-            status: 'עבר/ה',
-            date: new Date('2024-01-15'),
-            review: 'Excellent performance',
-            reviewedBy: 'teacher123',
-            grade: 92, // Should be removed
-            gradeLevel: 'טוב מאוד', // Should be removed
-            customField: 'should be preserved' // Custom field should be preserved
-          },
-          { completed: true, status: 'עבר/ה' },
-          { completed: false, status: 'לא נבחן' }
-        ],
-        program: [
-          { pieceTitle: 'Sonata', composer: 'Mozart', duration: '10:00' }
-        ],
-        accompaniment: {
-          type: 'נגן מלווה',
-          accompanists: [{ name: 'John', instrument: 'Piano' }]
-        },
-        documents: [
-          { title: 'Score', fileUrl: '/uploads/score.pdf' }
-        ],
-        notes: 'Important student notes',
-        createdAt: new Date('2024-01-01'),
-        updatedAt: new Date('2024-01-10')
-      }
-
-      mockCollection.findOne.mockResolvedValueOnce(originalBagrut)
-      mockCollection.updateOne.mockResolvedValueOnce({ modifiedCount: 1 })
-
-      await bagrutService.updatePresentation(
-        originalBagrut._id.toString(),
-        0,
-        { notes: 'Updated notes' },
-        'teacherId',
-        TEST_CONTEXT
-      )
-
-      expect(mockCollection.updateOne).toHaveBeenCalledWith(
-        { _id: originalBagrut._id },
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            presentations: expect.arrayContaining([
-              expect.objectContaining({
-                completed: true,
-                status: 'עבר/ה',
-                date: originalBagrut.presentations[0].date,
-                review: 'Excellent performance',
-                reviewedBy: 'teacher123',
-                customField: 'should be preserved',
-                // grade and gradeLevel should be removed
-                notes: expect.any(String),
-                recordingLinks: expect.any(Array)
-              })
-            ])
-          })
-        })
-      )
-    })
-
-    it('should handle malformed data during migration', async () => {
-      const malformedBagrut = {
-        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        studentId: '6579e36c83c8b3a5c2df8a8c',
-        teacherId: '6579e36c83c8b3a5c2df8a8d',
-        presentations: [
-          { completed: 'true' }, // String instead of boolean
-          { status: 123 }, // Number instead of string
-          null // Null presentation
-        ]
-      }
-
-      mockCollection.findOne.mockResolvedValueOnce(malformedBagrut)
-      mockCollection.updateOne.mockResolvedValueOnce({ modifiedCount: 1 })
-
-      // Should not throw error and handle gracefully
-      await expect(
-        bagrutService.updatePresentation(
-          malformedBagrut._id.toString(),
-          0,
-          { notes: 'test' },
-          'teacherId',
-          TEST_CONTEXT
-        )
-      ).not.toThrow()
-    })
-  })
-
-  describe('Migration Performance and Efficiency', () => {
-    it('should only migrate when necessary', async () => {
-      const modernBagrut = {
-        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        studentId: '6579e36c83c8b3a5c2df8a8c',
-        teacherId: '6579e36c83c8b3a5c2df8a8d',
-        presentations: [
-          { completed: true, status: 'עבר/ה', notes: '' },
-          { completed: true, status: 'עבר/ה', notes: '' },
-          { completed: true, status: 'עבר/ה', notes: '' },
-          {
-            completed: true,
-            status: 'עבר/ה',
-            grade: 88,
-            gradeLevel: 'טוב',
-            detailedGrading: {
-              playingSkills: { points: 35, maxPoints: 40 },
-              musicalUnderstanding: { points: 26, maxPoints: 30 },
-              textKnowledge: { points: 18, maxPoints: 20 },
-              playingByHeart: { points: 9, maxPoints: 10 }
-            }
-          }
-        ]
-      }
-
-      mockCollection.findOne.mockResolvedValueOnce(modernBagrut)
-      mockCollection.findOneAndUpdate.mockResolvedValueOnce(modernBagrut)
-
-      await bagrutService.updatePresentation(
-        modernBagrut._id.toString(),
-        0,
-        { notes: 'test' },
-        'teacherId',
-        TEST_CONTEXT
-      )
-
-      // Should not call migration updateOne since bagrut is already modern
-      expect(mockCollection.updateOne).not.toHaveBeenCalled()
-      expect(mockCollection.findOneAndUpdate).toHaveBeenCalled()
-    })
-  })
-
-  describe('Bulk Migration Testing', () => {
-    it('should handle migration of multiple documents', async () => {
-      const oldBagruts = [
-        {
-          _id: new ObjectId('6579e36c83c8b3a5c2df8a8a'),
-          presentations: [{ completed: true }, { completed: true }, { completed: false }]
-        },
-        {
-          _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-          presentations: [{ completed: true }, { completed: true }, { completed: false }]
-        },
-        {
-          _id: new ObjectId('6579e36c83c8b3a5c2df8a8c'),
-          presentations: [{ completed: true }, { completed: true }, { completed: false }]
-        }
-      ]
-
-      // Simulate multiple migration calls
-      for (const bagrut of oldBagruts) {
-        mockCollection.findOne.mockResolvedValueOnce(bagrut)
-        mockCollection.updateOne.mockResolvedValueOnce({ modifiedCount: 1 })
-
-        await bagrutService.updatePresentation(
-          bagrut._id.toString(),
-          0,
-          { notes: 'test' },
-          'teacherId',
-          TEST_CONTEXT
-        )
-      }
-
-      expect(mockCollection.updateOne).toHaveBeenCalledTimes(3)
+      const setArg = mockCollection.findOneAndUpdate.mock.calls[0][1].$set
+      expect(setArg.updatedAt).toBeInstanceOf(Date)
     })
   })
 })

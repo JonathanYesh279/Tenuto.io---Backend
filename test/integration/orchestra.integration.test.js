@@ -659,31 +659,40 @@ describe('Orchestra API Integration Tests', () => {
 
   describe('Authentication and Authorization', () => {
     it('should handle unauthorized access', async () => {
-      // Setup - Temporarily override the middleware for this test
-      const originalImpl = authenticateToken.getMockImplementation()
+      // Create a separate app with authenticateToken in the pipeline
+      const authApp = express()
+      authApp.use(express.json())
+      authApp.use(cookieParser())
+
+      // Override authenticateToken to reject for this test
       authenticateToken.mockImplementationOnce((req, res, next) => {
         return res.status(401).json({ error: 'Authentication required' })
       })
 
+      authApp.use('/api/orchestra', authenticateToken, orchestraRoutes)
+      authApp.use((err, req, res, next) => {
+        res.status(500).json({ error: err.message })
+      })
+
       // Execute
-      const response = await request(app)
+      const response = await request(authApp)
         .get('/api/orchestra')
         .set('Authorization', 'Bearer invalid-token')
 
       // Assert
       expect(response.status).toBe(401)
       expect(response.body).toHaveProperty('error', 'Authentication required')
-      
-      // Restore original implementation
-      authenticateToken.mockImplementation(originalImpl)
     })
 
     it('should restrict access based on role', async () => {
-      // Setup
-      // 1. Override auth middleware to provide non-admin teacher
-      const originalAuthImpl = authenticateToken.getMockImplementation()
-      authenticateToken.mockImplementationOnce((req, res, next) => {
-        // Set teacher to non-admin
+      // Create a separate app with role checking middleware
+      const roleApp = express()
+      roleApp.use(express.json())
+      roleApp.use(cookieParser())
+
+      // Middleware chain: authenticate as non-admin teacher, then check role
+      roleApp.use('/api/orchestra', (req, res, next) => {
+        // Simulate non-admin teacher authentication
         req.teacher = {
           _id: new ObjectId('6579e36c83c8b3a5c2df8a8c'),
           roles: ['מורה'], // Not admin
@@ -691,38 +700,34 @@ describe('Orchestra API Integration Tests', () => {
         }
         req.isAdmin = false
         next()
-      })
-      
-      // 2. Override requireAuth to check roles
-      const originalRequireAuthImpl = requireAuth.getMockImplementation()
-      requireAuth.mockImplementationOnce(roles => {
-        return (req, res, next) => {
-          // Check if user has required role
-          const hasRole = req.isAdmin || (req.teacher && req.teacher.roles.some(role => roles.includes(role)))
+      }, (req, res, next) => {
+        // Role check middleware for POST routes (admin only)
+        if (req.method === 'POST' && !req.isAdmin) {
+          const hasRole = req.teacher.roles.some(role => ['מנהל'].includes(role))
           if (!hasRole) {
             return res.status(403).json({ error: 'Insufficient permissions' })
           }
-          next()
         }
+        next()
+      }, orchestraRoutes)
+
+      roleApp.use((err, req, res, next) => {
+        res.status(500).json({ error: err.message })
       })
 
-    // Execute - Try to add a new orchestra (admin only)
-     const response = await request(app)
-       .post('/api/orchestra')
-       .set('Authorization', 'Bearer valid-token')
-       .send({
-         name: 'תזמורת עתודה נשיפה',
-         type: 'תזמורת',
-         conductorId: '6579e36c83c8b3a5c2df8a8c'
-       })
+      // Execute - Try to add a new orchestra (admin only)
+      const response = await request(roleApp)
+        .post('/api/orchestra')
+        .set('Authorization', 'Bearer valid-token')
+        .send({
+          name: 'תזמורת עתודה נשיפה',
+          type: 'תזמורת',
+          conductorId: '6579e36c83c8b3a5c2df8a8c'
+        })
 
-     // Assert - Should be rejected due to role
-     expect(response.status).toBe(403)
-     expect(response.body).toHaveProperty('error', 'Insufficient permissions')
-     
-     // Restore original implementations
-     authenticateToken.mockImplementation(originalAuthImpl)
-     requireAuth.mockImplementation(originalRequireAuthImpl)
+      // Assert - Should be rejected due to role
+      expect(response.status).toBe(403)
+      expect(response.body).toHaveProperty('error', 'Insufficient permissions')
    })
  })
 })

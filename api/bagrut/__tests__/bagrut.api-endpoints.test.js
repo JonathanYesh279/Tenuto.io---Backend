@@ -75,7 +75,11 @@ describe('Bagrut API Endpoint Tests', () => {
       }
 
       const updatedBagrut = {
-        ...mockBagrut,
+        _id: '6579e36c83c8b3a5c2df8a8b',
+        studentId: '6579e36c83c8b3a5c2df8a8c',
+        teacherId: mockTeacher._id.toString(),
+        recitalUnits: 5,
+        recitalField: 'קלאסי',
         directorEvaluation: {
           points: 8,
           percentage: 10,
@@ -248,7 +252,9 @@ describe('Bagrut API Endpoint Tests', () => {
       }
 
       const updatedBagrut = {
-        ...mockBagrut,
+        _id: '6579e36c83c8b3a5c2df8a8b',
+        studentId: '6579e36c83c8b3a5c2df8a8c',
+        teacherId: mockTeacher._id.toString(),
         recitalUnits: 5,
         recitalField: 'ג\'אז'
       }
@@ -348,7 +354,7 @@ describe('Bagrut API Endpoint Tests', () => {
           .expect(400)
 
         expect(response.body.error).toContain('קלאסי')
-        expect(response.body.errorEn).toContain('Classical')
+        expect(response.body.errorEn).toContain('קלאסי')
       }
 
       expect(bagrutService.setRecitalConfiguration).not.toHaveBeenCalled()
@@ -400,16 +406,10 @@ describe('Bagrut API Endpoint Tests', () => {
   describe('Grading Details Endpoint Validation', () => {
     it('should validate point allocation maximums', async () => {
       const invalidGradingDetails = {
-        technique: { grade: 15, maxPoints: 20 },
-        interpretation: { grade: 25, maxPoints: 30 },
-        musicality: { grade: 35, maxPoints: 40 },
-        overall: { grade: 8, maxPoints: 10 },
-        detailedGrading: {
-          playingSkills: { points: 45 }, // Exceeds 40
-          musicalUnderstanding: { points: 25 },
-          textKnowledge: { points: 15 },
-          playingByHeart: { points: 8 }
-        }
+        playingSkills: { points: 45 }, // Exceeds 40
+        musicalUnderstanding: { points: 25 },
+        textKnowledge: { points: 15 },
+        playingByHeart: { points: 8 }
       }
 
       const response = await request(app)
@@ -424,16 +424,10 @@ describe('Bagrut API Endpoint Tests', () => {
 
     it('should validate musical understanding maximum', async () => {
       const invalidGradingDetails = {
-        technique: { grade: 15, maxPoints: 20 },
-        interpretation: { grade: 25, maxPoints: 30 },
-        musicality: { grade: 35, maxPoints: 40 },
-        overall: { grade: 8, maxPoints: 10 },
-        detailedGrading: {
-          playingSkills: { points: 35 },
-          musicalUnderstanding: { points: 35 }, // Exceeds 30
-          textKnowledge: { points: 15 },
-          playingByHeart: { points: 8 }
-        }
+        playingSkills: { points: 35 },
+        musicalUnderstanding: { points: 35 }, // Exceeds 30
+        textKnowledge: { points: 15 },
+        playingByHeart: { points: 8 }
       }
 
       const response = await request(app)
@@ -447,16 +441,10 @@ describe('Bagrut API Endpoint Tests', () => {
 
     it('should validate text knowledge maximum', async () => {
       const invalidGradingDetails = {
-        technique: { grade: 15, maxPoints: 20 },
-        interpretation: { grade: 25, maxPoints: 30 },
-        musicality: { grade: 35, maxPoints: 40 },
-        overall: { grade: 8, maxPoints: 10 },
-        detailedGrading: {
-          playingSkills: { points: 35 },
-          musicalUnderstanding: { points: 25 },
-          textKnowledge: { points: 25 }, // Exceeds 20
-          playingByHeart: { points: 8 }
-        }
+        playingSkills: { points: 35 },
+        musicalUnderstanding: { points: 25 },
+        textKnowledge: { points: 25 }, // Exceeds 20
+        playingByHeart: { points: 8 }
       }
 
       const response = await request(app)
@@ -470,16 +458,10 @@ describe('Bagrut API Endpoint Tests', () => {
 
     it('should validate playing by heart maximum', async () => {
       const invalidGradingDetails = {
-        technique: { grade: 15, maxPoints: 20 },
-        interpretation: { grade: 25, maxPoints: 30 },
-        musicality: { grade: 35, maxPoints: 40 },
-        overall: { grade: 8, maxPoints: 10 },
-        detailedGrading: {
-          playingSkills: { points: 35 },
-          musicalUnderstanding: { points: 25 },
-          textKnowledge: { points: 15 },
-          playingByHeart: { points: 15 } // Exceeds 10
-        }
+        playingSkills: { points: 35 },
+        musicalUnderstanding: { points: 25 },
+        textKnowledge: { points: 15 },
+        playingByHeart: { points: 15 } // Exceeds 10
       }
 
       const response = await request(app)
@@ -493,9 +475,9 @@ describe('Bagrut API Endpoint Tests', () => {
 
     it('should require all grading fields', async () => {
       const incompleteGradingDetails = {
-        technique: { grade: 15, maxPoints: 20 },
-        interpretation: { grade: 25, maxPoints: 30 }
-        // Missing musicality and overall
+        playingSkills: { points: 15 },
+        musicalUnderstanding: { points: 25 }
+        // Missing textKnowledge and playingByHeart
       }
 
       const response = await request(app)
@@ -510,20 +492,15 @@ describe('Bagrut API Endpoint Tests', () => {
 
     it('should accept valid grading details', async () => {
       const validGradingDetails = {
-        technique: { grade: 18, maxPoints: 20, comments: 'Excellent technique' },
-        interpretation: { grade: 28, maxPoints: 30, comments: 'Very musical' },
-        musicality: { grade: 38, maxPoints: 40, comments: 'Outstanding musicality' },
-        overall: { grade: 9, maxPoints: 10, comments: 'Great performance' },
-        detailedGrading: {
-          playingSkills: { points: 38, comments: 'Excellent' },
-          musicalUnderstanding: { points: 28, comments: 'Very good' },
-          textKnowledge: { points: 19, comments: 'Good knowledge' },
-          playingByHeart: { points: 9, comments: 'Confident' }
-        }
+        playingSkills: { points: 38, comments: 'Excellent' },
+        musicalUnderstanding: { points: 28, comments: 'Very good' },
+        textKnowledge: { points: 19, comments: 'Good knowledge' },
+        playingByHeart: { points: 9, comments: 'Confident' }
       }
 
       const updatedBagrut = {
-        ...mockBagrut,
+        _id: '6579e36c83c8b3a5c2df8a8b',
+        studentId: '6579e36c83c8b3a5c2df8a8c',
         gradingDetails: validGradingDetails
       }
 

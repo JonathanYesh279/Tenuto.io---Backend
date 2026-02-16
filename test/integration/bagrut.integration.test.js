@@ -9,25 +9,41 @@ import { ObjectId } from 'mongodb'
 // Mock dependencies in the correct order to avoid hoisting issues
 
 // Mock auth middleware - define the mock functions first
+// requireAuth returns a shared _authMiddleware spy so tests can override it at request time
 vi.mock('../../middleware/auth.middleware.js', () => {
+  const mockTeacher = {
+    _id: '6579e36c83c8b3a5c2df8a8d',
+    tenantId: 'test-tenant-id',
+    personalInfo: {
+      firstName: 'Test',
+      lastName: 'Teacher',
+      email: 'teacher@example.com',
+      phone: '0501234567',
+      address: 'Test Address'
+    },
+    roles: ['מנהל'],
+    isActive: true
+  }
+
+  const setAuth = (req) => {
+    req.teacher = mockTeacher
+    req.isAdmin = true
+    req.context = { tenantId: 'test-tenant-id', isAdmin: true }
+  }
+
+  // Shared middleware spy — returned by requireAuth, so mockImplementationOnce works at request time
+  const _authMiddleware = vi.fn((req, res, next) => {
+    setAuth(req)
+    next()
+  })
+
   return {
     authenticateToken: vi.fn((req, res, next) => {
-      // Set teacher on request
-      req.teacher = {
-        _id: '6579e36c83c8b3a5c2df8a8d',
-        personalInfo: { 
-          fullName: 'Test Teacher', 
-          email: 'teacher@example.com',
-          phone: '0501234567',
-          address: 'Test Address'
-        },
-        roles: ['מנהל'],
-        isActive: true
-      }
-      req.isAdmin = req.teacher.roles.includes('מנהל')
+      setAuth(req)
       next()
     }),
-    requireAuth: vi.fn(() => (req, res, next) => next())
+    requireAuth: vi.fn(() => _authMiddleware),
+    _authMiddleware
   }
 })
 
@@ -552,6 +568,10 @@ vi.mock('../../api/bagrut/bagrut.controller.js', () => {
       }),
       
       updatePresentation: vi.fn((req, res, next) => {
+        const index = parseInt(req.params.presentationIndex)
+        if (isNaN(index) || index < 0 || index >= 3) {
+          return next(new Error('Invalid presentation index'))
+        }
         return res.status(200).json({
           _id: req.params.id,
           presentations: [
@@ -664,6 +684,29 @@ vi.mock('../../api/bagrut/bagrut.controller.js', () => {
         } catch (err) {
           next(err)
         }
+      }),
+
+      // Methods used by routes but not directly tested — stubs to prevent collection error
+      removeBagrut: vi.fn(async (req, res) => {
+        res.json({ message: 'Bagrut removed', _id: req.params.id })
+      }),
+      updateGradingDetails: vi.fn(async (req, res) => {
+        res.json({ _id: req.params.id, ...req.body })
+      }),
+      calculateFinalGrade: vi.fn(async (req, res) => {
+        res.json({ _id: req.params.id, finalGrade: 85 })
+      }),
+      completeBagrut: vi.fn(async (req, res) => {
+        res.json({ _id: req.params.id, completed: true })
+      }),
+      updateDirectorEvaluation: vi.fn(async (req, res) => {
+        res.json({ _id: req.params.id, ...req.body })
+      }),
+      setRecitalConfiguration: vi.fn(async (req, res) => {
+        res.json({ _id: req.params.id, ...req.body })
+      }),
+      updateProgram: vi.fn(async (req, res) => {
+        res.json({ _id: req.params.id, program: req.body.program || [] })
       })
     }
   }
@@ -961,7 +1004,7 @@ describe('Bagrut API Integration Tests', () => {
 
       // Execute
       const response = await request(app)
-        .put(`/api/bagrut/${bagrutId}/magen-bagrut`)
+        .put(`/api/bagrut/${bagrutId}/magenBagrut`)
         .set('Authorization', 'Bearer valid-token')
         .send(magenBagrutData)
 
@@ -1108,9 +1151,9 @@ describe('Bagrut API Integration Tests', () => {
 
   describe('Authentication and Authorization', () => {
     it('should require authentication for all endpoints', async () => {
-      // Setup - Mock auth middleware to deny access
-      const { authenticateToken } = await import('../../middleware/auth.middleware.js')
-      authenticateToken.mockImplementationOnce((req, res, next) => {
+      // Setup - Override the shared auth middleware spy (routes capture the returned reference)
+      const { _authMiddleware } = await import('../../middleware/auth.middleware.js')
+      _authMiddleware.mockImplementationOnce((req, res, next) => {
         return res.status(401).json({ error: 'Authentication required' })
       })
 

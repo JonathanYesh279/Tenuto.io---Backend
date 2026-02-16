@@ -276,13 +276,18 @@ describe('Student Routes', () => {
     })
 
     it('should handle authorization errors', async () => {
-      // Setup - Override the requireAuth middleware for this test
-      mockRequireAuth.mockImplementationOnce(() => (req, res, next) => {
+      // Create a separate app with a rejecting requireAuth middleware
+      const authApp = express()
+      authApp.use(express.json())
+
+      const rejectingAuth = (req, res, next) => {
         res.status(403).json({ error: 'Insufficient permissions' })
-      })
+      }
+
+      authApp.post('/api/student', mockAuthenticateToken, rejectingAuth, (req, res) => studentController.addStudent(req, res))
 
       // Execute
-      const response = await request(app)
+      const response = await request(authApp)
         .post('/api/student')
         .set('Authorization', 'Bearer valid-token')
 

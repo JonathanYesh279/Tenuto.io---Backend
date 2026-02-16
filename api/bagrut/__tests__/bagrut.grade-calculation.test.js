@@ -1,9 +1,8 @@
 // api/bagrut/__tests__/bagrut.grade-calculation.test.js
 import { describe, it, expect } from 'vitest'
-import { 
+import {
   calculateFinalGradeWithDirectorEvaluation,
   calculateTotalGradeFromDetailedGrading,
-  calculateFinalGradeFromDetails,
   calculateFinalGradeWithDirector
 } from '../bagrut.validation.js'
 

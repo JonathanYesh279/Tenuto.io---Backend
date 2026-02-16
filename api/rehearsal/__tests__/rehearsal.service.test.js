@@ -535,6 +535,13 @@ describe('Rehearsal Service', () => {
 
       const isAdmin = true // Skip orchestra check
 
+      // generateDatesForDayOfWeek must return dates so insertMany is called
+      const { generateDatesForDayOfWeek } = await import('../../../utils/dateHelpers.js')
+      generateDatesForDayOfWeek.mockReturnValue([
+        new Date('2023-01-04'),
+        new Date('2023-01-11')
+      ])
+
       // For simplicity, we're just checking for a rejected promise
       mockRehearsalCollection.insertMany = vi.fn().mockRejectedValue(new Error('Database error'))
 

@@ -11,6 +11,7 @@ describe('Bagrut Validation', () => {
         teacherId: '6579e36c83c8b3a5c2df8a8c',
         program: [
           {
+            pieceNumber: 1,
             pieceTitle: 'Test Piece',
             composer: 'Test Composer',
             duration: '5:00',
@@ -50,22 +51,23 @@ describe('Bagrut Validation', () => {
           accompanists: []
         },
         presentations: [
-          { completed: false, status: 'לא נבחן', date: null, review: null, reviewedBy: null, notes: '', recordingLinks: [] },
-          { completed: false, status: 'לא נבחן', date: null, review: null, reviewedBy: null, notes: '', recordingLinks: [] },
-          { completed: false, status: 'לא נבחן', date: null, review: null, reviewedBy: null, notes: '', recordingLinks: [] },
-          { 
-            completed: false, 
-            status: 'לא נבחן', 
-            date: null, 
-            review: null, 
-            reviewedBy: null, 
-            grade: null, 
+          { completed: false, status: 'לא נבחן', date: null, review: null, reviewedBy: null, lastUpdatedBy: null, notes: '', recordingLinks: [] },
+          { completed: false, status: 'לא נבחן', date: null, review: null, reviewedBy: null, lastUpdatedBy: null, notes: '', recordingLinks: [] },
+          { completed: false, status: 'לא נבחן', date: null, review: null, reviewedBy: null, lastUpdatedBy: null, notes: '', recordingLinks: [] },
+          {
+            completed: false,
+            status: 'לא נבחן',
+            date: null,
+            review: null,
+            reviewedBy: null,
+            lastUpdatedBy: null,
+            grade: null,
             gradeLevel: null,
             recordingLinks: [],
             detailedGrading: {
-              playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
-              musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
-              textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
+              playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
+              musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
+              textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
               playingByHeart: { grade: 'לא הוערך', points: null, maxPoints: 10, comments: 'אין הערות' }
             }
           }
@@ -76,13 +78,14 @@ describe('Bagrut Validation', () => {
           date: null,
           review: null,
           reviewedBy: null,
+          lastUpdatedBy: null,
           grade: null,
           gradeLevel: null,
           recordingLinks: [],
           detailedGrading: {
-            playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
-            musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
-            textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
+            playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
+            musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
+            textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
             playingByHeart: { grade: 'לא הוערך', points: null, maxPoints: 10, comments: 'אין הערות' }
           }
         },
@@ -122,14 +125,15 @@ describe('Bagrut Validation', () => {
       expect(error.message).toContain('"teacherId" is required')
     })
 
-    it('should validate program pieces', () => {
-      // Setup
+    it('should validate program pieces require pieceNumber', () => {
+      // Setup - pieceNumber is now required
       const invalidBagrut = {
         studentId: '6579e36c83c8b3a5c2df8a8b',
         teacherId: '6579e36c83c8b3a5c2df8a8c',
         program: [
           {
-            // Missing required pieceTitle
+            // Missing required pieceNumber
+            pieceTitle: 'Test Piece',
             composer: 'Test Composer',
             duration: '5:00',
             youtubeLink: 'https://youtube.com/watch?v=123456'
@@ -142,7 +146,7 @@ describe('Bagrut Validation', () => {
 
       // Assert
       expect(error).toBeDefined()
-      expect(error.message).toContain('"program[0].pieceTitle" is required')
+      expect(error.message).toContain('"program[0].pieceNumber" is required')
     })
 
     it('should validate accompaniment type', () => {
@@ -214,7 +218,7 @@ describe('Bagrut Validation', () => {
     })
 
     it('should validate presentation status', () => {
-      // Setup
+      // Setup - the first presentation has an invalid status
       const invalidBagrut = {
         studentId: '6579e36c83c8b3a5c2df8a8b',
         teacherId: '6579e36c83c8b3a5c2df8a8c',
@@ -249,7 +253,8 @@ describe('Bagrut Validation', () => {
             review: null,
             reviewedBy: null,
             grade: null,
-            gradeLevel: null
+            gradeLevel: null,
+            recordingLinks: []
           }
         ]
       }
@@ -257,9 +262,9 @@ describe('Bagrut Validation', () => {
       // Execute
       const { error } = validateBagrut(invalidBagrut)
 
-      // Assert
+      // Assert - Joi.alternatives produces "does not match any of the allowed types" error
       expect(error).toBeDefined()
-      expect(error.message).toContain('"status" must be one of')
+      expect(error.message).toContain('does not match any')
     })
 
     it('should validate document data', () => {
@@ -285,15 +290,18 @@ describe('Bagrut Validation', () => {
       expect(error.message).toContain('"documents[0].title" is required')
     })
 
-    it('should validate presentations array is exactly length 4', () => {
-      // Setup
+    it('should validate presentations array max length is 4', () => {
+      // Setup - 5 presentations with notes format (should exceed max of 4)
       const invalidBagrut = {
         studentId: '6579e36c83c8b3a5c2df8a8b',
         teacherId: '6579e36c83c8b3a5c2df8a8c',
         presentations: [
-          { completed: false, status: 'לא נבחן' },
-          { completed: false, status: 'לא נבחן' }
-          // Only 2 items, should be 4
+          { completed: false, status: 'לא נבחן', notes: '', recordingLinks: [] },
+          { completed: false, status: 'לא נבחן', notes: '', recordingLinks: [] },
+          { completed: false, status: 'לא נבחן', notes: '', recordingLinks: [] },
+          { completed: false, status: 'לא נבחן', notes: '', recordingLinks: [] },
+          { completed: false, status: 'לא נבחן', notes: '', recordingLinks: [] }
+          // 5 items exceeds max of 4
         ]
       }
 
@@ -302,7 +310,7 @@ describe('Bagrut Validation', () => {
 
       // Assert
       expect(error).toBeDefined()
-      expect(error.message).toContain('"presentations" must contain 4 items')
+      expect(error.message).toContain('"presentations" must contain less than or equal to 4 items')
     })
 
     it('should validate YouTube link format in program pieces', () => {
@@ -312,6 +320,7 @@ describe('Bagrut Validation', () => {
         teacherId: '6579e36c83c8b3a5c2df8a8c',
         program: [
           {
+            pieceNumber: 1,
             pieceTitle: 'Test Piece',
             composer: 'Test Composer',
             duration: '5:00',
@@ -325,6 +334,7 @@ describe('Bagrut Validation', () => {
         teacherId: '6579e36c83c8b3a5c2df8a8c',
         program: [
           {
+            pieceNumber: 1,
             pieceTitle: 'Test Piece',
             composer: 'Test Composer',
             duration: '5:00',
@@ -338,6 +348,7 @@ describe('Bagrut Validation', () => {
         teacherId: '6579e36c83c8b3a5c2df8a8c',
         program: [
           {
+            pieceNumber: 1,
             pieceTitle: 'Test Piece',
             composer: 'Test Composer',
             duration: '5:00',
@@ -405,22 +416,26 @@ describe('Bagrut Validation', () => {
         date: null,
         review: null,
         reviewedBy: null,
+        lastUpdatedBy: null,
         notes: '',
         recordingLinks: []
       })
-      expect(value.presentations[3]).toEqual({
+      // The 4th presentation defaults from the array default (not schema validation),
+      // so pieceGradings is not added by Joi.alternatives
+      expect(value.presentations[3]).toMatchObject({
         completed: false,
         status: 'לא נבחן',
         date: null,
         review: null,
         reviewedBy: null,
+        lastUpdatedBy: null,
         grade: null,
         gradeLevel: null,
         recordingLinks: [],
         detailedGrading: {
-          playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
-          musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
-          textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
+          playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
+          musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
+          textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
           playingByHeart: { grade: 'לא הוערך', points: null, maxPoints: 10, comments: 'אין הערות' }
         }
       })
@@ -443,15 +458,17 @@ describe('Bagrut Validation', () => {
         date: null,
         review: null,
         reviewedBy: null,
+        lastUpdatedBy: null,
         grade: null,
         gradeLevel: null,
         recordingLinks: [],
         detailedGrading: {
-          playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
-          musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
-          textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
+          playingSkills: { grade: 'לא הוערך', points: null, maxPoints: 40, comments: 'אין הערות' },
+          musicalUnderstanding: { grade: 'לא הוערך', points: null, maxPoints: 30, comments: 'אין הערות' },
+          textKnowledge: { grade: 'לא הוערך', points: null, maxPoints: 20, comments: 'אין הערות' },
           playingByHeart: { grade: 'לא הוערך', points: null, maxPoints: 10, comments: 'אין הערות' }
-        }
+        },
+        pieceGradings: []
       })
     })
 
@@ -567,7 +584,7 @@ describe('Bagrut Validation', () => {
 
   describe('recordingLinks validation', () => {
     it('should validate recording links as URI array', () => {
-      // Setup
+      // Setup — points must be within each category's maxPoints range
       const validBagrut = {
         studentId: '6579e36c83c8b3a5c2df8a8b',
         teacherId: '6579e36c83c8b3a5c2df8a8c',
@@ -586,8 +603,8 @@ describe('Bagrut Validation', () => {
             recordingLinks: ['https://youtube.com/watch?v=789'],
             detailedGrading: {
               playingSkills: { grade: 'טוב', points: 15, comments: 'טוב' },
-              musicalUnderstanding: { grade: 'מעולה', points: 35, comments: 'מעולה' },
-              textKnowledge: { grade: 'טוב מאוד', points: 28, comments: 'טוב מאוד' },
+              musicalUnderstanding: { grade: 'מעולה', points: 28, comments: 'מעולה' },
+              textKnowledge: { grade: 'טוב מאוד', points: 18, comments: 'טוב מאוד' },
               playingByHeart: { grade: 'טוב', points: 8, comments: 'טוב' }
             }
           }
@@ -617,16 +634,17 @@ describe('Bagrut Validation', () => {
           },
           { completed: false, status: 'לא נבחן', notes: '', recordingLinks: [] },
           { completed: false, status: 'לא נבחן', notes: '', recordingLinks: [] },
-          { completed: false, status: 'לא נבחן', recordingLinks: [] }
+          { completed: false, status: 'לא נבחן', grade: null, gradeLevel: null, recordingLinks: [] }
         ]
       }
 
       // Execute
       const { error } = validateBagrut(invalidBagrut)
 
-      // Assert
+      // Assert — Joi.alternatives produces "does not match any of the allowed types"
+      // because the invalid URI causes both alternative schemas to fail
       expect(error).toBeDefined()
-      expect(error.message).toContain('must be a valid uri')
+      expect(error.message).toContain('does not match any')
     })
   })
 })

@@ -100,7 +100,7 @@ describe('School Year Controller', () => {
       expect(res.json).toHaveBeenCalledWith(mockSchoolYear)
     })
 
-    it('should handle errors and pass them to next middleware', async () => {
+    it('should return 404 for not found errors', async () => {
       // Setup
       req.params = { id: 'invalid-id' }
       const error = new Error('School year not found')
@@ -109,8 +109,10 @@ describe('School Year Controller', () => {
       // Execute
       await schoolYearController.getSchoolYearById(req, res, next)
 
-      // Assert
-      expect(next).toHaveBeenCalledWith(error)
+      // Assert - controller handles "not found" errors with 404 status
+      expect(res.status).toHaveBeenCalledWith(404)
+      expect(res.json).toHaveBeenCalledWith({ error: 'School year not found' })
+      expect(next).not.toHaveBeenCalled()
     })
   })
 

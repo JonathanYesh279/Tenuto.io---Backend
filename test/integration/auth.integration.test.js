@@ -6,6 +6,10 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { ObjectId } from 'mongodb'
 
+// Override global setup mocks - these integration tests need real JWT and bcrypt
+vi.unmock('jsonwebtoken')
+vi.unmock('bcrypt')
+
 const ACCESS_SECRET = 'test-access-secret'
 const REFRESH_SECRET = 'test-refresh-secret'
 
@@ -19,7 +23,8 @@ function createTeacherDoc() {
   return {
     _id: teacherId,
     personalInfo: {
-      fullName: 'Test Teacher',
+      firstName: 'Test',
+      lastName: 'Teacher',
       email: 'teacher@test.com',
       phone: '0501234567',
       address: 'Test Address',
@@ -47,6 +52,7 @@ vi.mock('../../services/mongoDB.service.js', () => {
     updateOne: vi.fn(),
     find: vi.fn(),
     insertOne: vi.fn(),
+    countDocuments: vi.fn().mockResolvedValue(1), // Default: single tenant (no selection required)
   }
   return {
     getCollection: vi.fn(() => Promise.resolve(mockCollection)),
@@ -120,7 +126,8 @@ describe('Auth Integration Tests', () => {
     expect(res.body.accessToken).toBeDefined()
     expect(res.body.teacher).toBeDefined()
     expect(res.body.teacher._id).toBe(teacherId.toString())
-    expect(res.body.teacher.personalInfo.fullName).toBe('Test Teacher')
+    expect(res.body.teacher.personalInfo.firstName).toBe('Test')
+    expect(res.body.teacher.personalInfo.lastName).toBe('Teacher')
 
     // Verify refresh token cookie was set
     const cookies = res.headers['set-cookie']
@@ -144,7 +151,8 @@ describe('Auth Integration Tests', () => {
     const expiredToken = jwt.sign(
       {
         _id: teacherId.toString(),
-        fullName: 'Test Teacher',
+        firstName: 'Test',
+        lastName: 'Teacher',
         email: 'teacher@test.com',
         roles: ['מורה'],
         version: 0,
@@ -214,7 +222,8 @@ describe('Auth Integration Tests', () => {
     const accessToken = jwt.sign(
       {
         _id: teacherId.toString(),
-        fullName: 'Test Teacher',
+        firstName: 'Test',
+        lastName: 'Teacher',
         email: 'teacher@test.com',
         roles: ['מורה'],
         version: 0,

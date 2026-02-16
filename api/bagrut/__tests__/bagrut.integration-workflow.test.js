@@ -163,7 +163,7 @@ describe('Bagrut Integration Workflow Tests', () => {
       expect(result.presentations[3].grade).toBe(88)
       expect(result.presentations[3].gradeLevel).toBe('טוב')
       expect(mockCollection.findOneAndUpdate).toHaveBeenCalledWith(
-        { _id: expect.any(ObjectId) },
+        expect.objectContaining({ _id: expect.any(ObjectId), tenantId: 'test-tenant-id' }),
         expect.objectContaining({
           $set: expect.objectContaining({
             'presentations.3': expect.objectContaining({
@@ -193,7 +193,9 @@ describe('Bagrut Integration Workflow Tests', () => {
         finalGradeLevel: 'טוב'
       }
 
-      mockCollection.findOne.mockResolvedValueOnce(mockBagrutData)
+      mockCollection.findOne
+        .mockResolvedValueOnce(mockBagrutData) // First findOne in updateDirectorEvaluation
+        .mockResolvedValueOnce(mockBagrutData) // Second findOne in calculateAndUpdateFinalGrade
       mockCollection.findOneAndUpdate
         .mockResolvedValueOnce(updatedBagrut) // First update for director evaluation
         .mockResolvedValueOnce({ // Second call for final grade calculation
@@ -236,7 +238,7 @@ describe('Bagrut Integration Workflow Tests', () => {
       const completedBagrut = {
         ...completeBagrutData,
         isCompleted: true,
-        completionDate: expect.any(Date),
+        completionDate: new Date(),
         teacherSignature: 'Teacher Name'
       }
 
@@ -397,6 +399,8 @@ describe('Bagrut Integration Workflow Tests', () => {
     })
 
     it('should reject invalid recital configuration', async () => {
+      mockCollection.findOne.mockResolvedValueOnce(mockBagrutData)
+
       await expect(
         bagrutService.setRecitalConfiguration(
           mockBagrutData._id.toString(),
@@ -405,6 +409,8 @@ describe('Bagrut Integration Workflow Tests', () => {
           TEST_CONTEXT
         )
       ).rejects.toThrow('Recital units must be either 3 or 5')
+
+      mockCollection.findOne.mockResolvedValueOnce(mockBagrutData)
 
       await expect(
         bagrutService.setRecitalConfiguration(

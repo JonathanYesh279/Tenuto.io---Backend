@@ -118,8 +118,10 @@ vi.mock('../../services/mongoDB.service.js', () => {
 vi.mock('../../middleware/auth.middleware.js', () => {
   const mockTeacher = {
     _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-    personalInfo: { 
-      fullName: 'Admin User', 
+    tenantId: 'test-tenant-id',
+    personalInfo: {
+      firstName: 'Admin',
+      lastName: 'User',
       email: 'admin@example.com',
       phone: '0501234567',
       address: 'Test Address'
@@ -128,15 +130,71 @@ vi.mock('../../middleware/auth.middleware.js', () => {
     isActive: true
   }
 
+  const setAuth = (req) => {
+    req.teacher = mockTeacher
+    req.isAdmin = true
+    req.context = { tenantId: 'test-tenant-id', isAdmin: true }
+  }
+
   return {
     authenticateToken: vi.fn((req, res, next) => {
-      req.teacher = mockTeacher
-      req.isAdmin = true
+      setAuth(req)
       next()
     }),
-    requireAuth: vi.fn(() => (req, res, next) => next())
+    requireAuth: vi.fn(() => (req, res, next) => {
+      setAuth(req)
+      next()
+    })
   }
 })
+
+// Mock tenant middleware
+vi.mock('../../middleware/tenant.middleware.js', () => ({
+  requireTenantId: vi.fn((tenantId) => {
+    if (!tenantId) throw new Error('TENANT_GUARD: tenantId is required')
+    return tenantId
+  })
+}))
+
+// Mock queryScoping to pass through
+vi.mock('../../utils/queryScoping.js', () => ({
+  buildScopedFilter: vi.fn((collection, criteria, context) => ({
+    ...criteria,
+    tenantId: context?.tenantId
+  }))
+}))
+
+// Mock DuplicateDetectionService to not block creation
+vi.mock('../../services/duplicateDetectionService.js', () => ({
+  DuplicateDetectionService: {
+    detectTeacherDuplicates: vi.fn().mockResolvedValue({
+      hasDuplicates: false,
+      duplicates: [],
+      duplicateCount: 0
+    }),
+    shouldBlockCreation: vi.fn().mockReturnValue(false)
+  }
+}))
+
+// Mock emailService and invitationConfig
+vi.mock('../../services/emailService.js', () => ({
+  emailService: {
+    sendInvitation: vi.fn().mockResolvedValue(true)
+  }
+}))
+vi.mock('../../services/invitationConfig.js', () => ({
+  invitationConfig: {
+    baseUrl: 'http://localhost:3000',
+    tokenExpiry: '7d',
+    isEmailMode: vi.fn().mockReturnValue(false),
+    isDefaultPasswordMode: vi.fn().mockReturnValue(true),
+    getDefaultPassword: vi.fn().mockReturnValue('123456'),
+    getCurrentMode: vi.fn().mockReturnValue('DEFAULT_PASSWORD'),
+    validateMode: vi.fn().mockReturnValue(true)
+  },
+  INVITATION_MODES: { EMAIL: 'EMAIL', DEFAULT_PASSWORD: 'DEFAULT_PASSWORD' },
+  DEFAULT_PASSWORD: '123456'
+}))
 
 // Import routes after mocking
 import teacherRoutes from '../../api/teacher/teacher.route.js'
@@ -209,22 +267,23 @@ describe('Teacher API Integration Tests', () => {
 
   describe('POST /api/teacher', () => {
     it('should create a new teacher', async () => {
-      // Set up
+      // Set up - use firstName/lastName (Phase 4B) and include tenantId
       const newTeacher = {
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'New Teacher',
+          firstName: 'New',
+          lastName: 'Teacher',
           phone: '0501234569',
           email: 'new@example.com',
           address: 'New Address'
         },
         roles: ['מורה', 'מדריך הרכב'],
         professionalInfo: {
-          instrument: 'Guitar',
+          instrument: 'גיטרה',
           isActive: true
         },
         teaching: {
-          studentIds: [],
-          schedule: []
+          timeBlocks: []
         },
         credentials: {
           email: 'new@example.com',
@@ -238,35 +297,24 @@ describe('Teacher API Integration Tests', () => {
         .set('Authorization', 'Bearer valid-token')
         .send(newTeacher)
 
-      // Assert
-      expect(response.status).toBe(200)
+      // Assert - controller returns 201 for successful creation
+      expect(response.status).toBe(201)
     })
   })
 
   describe('PUT /api/teacher/:id', () => {
     it('should update an existing teacher', async () => {
-      // Set up
+      // Set up - use firstName/lastName (Phase 4B)
       const teacherId = '6579e36c83c8b3a5c2df8a8b'
       const updatedInfo = {
         personalInfo: {
-          fullName: 'Updated Teacher Name',
+          firstName: 'Updated',
+          lastName: 'Teacher',
           phone: '0501234567',
           email: 'teacher@example.com',
           address: 'Updated Address'
         },
-        roles: ['מורה', 'מנצח'],
-        professionalInfo: {
-          instrument: 'Piano',
-          isActive: true
-        },
-        teaching: {
-          studentIds: [],
-          schedule: []
-        },
-        credentials: {
-          email: 'teacher@example.com',
-          password: 'password123'
-        }
+        roles: ['מורה', 'מנצח']
       }
 
       // Execute

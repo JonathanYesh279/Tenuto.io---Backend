@@ -5,6 +5,9 @@ import cookieParser from 'cookie-parser'
 import jwt from 'jsonwebtoken'
 import { ObjectId } from 'mongodb'
 
+// Override global setup mocks - this test needs real JWT
+vi.unmock('jsonwebtoken')
+
 const ACCESS_SECRET = 'test-access-secret'
 
 const adminId = new ObjectId()
@@ -15,7 +18,7 @@ const student2Id = new ObjectId()
 
 const adminDoc = {
   _id: adminId,
-  personalInfo: { fullName: 'Admin User', email: 'admin@test.com' },
+  personalInfo: { firstName: 'Admin', lastName: 'User', email: 'admin@test.com' },
   credentials: { email: 'admin@test.com', tokenVersion: 0 },
   roles: ['מנהל'],
   teaching: { studentIds: [] },
@@ -24,7 +27,7 @@ const adminDoc = {
 
 const teacherADoc = {
   _id: teacherAId,
-  personalInfo: { fullName: 'Teacher A', email: 'teacherA@test.com' },
+  personalInfo: { firstName: 'Teacher', lastName: 'A', email: 'teacherA@test.com' },
   credentials: { email: 'teacherA@test.com', tokenVersion: 0 },
   roles: ['מורה'],
   teaching: { studentIds: [student1Id.toString()] },
@@ -33,7 +36,7 @@ const teacherADoc = {
 
 const teacherBDoc = {
   _id: teacherBId,
-  personalInfo: { fullName: 'Teacher B', email: 'teacherB@test.com' },
+  personalInfo: { firstName: 'Teacher', lastName: 'B', email: 'teacherB@test.com' },
   credentials: { email: 'teacherB@test.com', tokenVersion: 0 },
   roles: ['מורה'],
   teaching: { studentIds: [student2Id.toString()] },
@@ -66,7 +69,8 @@ function makeToken(teacher) {
   return jwt.sign(
     {
       _id: teacher._id.toString(),
-      fullName: teacher.personalInfo.fullName,
+      firstName: teacher.personalInfo.firstName || '',
+      lastName: teacher.personalInfo.lastName || '',
       email: teacher.credentials.email,
       roles: teacher.roles,
       version: 0,
@@ -110,6 +114,27 @@ vi.mock('../../api/student/student-assignments.validation.js', () => ({
   validateTeacherAssignmentsMiddleware: (req, res, next) => next(),
 }))
 
+// Override global canAccessStudent mock -- this test needs real IDOR enforcement
+vi.mock('../../utils/queryScoping.js', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    buildScopedFilter: vi.fn((collection, baseFilter, context) => {
+      return { ...baseFilter }
+    }),
+    canAccessStudent: vi.fn((studentId, context) => {
+      // If admin, allow all
+      if (context?.isAdmin) return true
+      // If teacher, check if student is in their access list
+      if (context?.scopes?.studentIds) {
+        return context.scopes.studentIds.includes(studentId)
+      }
+      return false
+    }),
+    canAccessOwnResource: vi.fn(() => true),
+  }
+})
+
 let app
 let mockCollection
 
@@ -126,7 +151,32 @@ beforeAll(async () => {
   app = express()
   app.use(express.json())
   app.use(cookieParser())
-  app.use('/api/student', authenticateToken, studentRoutes)
+
+  // Simplified buildContext middleware for testing
+  const buildTestContext = (req, res, next) => {
+    if (req.teacher) {
+      const teacherId = req.teacher._id.toString()
+      const isAdmin = req.teacher.roles?.includes('מנהל') || false
+      // Map teacher to their student access list
+      const studentAccessMap = {
+        [teacherAId.toString()]: [student1Id.toString()],
+        [teacherBId.toString()]: [student2Id.toString()],
+      }
+      req.context = {
+        tenantId: req.teacher.tenantId || 'test-tenant-id',
+        userId: teacherId,
+        userRoles: req.teacher.roles || [],
+        isAdmin,
+        scopes: {
+          studentIds: isAdmin ? [] : (studentAccessMap[teacherId] || []),
+          orchestraIds: [],
+        },
+      }
+    }
+    next()
+  }
+
+  app.use('/api/student', authenticateToken, buildTestContext, studentRoutes)
 })
 
 beforeEach(() => {
