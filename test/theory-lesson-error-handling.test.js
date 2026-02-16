@@ -6,7 +6,7 @@
  * in the frontend.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { TheoryLessonValidationService } from '../services/theoryLessonValidationService.js';
 import { createToast, TOAST_TYPES } from '../middleware/toastNotificationMiddleware.js';
 

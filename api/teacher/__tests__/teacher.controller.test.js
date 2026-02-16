@@ -15,6 +15,18 @@ vi.mock('../teacher.service.js', () => ({
   }
 }))
 
+// Mock the teacher-lessons service (imported by controller)
+vi.mock('../teacher-lessons.service.js', () => ({
+  teacherLessonsService: {
+    getTeacherLessons: vi.fn(),
+    getTeacherWeeklySchedule: vi.fn(),
+    getTeacherDaySchedule: vi.fn(),
+    getTeacherLessonStats: vi.fn(),
+    getTeacherStudentsWithLessons: vi.fn(),
+    validateTeacherLessonData: vi.fn()
+  }
+}))
+
 describe('Teacher Controller', () => {
   let req, res, next
 
@@ -22,11 +34,17 @@ describe('Teacher Controller', () => {
     // Reset mocks
     vi.clearAllMocks()
 
-    // Setup request object
+    // Setup request object with context for tenant scoping
     req = {
       params: {},
       query: {},
-      body: {}
+      body: {},
+      context: { tenantId: 'test-tenant-id' },
+      teacher: {
+        _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
+        roles: ['מנהל']
+      },
+      isAdmin: true
     }
 
     // Setup response object with chainable methods
@@ -53,24 +71,30 @@ describe('Teacher Controller', () => {
       }
 
       const mockTeachers = [
-        { _id: '1', personalInfo: { fullName: 'Teacher 1' } },
-        { _id: '2', personalInfo: { fullName: 'Teacher 2' } }
+        { _id: '1', personalInfo: { firstName: 'Teacher', lastName: 'One' } },
+        { _id: '2', personalInfo: { firstName: 'Teacher', lastName: 'Two' } }
       ]
       teacherService.getTeachers.mockResolvedValue(mockTeachers)
 
       // Execute
       await teacherController.getTeachers(req, res, next)
 
-      // Assert
-      expect(teacherService.getTeachers).toHaveBeenCalledWith({
-        name: 'Test Teacher',
-        role: 'מורה',
-        studentId: '123',
-        orchestraId: '456',
-        ensembleId: '789',
-        isActive: 'true',
-        showInActive: true
-      })
+      // Assert - controller now passes filterBy, page, limit, { context: req.context }
+      expect(teacherService.getTeachers).toHaveBeenCalledWith(
+        {
+          name: 'Test Teacher',
+          instrument: undefined,
+          role: 'מורה',
+          studentId: '123',
+          orchestraId: '456',
+          ensembleId: '789',
+          isActive: 'true',
+          showInActive: true
+        },
+        1, // default page
+        0, // default limit
+        { context: { tenantId: 'test-tenant-id' } }
+      )
       expect(res.json).toHaveBeenCalledWith(mockTeachers)
     })
 
@@ -95,7 +119,7 @@ describe('Teacher Controller', () => {
 
       const mockTeacher = {
         _id: teacherId,
-        personalInfo: { fullName: 'Test Teacher' },
+        personalInfo: { firstName: 'Test', lastName: 'Teacher' },
         roles: ['מורה']
       }
       teacherService.getTeacherById.mockResolvedValue(mockTeacher)
@@ -103,9 +127,16 @@ describe('Teacher Controller', () => {
       // Execute
       await teacherController.getTeacherById(req, res, next)
 
-      // Assert
-      expect(teacherService.getTeacherById).toHaveBeenCalledWith(teacherId.toString())
-      expect(res.json).toHaveBeenCalledWith(mockTeacher)
+      // Assert - controller now passes { context: req.context } as second arg
+      expect(teacherService.getTeacherById).toHaveBeenCalledWith(
+        teacherId.toString(),
+        { context: { tenantId: 'test-tenant-id' } }
+      )
+      // Controller now returns { success: true, data: teacher }
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: mockTeacher
+      })
     })
 
     it('should handle errors and pass them to next middleware', async () => {
@@ -117,8 +148,12 @@ describe('Teacher Controller', () => {
       // Execute
       await teacherController.getTeacherById(req, res, next)
 
-      // Assert
-      expect(next).toHaveBeenCalledWith(error)
+      // Assert - "not found" errors return 404 directly
+      expect(res.status).toHaveBeenCalledWith(404)
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: false,
+        error: 'Teacher not found'
+      }))
     })
   })
 
@@ -128,16 +163,19 @@ describe('Teacher Controller', () => {
       req.params = { role: 'מורה' }
 
       const mockTeachers = [
-        { _id: '1', personalInfo: { fullName: 'Teacher 1' }, roles: ['מורה'] },
-        { _id: '2', personalInfo: { fullName: 'Teacher 2' }, roles: ['מורה'] }
+        { _id: '1', personalInfo: { firstName: 'Teacher', lastName: 'One' }, roles: ['מורה'] },
+        { _id: '2', personalInfo: { firstName: 'Teacher', lastName: 'Two' }, roles: ['מורה'] }
       ]
       teacherService.getTeacherByRole.mockResolvedValue(mockTeachers)
 
       // Execute
       await teacherController.getTeacherByRole(req, res, next)
 
-      // Assert
-      expect(teacherService.getTeacherByRole).toHaveBeenCalledWith('מורה')
+      // Assert - controller now passes { context: req.context }
+      expect(teacherService.getTeacherByRole).toHaveBeenCalledWith(
+        'מורה',
+        { context: { tenantId: 'test-tenant-id' } }
+      )
       expect(res.json).toHaveBeenCalledWith(mockTeachers)
     })
 
@@ -159,12 +197,12 @@ describe('Teacher Controller', () => {
     it('should add a new teacher', async () => {
       // Setup
       const newTeacher = {
-        personalInfo: { fullName: 'New Teacher' },
+        personalInfo: { firstName: 'New', lastName: 'Teacher' },
         roles: ['מורה']
       }
       req.body = newTeacher
 
-      const createdTeacher = { 
+      const createdTeacher = {
         _id: new ObjectId(),
         ...newTeacher
       }
@@ -173,9 +211,14 @@ describe('Teacher Controller', () => {
       // Execute
       await teacherController.addTeacher(req, res, next)
 
-      // Assert
-      expect(teacherService.addTeacher).toHaveBeenCalledWith(newTeacher)
-      expect(res.json).toHaveBeenCalledWith(createdTeacher)
+      // Assert - controller now passes teacherToAdd, adminId, { context: req.context }
+      expect(teacherService.addTeacher).toHaveBeenCalledWith(
+        newTeacher,
+        req.teacher._id,
+        { context: { tenantId: 'test-tenant-id' } }
+      )
+      expect(res.status).toHaveBeenCalledWith(201)
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: createdTeacher })
     })
 
     it('should handle errors and pass them to next middleware', async () => {
@@ -197,14 +240,14 @@ describe('Teacher Controller', () => {
       // Setup
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: teacherId.toString() }
-      
+
       const teacherUpdates = {
-        personalInfo: { fullName: 'Updated Teacher' },
+        personalInfo: { firstName: 'Updated', lastName: 'Teacher' },
         roles: ['מורה', 'מנצח']
       }
       req.body = teacherUpdates
 
-      const updatedTeacher = { 
+      const updatedTeacher = {
         _id: teacherId,
         ...teacherUpdates
       }
@@ -213,9 +256,13 @@ describe('Teacher Controller', () => {
       // Execute
       await teacherController.updateTeacher(req, res, next)
 
-      // Assert
-      expect(teacherService.updateTeacher).toHaveBeenCalledWith(teacherId.toString(), teacherUpdates)
-      expect(res.json).toHaveBeenCalledWith(updatedTeacher)
+      // Assert - controller now passes { context: req.context }
+      expect(teacherService.updateTeacher).toHaveBeenCalledWith(
+        teacherId.toString(),
+        teacherUpdates,
+        { context: { tenantId: 'test-tenant-id' } }
+      )
+      expect(res.json).toHaveBeenCalledWith({ success: true, data: updatedTeacher })
     })
 
     it('should handle errors and pass them to next middleware', async () => {
@@ -239,9 +286,9 @@ describe('Teacher Controller', () => {
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: teacherId.toString() }
 
-      const removedTeacher = { 
+      const removedTeacher = {
         _id: teacherId,
-        personalInfo: { fullName: 'Removed Teacher' },
+        personalInfo: { firstName: 'Removed', lastName: 'Teacher' },
         isActive: false
       }
       teacherService.removeTeacher.mockResolvedValue(removedTeacher)
@@ -249,8 +296,11 @@ describe('Teacher Controller', () => {
       // Execute
       await teacherController.removeTeacher(req, res, next)
 
-      // Assert
-      expect(teacherService.removeTeacher).toHaveBeenCalledWith(teacherId.toString())
+      // Assert - controller now passes { context: req.context }
+      expect(teacherService.removeTeacher).toHaveBeenCalledWith(
+        teacherId.toString(),
+        { context: { tenantId: 'test-tenant-id' } }
+      )
       expect(res.json).toHaveBeenCalledWith(removedTeacher)
     })
 

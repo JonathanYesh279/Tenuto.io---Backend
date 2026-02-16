@@ -7,6 +7,14 @@ import { ObjectId } from 'mongodb'
 // Mock dependencies
 vi.mock('jsonwebtoken')
 vi.mock('../../services/mongoDB.service.js')
+vi.mock('../../services/logger.service.js', () => ({
+  createLogger: vi.fn(() => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn()
+  }))
+}))
 
 describe('Auth Middleware', () => {
   let req, res, next, mockCollection, mockFindOne
@@ -18,6 +26,7 @@ describe('Auth Middleware', () => {
     // Setup request, response, and next function
     req = {
       headers: {},
+      path: '/api/test',
       teacher: null
     }
 
@@ -43,7 +52,11 @@ describe('Auth Middleware', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Authentication required' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Authentication required',
+        code: 'MISSING_TOKEN'
+      })
       expect(next).not.toHaveBeenCalled()
     })
 
@@ -56,7 +69,11 @@ describe('Auth Middleware', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Authentication required' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Authentication required',
+        code: 'MISSING_TOKEN'
+      })
       expect(next).not.toHaveBeenCalled()
     })
 
@@ -65,6 +82,15 @@ describe('Auth Middleware', () => {
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const mockTeacher = {
         _id: teacherId,
+        tenantId: 'test-tenant-id',
+        personalInfo: {
+          firstName: 'Test',
+          lastName: 'Teacher'
+        },
+        credentials: {
+          email: 'test@example.com'
+        },
+        roles: ['מורה'],
         isActive: true
       }
 
@@ -82,6 +108,11 @@ describe('Auth Middleware', () => {
         isActive: true
       })
       expect(req.teacher).toBe(mockTeacher)
+      expect(req.loggedinUser).toEqual(expect.objectContaining({
+        _id: teacherId.toString(),
+        tenantId: 'test-tenant-id',
+        roles: ['מורה']
+      }))
       expect(next).toHaveBeenCalled()
     })
 
@@ -97,16 +128,20 @@ describe('Auth Middleware', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid token' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      })
     })
 
     it('should return 401 if token is expired', async () => {
       // Setup
       req.headers['authorization'] = 'Bearer expired-token'
-      
+
       const tokenError = new Error('TokenExpiredError')
       tokenError.name = 'TokenExpiredError'
-      
+
       jwt.verify.mockImplementation(() => {
         throw tokenError
       })
@@ -116,7 +151,11 @@ describe('Auth Middleware', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Token has expired' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Token has expired',
+        code: 'TOKEN_EXPIRED'
+      })
     })
 
     it('should return 401 if teacher is not found', async () => {
@@ -130,7 +169,11 @@ describe('Auth Middleware', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Teacher was not found' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Teacher was not found',
+        code: 'USER_NOT_FOUND'
+      })
     })
 
     it('should handle server errors', async () => {
@@ -138,28 +181,26 @@ describe('Auth Middleware', () => {
       req.headers['authorization'] = 'Bearer valid-token'
       jwt.verify.mockReturnValue({ _id: '6579e36c83c8b3a5c2df8a8b' })
       mockFindOne.mockRejectedValue(new Error('Database error'))
-      
-      const consoleSpy = vi.spyOn(console, 'error')
 
       // Execute
       await authenticateToken(req, res, next)
 
-      // Assert
-      expect(consoleSpy).toHaveBeenCalled()
-      expect(res.status).toHaveBeenCalledWith(500)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Internal server error' })
+      // Assert - middleware now returns 401 for all errors in catch block
+      expect(res.status).toHaveBeenCalledWith(401)
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      })
     })
 
-    it('should log detailed error for debugging when token verification fails', async () => {
+    it('should return 401 for malformed JWT tokens', async () => {
       // Setup
-      const consoleSpy = vi.spyOn(console, 'error')
-      req.headers['authorization'] = 'Bearer expired-token'
-      
-      const expiredAt = new Date()
-      const tokenError = new Error('TokenExpiredError')
-      tokenError.name = 'TokenExpiredError'
-      tokenError.expiredAt = expiredAt
-      
+      req.headers['authorization'] = 'Bearer malformed-token'
+
+      const tokenError = new Error('jwt malformed')
+      tokenError.name = 'JsonWebTokenError'
+
       jwt.verify.mockImplementation(() => {
         throw tokenError
       })
@@ -168,12 +209,12 @@ describe('Auth Middleware', () => {
       await authenticateToken(req, res, next)
 
       // Assert
-      expect(consoleSpy).toHaveBeenCalledWith('Authentication error:', expect.objectContaining({
-        name: 'TokenExpiredError',
-        message: 'TokenExpiredError',
-        expiredAt,
-        currentTime: expect.any(Date)
-      }))
+      expect(res.status).toHaveBeenCalledWith(401)
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Malformed token',
+        code: 'MALFORMED_TOKEN'
+      })
     })
   })
 
@@ -185,7 +226,7 @@ describe('Auth Middleware', () => {
       }
 
       const middleware = requireAuth(['מורה'])
-      
+
       // Execute
       await middleware(req, res, next)
 
@@ -201,7 +242,7 @@ describe('Auth Middleware', () => {
       }
 
       const middleware = requireAuth(['מורה', 'מדריך הרכב'])
-      
+
       // Execute
       await middleware(req, res, next)
 
@@ -217,13 +258,19 @@ describe('Auth Middleware', () => {
       }
 
       const middleware = requireAuth(['מנצח', 'מדריך הרכב'])
-      
+
       // Execute
       await middleware(req, res, next)
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(403)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Insufficient permissions' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Insufficient permissions',
+        code: 'INSUFFICIENT_PERMISSIONS',
+        required: ['מנצח', 'מדריך הרכב'],
+        current: ['מורה']
+      })
       expect(next).not.toHaveBeenCalled()
     })
 
@@ -232,26 +279,30 @@ describe('Auth Middleware', () => {
       req.teacher = null
 
       const middleware = requireAuth(['מורה'])
-      
+
       // Execute
       await middleware(req, res, next)
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Authentication required' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Authentication required',
+        code: 'AUTH_REQUIRED'
+      })
       expect(next).not.toHaveBeenCalled()
     })
 
-    it('should pass errors to next middleware', async () => {
+    it('should return 500 on unexpected errors', async () => {
       // Setup
       req.teacher = {
         roles: ['מורה']
       }
 
       const error = new Error('Unexpected error')
-      
+
       const middleware = requireAuth(['מורה'])
-      
+
       // Mock some unexpected error during execution
       vi.spyOn(req.teacher.roles, 'includes').mockImplementation(() => {
         throw error
@@ -260,8 +311,13 @@ describe('Auth Middleware', () => {
       // Execute
       await middleware(req, res, next)
 
-      // Assert
-      expect(next).toHaveBeenCalledWith(error)
+      // Assert - production code now catches and returns 500 instead of calling next(error)
+      expect(res.status).toHaveBeenCalledWith(500)
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Authorization failed',
+        code: 'AUTH_FAILED'
+      })
     })
   })
 })

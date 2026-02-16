@@ -19,6 +19,22 @@ vi.mock('../../../services/mongoDB.service.js', () => ({
   getCollection: vi.fn()
 }))
 
+vi.mock('../../../services/logger.service.js', () => ({
+  createLogger: vi.fn(() => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn()
+  }))
+}))
+
+vi.mock('../../services/invitationMigration.js', () => ({
+  invitationMigration: {
+    migratePendingInvitations: vi.fn(),
+    getInvitationModeStats: vi.fn()
+  }
+}))
+
 describe('Auth Controller', () => {
   let req, res, next, mockCollection
 
@@ -64,7 +80,10 @@ describe('Auth Controller', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(400)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Email and password are required' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Email and password are required'
+      })
       expect(authService.login).not.toHaveBeenCalled()
     })
 
@@ -77,7 +96,10 @@ describe('Auth Controller', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(400)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Email and password are required' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Email and password are required'
+      })
       expect(authService.login).not.toHaveBeenCalled()
     })
 
@@ -90,7 +112,11 @@ describe('Auth Controller', () => {
 
       const mockTeacher = {
         _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
-        personalInfo: { fullName: 'Test Teacher' },
+        personalInfo: {
+          firstName: 'Test',
+          lastName: 'Teacher',
+          email: 'test@example.com'
+        },
         credentials: { email: 'test@example.com' },
         roles: ['מורה']
       }
@@ -104,11 +130,11 @@ describe('Auth Controller', () => {
       // Execute
       await authController.login(req, res)
 
-      // Assert
-      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'password123')
+      // Assert - controller now passes 3 args (email, password, tenantId)
+      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'password123', null)
       expect(res.cookie).toHaveBeenCalledWith(
-        'refreshToken', 
-        'mock-refresh-token', 
+        'refreshToken',
+        'mock-refresh-token',
         expect.objectContaining({
           httpOnly: true,
           secure: expect.any(Boolean),
@@ -134,10 +160,14 @@ describe('Auth Controller', () => {
       // Execute
       await authController.login(req, res)
 
-      // Assert
-      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'wrong-password')
+      // Assert - controller now passes 3 args
+      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'wrong-password', null)
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid email or password' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Invalid email or password',
+        code: 'INVALID_CREDENTIALS'
+      })
     })
 
     it('should return 500 for unexpected server errors', async () => {
@@ -152,10 +182,41 @@ describe('Auth Controller', () => {
       // Execute
       await authController.login(req, res)
 
-      // Assert
-      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'password123')
+      // Assert - controller now passes 3 args
+      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'password123', null)
       expect(res.status).toHaveBeenCalledWith(500)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Internal Server Error' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Internal Server Error',
+        code: 'INTERNAL_ERROR'
+      })
+    })
+
+    it('should handle tenant selection required response', async () => {
+      // Setup
+      req.body = {
+        email: 'test@example.com',
+        password: 'password123'
+      }
+
+      authService.login.mockResolvedValue({
+        requiresTenantSelection: true,
+        tenants: [
+          { tenantId: 'tenant-1', tenantName: 'School A', roles: ['מורה'] },
+          { tenantId: 'tenant-2', tenantName: 'School B', roles: ['מנהל'] }
+        ]
+      })
+
+      // Execute
+      await authController.login(req, res)
+
+      // Assert
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        requiresTenantSelection: true,
+        tenants: expect.any(Array),
+        code: 'TENANT_SELECTION_REQUIRED'
+      })
     })
   })
 
@@ -166,7 +227,11 @@ describe('Auth Controller', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Refresh token is required' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Refresh token is required',
+        code: 'MISSING_REFRESH_TOKEN'
+      })
       expect(authService.refreshAccessToken).not.toHaveBeenCalled()
     })
 
@@ -180,7 +245,11 @@ describe('Auth Controller', () => {
 
       // Assert
       expect(authService.refreshAccessToken).toHaveBeenCalledWith('valid-refresh-token')
-      expect(res.json).toHaveBeenCalledWith({ accessToken: 'new-access-token' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { accessToken: 'new-access-token' },
+        message: 'Token refreshed successfully'
+      })
     })
 
     it('should return 401 when refresh token is invalid', async () => {
@@ -194,7 +263,11 @@ describe('Auth Controller', () => {
       // Assert
       expect(authService.refreshAccessToken).toHaveBeenCalledWith('invalid-refresh-token')
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid refresh token' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Invalid refresh token',
+        code: 'INVALID_REFRESH_TOKEN'
+      })
     })
   })
 
@@ -208,7 +281,11 @@ describe('Auth Controller', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(500)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Logout failed' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Logout failed',
+        code: 'LOGOUT_FAILED'
+      })
       expect(authService.logout).not.toHaveBeenCalled()
     })
 
@@ -221,7 +298,11 @@ describe('Auth Controller', () => {
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(500)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Logout failed' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Logout failed',
+        code: 'LOGOUT_FAILED'
+      })
       expect(authService.logout).not.toHaveBeenCalled()
     })
 
@@ -237,7 +318,10 @@ describe('Auth Controller', () => {
       // Assert
       expect(authService.logout).toHaveBeenCalledWith(teacherId)
       expect(res.clearCookie).toHaveBeenCalledWith('refreshToken')
-      expect(res.json).toHaveBeenCalledWith({ message: 'Logged out successfully' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        message: 'Logged out successfully'
+      })
     })
 
     it('should handle logout service errors', async () => {
@@ -252,7 +336,11 @@ describe('Auth Controller', () => {
       // Assert
       expect(authService.logout).toHaveBeenCalledWith(teacherId)
       expect(res.status).toHaveBeenCalledWith(500)
-      expect(res.json).toHaveBeenCalledWith({ error: 'Logout failed' })
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'Logout failed',
+        code: 'LOGOUT_FAILED'
+      })
     })
   })
 
@@ -272,8 +360,10 @@ describe('Auth Controller', () => {
     })
 
     it('should create a new admin if none exists', async () => {
-      // Setup
-      mockCollection.findOne.mockResolvedValue(null)
+      // Setup - first findOne for admin check, second for email check
+      mockCollection.findOne
+        .mockResolvedValueOnce(null)  // no admin exists
+        .mockResolvedValueOnce(null)  // no email conflict
       const insertedId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
       mockCollection.insertOne.mockResolvedValue({ insertedId })
       authService.encryptPassword.mockResolvedValue('hashed-password')
@@ -286,7 +376,8 @@ describe('Auth Controller', () => {
       expect(authService.encryptPassword).toHaveBeenCalledWith('123456')
       expect(mockCollection.insertOne).toHaveBeenCalledWith(expect.objectContaining({
         personalInfo: expect.objectContaining({
-          fullName: 'מנהל מערכת',
+          firstName: 'מנהל',
+          lastName: 'מערכת',
           email: 'admin@example.com'
         }),
         roles: ['מנהל'],
@@ -301,8 +392,10 @@ describe('Auth Controller', () => {
     })
 
     it('should handle errors during admin creation', async () => {
-      // Setup
-      mockCollection.findOne.mockResolvedValue(null)
+      // Setup - first findOne for admin check, second for email check
+      mockCollection.findOne
+        .mockResolvedValueOnce(null)  // no admin exists
+        .mockResolvedValueOnce(null)  // no email conflict
       mockCollection.insertOne.mockRejectedValue(new Error('Database error'))
       authService.encryptPassword.mockResolvedValue('hashed-password')
 
@@ -312,34 +405,6 @@ describe('Auth Controller', () => {
       // Assert
       expect(res.status).toHaveBeenCalledWith(500)
       expect(res.json).toHaveBeenCalledWith({ error: 'Failed to create admin' })
-    })
-
-    it('should log the created admin ID', async () => {
-      // Setup
-      const consoleSpy = vi.spyOn(console, 'log')
-      mockCollection.findOne.mockResolvedValue(null)
-      const insertedId = new ObjectId('6579e36c83c8b3a5c2df8a8c')
-      mockCollection.insertOne.mockResolvedValue({ insertedId })
-      authService.encryptPassword.mockResolvedValue('hashed-password')
-
-      // Execute
-      await authController.initAdmin(req, res)
-
-      // Assert
-      expect(consoleSpy).toHaveBeenCalledWith('Created new admin with ID:', insertedId.toString())
-    })
-
-    it('should log existing admin ID if admin already exists', async () => {
-      // Setup
-      const consoleSpy = vi.spyOn(console, 'log')
-      const existingAdminId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      mockCollection.findOne.mockResolvedValue({ _id: existingAdminId })
-
-      // Execute
-      await authController.initAdmin(req, res)
-
-      // Assert
-      expect(consoleSpy).toHaveBeenCalledWith('Found existing admin:', existingAdminId.toString())
     })
   })
 })

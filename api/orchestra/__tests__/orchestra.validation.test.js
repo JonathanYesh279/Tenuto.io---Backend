@@ -6,7 +6,8 @@ describe('Orchestra Validation', () => {
     it('should validate a valid orchestra object', () => {
       // Setup
       const validOrchestra = {
-        name: 'תזמורת מתחילים נשיפה',
+        tenantId: 'test-tenant-id',
+        name: 'Test Orchestra',
         type: 'תזמורת',
         conductorId: '6579e36c83c8b3a5c2df8a8b',
         memberIds: ['123', '456'],
@@ -20,13 +21,23 @@ describe('Orchestra Validation', () => {
 
       // Assert
       expect(error).toBeUndefined()
-      expect(value).toEqual(validOrchestra)
+      expect(value).toEqual(expect.objectContaining({
+        tenantId: 'test-tenant-id',
+        name: 'Test Orchestra',
+        type: 'תזמורת',
+        conductorId: '6579e36c83c8b3a5c2df8a8b',
+        memberIds: ['123', '456'],
+        rehearsalIds: ['789', '012'],
+        schoolYearId: '6579e36c83c8b3a5c2df8a8c',
+        isActive: true
+      }))
     })
 
     it('should validate with default values for optional fields', () => {
       // Setup
       const minimalOrchestra = {
-        name: 'תזמורת יצוגית נשיפה',
+        tenantId: 'test-tenant-id',
+        name: 'Test Orchestra',
         type: 'תזמורת',
         conductorId: '6579e36c83c8b3a5c2df8a8b',
         schoolYearId: '6579e36c83c8b3a5c2df8a8c'
@@ -37,42 +48,26 @@ describe('Orchestra Validation', () => {
 
       // Assert
       expect(error).toBeUndefined()
-      expect(value).toEqual({
+      expect(value).toEqual(expect.objectContaining({
         ...minimalOrchestra,
         memberIds: [],
         rehearsalIds: [],
         isActive: true
-      })
-    })
-
-    it('should reject invalid orchestra name', () => {
-      // Setup
-      const invalidOrchestra = {
-        name: 'Invalid Orchestra Name', // Not in allowed list
-        type: 'תזמורת',
-        conductorId: '6579e36c83c8b3a5c2df8a8b',
-        schoolYearId: '6579e36c83c8b3a5c2df8a8c'
-      }
-
-      // Execute
-      const { error, value } = validateOrchestra(invalidOrchestra)
-
-      // Assert
-      expect(error).toBeDefined()
-      expect(error.message).toContain('"name" must be')
+      }))
     })
 
     it('should reject invalid orchestra type', () => {
       // Setup
       const invalidOrchestra = {
-        name: 'תזמורת מתחילים נשיפה',
+        tenantId: 'test-tenant-id',
+        name: 'Test Orchestra',
         type: 'invalid-type', // Not in allowed list
         conductorId: '6579e36c83c8b3a5c2df8a8b',
         schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
 
       // Execute
-      const { error, value } = validateOrchestra(invalidOrchestra)
+      const { error } = validateOrchestra(invalidOrchestra)
 
       // Assert
       expect(error).toBeDefined()
@@ -82,14 +77,15 @@ describe('Orchestra Validation', () => {
     it('should require conductorId', () => {
       // Setup
       const invalidOrchestra = {
-        name: 'תזמורת מתחילים נשיפה',
+        tenantId: 'test-tenant-id',
+        name: 'Test Orchestra',
         type: 'תזמורת',
         // Missing conductorId
         schoolYearId: '6579e36c83c8b3a5c2df8a8c'
       }
 
       // Execute
-      const { error, value } = validateOrchestra(invalidOrchestra)
+      const { error } = validateOrchestra(invalidOrchestra)
 
       // Assert
       expect(error).toBeDefined()
@@ -99,14 +95,15 @@ describe('Orchestra Validation', () => {
     it('should require schoolYearId', () => {
       // Setup
       const invalidOrchestra = {
-        name: 'תזמורת מתחילים נשיפה',
+        tenantId: 'test-tenant-id',
+        name: 'Test Orchestra',
         type: 'תזמורת',
         conductorId: '6579e36c83c8b3a5c2df8a8b'
         // Missing schoolYearId
       }
 
       // Execute
-      const { error, value } = validateOrchestra(invalidOrchestra)
+      const { error } = validateOrchestra(invalidOrchestra)
 
       // Assert
       expect(error).toBeDefined()
@@ -116,7 +113,8 @@ describe('Orchestra Validation', () => {
     it('should require memberIds to be an array', () => {
       // Setup
       const invalidOrchestra = {
-        name: 'תזמורת מתחילים נשיפה',
+        tenantId: 'test-tenant-id',
+        name: 'Test Orchestra',
         type: 'תזמורת',
         conductorId: '6579e36c83c8b3a5c2df8a8b',
         memberIds: 'not-an-array', // Should be an array
@@ -124,7 +122,7 @@ describe('Orchestra Validation', () => {
       }
 
       // Execute
-      const { error, value } = validateOrchestra(invalidOrchestra)
+      const { error } = validateOrchestra(invalidOrchestra)
 
       // Assert
       expect(error).toBeDefined()
@@ -134,7 +132,8 @@ describe('Orchestra Validation', () => {
     it('should require rehearsalIds to be an array', () => {
       // Setup
       const invalidOrchestra = {
-        name: 'תזמורת מתחילים נשיפה',
+        tenantId: 'test-tenant-id',
+        name: 'Test Orchestra',
         type: 'תזמורת',
         conductorId: '6579e36c83c8b3a5c2df8a8b',
         rehearsalIds: 'not-an-array', // Should be an array
@@ -142,7 +141,7 @@ describe('Orchestra Validation', () => {
       }
 
       // Execute
-      const { error, value } = validateOrchestra(invalidOrchestra)
+      const { error } = validateOrchestra(invalidOrchestra)
 
       // Assert
       expect(error).toBeDefined()
@@ -152,7 +151,8 @@ describe('Orchestra Validation', () => {
     it('should require isActive to be a boolean', () => {
       // Setup
       const invalidOrchestra = {
-        name: 'תזמורת מתחילים נשיפה',
+        tenantId: 'test-tenant-id',
+        name: 'Test Orchestra',
         type: 'תזמורת',
         conductorId: '6579e36c83c8b3a5c2df8a8b',
         schoolYearId: '6579e36c83c8b3a5c2df8a8c',
@@ -160,7 +160,7 @@ describe('Orchestra Validation', () => {
       }
 
       // Execute
-      const { error, value } = validateOrchestra(invalidOrchestra)
+      const { error } = validateOrchestra(invalidOrchestra)
 
       // Assert
       expect(error).toBeDefined()
@@ -172,17 +172,6 @@ describe('Orchestra Validation', () => {
     it('should define valid orchestra types', () => {
       // Assert
       expect(ORCHESTRA_CONSTANTS.VALID_TYPES).toEqual(['הרכב', 'תזמורת'])
-    })
-
-    it('should define valid orchestra names', () => {
-      // Assert
-      expect(ORCHESTRA_CONSTANTS.VALID_NAMES).toEqual([
-        'תזמורת מתחילים נשיפה', 
-        'תזמורת עתודה נשיפה', 
-        'תזמורת צעירה נשיפה', 
-        'תזמורת יצוגית נשיפה', 
-        'תזמורת סימפונית'
-      ])
     })
   })
 })

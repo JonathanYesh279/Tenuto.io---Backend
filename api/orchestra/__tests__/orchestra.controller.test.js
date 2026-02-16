@@ -26,11 +26,12 @@ describe('Orchestra Controller', () => {
     // Reset mocks
     vi.clearAllMocks()
 
-    // Setup request object
+    // Setup request object with context for tenant scoping
     req = {
       params: {},
       query: {},
       body: {},
+      context: { tenantId: 'test-tenant-id' },
       teacher: {
         _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
         roles: []
@@ -68,15 +69,19 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.getOrchestras(req, res, next)
 
-      // Assert - Updated to match the actual property name in the controller
-      expect(orchestraService.getOrchestras).toHaveBeenCalledWith({
-        name: 'Test Orchestra',
-        type: 'תזמורת',
-        conductorId: '123',
-        memberIds: '456',
-        isActive: 'true',
-        showInActive: true // Matches the actual property name with capital 'A'
-      })
+      // Assert - controller now passes filterBy and { context: req.context }
+      expect(orchestraService.getOrchestras).toHaveBeenCalledWith(
+        {
+          name: 'Test Orchestra',
+          type: 'תזמורת',
+          conductorId: '123',
+          memberIds: '456',
+          isActive: 'true',
+          showInActive: true,
+          ids: undefined
+        },
+        { context: { tenantId: 'test-tenant-id' } }
+      )
       expect(res.json).toHaveBeenCalledWith(mockOrchestras)
     })
 
@@ -111,8 +116,11 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.getOrchestraById(req, res, next)
 
-      // Assert
-      expect(orchestraService.getOrchestraById).toHaveBeenCalledWith(orchestraId.toString())
+      // Assert - controller now passes { context: req.context }
+      expect(orchestraService.getOrchestraById).toHaveBeenCalledWith(
+        orchestraId.toString(),
+        { context: { tenantId: 'test-tenant-id' } }
+      )
       expect(res.json).toHaveBeenCalledWith(mockOrchestra)
     })
 
@@ -140,7 +148,7 @@ describe('Orchestra Controller', () => {
       }
       req.body = orchestraToAdd
 
-      const addedOrchestra = { 
+      const addedOrchestra = {
         _id: new ObjectId(),
         ...orchestraToAdd
       }
@@ -149,8 +157,11 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.addOrchestra(req, res, next)
 
-      // Assert
-      expect(orchestraService.addOrchestra).toHaveBeenCalledWith(orchestraToAdd)
+      // Assert - controller now passes { context: req.context }
+      expect(orchestraService.addOrchestra).toHaveBeenCalledWith(
+        orchestraToAdd,
+        { context: { tenantId: 'test-tenant-id' } }
+      )
       expect(res.status).toHaveBeenCalledWith(201)
       expect(res.json).toHaveBeenCalledWith(addedOrchestra)
     })
@@ -174,7 +185,7 @@ describe('Orchestra Controller', () => {
       // Setup
       const orchestraId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: orchestraId.toString() }
-      
+
       const orchestraUpdates = {
         name: 'Updated Orchestra',
         type: 'תזמורת'
@@ -184,7 +195,7 @@ describe('Orchestra Controller', () => {
       req.teacher._id = new ObjectId('6579e36c83c8b3a5c2df8a8c')
       req.teacher.roles = ['מנהל']
 
-      const updatedOrchestra = { 
+      const updatedOrchestra = {
         _id: orchestraId,
         ...orchestraUpdates
       }
@@ -193,12 +204,14 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.updateOrchestra(req, res, next)
 
-      // Assert
+      // Assert - controller now passes teacherId, isAdmin, userRoles, { context }
       expect(orchestraService.updateOrchestra).toHaveBeenCalledWith(
-        orchestraId.toString(), 
+        orchestraId.toString(),
         orchestraUpdates,
         req.teacher._id,
-        true // isAdmin
+        true, // isAdmin
+        ['מנהל'], // userRoles
+        { context: { tenantId: 'test-tenant-id' } }
       )
       expect(res.json).toHaveBeenCalledWith(updatedOrchestra)
     })
@@ -228,7 +241,7 @@ describe('Orchestra Controller', () => {
       req.params = { id: 'invalid-id' }
       req.body = { invalidData: true }
       req.teacher.roles = ['מנהל']
-      
+
       const error = new Error('Failed to update orchestra')
       orchestraService.updateOrchestra.mockRejectedValue(error)
 
@@ -248,7 +261,7 @@ describe('Orchestra Controller', () => {
       req.teacher._id = new ObjectId('6579e36c83c8b3a5c2df8a8c')
       req.teacher.roles = ['מנהל']
 
-      const removedOrchestra = { 
+      const removedOrchestra = {
         _id: orchestraId,
         name: 'Removed Orchestra',
         isActive: false
@@ -258,11 +271,13 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.removeOrchestra(req, res, next)
 
-      // Assert
+      // Assert - controller now passes userRoles and { context }
       expect(orchestraService.removeOrchestra).toHaveBeenCalledWith(
         orchestraId.toString(),
         req.teacher._id,
-        true // isAdmin
+        true, // isAdmin
+        ['מנהל'], // userRoles
+        { context: { tenantId: 'test-tenant-id' } }
       )
       expect(res.json).toHaveBeenCalledWith(removedOrchestra)
     })
@@ -290,7 +305,7 @@ describe('Orchestra Controller', () => {
       // Setup
       req.params = { id: 'invalid-id' }
       req.teacher.roles = ['מנהל']
-      
+
       const error = new Error('Failed to remove orchestra')
       orchestraService.removeOrchestra.mockRejectedValue(error)
 
@@ -307,14 +322,14 @@ describe('Orchestra Controller', () => {
       // Setup
       const orchestraId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       req.params = { id: orchestraId.toString() }
-      
+
       const studentId = '123456'
       req.body = { studentId }
 
       req.teacher._id = new ObjectId('6579e36c83c8b3a5c2df8a8c')
       req.teacher.roles = ['מנהל']
 
-      const updatedOrchestra = { 
+      const updatedOrchestra = {
         _id: orchestraId,
         name: 'Test Orchestra',
         memberIds: ['123', '456', studentId]
@@ -324,12 +339,14 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.addMember(req, res, next)
 
-      // Assert
+      // Assert - controller now passes userRoles and { context }
       expect(orchestraService.addMember).toHaveBeenCalledWith(
-        orchestraId.toString(), 
+        orchestraId.toString(),
         studentId,
         req.teacher._id,
-        true // isAdmin
+        true, // isAdmin
+        ['מנהל'], // userRoles
+        { context: { tenantId: 'test-tenant-id' } }
       )
       expect(res.json).toHaveBeenCalledWith(updatedOrchestra)
     })
@@ -359,7 +376,7 @@ describe('Orchestra Controller', () => {
       req.params = { id: 'invalid-id' }
       req.body = { studentId: 'invalid-student' }
       req.teacher.roles = ['מנהל']
-      
+
       const error = new Error('Failed to add member')
       orchestraService.addMember.mockRejectedValue(error)
 
@@ -376,7 +393,7 @@ describe('Orchestra Controller', () => {
       // Setup
       const orchestraId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentId = '123456'
-      req.params = { 
+      req.params = {
         id: orchestraId.toString(),
         studentId
       }
@@ -384,7 +401,7 @@ describe('Orchestra Controller', () => {
       req.teacher._id = new ObjectId('6579e36c83c8b3a5c2df8a8c')
       req.teacher.roles = ['מנהל']
 
-      const updatedOrchestra = { 
+      const updatedOrchestra = {
         _id: orchestraId,
         name: 'Test Orchestra',
         memberIds: ['123', '456'] // studentId removed
@@ -394,12 +411,14 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.removeMember(req, res, next)
 
-      // Assert
+      // Assert - controller now passes userRoles and { context }
       expect(orchestraService.removeMember).toHaveBeenCalledWith(
-        orchestraId.toString(), 
+        orchestraId.toString(),
         studentId,
         req.teacher._id,
-        true // isAdmin
+        true, // isAdmin
+        ['מנהל'], // userRoles
+        { context: { tenantId: 'test-tenant-id' } }
       )
       expect(res.json).toHaveBeenCalledWith(updatedOrchestra)
     })
@@ -407,7 +426,7 @@ describe('Orchestra Controller', () => {
     it('should return 403 if not authorized to remove member', async () => {
       // Setup
       const orchestraId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-      req.params = { 
+      req.params = {
         id: orchestraId.toString(),
         studentId: '123456'
       }
@@ -428,12 +447,12 @@ describe('Orchestra Controller', () => {
 
     it('should handle other errors and pass them to next middleware', async () => {
       // Setup
-      req.params = { 
+      req.params = {
         id: 'invalid-id',
         studentId: 'invalid-student'
       }
       req.teacher.roles = ['מנהל']
-      
+
       const error = new Error('Failed to remove member')
       orchestraService.removeMember.mockRejectedValue(error)
 
@@ -450,11 +469,11 @@ describe('Orchestra Controller', () => {
       // Setup
       const orchestraId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const rehearsalId = new ObjectId('6579e36c83c8b3a5c2df8a8d')
-      req.params = { 
+      req.params = {
         id: orchestraId.toString(),
         rehearsalId: rehearsalId.toString()
       }
-      
+
       const attendance = {
         present: ['123', '456'],
         absent: ['789']
@@ -464,7 +483,7 @@ describe('Orchestra Controller', () => {
       req.teacher._id = new ObjectId('6579e36c83c8b3a5c2df8a8c')
       req.teacher.roles = ['מנהל']
 
-      const updatedRehearsal = { 
+      const updatedRehearsal = {
         _id: rehearsalId,
         groupId: orchestraId.toString(),
         date: new Date(),
@@ -475,19 +494,21 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.updateRehearsalAttendance(req, res, next)
 
-      // Assert
+      // Assert - controller now passes userRoles and { context }
       expect(orchestraService.updateRehearsalAttendance).toHaveBeenCalledWith(
-        rehearsalId.toString(), 
+        rehearsalId.toString(),
         attendance,
         req.teacher._id,
-        true // isAdmin
+        true, // isAdmin
+        ['מנהל'], // userRoles
+        { context: { tenantId: 'test-tenant-id' } }
       )
       expect(res.json).toHaveBeenCalledWith(updatedRehearsal)
     })
 
     it('should return 403 if not authorized to update attendance', async () => {
       // Setup
-      req.params = { 
+      req.params = {
         id: new ObjectId().toString(),
         rehearsalId: new ObjectId().toString()
       }
@@ -509,13 +530,13 @@ describe('Orchestra Controller', () => {
 
     it('should handle other errors and pass them to next middleware', async () => {
       // Setup
-      req.params = { 
+      req.params = {
         id: new ObjectId().toString(),
         rehearsalId: new ObjectId().toString()
       }
       req.body = { invalidData: true }
       req.teacher.roles = ['מנהל']
-      
+
       const error = new Error('Failed to update attendance')
       orchestraService.updateRehearsalAttendance.mockRejectedValue(error)
 
@@ -532,7 +553,7 @@ describe('Orchestra Controller', () => {
       // Setup
       const rehearsalId = new ObjectId('6579e36c83c8b3a5c2df8a8d')
       req.params = { rehearsalId: rehearsalId.toString() }
-      
+
       const attendance = {
         present: ['123', '456'],
         absent: ['789']
@@ -542,8 +563,11 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.getRehearsalAttendance(req, res, next)
 
-      // Assert
-      expect(orchestraService.getRehearsalAttendance).toHaveBeenCalledWith(rehearsalId.toString())
+      // Assert - controller now passes { context: req.context }
+      expect(orchestraService.getRehearsalAttendance).toHaveBeenCalledWith(
+        rehearsalId.toString(),
+        { context: { tenantId: 'test-tenant-id' } }
+      )
       expect(res.json).toHaveBeenCalledWith(attendance)
     })
 
@@ -566,11 +590,11 @@ describe('Orchestra Controller', () => {
       // Setup
       const orchestraId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const studentId = '123456'
-      req.params = { 
+      req.params = {
         orchestraId: orchestraId.toString(),
         studentId
       }
-      
+
       const stats = {
         totalRehearsals: 10,
         attended: 8,
@@ -582,17 +606,18 @@ describe('Orchestra Controller', () => {
       // Execute
       await orchestraController.getStudentAttendanceStats(req, res, next)
 
-      // Assert
+      // Assert - controller now passes { context: req.context }
       expect(orchestraService.getStudentAttendanceStats).toHaveBeenCalledWith(
         orchestraId.toString(),
-        studentId
+        studentId,
+        { context: { tenantId: 'test-tenant-id' } }
       )
       expect(res.json).toHaveBeenCalledWith(stats)
     })
 
     it('should handle errors and pass them to next middleware', async () => {
       // Setup
-      req.params = { 
+      req.params = {
         orchestraId: 'invalid-id',
         studentId: 'invalid-student'
       }

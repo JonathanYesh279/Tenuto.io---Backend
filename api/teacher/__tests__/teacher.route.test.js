@@ -8,9 +8,9 @@ import { ObjectId } from 'mongodb'
 // Mock the teacher controller
 vi.mock('../teacher.controller.js', () => ({
   teacherController: {
-    getTeachers: vi.fn((req, res) => res.json([{ _id: '1', personalInfo: { fullName: 'Test Teacher' } }])),
-    getTeacherById: vi.fn((req, res) => res.json({ _id: '1', personalInfo: { fullName: 'Test Teacher' } })),
-    getTeacherByRole: vi.fn((req, res) => res.json([{ _id: '1', personalInfo: { fullName: 'Test Teacher' }, roles: ['מורה'] }])),
+    getTeachers: vi.fn((req, res) => res.json([{ _id: '1', personalInfo: { firstName: 'Test', lastName: 'Teacher' } }])),
+    getTeacherById: vi.fn((req, res) => res.json({ _id: '1', personalInfo: { firstName: 'Test', lastName: 'Teacher' } })),
+    getTeacherByRole: vi.fn((req, res) => res.json([{ _id: '1', personalInfo: { firstName: 'Test', lastName: 'Teacher' }, roles: ['מורה'] }])),
     addTeacher: vi.fn((req, res) => res.status(201).json({ _id: '1', ...req.body })),
     updateTeacher: vi.fn((req, res) => res.json({ _id: '1', ...req.body })),
     removeTeacher: vi.fn((req, res) => res.json({ _id: '1', isActive: false }))
@@ -19,11 +19,12 @@ vi.mock('../teacher.controller.js', () => ({
 
 // Create mock functions for middleware
 const mockAuthenticateToken = vi.fn((req, res, next) => {
-  req.teacher = { 
-    _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'), 
-    roles: ['מנהל'] 
+  req.teacher = {
+    _id: new ObjectId('6579e36c83c8b3a5c2df8a8b'),
+    roles: ['מנהל']
   }
   req.isAdmin = true
+  req.context = { tenantId: 'test-tenant-id' }
   next()
 })
 
@@ -45,7 +46,7 @@ describe('Teacher Routes', () => {
     // Create a new Express app for each test
     app = express()
     app.use(express.json())
-    
+
     // Define routes directly instead of using the teacher.routes module
     app.get('/api/teacher', mockAuthenticateToken, mockRequireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), (req, res) => teacherController.getTeachers(req, res))
     app.get('/api/teacher/:id', mockAuthenticateToken, mockRequireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), (req, res) => teacherController.getTeacherById(req, res))
@@ -110,9 +111,9 @@ describe('Teacher Routes', () => {
       // Due to Express path matching, we need a special route for this test
       const specialApp = express()
       specialApp.use(express.json())
-      specialApp.get('/api/teacher/role/:role', mockAuthenticateToken, mockRequireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), 
+      specialApp.get('/api/teacher/role/:role', mockAuthenticateToken, mockRequireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']),
         (req, res) => teacherController.getTeacherByRole(req, res))
-      
+
       // Execute
       const response = await request(specialApp)
         .get('/api/teacher/role/מורה')
@@ -131,7 +132,8 @@ describe('Teacher Routes', () => {
       // Setup
       const newTeacher = {
         personalInfo: {
-          fullName: 'New Teacher',
+          firstName: 'New',
+          lastName: 'Teacher',
           phone: '0501234567',
           email: 'new@example.com',
           address: 'Test Address'
@@ -142,8 +144,7 @@ describe('Teacher Routes', () => {
           isActive: true
         },
         teaching: {
-          studentIds: [],
-          schedule: []
+          timeBlocks: []
         },
         credentials: {
           email: 'new@example.com',
@@ -171,7 +172,8 @@ describe('Teacher Routes', () => {
       // Setup
       const teacherUpdate = {
         personalInfo: {
-          fullName: 'Updated Teacher',
+          firstName: 'Updated',
+          lastName: 'Teacher',
           phone: '0501234567',
           email: 'updated@example.com',
           address: 'Updated Address'

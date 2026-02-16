@@ -1,14 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { authService } from '../auth.service.js'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { getCollection } from '../../../services/mongoDB.service.js'
 import { ObjectId } from 'mongodb'
 
 // Mock dependencies
-vi.mock('bcrypt')
+vi.mock('bcryptjs')
 vi.mock('jsonwebtoken')
 vi.mock('../../../services/mongoDB.service.js')
+vi.mock('../../../services/logger.service.js', () => ({
+  createLogger: vi.fn(() => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn()
+  }))
+}))
 
 describe('Auth Service', () => {
   let mockCollection, mockFindOne, mockUpdateOne
@@ -22,7 +30,8 @@ describe('Auth Service', () => {
     mockUpdateOne = vi.fn()
     mockCollection = {
       findOne: mockFindOne,
-      updateOne: mockUpdateOne
+      updateOne: mockUpdateOne,
+      countDocuments: vi.fn()
     }
     getCollection.mockResolvedValue(mockCollection)
 
@@ -38,7 +47,7 @@ describe('Auth Service', () => {
 
       // Execute & Assert
       await expect(authService.login('test@example.com', 'password')).rejects.toThrow('Invalid email or password')
-      
+
       expect(mockFindOne).toHaveBeenCalledWith({
         'credentials.email': 'test@example.com',
         isActive: true,
@@ -58,7 +67,7 @@ describe('Auth Service', () => {
 
       // Execute & Assert
       await expect(authService.login('test@example.com', 'wrong-password')).rejects.toThrow('Invalid email or password')
-      
+
       expect(bcrypt.compare).toHaveBeenCalledWith('wrong-password', 'hashed-password')
     })
 
@@ -67,17 +76,25 @@ describe('Auth Service', () => {
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const mockTeacher = {
         _id: teacherId,
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Teacher'
+          firstName: 'Test',
+          lastName: 'Teacher',
+          email: 'test@example.com',
+          phone: '050-1234567',
+          address: 'Test Address'
         },
         credentials: {
           email: 'test@example.com',
           password: 'hashed-password'
         },
+        professionalInfo: {},
         roles: ['מורה']
       }
       mockFindOne.mockResolvedValue(mockTeacher)
       bcrypt.compare.mockResolvedValue(true)
+      // countDocuments for multi-tenant check (only 1 tenant)
+      mockCollection.countDocuments.mockResolvedValue(1)
 
       // Mock tokens generation
       jwt.sign.mockImplementation((data, secret, options) => {
@@ -89,21 +106,29 @@ describe('Auth Service', () => {
       // Execute
       const result = await authService.login('test@example.com', 'password')
 
-      // Assert
+      // Assert - new response shape uses personalInfo with firstName/lastName
       expect(result).toEqual({
         accessToken: 'mock-access-token',
         refreshToken: 'mock-refresh-token',
         teacher: {
           _id: teacherId.toString(),
-          fullName: mockTeacher.personalInfo.fullName,
-          email: mockTeacher.credentials.email,
+          tenantId: 'test-tenant-id',
+          personalInfo: {
+            firstName: 'Test',
+            lastName: 'Teacher',
+            email: 'test@example.com',
+            phone: '050-1234567',
+            address: 'Test Address',
+          },
+          professionalInfo: {},
           roles: mockTeacher.roles,
+          requiresPasswordChange: false,
         }
       })
 
       // Verify token generation
       expect(jwt.sign).toHaveBeenCalledTimes(2)
-      
+
       // Verify refresh token is stored
       expect(mockUpdateOne).toHaveBeenCalledWith(
         { _id: teacherId },
@@ -117,31 +142,12 @@ describe('Auth Service', () => {
       )
     })
 
-    it('should log login attempts', async () => {
-      // Setup
-      const consoleSpy = vi.spyOn(console, 'log')
-      mockFindOne.mockResolvedValue(null)
-
-      // Execute
-      try {
-        await authService.login('test@example.com', 'password')
-      } catch (error) {
-        // Expected to throw
-      }
-
-      // Assert
-      expect(consoleSpy).toHaveBeenCalledWith('Login attempt with email:', 'test@example.com')
-    })
-
     it('should handle and log errors', async () => {
       // Setup
-      const consoleSpy = vi.spyOn(console, 'error')
       mockFindOne.mockRejectedValue(new Error('Database connection failed'))
 
       // Execute & Assert
       await expect(authService.login('test@example.com', 'password')).rejects.toThrow('Database connection failed')
-      
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error in login:'))
     })
   })
 
@@ -170,8 +176,10 @@ describe('Auth Service', () => {
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       const mockTeacher = {
         _id: teacherId,
+        tenantId: 'test-tenant-id',
         personalInfo: {
-          fullName: 'Test Teacher'
+          firstName: 'Test',
+          lastName: 'Teacher'
         },
         credentials: {
           email: 'test@example.com',
@@ -199,24 +207,25 @@ describe('Auth Service', () => {
       expect(jwt.sign).toHaveBeenCalledWith(
         expect.objectContaining({
           _id: teacherId.toString(),
-          fullName: mockTeacher.personalInfo.fullName,
+          tenantId: 'test-tenant-id',
+          firstName: mockTeacher.personalInfo.firstName,
+          lastName: mockTeacher.personalInfo.lastName,
           email: mockTeacher.credentials.email,
           roles: mockTeacher.roles
         }),
         process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: '12h' }
+        { expiresIn: '1h' }
       )
     })
 
     it('should handle and log errors', async () => {
       // Setup
-      const consoleSpy = vi.spyOn(console, 'error')
-      jwt.verify.mockRejectedValue(new Error('JWT verification failed'))
+      jwt.verify.mockImplementation(() => {
+        throw new Error('JWT verification failed')
+      })
 
       // Execute & Assert
       await expect(authService.refreshAccessToken('valid-token')).rejects.toThrow('Invalid refresh token')
-      
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error in refreshAccessToken:'))
     })
   })
 
@@ -245,28 +254,13 @@ describe('Auth Service', () => {
       await expect(authService.logout(null)).rejects.toThrow('Invalid teacher ID')
     })
 
-    it('should log the teacher ID being logged out', async () => {
-      // Setup
-      const consoleSpy = vi.spyOn(console, 'log')
-      const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
-
-      // Execute
-      await authService.logout(teacherId)
-
-      // Assert
-      expect(consoleSpy).toHaveBeenCalledWith('Attempting logout for teacher:', teacherId)
-    })
-
     it('should handle and log errors', async () => {
       // Setup
-      const consoleSpy = vi.spyOn(console, 'error')
       const teacherId = new ObjectId('6579e36c83c8b3a5c2df8a8b')
       mockUpdateOne.mockRejectedValue(new Error('Database update failed'))
 
       // Execute & Assert
       await expect(authService.logout(teacherId)).rejects.toThrow('Database update failed')
-      
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error in logout:'))
     })
   })
 
@@ -296,15 +290,12 @@ describe('Auth Service', () => {
 
     it('should handle and log errors', async () => {
       // Setup
-      const consoleSpy = vi.spyOn(console, 'error')
       jwt.verify.mockImplementation(() => {
         throw new Error('JWT verification failed')
       })
 
       // Execute & Assert
       await expect(authService.validateToken('invalid-token')).rejects.toThrow('Invalid token')
-      
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error in validateToken:'))
     })
   })
 

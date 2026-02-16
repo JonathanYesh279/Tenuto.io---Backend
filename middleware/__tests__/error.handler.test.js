@@ -31,6 +31,7 @@ describe('Error Handler Middleware', () => {
     expect(res.status).toHaveBeenCalledWith(400)
     expect(res.json).toHaveBeenCalledWith({
       error: 'Validation Error',
+      code: 'VALIDATION_ERROR',
       message: 'Validation failed'
     })
   })
@@ -98,15 +99,15 @@ describe('Error Handler Middleware', () => {
   it('should handle errors with custom status codes if provided', () => {
     // Setup
     const err = new Error('Not Found')
-    err.statusCode = 404 // Some errors might have status codes
+    err.statusCode = 404
 
     // Execute
     errorHandler(err, req, res, next)
 
-    // Assert
-    expect(res.status).toHaveBeenCalledWith(500) // Our handler doesn't check for statusCode
+    // Assert - production now respects statusCode
+    expect(res.status).toHaveBeenCalledWith(404)
     expect(res.json).toHaveBeenCalledWith({
-      error: 'Internal Server Error',
+      error: 'Not Found',
       message: 'Not Found'
     })
   })
@@ -114,17 +115,33 @@ describe('Error Handler Middleware', () => {
   it('should sanitize error messages containing sensitive information', () => {
     // Setup - Error with potential connection string or password
     const err = new Error('Failed to connect to mongodb://user:password@localhost:27017')
-    
+
     // Execute
     errorHandler(err, req, res, next)
-    
+
     // Assert - Should not leak connection string
     expect(res.json).toHaveBeenCalledWith({
       error: 'Internal Server Error',
       message: 'Failed to connect to mongodb://user:password@localhost:27017' // In a real app, you'd sanitize this
     })
-    
+
     // Note: This test highlights that your current error handler doesn't sanitize error messages.
     // You might want to consider sanitizing sensitive information in production.
+  })
+
+  it('should handle service validation errors with pattern matching', () => {
+    // Setup
+    const err = new Error('Invalid teacher data: "personalInfo.email" must be a valid email')
+    err.name = 'Error'
+
+    // Execute
+    errorHandler(err, req, res, next)
+
+    // Assert - matched service validation pattern
+    expect(res.status).toHaveBeenCalledWith(400)
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'VALIDATION_ERROR',
+      message: err.message
+    }))
   })
 })

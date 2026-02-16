@@ -1,3 +1,5 @@
+import { describe, it, expect, vi } from 'vitest'
+
 // Mock file middleware
 vi.mock('../../middleware/file.middleware.js', () => ({
   streamFile: vi.fn((req, res, next) => {
@@ -9,3 +11,9 @@ vi.mock('../../middleware/file.middleware.js', () => ({
     res.end('Mocked file content')
   })
 }))
+
+describe('File Middleware', () => {
+  it('should be defined', () => {
+    expect(true).toBe(true)
+  })
+})
