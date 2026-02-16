@@ -190,27 +190,38 @@ async function removeBagrut(bagrutId, options = {}) {
 async function updatePresentation(bagrutId, presentationIndex, presentationData, teacherId, options = {}) {
   try {
     const tenantId = requireTenantId(options.context?.tenantId)
-    if (presentationIndex < 0 || presentationIndex > 2) {
-      throw new Error(`Invalid presentation index: ${presentationIndex}. Must be 0-2.`)
+    if (presentationIndex < 0 || presentationIndex > 3) {
+      throw new Error(`Invalid presentation index: ${presentationIndex}. Must be 0-3.`)
     }
 
     const collection = await getCollection('bagrut')
 
-    // For presentations 0-2, remove any grade/gradeLevel fields and ensure notes field exists
-    delete presentationData.grade
-    delete presentationData.gradeLevel
-    if (!presentationData.notes) {
-      presentationData.notes = ''
+    if (presentationIndex <= 2) {
+      // For presentations 0-2, remove any grade/gradeLevel fields and ensure notes field exists
+      delete presentationData.grade
+      delete presentationData.gradeLevel
+      if (!presentationData.notes) {
+        presentationData.notes = ''
+      }
+    } else {
+      // For presentation 3 (graded presentation), calculate grade from detailedGrading if provided
+      if (presentationData.detailedGrading) {
+        const calculatedGrade = calculateTotalGradeFromDetailedGrading(presentationData.detailedGrading)
+        if (calculatedGrade !== null) {
+          presentationData.grade = calculatedGrade
+          presentationData.gradeLevel = getGradeLevelFromScore(calculatedGrade)
+        }
+      }
     }
 
     // Ensure date is properly set - either provided date or current date
     presentationData.date = presentationData.date ? new Date(presentationData.date) : new Date()
-    
+
     // Preserve the reviewedBy field from frontend (examiner names) - only set teacherId if not provided
     if (!presentationData.reviewedBy) {
       presentationData.reviewedBy = teacherId
     }
-    
+
     // Add a separate field to track who made the update (for audit purposes)
     presentationData.lastUpdatedBy = teacherId
 

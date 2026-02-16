@@ -224,9 +224,12 @@ export function validateBagrut(bagrut) {
 
 export function getGradeLevelFromScore(score) {
   if (score === null || score === undefined) return null
-  
+
+  // Use floor to handle decimal scores consistently within integer-based ranges
+  const roundedScore = Math.floor(score)
+
   for (const [level, range] of Object.entries(GRADE_LEVELS)) {
-    if (score >= range.min && score <= range.max) {
+    if (roundedScore >= range.min && roundedScore <= range.max) {
       return level
     }
   }
@@ -272,8 +275,8 @@ export function calculateFinalGradeWithDirectorEvaluation(detailedGrading, direc
     return null
   }
   
-  // Base grade is 90% of final grade, director evaluation is 10%
-  const finalGrade = Math.round((baseGrade * 0.9) + (directorEvaluation.points * directorEvaluation.percentage / 100 * 100))
+  // Base grade is 90% of final grade, director evaluation is 10% (0-10 points added directly)
+  const finalGrade = Math.round((baseGrade * 0.9) + directorEvaluation.points)
   
   // Ensure final grade doesn't exceed 100
   return Math.min(finalGrade, 100)
