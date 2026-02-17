@@ -58,7 +58,8 @@ async function getTeachers(filterBy = {}, page = 1, limit = 0, options = {}) {
     // If limit is 0 or not provided, return all teachers (backward compatibility)
     if (limit === 0) {
       const teachers = await collection.find(criteria).toArray();
-      return teachers;
+      const enriched = await _enrichWithStudentCounts(teachers, tenantId);
+      return enriched;
     }
 
     // Pagination enabled
@@ -74,16 +75,18 @@ async function getTeachers(filterBy = {}, page = 1, limit = 0, options = {}) {
       .limit(limit)
       .toArray();
 
+    const enriched = await _enrichWithStudentCounts(teachers, tenantId);
+
     // Calculate pagination metadata
     const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
     const hasPreviousPage = page > 1;
 
-    console.log(`📄 Pagination: Page ${page}/${totalPages}, Limit: ${limit}, Total: ${totalCount}, Returned: ${teachers.length}`);
+    console.log(`📄 Pagination: Page ${page}/${totalPages}, Limit: ${limit}, Total: ${totalCount}, Returned: ${enriched.length}`);
 
     // Return paginated response with metadata
     return {
-      data: teachers,
+      data: enriched,
       pagination: {
         currentPage: page,
         totalPages,
@@ -91,7 +94,7 @@ async function getTeachers(filterBy = {}, page = 1, limit = 0, options = {}) {
         limit,
         hasNextPage,
         hasPreviousPage,
-        resultsCount: teachers.length
+        resultsCount: enriched.length
       }
     };
   } catch (err) {
@@ -930,6 +933,52 @@ async function initializeTeachingStructure(teacherId, options = {}) {
   } catch (err) {
     console.error(`Error initializing teaching structure: ${err.message}`);
     throw new Error(`Error initializing teaching structure: ${err.message}`);
+  }
+}
+
+/**
+ * Enrich teacher documents with studentCount from the student collection.
+ * Counts active teacherAssignments per teacher in a single aggregation.
+ */
+async function _enrichWithStudentCounts(teachers, tenantId) {
+  if (!teachers.length) return teachers;
+
+  const teacherIds = teachers.map(t => t._id.toString());
+
+  try {
+    const studentCollection = await getCollection('student');
+
+    const counts = await studentCollection.aggregate([
+      {
+        $match: {
+          tenantId,
+          'teacherAssignments.teacherId': { $in: teacherIds },
+        },
+      },
+      { $unwind: '$teacherAssignments' },
+      {
+        $match: {
+          'teacherAssignments.teacherId': { $in: teacherIds },
+          'teacherAssignments.isActive': { $ne: false },
+        },
+      },
+      {
+        $group: {
+          _id: '$teacherAssignments.teacherId',
+          count: { $sum: 1 },
+        },
+      },
+    ]).toArray();
+
+    const countMap = new Map(counts.map(c => [c._id, c.count]));
+
+    return teachers.map(t => ({
+      ...t,
+      studentCount: countMap.get(t._id.toString()) || 0,
+    }));
+  } catch (err) {
+    console.error('Error enriching student counts:', err.message);
+    return teachers;
   }
 }
 
