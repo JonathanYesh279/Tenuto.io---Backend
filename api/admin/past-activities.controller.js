@@ -32,8 +32,8 @@ async function getPastActivities(req, res, next) {
       return sendErrorResponse(res, 400, 'teacherId is required when filtering private lessons');
     }
 
-    const result = await pastActivitiesService.getPastActivities(filterBy);
-    
+    const result = await pastActivitiesService.getPastActivities(filterBy, { context: req.context });
+
     res.json({
       success: true,
       data: result.activities,
@@ -84,8 +84,8 @@ async function getPastActivitiesByType(req, res, next) {
       return sendErrorResponse(res, 400, 'teacherId is required when filtering private lessons');
     }
 
-    const result = await pastActivitiesService.getPastActivitiesByType(filterBy);
-    
+    const result = await pastActivitiesService.getPastActivitiesByType(filterBy, { context: req.context });
+
     res.json({
       success: true,
       type,

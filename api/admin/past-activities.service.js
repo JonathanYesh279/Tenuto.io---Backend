@@ -18,15 +18,15 @@ export const pastActivitiesService = {
 /**
  * Get all past activities with filtering and pagination
  */
-async function getPastActivities(filterBy) {
+async function getPastActivities(filterBy, options = {}) {
   try {
     const { type, teacherId, startDate, endDate, limit, page } = filterBy;
-    
+
     // Set default end date to yesterday if not provided
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const defaultEndDate = formatDate(yesterday);
-    
+
     const dateFilter = {
       startDate,
       endDate: endDate || defaultEndDate
@@ -48,8 +48,8 @@ async function getPastActivities(filterBy) {
     switch (type) {
       case 'all':
         const [rehearsals, theoryLessons, privateLessons] = await Promise.all([
-          _getPastRehearsals(dateFilter),
-          _getPastTheoryLessons(dateFilter),
+          _getPastRehearsals(dateFilter, options),
+          _getPastTheoryLessons(dateFilter, options),
           teacherId ? _getPastPrivateLessons({ ...dateFilter, teacherId }) : []
         ]);
         
@@ -65,13 +65,13 @@ async function getPastActivities(filterBy) {
         break;
         
       case 'rehearsals':
-        const rehearsalData = await _getPastRehearsals(dateFilter);
+        const rehearsalData = await _getPastRehearsals(dateFilter, options);
         activities = rehearsalData.map(item => ({ ...item, activityType: 'rehearsal' }));
         summary.rehearsalsCount = activities.length;
         break;
-        
+
       case 'theory':
-        const theoryData = await _getPastTheoryLessons(dateFilter);
+        const theoryData = await _getPastTheoryLessons(dateFilter, options);
         activities = theoryData.map(item => ({ ...item, activityType: 'theory' }));
         summary.theoryCount = activities.length;
         break;
@@ -118,12 +118,12 @@ async function getPastActivities(filterBy) {
 /**
  * Get past activities by specific type with enhanced filtering
  */
-async function getPastActivitiesByType(filterBy) {
+async function getPastActivitiesByType(filterBy, options = {}) {
   try {
     const { type } = filterBy;
-    
+
     // Reuse the main function with specific type
-    return await getPastActivities(filterBy);
+    return await getPastActivities(filterBy, options);
   } catch (err) {
     console.error(`Failed to get past activities by type: ${err.message}`);
     throw new Error(`Failed to get past activities by type: ${err.message}`);
@@ -133,19 +133,19 @@ async function getPastActivitiesByType(filterBy) {
 /**
  * Get past rehearsals with date filtering
  */
-async function _getPastRehearsals(dateFilter) {
+async function _getPastRehearsals(dateFilter, options = {}) {
   try {
     const { startDate, endDate } = dateFilter;
-    
+
     const filterBy = {
       toDate: endDate // Only get rehearsals before the end date (past)
     };
-    
+
     if (startDate) {
       filterBy.fromDate = startDate;
     }
 
-    const rehearsals = await rehearsalService.getRehearsals(filterBy);
+    const rehearsals = await rehearsalService.getRehearsals(filterBy, options);
     
     // Filter to only include past dates (before today)
     const today = new Date();
@@ -176,24 +176,25 @@ async function _getPastRehearsals(dateFilter) {
 /**
  * Get past theory lessons with date filtering
  */
-async function _getPastTheoryLessons(dateFilter) {
+async function _getPastTheoryLessons(dateFilter, options = {}) {
   try {
     const { startDate, endDate } = dateFilter;
-    
+
     const filterBy = {
       toDate: endDate // Only get theory lessons before the end date (past)
     };
-    
+
     if (startDate) {
       filterBy.fromDate = startDate;
     }
 
-    const theoryLessons = await theoryService.getTheoryLessons(filterBy);
-    
+    const theoryResult = await theoryService.getTheoryLessons(filterBy, { limit: 10000 }, options);
+    const theoryLessons = theoryResult.data || theoryResult;
+
     // Filter to only include past dates (before today)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     return theoryLessons
       .filter(lesson => new Date(lesson.date) < today)
       .map(lesson => ({
