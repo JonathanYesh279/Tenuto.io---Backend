@@ -1010,11 +1010,22 @@ function _buildCriteria(filterBy) {
   }
 
   if (filterBy.name) {
-    // Search across firstName and lastName
-    criteria.$or = [
-      { 'personalInfo.firstName': { $regex: filterBy.name, $options: 'i' } },
-      { 'personalInfo.lastName': { $regex: filterBy.name, $options: 'i' } },
-    ];
+    const searchTerms = filterBy.name.trim().split(/\s+/).filter(Boolean);
+    if (searchTerms.length <= 1) {
+      // Single word: match firstName OR lastName
+      criteria.$or = [
+        { 'personalInfo.firstName': { $regex: filterBy.name, $options: 'i' } },
+        { 'personalInfo.lastName': { $regex: filterBy.name, $options: 'i' } },
+      ];
+    } else {
+      // Multi-word: each word must match somewhere in firstName or lastName
+      criteria.$and = searchTerms.map(term => ({
+        $or: [
+          { 'personalInfo.firstName': { $regex: term, $options: 'i' } },
+          { 'personalInfo.lastName': { $regex: term, $options: 'i' } },
+        ]
+      }));
+    }
   }
 
   // Update test filtering to check new structure

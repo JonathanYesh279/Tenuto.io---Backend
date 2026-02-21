@@ -986,21 +986,39 @@ function _buildCriteria(filterBy) {
   const criteria = {};
 
   if (filterBy.name) {
-    criteria.$or = [
-      { 'personalInfo.firstName': { $regex: filterBy.name, $options: 'i' } },
-      { 'personalInfo.lastName': { $regex: filterBy.name, $options: 'i' } },
-      // Fallback for pre-migration data
-      { 'personalInfo.fullName': { $regex: filterBy.name, $options: 'i' } },
-    ];
+    const searchTerms = filterBy.name.trim().split(/\s+/).filter(Boolean);
+    if (searchTerms.length <= 1) {
+      // Single word: match firstName, lastName, or legacy fullName
+      const nameCondition = {
+        $or: [
+          { 'personalInfo.firstName': { $regex: filterBy.name, $options: 'i' } },
+          { 'personalInfo.lastName': { $regex: filterBy.name, $options: 'i' } },
+          { 'personalInfo.fullName': { $regex: filterBy.name, $options: 'i' } },
+        ]
+      };
+      criteria.$and = [...(criteria.$and || []), nameCondition];
+    } else {
+      // Multi-word: each word must match somewhere in firstName, lastName, or fullName
+      const nameConditions = searchTerms.map(term => ({
+        $or: [
+          { 'personalInfo.firstName': { $regex: term, $options: 'i' } },
+          { 'personalInfo.lastName': { $regex: term, $options: 'i' } },
+          { 'personalInfo.fullName': { $regex: term, $options: 'i' } },
+        ]
+      }));
+      criteria.$and = [...(criteria.$and || []), ...nameConditions];
+    }
   }
 
   if (filterBy.instrument) {
     // Match against instruments[] array or legacy instrument field
-    criteria.$or = [
-      ...(criteria.$or || []),
-      { 'professionalInfo.instruments': { $regex: filterBy.instrument, $options: 'i' } },
-      { 'professionalInfo.instrument': { $regex: filterBy.instrument, $options: 'i' } },
-    ];
+    const instrumentCondition = {
+      $or: [
+        { 'professionalInfo.instruments': { $regex: filterBy.instrument, $options: 'i' } },
+        { 'professionalInfo.instrument': { $regex: filterBy.instrument, $options: 'i' } },
+      ]
+    };
+    criteria.$and = [...(criteria.$and || []), instrumentCondition];
   }
 
   // Filter by role - checks if the role is in the roles array
