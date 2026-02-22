@@ -724,6 +724,7 @@ async function executeTeacherImport(log, importLogCollection, tenantId) {
     totalRows: log.preview.totalRows,
     matchedCount: matched.length,
     successCount,
+    createdCount: 0,       // Teachers not auto-created from import
     errorCount,
     skippedCount: matched.filter((e) => e.changes.length === 0).length,
     notFoundCount: (log.preview.notFound || []).length,
@@ -770,18 +771,79 @@ async function executeStudentImport(log, importLogCollection, tenantId) {
     }
   }
 
+  // --- Create new students from unmatched rows ---
+  // IMPORTANT: notFound entries already have their mapped data fully processed by
+  // previewStudentImport (Plan 01). This means:
+  //   - fullName has been split into firstName/lastName by validateStudentRow
+  //   - instrument has been detected (specific or via departmentHint auto-assign)
+  //   - lessonDuration has been converted from weekly hours to minutes
+  //   - ministryStageLevel has been validated
+  // The validation gate below simply checks if the name split succeeded.
+  const notFound = log.preview.notFound || [];
+  let createdCount = 0;
+
+  for (const entry of notFound) {
+    const { mapped } = entry;
+
+    // Validation gate: must have at least a name (already split by validateStudentRow in preview)
+    if (!mapped?.firstName && !mapped?.lastName) {
+      errorCount++;
+      errors.push({ row: entry.row, studentName: entry.importedName || '(ללא שם)', error: 'חסר שם תלמיד - לא ניתן ליצור רשומה' });
+      continue;
+    }
+
+    try {
+      const newStudent = {
+        tenantId,
+        personalInfo: {
+          firstName: mapped.firstName || '',
+          lastName: mapped.lastName || '',
+        },
+        academicInfo: {
+          class: mapped.class || null,
+          studyYears: mapped.studyYears ? parseInt(mapped.studyYears) || 1 : 1,
+          extraHour: typeof mapped.extraHour === 'boolean' ? mapped.extraHour : false,
+          instrument: mapped.instrument || null,
+          age: mapped.age ? parseInt(mapped.age) || null : null,
+        },
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Add lessonDuration if converted from Ministry weekly hours (Plan 01 converts to minutes)
+      if (mapped.lessonDuration && typeof mapped.lessonDuration === 'number') {
+        newStudent.academicInfo.lessonDuration = mapped.lessonDuration;
+      }
+
+      // Add Ministry stage level if present
+      if (mapped.ministryStageLevel) {
+        newStudent.academicInfo.ministryStageLevel = mapped.ministryStageLevel;
+      }
+
+      const result = await studentCollection.insertOne(newStudent);
+      createdCount++;
+      affectedDocIds.push(result.insertedId.toString());
+    } catch (err) {
+      errorCount++;
+      errors.push({ row: entry.row, studentName: entry.importedName, error: err.message });
+    }
+  }
+
   const results = {
     totalRows: log.preview.totalRows,
     matchedCount: matched.length,
-    successCount,
+    successCount,          // existing: count of successful updates
+    createdCount,          // NEW: count of created students
     errorCount,
     skippedCount: matched.filter((e) => e.changes.length === 0).length,
-    notFoundCount: (log.preview.notFound || []).length,
+    notFoundCount: notFound.length,   // total unmatched rows (includes created + creation errors)
     errors,
     affectedDocIds,
   };
 
-  const status = errorCount > 0 && successCount > 0 ? 'partial' : errorCount > 0 ? 'failed' : 'completed';
+  const totalSuccess = successCount + createdCount;
+  const status = errorCount > 0 && totalSuccess > 0 ? 'partial' : errorCount > 0 ? 'failed' : 'completed';
   await importLogCollection.updateOne(
     { _id: log._id, tenantId },
     { $set: { status, results, affectedDocIds, completedAt: new Date() } }
