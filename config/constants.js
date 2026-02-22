@@ -27,6 +27,7 @@ export const INSTRUMENT_MAP = [
   { name: 'קרן יער', abbreviation: 'HR', department: 'כלי נשיפה-פליז' },
   { name: 'טרומבון', abbreviation: 'TB', department: 'כלי נשיפה-פליז' },
   { name: 'טובה/בריטון', abbreviation: 'TU', department: 'כלי נשיפה-פליז' },
+  { name: 'בריטון', abbreviation: 'BR', department: 'כלי נשיפה-פליז' },
 
   // Keyboard (מקלדת)
   { name: 'פסנתר', abbreviation: 'PI', department: 'מקלדת' },
@@ -47,6 +48,9 @@ export const INSTRUMENT_MAP = [
   // Ethnic (כלים אתניים)
   { name: 'עוד', abbreviation: 'UD', department: 'כלים אתניים' },
   { name: 'כלים אתניים', abbreviation: 'KA', department: 'כלים אתניים' },
+  { name: 'VM', abbreviation: 'VM', department: 'כלים אתניים' },
+  { name: 'NA', abbreviation: 'NA', department: 'כלים אתניים' },
+  { name: 'SI', abbreviation: 'SI', department: 'כלים אתניים' },
 
   // Folk (כלים עממיים)
   { name: 'מנדולינה', abbreviation: 'MN', department: 'כלים עממיים' },
@@ -99,7 +103,27 @@ export const TEACHING_SUBJECTS = [
   'אחר',
 ];
 
-export const TEACHER_ROLES = ['מורה', 'מנצח', 'מדריך הרכב', 'מנהל', 'מורה תאוריה', 'מגמה'];
+export const TEACHER_ROLES = ['מורה', 'ניצוח', 'מדריך הרכב', 'מנהל', 'תאוריה', 'מגמה', 'ליווי פסנתר', 'הלחנה'];
+
+/** Mapping of old role names to new ones (for migration and backward compatibility) */
+export const ROLE_RENAME_MAP = {
+  'מנצח': 'ניצוח',
+  'מורה תאוריה': 'תאוריה',
+};
+
+/** Mapping of Ministry hour column names to internal field names */
+export const TEACHER_HOURS_COLUMNS = {
+  'שעות הוראה': 'teachingHours',
+  'ליווי פסנתר': 'accompHours',
+  'הרכב ביצוע': 'ensembleHours',
+  'ריכוז הרכב': 'ensembleCoordHours',
+  'תאוריה': 'theoryHours',
+  'ניהול': 'managementHours',
+  'ריכוז': 'coordinationHours',
+  'ביטול זמן': 'breakTimeHours',
+  'סה"כ ש"ש': 'totalWeeklyHours',
+  "סה''כ ש''ש": 'totalWeeklyHours',
+};
 
 // ─── Orchestra / Ensemble Enums ────────────────────────────────────────────────
 
