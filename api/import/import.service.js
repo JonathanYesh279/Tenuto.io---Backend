@@ -183,6 +183,14 @@ const ROLE_COLUMN_NAMES = {
   'ניהול': 'מנהל',
 };
 
+// Hours field names that share header text with role boolean columns.
+// When mapColumns encounters these fields at a high column index (role section),
+// the value is a boolean, not a number — skip it to prevent overwriting the real hours value.
+const HOURS_FIELDS_WITH_ROLE_COLLISION = new Set([
+  'accompHours',     // "ליווי פסנתר" appears at both C15 (hours) and C57 (role)
+  'theoryHours',     // "תאוריה"/"תיאוריה" appears at both C18 (hours) and C59 (role)
+]);
+
 // ─── Israeli ID Validation (check digit) ─────────────────────────────────────
 
 function validateIsraeliId(id) {
@@ -421,22 +429,39 @@ async function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
   return { rows, cellRows, headerColMap, headerRowIndex, matchedColumns, sheetNames };
 }
 
-function mapColumns(row, columnMap) {
+function mapColumns(row, columnMap, headerColMap) {
   const mapped = {};
   for (const [header, value] of Object.entries(row)) {
     const trimmedHeader = header.trim().replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
     const mappedKey = columnMap[trimmedHeader];
     if (mappedKey) {
+      // Prevent role boolean columns (high index) from overwriting hours fields
+      if (HOURS_FIELDS_WITH_ROLE_COLLISION.has(mappedKey) && headerColMap) {
+        const colIndex = headerColMap[trimmedHeader];
+        if (colIndex !== undefined && colIndex > 24) {
+          continue; // This is a role column, not an hours column — skip
+        }
+      }
       mapped[mappedKey] = typeof value === 'string' ? value.trim() : value;
     }
   }
   return mapped;
 }
 
-function detectInstrumentColumns(headers) {
+function detectInstrumentColumns(headers, headerColMap) {
   const instrumentColumns = [];
   for (const header of headers) {
     const trimmed = header.trim();
+
+    // If headerColMap is available, only look for instruments in columns >= 24
+    // (C25+ is the instrument abbreviation section in Ministry files)
+    if (headerColMap) {
+      const colIndex = headerColMap[trimmed];
+      if (colIndex !== undefined && colIndex < 24) {
+        continue; // Not in instrument section — skip (e.g., "פסנתר" at C15 is accomp hours)
+      }
+    }
+
     if (ABBREVIATION_TO_INSTRUMENT[trimmed]) {
       instrumentColumns.push({
         header: trimmed,
@@ -829,7 +854,7 @@ async function previewTeacherImport(buffer, options = {}) {
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
 
   const headers = Object.keys(rows[0]);
-  const instrumentColumns = detectInstrumentColumns(headers);
+  const instrumentColumns = detectInstrumentColumns(headers, headerColMap);
   const roleColumns = detectRoleColumns(headers);
 
   // Load all teachers in tenant
@@ -850,7 +875,7 @@ async function previewTeacherImport(buffer, options = {}) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const mapped = mapColumns(row, TEACHER_COLUMN_MAP);
+    const mapped = mapColumns(row, TEACHER_COLUMN_MAP, headerColMap);
     const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns, cellRows[i], headerColMap);
     const roles = readRoleMatrix(row, roleColumns, cellRows[i], headerColMap);
     const teachingHours = parseTeachingHours(mapped);
