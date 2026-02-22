@@ -865,19 +865,109 @@ async function executeTeacherImport(log, importLogCollection, tenantId) {
     }
   }
 
+  // --- Create new teachers from unmatched rows ---
+  const notFound = log.preview.notFound || [];
+  let createdCount = 0;
+
+  for (const entry of notFound) {
+    const { mapped, instruments = [], roles = [], teachingHours = {} } = entry;
+
+    // Validation gate: teachers require BOTH firstName AND lastName (stricter than students)
+    if (!mapped?.firstName || !mapped?.lastName) {
+      errorCount++;
+      errors.push({
+        row: entry.row,
+        teacherName: entry.importedName || '(ללא שם)',
+        error: 'חסר שם פרטי ושם משפחה - לא ניתן ליצור מורה',
+      });
+      continue;
+    }
+
+    try {
+      // Hash default password
+      const hashedPassword = await authService.encryptPassword(DEFAULT_PASSWORD);
+
+      // Determine roles — default to ['מורה'] if no role columns detected
+      const teacherRoles = roles.length > 0 ? roles : ['מורה'];
+
+      // Build teacher document
+      const newTeacher = {
+        tenantId,
+        personalInfo: {
+          firstName: mapped.firstName,
+          lastName: mapped.lastName,
+          email: mapped.email || null,
+          phone: mapped.phone || null,
+          address: null,
+          idNumber: mapped.idNumber || null,
+          birthYear: mapped.birthYear || null,
+        },
+        roles: teacherRoles,
+        professionalInfo: {
+          instrument: instruments[0] || null,  // backward-compat single instrument
+          instruments: instruments,             // array of all instruments
+          isActive: true,
+          classification: mapped.classification || null,
+          degree: mapped.degree || null,
+          hasTeachingCertificate: mapped.teachingCertificate || null,
+          teachingExperienceYears: mapped.experience || null,
+          isUnionMember: mapped.isUnionMember || null,
+          teachingSubjects: [],
+        },
+        managementInfo: {
+          role: mapped.managementRole || null,
+          managementHours: teachingHours.managementHours || null,
+          accompHours: teachingHours.accompHours || null,
+          ensembleCoordHours: teachingHours.ensembleCoordHours || null,
+          travelTimeHours: null,
+          teachingHours: teachingHours.teachingHours || null,
+          ensembleHours: teachingHours.ensembleHours || null,
+          theoryHours: teachingHours.theoryHours || null,
+          coordinationHours: teachingHours.coordinationHours || null,
+          breakTimeHours: teachingHours.breakTimeHours || null,
+          totalWeeklyHours: teachingHours.totalWeeklyHours || null,
+        },
+        teaching: { timeBlocks: [] },
+        conducting: { orchestraIds: [] },
+        ensemblesIds: [],
+        schoolYears: [],
+        credentials: {
+          email: mapped.email || `import-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@temp.local`,
+          password: hashedPassword,
+          isInvitationAccepted: true,
+          requiresPasswordChange: true,
+          passwordSetAt: new Date(),
+          invitedAt: new Date(),
+          invitationMode: 'IMPORT',
+        },
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const result = await teacherCollection.insertOne(newTeacher);
+      createdCount++;
+      affectedDocIds.push(result.insertedId.toString());
+    } catch (err) {
+      errorCount++;
+      errors.push({ row: entry.row, teacherName: entry.importedName, error: err.message });
+    }
+  }
+
   const results = {
     totalRows: log.preview.totalRows,
     matchedCount: matched.length,
     successCount,
-    createdCount: 0,       // Teachers not auto-created from import
+    createdCount,            // NOW: actual count of created teachers
     errorCount,
     skippedCount: matched.filter((e) => e.changes.length === 0).length,
-    notFoundCount: (log.preview.notFound || []).length,
+    notFoundCount: notFound.length,
     errors,
     affectedDocIds,
   };
 
-  const status = errorCount > 0 && successCount > 0 ? 'partial' : errorCount > 0 ? 'failed' : 'completed';
+  const totalSuccess = successCount + createdCount;
+  const status = errorCount > 0 && totalSuccess > 0 ? 'partial' : errorCount > 0 ? 'failed' : 'completed';
   await importLogCollection.updateOne(
     { _id: log._id, tenantId },
     { $set: { status, results, affectedDocIds, completedAt: new Date() } }
