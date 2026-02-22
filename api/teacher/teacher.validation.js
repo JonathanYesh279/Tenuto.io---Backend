@@ -56,12 +56,24 @@ const managementInfoSchema = Joi.object({
   accompHours: Joi.number().min(0).max(50).allow(null).default(null),
   ensembleCoordHours: Joi.number().min(0).max(50).allow(null).default(null),
   travelTimeHours: Joi.number().min(0).max(50).allow(null).default(null),
+  teachingHours: Joi.number().min(0).max(50).allow(null).default(null),      // שעות הוראה
+  ensembleHours: Joi.number().min(0).max(50).allow(null).default(null),       // הרכב ביצוע
+  theoryHours: Joi.number().min(0).max(50).allow(null).default(null),         // תאוריה
+  coordinationHours: Joi.number().min(0).max(50).allow(null).default(null),   // ריכוז
+  breakTimeHours: Joi.number().min(0).max(50).allow(null).default(null),      // ביטול זמן
+  totalWeeklyHours: Joi.number().min(0).max(100).allow(null).default(null),   // סה"כ ש"ש
 }).default({
   role: null,
   managementHours: null,
   accompHours: null,
   ensembleCoordHours: null,
   travelTimeHours: null,
+  teachingHours: null,
+  ensembleHours: null,
+  theoryHours: null,
+  coordinationHours: null,
+  breakTimeHours: null,
+  totalWeeklyHours: null,
 });
 
 // Original schema for creating new teachers
@@ -204,6 +216,12 @@ const managementInfoUpdateSchema = Joi.object({
   accompHours: Joi.number().min(0).max(50).allow(null),
   ensembleCoordHours: Joi.number().min(0).max(50).allow(null),
   travelTimeHours: Joi.number().min(0).max(50).allow(null),
+  teachingHours: Joi.number().min(0).max(50).allow(null),
+  ensembleHours: Joi.number().min(0).max(50).allow(null),
+  theoryHours: Joi.number().min(0).max(50).allow(null),
+  coordinationHours: Joi.number().min(0).max(50).allow(null),
+  breakTimeHours: Joi.number().min(0).max(50).allow(null),
+  totalWeeklyHours: Joi.number().min(0).max(100).allow(null),
 }).optional();
 
 // Schema for updating existing teachers
