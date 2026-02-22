@@ -312,16 +312,26 @@ function validateStudentRow(mapped, rowIndex) {
     const rawValue = parseFloat(mapped.lessonDuration);
     if (!isNaN(rawValue)) {
       let minutes;
-      if (rawValue > 2.0) {
+      if (rawValue >= 10) {
         // Direct minutes input (e.g., 30, 45, 60) — no conversion needed
         minutes = Math.round(rawValue);
       } else {
-        // Weekly hours input (Ministry format: 0.5, 0.75, 1.0) — convert to minutes
+        // Weekly hours input (Ministry format: 0.5, 0.75, 1.0, 1.5, 2.0, 2.5) — convert to minutes
         minutes = Math.round(rawValue * 60);
       }
 
       if ([30, 45, 60].includes(minutes)) {
         mapped.lessonDuration = minutes;
+      } else if (minutes > 60 && minutes <= 300) {
+        // Multiple lessons per week — derive per-lesson duration
+        if (minutes % 45 === 0) {
+          mapped.lessonDuration = 45;       // 90=2×45, 135=3×45
+        } else if (minutes % 60 === 0) {
+          mapped.lessonDuration = 60;       // 120=2×60, 180=3×60, 300=5×60
+        } else {
+          mapped.lessonDuration = 45;       // Safe default for odd values (150)
+        }
+        mapped.extraHour = true;
       } else {
         warnings.push({ row: rowIndex, field: 'lessonDuration', message: `זמן שיעור לא תקין: ${mapped.lessonDuration} (צפי: 0.5/0.75/1.0 שעות או 30/45/60 דקות)` });
         mapped.lessonDuration = null;
@@ -572,9 +582,18 @@ async function previewStudentImport(buffer, options = {}) {
     matchedColumns,
   };
 
+  let skippedEmpty = 0;
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const mapped = mapColumns(row, STUDENT_COLUMN_MAP);
+
+    // Skip footer/summary rows that have no student name data at all
+    if (!mapped.fullName && !mapped.firstName && !mapped.lastName) {
+      skippedEmpty++;
+      continue;
+    }
+
     const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns);
     const { errors, warnings } = validateStudentRow(mapped, i + 2);
 
@@ -642,6 +661,9 @@ async function previewStudentImport(buffer, options = {}) {
       });
     }
   }
+
+  // Adjust totalRows to exclude skipped empty/footer rows
+  preview.totalRows = rows.length - skippedEmpty;
 
   const importLogCollection = await getCollection('import_log');
   const logEntry = {
