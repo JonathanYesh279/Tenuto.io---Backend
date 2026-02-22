@@ -10,7 +10,7 @@
 
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
-import XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import {
   INSTRUMENT_MAP,
   TEACHER_CLASSIFICATIONS,
@@ -34,7 +34,9 @@ export const importService = {
 
 const TEACHER_COLUMN_MAP = {
   'שם משפחה': 'lastName',
+  'משפחה': 'lastName',
   'שם פרטי': 'firstName',
+  'פרטי': 'firstName',
   'מספר זהות': 'idNumber',
   'ת.ז.': 'idNumber',
   'ת.ז': 'idNumber',
@@ -73,11 +75,16 @@ const TEACHER_COLUMN_MAP = {
   'שם ומשפחה': 'fullName',
   'שם המורה': 'fullName',
   'המורה': 'fullName',
+  'שם הורה': 'fullName',
+  'שם מלא': 'fullName',
+  'שם': 'fullName',
 };
 
 const STUDENT_COLUMN_MAP = {
   'שם משפחה': 'lastName',
+  'משפחה': 'lastName',
   'שם פרטי': 'firstName',
+  'פרטי': 'firstName',
   'שם מלא': 'fullName',
   'כיתה': 'class',
   'שנות לימוד': 'studyYears',
@@ -118,6 +125,23 @@ DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה'] = [
 
 const TRUTHY_VALUES = ['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1];
 
+/**
+ * Check if a cell has a non-white/non-transparent fill color.
+ * Ministry Excel files mark selected instruments/roles with colored cell backgrounds.
+ * @param {object} fill - exceljs cell.fill object
+ * @returns {boolean} true if cell has a visible color fill
+ */
+function isColoredCell(fill) {
+  if (!fill) return false;
+  if (fill.type === 'gradient') return true;
+  if (fill.type !== 'pattern') return false;
+  if (fill.pattern === 'none') return false;
+  const argb = fill.fgColor?.argb?.toUpperCase();
+  if (!argb) return false;
+  const NO_COLOR = ['FFFFFFFF', '00FFFFFF', 'FFFFFF', '00000000'];
+  return !NO_COLOR.includes(argb);
+}
+
 // Role column names (Ministry boolean column names → TEACHER_ROLES)
 const ROLE_COLUMN_NAMES = {
   'הוראה': 'מורה',
@@ -146,15 +170,6 @@ function validateIsraeliId(id) {
 
 // ─── Excel Parsing ───────────────────────────────────────────────────────────
 
-function parseExcelBuffer(buffer) {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheets = {};
-  for (const name of workbook.SheetNames) {
-    sheets[name] = XLSX.utils.sheet_to_json(workbook.Sheets[name], { defval: '' });
-  }
-  return { sheetNames: workbook.SheetNames, sheets };
-}
-
 function detectHeaderRow(rows, columnMap) {
   const maxRowsToScan = Math.min(10, rows.length);
   let bestScore = 0;
@@ -168,7 +183,7 @@ function detectHeaderRow(rows, columnMap) {
     let score = 0;
 
     for (const header of headers) {
-      const trimmed = header.trim();
+      const trimmed = header.trim().replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
       if (columnMap[trimmed]) score++;
       // Also check department names for instrument detection
       if (DEPARTMENT_TO_INSTRUMENTS[trimmed]) score++;
@@ -183,40 +198,96 @@ function detectHeaderRow(rows, columnMap) {
   return { headerRowIndex: bestRowIndex, matchedColumns: bestScore };
 }
 
-function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
+async function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
 
-  // First pass: read as raw arrays to scan for header row
-  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  const sheetNames = workbook.worksheets.map(ws => ws.name);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) throw new Error('הקובץ לא מכיל גליונות');
 
-  // Convert raw arrays to objects using each row as potential headers
-  // for the scoring algorithm
-  const potentialHeaderRows = rawRows.slice(0, Math.min(10, rawRows.length)).map(row => {
+  // Read all rows as arrays of cell objects (preserving styles)
+  const allCellRows = [];   // Array of arrays of exceljs Cell objects
+  const allTextRows = [];   // Array of arrays of text values (for header detection)
+
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    const cellRow = [];
+    const textRow = [];
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      // Pad to correct column position (cells may be sparse)
+      while (cellRow.length < colNumber - 1) {
+        cellRow.push(null);
+        textRow.push('');
+      }
+      cellRow.push(cell);
+      const val = cell.value;
+      // Handle rich text objects
+      const textVal = val && typeof val === 'object' && val.richText
+        ? val.richText.map(r => r.text).join('')
+        : (val ?? '');
+      textRow.push(String(textVal).trim());
+    });
+    allCellRows.push(cellRow);
+    allTextRows.push(textRow);
+  });
+
+  // Build potential header rows for scoring (same approach as before)
+  const maxScan = Math.min(10, allTextRows.length);
+  const potentialHeaderRows = allTextRows.slice(0, maxScan).map(textRow => {
     const obj = {};
-    if (Array.isArray(row)) {
-      row.forEach((cell, idx) => {
-        if (cell !== '' && cell !== null && cell !== undefined) {
-          obj[String(cell).trim()] = true;
-        }
-      });
+    for (const cellText of textRow) {
+      if (cellText !== '') {
+        const cleaned = cellText.replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
+        if (cleaned) obj[cleaned] = true;
+      }
     }
     return obj;
   });
 
   const { headerRowIndex, matchedColumns } = detectHeaderRow(potentialHeaderRows, columnMap);
 
-  // Second pass: re-parse with correct header row
-  const rows = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' });
+  // Build header names from the detected header row
+  const headerTextRow = allTextRows[headerRowIndex] || [];
+  const headers = headerTextRow.map(h => h.replace(/[\u200F\u200E\uFEFF\u200B]/g, ''));
 
-  return { rows, headerRowIndex, matchedColumns, sheetNames: workbook.SheetNames };
+  // Build data rows as objects (keyed by header name) starting after header row
+  // ALSO build parallel array of cell-row arrays for style access
+  const rows = [];
+  const cellRows = [];   // parallel array — cellRows[i] corresponds to rows[i]
+
+  for (let i = headerRowIndex + 1; i < allTextRows.length; i++) {
+    const textRow = allTextRows[i];
+    const cellRow = allCellRows[i];
+    const obj = {};
+    let hasData = false;
+
+    for (let c = 0; c < headers.length; c++) {
+      const header = headers[c];
+      if (!header) continue;
+      const val = textRow[c] ?? '';
+      obj[header] = val;
+      if (val !== '') hasData = true;
+    }
+
+    if (hasData) {
+      rows.push(obj);
+      cellRows.push(cellRow);
+    }
+  }
+
+  // Store headers-to-column-index mapping for cell style access
+  const headerColMap = {};
+  for (let c = 0; c < headers.length; c++) {
+    if (headers[c]) headerColMap[headers[c]] = c;
+  }
+
+  return { rows, cellRows, headerColMap, headerRowIndex, matchedColumns, sheetNames };
 }
 
 function mapColumns(row, columnMap) {
   const mapped = {};
   for (const [header, value] of Object.entries(row)) {
-    const trimmedHeader = header.trim();
+    const trimmedHeader = header.trim().replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
     const mappedKey = columnMap[trimmedHeader];
     if (mappedKey) {
       mapped[mappedKey] = typeof value === 'string' ? value.trim() : value;
