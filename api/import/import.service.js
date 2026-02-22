@@ -41,6 +41,7 @@ const TEACHER_COLUMN_MAP = {
   'ת.ז.': 'idNumber',
   'ת.ז': 'idNumber',
   'תעודת זהות': 'idNumber',
+  'כולל ס.ב. ללא מקף (-)': 'idNumber',  // Ministry file variant
   'שנת לידה': 'birthYear',
   'סיווג': 'classification',
   'סווג': 'classification',
@@ -48,22 +49,28 @@ const TEACHER_COLUMN_MAP = {
   'ותק': 'experience',
   'שנות ותק': 'experience',
   'ותק בהוראה': 'experience',
+  'מס\' שנים': 'experience',               // Ministry file variant
   'תעודת הוראה': 'teachingCertificate',
   'חבר ארגון': 'isUnionMember',
   'ארגון עובדים': 'isUnionMember',
+  'כן-לא': 'isUnionMember',               // Ministry file variant
   'טלפון': 'phone',
   'נייד': 'phone',
+  'מספר טלפון נייד': 'phone',             // Ministry file variant
   'דוא"ל': 'email',
   'דואל': 'email',
   'אימייל': 'email',
   'מייל': 'email',
   'email': 'email',
+  'כתובת דוא"ל': 'email',                 // Ministry file variant
   // Teaching hours columns (Ministry file)
+  'הוראה': 'teachingHours',               // Ministry file uses short name (SUMIF formula)
   'שעות הוראה': 'teachingHours',
   'ליווי פסנתר': 'accompHours',
   'הרכב ביצוע': 'ensembleHours',
   'ריכוז הרכב': 'ensembleCoordHours',
   'תאוריה': 'theoryHours',
+  'תיאוריה': 'theoryHours',   // Ministry spelling variant (with yod)
   'ניהול': 'managementHours',
   'ריכוז': 'coordinationHours',
   'ביטול זמן': 'breakTimeHours',
@@ -123,7 +130,7 @@ DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה'] = [
   ...(DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה-פליז'] || []),
 ];
 
-const TRUTHY_VALUES = ['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1];
+const TRUTHY_VALUES = ['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1, 'true', 'TRUE', 'True'];
 
 /**
  * Check if a cell has a non-white/non-transparent fill color.
@@ -136,18 +143,33 @@ function isColoredCell(fill) {
   if (fill.type === 'gradient') return true;
   if (fill.type !== 'pattern') return false;
   if (fill.pattern === 'none') return false;
-  const argb = fill.fgColor?.argb?.toUpperCase();
+  const fg = fill.fgColor;
+  if (!fg) return false;
+  // Theme-based color (common in some Ministry files)
+  if (fg.theme !== undefined && fg.theme !== null) {
+    if (fg.theme === 0 && !fg.tint) return false; // theme 0 without tint = white
+    return true;
+  }
+  // Indexed color (legacy Excel format)
+  if (fg.indexed !== undefined && fg.indexed !== null) {
+    // indexed 9 = white, 64 = automatic — not real colors
+    if (fg.indexed === 9 || fg.indexed === 64) return false;
+    return true;
+  }
+  // Explicit ARGB
+  const argb = fg.argb?.toUpperCase();
   if (!argb) return false;
   const NO_COLOR = ['FFFFFFFF', '00FFFFFF', 'FFFFFF', '00000000'];
   return !NO_COLOR.includes(argb);
 }
 
 // Role column names (Ministry boolean column names → TEACHER_ROLES)
+// Note: 'הוראה' is NOT a role column — it's a numeric teaching-hours SUMIF column in Ministry files
 const ROLE_COLUMN_NAMES = {
-  'הוראה': 'מורה',
   'ניצוח': 'ניצוח',
   'הרכב': 'מדריך הרכב',
   'תאוריה': 'תאוריה',
+  'תיאוריה': 'תאוריה',   // Ministry spelling variant (with yod)
   'מגמה': 'מגמה',
   'ליווי פסנתר': 'ליווי פסנתר',
   'הלחנה': 'הלחנה',
@@ -221,11 +243,28 @@ async function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
       }
       cellRow.push(cell);
       const val = cell.value;
-      // Handle rich text objects
-      const textVal = val && typeof val === 'object' && val.richText
-        ? val.richText.map(r => r.text).join('')
-        : (val ?? '');
-      textRow.push(String(textVal).trim());
+      // Resolve exceljs cell values to plain text:
+      // - Formula objects: { result: <value>, formula/sharedFormula: "..." }
+      // - Rich text: { richText: [{ text: "..." }, ...] }
+      // - Date objects: extract ISO string
+      // - Booleans/numbers/strings: direct conversion
+      let textVal;
+      if (val == null) {
+        textVal = '';
+      } else if (typeof val === 'object' && val.richText) {
+        textVal = val.richText.map(r => (r?.text ?? '')).join('');
+      } else if (typeof val === 'object' && ('formula' in val || 'sharedFormula' in val)) {
+        // Formula cell — use the computed result
+        const result = val.result;
+        if (result == null) textVal = '';
+        else if (typeof result === 'object' && result.richText) textVal = result.richText.map(r => (r?.text ?? '')).join('');
+        else textVal = String(result);
+      } else if (val instanceof Date) {
+        textVal = val.toISOString().slice(0, 10);
+      } else {
+        textVal = String(val);
+      }
+      textRow.push(textVal.trim());
     });
     allCellRows.push(cellRow);
     allTextRows.push(textRow);
