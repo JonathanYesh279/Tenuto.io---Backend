@@ -16,8 +16,13 @@ import {
   TEACHER_CLASSIFICATIONS,
   TEACHER_DEGREES,
   VALID_INSTRUMENTS,
+  TEACHER_HOURS_COLUMNS,
+  TEACHER_ROLES,
+  MANAGEMENT_ROLES,
 } from '../../config/constants.js';
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
+import { authService } from '../auth/auth.service.js';
+import { invitationConfig, DEFAULT_PASSWORD } from '../../services/invitationConfig.js';
 
 export const importService = {
   previewTeacherImport,
@@ -51,6 +56,23 @@ const TEACHER_COLUMN_MAP = {
   'אימייל': 'email',
   'מייל': 'email',
   'email': 'email',
+  // Teaching hours columns (Ministry file)
+  'שעות הוראה': 'teachingHours',
+  'ליווי פסנתר': 'accompHours',
+  'הרכב ביצוע': 'ensembleHours',
+  'ריכוז הרכב': 'ensembleCoordHours',
+  'תאוריה': 'theoryHours',
+  'ניהול': 'managementHours',
+  'ריכוז': 'coordinationHours',
+  'ביטול זמן': 'breakTimeHours',
+  'סה"כ ש"ש': 'totalWeeklyHours',
+  "סה''כ ש''ש": 'totalWeeklyHours',
+  // Management role
+  'תיאור תפקיד': 'managementRole',
+  // Full name for teachers (Ministry uses combined name column sometimes)
+  'שם ומשפחה': 'fullName',
+  'שם המורה': 'fullName',
+  'המורה': 'fullName',
 };
 
 const STUDENT_COLUMN_MAP = {
@@ -95,6 +117,18 @@ DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה'] = [
 ];
 
 const TRUTHY_VALUES = ['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1];
+
+// Role column names (Ministry boolean column names → TEACHER_ROLES)
+const ROLE_COLUMN_NAMES = {
+  'הוראה': 'מורה',
+  'ניצוח': 'ניצוח',
+  'הרכב': 'מדריך הרכב',
+  'תאוריה': 'תאוריה',
+  'מגמה': 'מגמה',
+  'ליווי פסנתר': 'ליווי פסנתר',
+  'הלחנה': 'הלחנה',
+  'ניהול': 'מנהל',
+};
 
 // ─── Israeli ID Validation (check digit) ─────────────────────────────────────
 
@@ -231,11 +265,60 @@ function readInstrumentMatrix(row, instrumentColumns) {
   return { instruments, departmentHint };
 }
 
+// Detect role boolean columns in headers
+function detectRoleColumns(headers) {
+  const roleColumns = [];
+  for (const header of headers) {
+    const trimmed = header.trim();
+    if (ROLE_COLUMN_NAMES[trimmed]) {
+      roleColumns.push({ header: trimmed, role: ROLE_COLUMN_NAMES[trimmed] });
+    }
+  }
+  return roleColumns;
+}
+
+// Read role matrix from a row
+function readRoleMatrix(row, roleColumns) {
+  const roles = [];
+  for (const col of roleColumns) {
+    const value = row[col.header];
+    if (value && TRUTHY_VALUES.includes(value)) {
+      roles.push(col.role);
+    }
+  }
+  return roles;
+}
+
+// Parse teaching hours from mapped data
+function parseTeachingHours(mapped) {
+  const hours = {};
+  const hourFields = [
+    'teachingHours', 'accompHours', 'ensembleHours', 'ensembleCoordHours',
+    'theoryHours', 'managementHours', 'coordinationHours', 'breakTimeHours', 'totalWeeklyHours',
+  ];
+  for (const field of hourFields) {
+    if (mapped[field] !== undefined && mapped[field] !== '' && mapped[field] !== null) {
+      const val = parseFloat(mapped[field]);
+      if (!isNaN(val)) {
+        hours[field] = val;
+      }
+    }
+  }
+  return hours;
+}
+
 // ─── Validation ──────────────────────────────────────────────────────────────
 
 function validateTeacherRow(mapped, rowIndex) {
   const errors = [];
   const warnings = [];
+
+  // Handle fullName split if firstName/lastName not provided
+  if (!mapped.firstName && !mapped.lastName && mapped.fullName) {
+    const parts = mapped.fullName.trim().split(/\s+/);
+    mapped.firstName = parts[0] || '';
+    mapped.lastName = parts.slice(1).join(' ') || '';
+  }
 
   if (!mapped.firstName && !mapped.lastName) {
     errors.push({ row: rowIndex, field: 'name', message: 'חסר שם פרטי ושם משפחה' });
@@ -275,6 +358,10 @@ function validateTeacherRow(mapped, rowIndex) {
 
   if (mapped.isUnionMember !== undefined && mapped.isUnionMember !== '') {
     mapped.isUnionMember = TRUTHY_VALUES.includes(mapped.isUnionMember);
+  }
+
+  if (mapped.managementRole && !MANAGEMENT_ROLES.includes(mapped.managementRole)) {
+    warnings.push({ row: rowIndex, field: 'managementRole', message: `תפקיד ניהולי לא מוכר: ${mapped.managementRole}` });
   }
 
   return { errors, warnings };
@@ -435,7 +522,7 @@ function getNestedValue(obj, path) {
   return path.split('.').reduce((curr, key) => curr?.[key], obj);
 }
 
-function calculateTeacherChanges(teacher, mapped, instruments) {
+function calculateTeacherChanges(teacher, mapped, instruments, roles = [], teachingHours = {}) {
   const changes = [];
 
   for (const [key, path] of Object.entries(TEACHER_FIELD_PATHS)) {
@@ -457,6 +544,35 @@ function calculateTeacherChanges(teacher, mapped, instruments) {
         oldValue: currentInstruments,
         newValue: instruments,
       });
+    }
+  }
+
+  // Teaching hours changes
+  if (Object.keys(teachingHours || {}).length > 0) {
+    for (const [field, value] of Object.entries(teachingHours)) {
+      const path = `managementInfo.${field}`;
+      const current = getNestedValue(teacher, path);
+      if (current !== value) {
+        changes.push({ field: path, oldValue: current ?? null, newValue: value });
+      }
+    }
+  }
+
+  // Role changes (if Ministry file has role columns)
+  if (roles && roles.length > 0) {
+    const currentRoles = teacher.roles || [];
+    const sortedCurrent = [...currentRoles].sort();
+    const sortedNew = [...roles].sort();
+    if (JSON.stringify(sortedCurrent) !== JSON.stringify(sortedNew)) {
+      changes.push({ field: 'roles', oldValue: currentRoles, newValue: roles });
+    }
+  }
+
+  // Management role
+  if (mapped.managementRole) {
+    const current = getNestedValue(teacher, 'managementInfo.role');
+    if (current !== mapped.managementRole) {
+      changes.push({ field: 'managementInfo.role', oldValue: current ?? null, newValue: mapped.managementRole });
     }
   }
 
@@ -493,6 +609,7 @@ async function previewTeacherImport(buffer, options = {}) {
 
   const headers = Object.keys(rows[0]);
   const instrumentColumns = detectInstrumentColumns(headers);
+  const roleColumns = detectRoleColumns(headers);
 
   // Load all teachers in tenant
   const teacherCollection = await getCollection('teacher');
@@ -514,6 +631,8 @@ async function previewTeacherImport(buffer, options = {}) {
     const row = rows[i];
     const mapped = mapColumns(row, TEACHER_COLUMN_MAP);
     const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns);
+    const roles = readRoleMatrix(row, roleColumns);
+    const teachingHours = parseTeachingHours(mapped);
     const { errors, warnings } = validateTeacherRow(mapped, i + 2); // +2 for 1-indexed + header row
 
     if (errors.length > 0) {
@@ -524,7 +643,7 @@ async function previewTeacherImport(buffer, options = {}) {
 
     const match = matchTeacher(mapped, teachers);
     if (match) {
-      const changes = calculateTeacherChanges(match.teacher, mapped, instruments);
+      const changes = calculateTeacherChanges(match.teacher, mapped, instruments, roles, teachingHours);
       preview.matched.push({
         row: i + 2,
         matchType: match.matchType,
@@ -533,6 +652,8 @@ async function previewTeacherImport(buffer, options = {}) {
         importedName: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim(),
         changes,
         instruments,
+        roles,
+        teachingHours,
         mapped,
       });
     } else {
@@ -541,6 +662,8 @@ async function previewTeacherImport(buffer, options = {}) {
         importedName: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim(),
         mapped,
         instruments,
+        roles,
+        teachingHours,
       });
     }
   }
