@@ -317,13 +317,20 @@ function detectInstrumentColumns(headers) {
   return instrumentColumns;
 }
 
-function readInstrumentMatrix(row, instrumentColumns) {
+function readInstrumentMatrix(row, instrumentColumns, cellRow, headerColMap) {
   const instruments = [];
   let departmentHint = null;
 
   for (const col of instrumentColumns) {
-    const value = row[col.header];
-    if (value && TRUTHY_VALUES.includes(value)) {
+    const colIndex = headerColMap[col.header];
+    const cell = colIndex !== undefined ? cellRow?.[colIndex] : null;
+    const textValue = row[col.header];
+
+    // Detection: cell fill color first, text fallback second
+    const isSelected = (cell && isColoredCell(cell.fill)) ||
+                       (textValue && TRUTHY_VALUES.includes(textValue));
+
+    if (isSelected) {
       if (col.type === 'specific') {
         instruments.push(col.instrument);
       } else if (col.type === 'department') {
@@ -349,11 +356,17 @@ function detectRoleColumns(headers) {
 }
 
 // Read role matrix from a row
-function readRoleMatrix(row, roleColumns) {
+function readRoleMatrix(row, roleColumns, cellRow, headerColMap) {
   const roles = [];
   for (const col of roleColumns) {
-    const value = row[col.header];
-    if (value && TRUTHY_VALUES.includes(value)) {
+    const colIndex = headerColMap[col.header];
+    const cell = colIndex !== undefined ? cellRow?.[colIndex] : null;
+    const textValue = row[col.header];
+
+    const isSelected = (cell && isColoredCell(cell.fill)) ||
+                       (textValue && TRUTHY_VALUES.includes(textValue));
+
+    if (isSelected) {
       roles.push(col.role);
     }
   }
@@ -675,7 +688,7 @@ function calculateStudentChanges(student, mapped) {
 async function previewTeacherImport(buffer, options = {}) {
   const tenantId = requireTenantId(options.context?.tenantId);
 
-  const { rows, headerRowIndex, matchedColumns } = parseExcelBufferWithHeaderDetection(buffer, TEACHER_COLUMN_MAP);
+  const { rows, cellRows, headerColMap, headerRowIndex, matchedColumns } = await parseExcelBufferWithHeaderDetection(buffer, TEACHER_COLUMN_MAP);
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
 
   const headers = Object.keys(rows[0]);
@@ -701,8 +714,8 @@ async function previewTeacherImport(buffer, options = {}) {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const mapped = mapColumns(row, TEACHER_COLUMN_MAP);
-    const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns);
-    const roles = readRoleMatrix(row, roleColumns);
+    const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns, cellRows[i], headerColMap);
+    const roles = readRoleMatrix(row, roleColumns, cellRows[i], headerColMap);
     const teachingHours = parseTeachingHours(mapped);
     const { errors, warnings } = validateTeacherRow(mapped, i + 2); // +2 for 1-indexed + header row
 
@@ -756,7 +769,7 @@ async function previewTeacherImport(buffer, options = {}) {
 async function previewStudentImport(buffer, options = {}) {
   const tenantId = requireTenantId(options.context?.tenantId);
 
-  const { rows, headerRowIndex, matchedColumns } = parseExcelBufferWithHeaderDetection(buffer, STUDENT_COLUMN_MAP);
+  const { rows, cellRows, headerColMap, headerRowIndex, matchedColumns } = await parseExcelBufferWithHeaderDetection(buffer, STUDENT_COLUMN_MAP);
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
 
   const headers = Object.keys(rows[0]);
@@ -788,7 +801,7 @@ async function previewStudentImport(buffer, options = {}) {
       continue;
     }
 
-    const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns);
+    const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns, cellRows[i], headerColMap);
     const { errors, warnings } = validateStudentRow(mapped, i + 2);
 
     if (errors.length > 0) {
