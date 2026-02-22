@@ -64,6 +64,13 @@ const STUDENT_COLUMN_MAP = {
   'כלי': 'instrument',
   'כלי נגינה': 'instrument',
   'גיל': 'age',
+  // Ministry variants
+  'שם ומשפחה': 'fullName',
+  'שעה נוספת ל..': 'extraHour',
+  'שעה נוספת לבחירת התלמיד': 'extraHour',
+  'המורה': 'teacherName',
+  'זמן שעור': 'lessonDuration',
+  'שלב': 'ministryStageLevel',
 };
 
 // Build reverse lookup: abbreviation/name → canonical instrument name
@@ -72,6 +79,20 @@ for (const inst of INSTRUMENT_MAP) {
   ABBREVIATION_TO_INSTRUMENT[inst.abbreviation] = inst.name;
   ABBREVIATION_TO_INSTRUMENT[inst.name] = inst.name;
 }
+
+// Build department → instruments lookup from INSTRUMENT_MAP
+const DEPARTMENT_TO_INSTRUMENTS = {};
+for (const inst of INSTRUMENT_MAP) {
+  if (!DEPARTMENT_TO_INSTRUMENTS[inst.department]) {
+    DEPARTMENT_TO_INSTRUMENTS[inst.department] = [];
+  }
+  DEPARTMENT_TO_INSTRUMENTS[inst.department].push(inst.name);
+}
+// Combined "כלי נשיפה" (all winds — Ministry sometimes uses this instead of specific sub-department)
+DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה'] = [
+  ...(DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה-עץ'] || []),
+  ...(DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה-פליז'] || []),
+];
 
 const TRUTHY_VALUES = ['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1];
 
@@ -100,6 +121,64 @@ function parseExcelBuffer(buffer) {
   return { sheetNames: workbook.SheetNames, sheets };
 }
 
+function detectHeaderRow(rows, columnMap) {
+  const maxRowsToScan = Math.min(10, rows.length);
+  let bestScore = 0;
+  let bestRowIndex = 0;
+
+  for (let i = 0; i < maxRowsToScan; i++) {
+    const row = rows[i];
+    if (!row || typeof row !== 'object') continue;
+
+    const headers = Object.keys(row);
+    let score = 0;
+
+    for (const header of headers) {
+      const trimmed = header.trim();
+      if (columnMap[trimmed]) score++;
+      // Also check department names for instrument detection
+      if (DEPARTMENT_TO_INSTRUMENTS[trimmed]) score++;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestRowIndex = i;
+    }
+  }
+
+  return { headerRowIndex: bestRowIndex, matchedColumns: bestScore };
+}
+
+function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+
+  // First pass: read as raw arrays to scan for header row
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+  // Convert raw arrays to objects using each row as potential headers
+  // for the scoring algorithm
+  const potentialHeaderRows = rawRows.slice(0, Math.min(10, rawRows.length)).map(row => {
+    const obj = {};
+    if (Array.isArray(row)) {
+      row.forEach((cell, idx) => {
+        if (cell !== '' && cell !== null && cell !== undefined) {
+          obj[String(cell).trim()] = true;
+        }
+      });
+    }
+    return obj;
+  });
+
+  const { headerRowIndex, matchedColumns } = detectHeaderRow(potentialHeaderRows, columnMap);
+
+  // Second pass: re-parse with correct header row
+  const rows = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' });
+
+  return { rows, headerRowIndex, matchedColumns, sheetNames: workbook.SheetNames };
+}
+
 function mapColumns(row, columnMap) {
   const mapped = {};
   for (const [header, value] of Object.entries(row)) {
@@ -120,6 +199,13 @@ function detectInstrumentColumns(headers) {
       instrumentColumns.push({
         header: trimmed,
         instrument: ABBREVIATION_TO_INSTRUMENT[trimmed],
+        type: 'specific',
+      });
+    } else if (DEPARTMENT_TO_INSTRUMENTS[trimmed]) {
+      instrumentColumns.push({
+        header: trimmed,
+        instruments: DEPARTMENT_TO_INSTRUMENTS[trimmed],
+        type: 'department',
       });
     }
   }
@@ -128,13 +214,21 @@ function detectInstrumentColumns(headers) {
 
 function readInstrumentMatrix(row, instrumentColumns) {
   const instruments = [];
+  let departmentHint = null;
+
   for (const col of instrumentColumns) {
     const value = row[col.header];
     if (value && TRUTHY_VALUES.includes(value)) {
-      instruments.push(col.instrument);
+      if (col.type === 'specific') {
+        instruments.push(col.instrument);
+      } else if (col.type === 'department') {
+        // Department column — record as hint, don't assign specific instrument
+        departmentHint = col.header;
+      }
     }
   }
-  return instruments;
+
+  return { instruments, departmentHint };
 }
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -211,6 +305,47 @@ function validateStudentRow(mapped, rowIndex) {
 
   if (mapped.instrument && !VALID_INSTRUMENTS.includes(mapped.instrument)) {
     warnings.push({ row: rowIndex, field: 'instrument', message: `כלי לא מוכר: ${mapped.instrument}` });
+  }
+
+  // Convert lessonDuration: handle both weekly hours (Ministry: 0.75) and direct minutes (45)
+  if (mapped.lessonDuration !== undefined && mapped.lessonDuration !== '') {
+    const rawValue = parseFloat(mapped.lessonDuration);
+    if (!isNaN(rawValue)) {
+      let minutes;
+      if (rawValue > 2.0) {
+        // Direct minutes input (e.g., 30, 45, 60) — no conversion needed
+        minutes = Math.round(rawValue);
+      } else {
+        // Weekly hours input (Ministry format: 0.5, 0.75, 1.0) — convert to minutes
+        minutes = Math.round(rawValue * 60);
+      }
+
+      if ([30, 45, 60].includes(minutes)) {
+        mapped.lessonDuration = minutes;
+      } else {
+        warnings.push({ row: rowIndex, field: 'lessonDuration', message: `זמן שיעור לא תקין: ${mapped.lessonDuration} (צפי: 0.5/0.75/1.0 שעות או 30/45/60 דקות)` });
+        mapped.lessonDuration = null;
+      }
+    }
+  }
+
+  // Validate Ministry stage level
+  if (mapped.ministryStageLevel !== undefined && mapped.ministryStageLevel !== '') {
+    const validStages = ['א', 'ב', 'ג'];
+    if (!validStages.includes(mapped.ministryStageLevel)) {
+      warnings.push({ row: rowIndex, field: 'ministryStageLevel', message: `שלב לא מוכר: ${mapped.ministryStageLevel}` });
+    }
+  }
+
+  // Validate age if present
+  if (mapped.age !== undefined && mapped.age !== '') {
+    const age = parseInt(mapped.age);
+    if (isNaN(age) || age < 3 || age > 99) {
+      warnings.push({ row: rowIndex, field: 'age', message: `גיל לא סביר: ${mapped.age}` });
+      mapped.age = null;
+    } else {
+      mapped.age = age;
+    }
   }
 
   return { errors, warnings };
@@ -343,8 +478,7 @@ function calculateStudentChanges(student, mapped) {
 async function previewTeacherImport(buffer, options = {}) {
   const tenantId = requireTenantId(options.context?.tenantId);
 
-  const { sheets, sheetNames } = parseExcelBuffer(buffer);
-  const rows = sheets[sheetNames[0]] || [];
+  const { rows, headerRowIndex, matchedColumns } = parseExcelBufferWithHeaderDetection(buffer, TEACHER_COLUMN_MAP);
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
 
   const headers = Object.keys(rows[0]);
@@ -361,13 +495,15 @@ async function previewTeacherImport(buffer, options = {}) {
     notFound: [],
     errors: [],
     warnings: [],
-    instrumentColumnsDetected: instrumentColumns.map((c) => c.instrument),
+    instrumentColumnsDetected: instrumentColumns.map((c) => c.type === 'specific' ? c.instrument : c.header),
+    headerRowIndex,
+    matchedColumns,
   };
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const mapped = mapColumns(row, TEACHER_COLUMN_MAP);
-    const instruments = readInstrumentMatrix(row, instrumentColumns);
+    const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns);
     const { errors, warnings } = validateTeacherRow(mapped, i + 2); // +2 for 1-indexed + header row
 
     if (errors.length > 0) {
@@ -416,9 +552,11 @@ async function previewTeacherImport(buffer, options = {}) {
 async function previewStudentImport(buffer, options = {}) {
   const tenantId = requireTenantId(options.context?.tenantId);
 
-  const { sheets, sheetNames } = parseExcelBuffer(buffer);
-  const rows = sheets[sheetNames[0]] || [];
+  const { rows, headerRowIndex, matchedColumns } = parseExcelBufferWithHeaderDetection(buffer, STUDENT_COLUMN_MAP);
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
+
+  const headers = Object.keys(rows[0]);
+  const instrumentColumns = detectInstrumentColumns(headers);
 
   const studentCollection = await getCollection('student');
   const filter = { isActive: true, tenantId };
@@ -430,11 +568,14 @@ async function previewStudentImport(buffer, options = {}) {
     notFound: [],
     errors: [],
     warnings: [],
+    headerRowIndex,
+    matchedColumns,
   };
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const mapped = mapColumns(row, STUDENT_COLUMN_MAP);
+    const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns);
     const { errors, warnings } = validateStudentRow(mapped, i + 2);
 
     if (errors.length > 0) {
@@ -442,6 +583,35 @@ async function previewStudentImport(buffer, options = {}) {
       continue;
     }
     preview.warnings.push(...warnings);
+
+    // If department column was detected but no specific instrument, try auto-assign
+    if (instruments.length === 0 && departmentHint) {
+      const deptInstruments = DEPARTMENT_TO_INSTRUMENTS[departmentHint];
+      if (deptInstruments && deptInstruments.length === 1) {
+        // Department has exactly 1 instrument — auto-assign it
+        mapped.instrument = deptInstruments[0];
+        warnings.push({
+          row: i + 2,
+          field: 'instrument',
+          message: `כלי נגינה הוקצה אוטומטית מעמודת מחלקה '${departmentHint}': ${deptInstruments[0]}`
+        });
+      } else {
+        // Department has multiple instruments — can't auto-assign, warn user
+        mapped.instrument = null;
+        warnings.push({
+          row: i + 2,
+          field: 'instrument',
+          message: `עמודת מחלקה '${departmentHint}' מזוהה (${(deptInstruments || []).length} כלים), כלי ספציפי לא ידוע`
+        });
+      }
+    } else if (instruments.length > 0) {
+      mapped.instrument = instruments[0]; // Take first matched specific instrument
+    }
+
+    // Store departmentHint in mapped data for frontend display
+    if (departmentHint) {
+      mapped.departmentHint = departmentHint;
+    }
 
     const match = matchStudent(mapped, students);
     if (match) {
