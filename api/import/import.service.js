@@ -43,6 +43,7 @@ const TEACHER_COLUMN_MAP = {
   'תעודת זהות': 'idNumber',
   'כולל ס.ב. ללא מקף (-)': 'idNumber',  // Ministry file variant
   'שנת לידה': 'birthYear',
+  'לידה': 'birthYear',                      // Ministry file — merged header fragment
   'סיווג': 'classification',
   'סווג': 'classification',
   'תואר': 'degree',
@@ -53,7 +54,9 @@ const TEACHER_COLUMN_MAP = {
   'תעודת הוראה': 'teachingCertificate',
   'חבר ארגון': 'isUnionMember',
   'ארגון עובדים': 'isUnionMember',
-  'כן-לא': 'isUnionMember',               // Ministry file variant
+  'חבר/ה': 'isUnionMember',                 // Ministry file — merged header fragment
+  'חבר\\ה': 'isUnionMember',                // Ministry file — backslash variant
+  'כן-לא': 'teachingCertificate',          // Ministry file — col 9 is teaching certificate, NOT union member
   'טלפון': 'phone',
   'נייד': 'phone',
   'מספר טלפון נייד': 'phone',             // Ministry file variant
@@ -76,6 +79,10 @@ const TEACHER_COLUMN_MAP = {
   'ביטול זמן': 'breakTimeHours',
   'סה"כ ש"ש': 'totalWeeklyHours',
   "סה''כ ש''ש": 'totalWeeklyHours',
+  // Short header fragments from Ministry multi-row merged headers (row 11 bottom fragments)
+  'שבועיות': 'theoryHours',            // Fragment of "שעורי תאוריה סך שעות שבועיות"
+  'זמן': 'breakTimeHours',              // Fragment of "ביטול זמן"
+  'שעות': 'totalWeeklyHours',           // Fragment of "סה"כ ש"ש" — but note: "שעות" is generic, only use when no better match
   // Management role
   'תיאור תפקיד': 'managementRole',
   // Full name for teachers (Ministry uses combined name column sometimes)
@@ -288,6 +295,97 @@ async function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
   // Build header names from the detected header row
   const headerTextRow = allTextRows[headerRowIndex] || [];
   const headers = headerTextRow.map(h => h.replace(/[\u200F\u200E\uFEFF\u200B]/g, ''));
+
+  // Backfill empty headers from parent rows above (Ministry files have multi-row merged headers
+  // where some columns only have labels in parent category rows, e.g. "סיווג", "תואר", "חבר/ה")
+  // Strategy: prefer a parent value that matches the columnMap (known mapping), otherwise skip.
+  // This avoids picking up random category labels or sub-headings.
+  const usedHeaders = new Set(headers.filter(h => h));
+  for (let c = 0; c < headers.length; c++) {
+    if (headers[c]) continue; // already has a header
+    // Collect all candidate values from parent rows
+    const candidates = [];
+    for (let r = headerRowIndex - 1; r >= 0; r--) {
+      const parentRow = allTextRows[r];
+      if (parentRow && parentRow[c]) {
+        const parentText = parentRow[c].replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
+        if (parentText && !usedHeaders.has(parentText)) {
+          candidates.push(parentText);
+        }
+      }
+    }
+    // Prefer a candidate that maps to a known column; fall back to first candidate
+    const known = candidates.find(t => columnMap[t]);
+    const pick = known || candidates[0] || null;
+    if (pick) {
+      headers[c] = pick;
+      usedHeaders.add(pick);
+    }
+  }
+
+  // Second pass: Composite header construction and disambiguation for duplicates
+  // (a) Resolving duplicate headers using parent row disambiguation
+  // (b) Constructing known composite headers for short fragments
+
+  // Disambiguation map: when bottom-row header is ambiguous, use parent row keywords to pick the correct full header
+  const DISAMBIGUATION_MAP = {
+    'ביצוע': [
+      { keyword: 'בפועל', fullHeader: 'הרכב ביצוע' },      // C16: ensemble performance hours
+      { keyword: 'ריכוז', fullHeader: 'ריכוז הרכב' },       // C17: ensemble coordination hours
+    ],
+  };
+
+  // Detect duplicate headers
+  const headerCounts = {};
+  for (const h of headers) {
+    if (h) headerCounts[h] = (headerCounts[h] || 0) + 1;
+  }
+
+  // Resolve duplicates using parent row context
+  for (let c = 0; c < headers.length; c++) {
+    const header = headers[c];
+    if (!header || !headerCounts[header] || headerCounts[header] <= 1) continue;
+
+    const rules = DISAMBIGUATION_MAP[header];
+    if (!rules) continue;
+
+    // Collect parent row text for this column
+    const parentTexts = [];
+    for (let r = headerRowIndex - 1; r >= Math.max(0, headerRowIndex - 5); r--) {
+      const parentRow = allTextRows[r];
+      if (parentRow && parentRow[c]) {
+        const text = parentRow[c].replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
+        if (text) parentTexts.push(text);
+      }
+    }
+
+    // Find matching disambiguation rule
+    for (const rule of rules) {
+      if (parentTexts.some(t => t.includes(rule.keyword))) {
+        headers[c] = rule.fullHeader;
+        break;
+      }
+    }
+  }
+
+  // Also construct composite headers for known short fragments that need parent context
+  // "פסנתר" at C15 should become "ליווי פסנתר" (accomp hours) — check parent row for "ליווי"
+  for (let c = 0; c < headers.length; c++) {
+    const header = headers[c];
+    if (header === 'פסנתר') {
+      // Check if parent row has "ליווי" — if so, this is the accomp hours column, not piano instrument
+      for (let r = headerRowIndex - 1; r >= Math.max(0, headerRowIndex - 3); r--) {
+        const parentRow = allTextRows[r];
+        if (parentRow && parentRow[c]) {
+          const text = parentRow[c].replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
+          if (text === 'ליווי') {
+            headers[c] = 'ליווי פסנתר';
+            break;
+          }
+        }
+      }
+    }
+  }
 
   // Build data rows as objects (keyed by header name) starting after header row
   // ALSO build parallel array of cell-row arrays for style access
@@ -1023,7 +1121,7 @@ async function executeTeacherImport(log, importLogCollection, tenantId) {
           phone: mapped.phone || null,
           address: null,
           idNumber: mapped.idNumber || null,
-          birthYear: mapped.birthYear || null,
+          birthYear: mapped.birthYear ?? null,
         },
         roles: teacherRoles,
         professionalInfo: {
@@ -1032,23 +1130,23 @@ async function executeTeacherImport(log, importLogCollection, tenantId) {
           isActive: true,
           classification: mapped.classification || null,
           degree: mapped.degree || null,
-          hasTeachingCertificate: mapped.teachingCertificate || null,
-          teachingExperienceYears: mapped.experience || null,
-          isUnionMember: mapped.isUnionMember || null,
+          hasTeachingCertificate: mapped.teachingCertificate ?? null,
+          teachingExperienceYears: mapped.experience ?? null,
+          isUnionMember: mapped.isUnionMember ?? null,
           teachingSubjects: [],
         },
         managementInfo: {
           role: mapped.managementRole || null,
-          managementHours: teachingHours.managementHours || null,
-          accompHours: teachingHours.accompHours || null,
-          ensembleCoordHours: teachingHours.ensembleCoordHours || null,
+          managementHours: teachingHours.managementHours ?? null,
+          accompHours: teachingHours.accompHours ?? null,
+          ensembleCoordHours: teachingHours.ensembleCoordHours ?? null,
           travelTimeHours: null,
-          teachingHours: teachingHours.teachingHours || null,
-          ensembleHours: teachingHours.ensembleHours || null,
-          theoryHours: teachingHours.theoryHours || null,
-          coordinationHours: teachingHours.coordinationHours || null,
-          breakTimeHours: teachingHours.breakTimeHours || null,
-          totalWeeklyHours: teachingHours.totalWeeklyHours || null,
+          teachingHours: teachingHours.teachingHours ?? null,
+          ensembleHours: teachingHours.ensembleHours ?? null,
+          theoryHours: teachingHours.theoryHours ?? null,
+          coordinationHours: teachingHours.coordinationHours ?? null,
+          breakTimeHours: teachingHours.breakTimeHours ?? null,
+          totalWeeklyHours: teachingHours.totalWeeklyHours ?? null,
         },
         teaching: { timeBlocks: [] },
         conducting: { orchestraIds: [] },

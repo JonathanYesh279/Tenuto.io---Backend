@@ -31,6 +31,7 @@ export const INSTRUMENT_MAP = [
 
   // Keyboard (מקלדת)
   { name: 'פסנתר', abbreviation: 'PI', department: 'מקלדת' },
+  { name: "צ'מבלו", abbreviation: 'CM', department: 'מקלדת' },
 
   // Plucked (כלי פריטה)
   { name: 'גיטרה', abbreviation: 'GI', department: 'כלי פריטה' },
