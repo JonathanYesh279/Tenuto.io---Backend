@@ -6,6 +6,7 @@
 
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 
 /**
  * Collection relationships mapping for student deletion analysis
@@ -79,9 +80,10 @@ export const studentDeletionPreviewService = {
 /**
  * Generate comprehensive deletion preview for a student
  */
-async function generateDeletionPreview(studentId) {
+async function generateDeletionPreview(studentId, tenantId) {
+  requireTenantId(tenantId);
   try {
-    console.log(`🔍 Generating deletion preview for student: ${studentId}`);
+    console.log(`Generating deletion preview for student: ${studentId}`);
 
     // Validate input
     if (!studentId) {
@@ -93,13 +95,13 @@ async function generateDeletionPreview(studentId) {
     }
 
     // Validate student exists and get basic info
-    const student = await getStudentInfo(studentId);
+    const student = await getStudentInfo(studentId, tenantId);
     if (!student) {
       throw new Error(`Student with ID ${studentId} not found`);
     }
 
     // Analyze all relationships
-    const impacts = await analyzeStudentRelationships(studentId);
+    const impacts = await analyzeStudentRelationships(studentId, tenantId);
 
     // Generate warnings based on impact analysis
     const warnings = generateWarnings(impacts, student);
@@ -111,7 +113,7 @@ async function generateDeletionPreview(studentId) {
     const canDelete = !impacts.bagrut || impacts.bagrut.count === 0 || estimatedImpact !== 'high';
 
     // Calculate relationship counts
-    const relationships = await calculateRelationshipCounts(studentId);
+    const relationships = await calculateRelationshipCounts(studentId, tenantId);
 
     const preview = {
       student: {
@@ -134,11 +136,11 @@ async function generateDeletionPreview(studentId) {
       }
     };
 
-    console.log(`✅ Generated deletion preview for ${student.personalInfo?.firstName} ${student.personalInfo?.lastName}: ${preview.summary.totalRecords} total records affected`);
+    console.log(`Generated deletion preview for ${student.personalInfo?.firstName} ${student.personalInfo?.lastName}: ${preview.summary.totalRecords} total records affected`);
     return { success: true, data: preview };
 
   } catch (error) {
-    console.error(`❌ Error generating deletion preview for student ${studentId}:`, error);
+    console.error(`Error generating deletion preview for student ${studentId}:`, error);
     return {
       success: false,
       error: error.message,
@@ -150,19 +152,19 @@ async function generateDeletionPreview(studentId) {
 /**
  * Analyze all database relationships for a student
  */
-async function analyzeStudentRelationships(studentId) {
+async function analyzeStudentRelationships(studentId, tenantId) {
   const impacts = {};
 
   for (const relationship of STUDENT_RELATIONSHIPS) {
     try {
       const collection = await getCollection(relationship.collection);
-      const analysis = await analyzeCollectionImpact(collection, relationship, studentId);
+      const analysis = await analyzeCollectionImpact(collection, relationship, studentId, tenantId);
 
       if (analysis.count > 0) {
         impacts[relationship.collection] = analysis;
       }
     } catch (error) {
-      console.warn(`⚠️ Error analyzing ${relationship.collection}:`, error.message);
+      console.warn(`Error analyzing ${relationship.collection}:`, error.message);
       impacts[relationship.collection] = {
         count: 0,
         items: [],
@@ -178,7 +180,7 @@ async function analyzeStudentRelationships(studentId) {
 /**
  * Analyze impact for a specific collection
  */
-async function analyzeCollectionImpact(collection, relationship, studentId) {
+async function analyzeCollectionImpact(collection, relationship, studentId, tenantId) {
   const queries = [];
   const sampleItems = [];
   let totalCount = 0;
@@ -187,11 +189,11 @@ async function analyzeCollectionImpact(collection, relationship, studentId) {
     // Build queries for each field in the relationship
     for (const field of relationship.fields) {
       try {
-        const query = buildQueryForField(field, studentId);
+        const query = buildQueryForField(field, studentId, tenantId);
 
         // Validate query is properly formed
         if (!query || Object.keys(query).length === 0) {
-          console.warn(`⚠️ Invalid query generated for field ${field.path} in ${relationship.collection}`);
+          console.warn(`Invalid query generated for field ${field.path} in ${relationship.collection}`);
           continue;
         }
 
@@ -208,7 +210,7 @@ async function analyzeCollectionImpact(collection, relationship, studentId) {
           sampleItems.push(...items.map(item => formatSampleItem(item, field, relationship.collection)));
         }
       } catch (fieldError) {
-        console.warn(`⚠️ Error analyzing field ${field.path} in ${relationship.collection}:`, fieldError.message);
+        console.warn(`Error analyzing field ${field.path} in ${relationship.collection}:`, fieldError.message);
         // Continue with other fields
       }
     }
@@ -222,7 +224,7 @@ async function analyzeCollectionImpact(collection, relationship, studentId) {
     };
 
   } catch (error) {
-    console.error(`❌ Error analyzing collection ${relationship.collection}:`, error.message);
+    console.error(`Error analyzing collection ${relationship.collection}:`, error.message);
     return {
       count: 0,
       items: [],
@@ -237,28 +239,30 @@ async function analyzeCollectionImpact(collection, relationship, studentId) {
 /**
  * Build MongoDB query for a specific field type
  */
-function buildQueryForField(field, studentId) {
+function buildQueryForField(field, studentId, tenantId) {
   try {
     if (!field || !field.path || !studentId) {
       throw new Error('Invalid field or studentId provided');
     }
 
+    const baseQuery = { tenantId };
+
     switch (field.type) {
       case 'direct':
-        return { [field.path]: studentId };
+        return { ...baseQuery, [field.path]: studentId };
 
       case 'array':
-        return { [field.path]: studentId };
+        return { ...baseQuery, [field.path]: studentId };
 
       case 'nested':
-        return { [field.path]: studentId };
+        return { ...baseQuery, [field.path]: studentId };
 
       default:
-        console.warn(`⚠️ Unknown field type: ${field.type}, defaulting to direct match`);
-        return { [field.path]: studentId };
+        console.warn(`Unknown field type: ${field.type}, defaulting to direct match`);
+        return { ...baseQuery, [field.path]: studentId };
     }
   } catch (error) {
-    console.error(`❌ Error building query for field ${field?.path}:`, error.message);
+    console.error(`Error building query for field ${field?.path}:`, error.message);
     return {};
   }
 }
@@ -435,12 +439,12 @@ function generateWarnings(impacts, student) {
 /**
  * Calculate relationship counts (parents, teachers, etc.)
  */
-async function calculateRelationshipCounts(studentId) {
+async function calculateRelationshipCounts(studentId, tenantId) {
   try {
     // Count active teacher relationships via student's teacherAssignments
     const studentCollection = await getCollection('student');
     const studentDoc = await studentCollection.findOne(
-      { _id: ObjectId.createFromHexString(studentId) },
+      { _id: ObjectId.createFromHexString(studentId), tenantId },
       { projection: { teacherAssignments: 1 } }
     );
     const teachersCount = studentDoc?.teacherAssignments
@@ -449,7 +453,7 @@ async function calculateRelationshipCounts(studentId) {
 
     // Count parent relationships (if implemented in your system)
     // For now, we'll extract from student data
-    const student = await getStudentInfo(studentId);
+    const student = await getStudentInfo(studentId, tenantId);
     const parentsCount = student.personalInfo?.parents ?
       Object.keys(student.personalInfo.parents).filter(key =>
         student.personalInfo.parents[key] &&
@@ -461,7 +465,7 @@ async function calculateRelationshipCounts(studentId) {
       teachers: teachersCount
     };
   } catch (error) {
-    console.warn('⚠️ Error calculating relationship counts:', error.message);
+    console.warn('Error calculating relationship counts:', error.message);
     return { parents: 0, teachers: 0 };
   }
 }
@@ -469,14 +473,15 @@ async function calculateRelationshipCounts(studentId) {
 /**
  * Get basic student information
  */
-async function getStudentInfo(studentId) {
+async function getStudentInfo(studentId, tenantId) {
   try {
     const collection = await getCollection('student');
     return await collection.findOne({
-      _id: ObjectId.createFromHexString(studentId)
+      _id: ObjectId.createFromHexString(studentId),
+      tenantId
     });
   } catch (error) {
-    console.error(`❌ Error getting student info for ${studentId}:`, error);
+    console.error(`Error getting student info for ${studentId}:`, error);
     return null;
   }
 }

@@ -6,6 +6,7 @@
 
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
+import { requireTenantId } from '../../middleware/tenant.middleware.js';
 import crypto from 'crypto';
 
 /**
@@ -34,14 +35,16 @@ function generateOperationId(type = 'del') {
  * Preview cascade deletion impact without executing
  */
 export async function previewCascadeDeletion(studentId, options = {}) {
+  const tenantId = requireTenantId(options?.tenantId || options?.context?.tenantId);
   const startTime = Date.now();
   const operationId = generateOperationId('preview');
-  
+
   try {
     // Validate student exists
     const studentCollection = await getCollection('students');
-    const student = await studentCollection.findOne({ 
-      _id: ObjectId.createFromHexString(studentId) 
+    const student = await studentCollection.findOne({
+      _id: ObjectId.createFromHexString(studentId),
+      tenantId
     });
     
     if (!student) {
@@ -67,7 +70,7 @@ export async function previewCascadeDeletion(studentId, options = {}) {
     // Analyze each related collection
     for (const relationship of COLLECTION_RELATIONSHIPS.students) {
       const collection = await getCollection(relationship.collection);
-      let query = {};
+      let query = { tenantId };
 
       // Build query based on field structure
       if (relationship.field.includes('.')) {
@@ -160,15 +163,17 @@ export async function previewCascadeDeletion(studentId, options = {}) {
  * Execute cascade deletion with comprehensive logging and backup
  */
 export async function executeCascadeDeletion(studentId, options = {}, adminInfo) {
+  const tenantId = requireTenantId(options?.tenantId || options?.context?.tenantId);
   const startTime = Date.now();
   const operationId = generateOperationId('del');
   let snapshot = null;
-  
+
   try {
     // Validate student exists
     const studentCollection = await getCollection('students');
-    const student = await studentCollection.findOne({ 
-      _id: ObjectId.createFromHexString(studentId) 
+    const student = await studentCollection.findOne({
+      _id: ObjectId.createFromHexString(studentId),
+      tenantId
     });
     
     if (!student) {
@@ -177,7 +182,7 @@ export async function executeCascadeDeletion(studentId, options = {}, adminInfo)
 
     // Create backup snapshot if requested
     if (options.createBackup !== false) {
-      snapshot = await createDeletionSnapshot(studentId, operationId, adminInfo);
+      snapshot = await createDeletionSnapshot(studentId, operationId, adminInfo, tenantId);
     }
 
     const deletionResults = {
@@ -198,7 +203,7 @@ export async function executeCascadeDeletion(studentId, options = {}, adminInfo)
     // Process each collection relationship
     for (const relationship of COLLECTION_RELATIONSHIPS.students) {
       const collection = await getCollection(relationship.collection);
-      let query = {};
+      let query = { tenantId };
 
       // Build query based on field structure
       if (relationship.field.includes('.')) {
@@ -233,9 +238,10 @@ export async function executeCascadeDeletion(studentId, options = {}, adminInfo)
       } else {
         // Cleanup references
         const cleanupResult = await cleanupReferencesInCollection(
-          collection, 
-          relationship.field, 
-          studentId
+          collection,
+          relationship.field,
+          studentId,
+          tenantId
         );
         deletionResults.cleanupOperations[relationship.collection] = cleanupResult;
       }
@@ -243,7 +249,8 @@ export async function executeCascadeDeletion(studentId, options = {}, adminInfo)
 
     // Finally, delete the student record
     const studentDeleteResult = await studentCollection.deleteOne({
-      _id: ObjectId.createFromHexString(studentId)
+      _id: ObjectId.createFromHexString(studentId),
+      tenantId
     });
     deletionResults.deletedRecords.students = studentDeleteResult.deletedCount;
 
@@ -289,9 +296,10 @@ export async function executeCascadeDeletion(studentId, options = {}, adminInfo)
  * Clean up orphaned references across collections
  */
 export async function cleanupOrphanedReferences(options = {}, adminInfo) {
+  const tenantId = requireTenantId(options?.tenantId || options?.context?.tenantId);
   const startTime = Date.now();
   const operationId = generateOperationId('cleanup');
-  
+
   try {
     const collectionsToProcess = options.collections || Object.keys(COLLECTION_RELATIONSHIPS);
     const orphanedReferences = {};
@@ -342,14 +350,16 @@ export async function cleanupOrphanedReferences(options = {}, adminInfo) {
  * Rollback a previous cascade deletion using snapshot
  */
 export async function rollbackDeletion(snapshotId, options = {}, adminInfo) {
+  const tenantId = requireTenantId(options?.tenantId || options?.context?.tenantId);
   const startTime = Date.now();
   const rollbackId = generateOperationId('rollback');
-  
+
   try {
     // Get snapshot data
     const snapshotsCollection = await getCollection('deletionSnapshots');
     const snapshot = await snapshotsCollection.findOne({
-      _id: ObjectId.createFromHexString(snapshotId)
+      _id: ObjectId.createFromHexString(snapshotId),
+      tenantId
     });
     
     if (!snapshot) {
@@ -373,15 +383,15 @@ export async function rollbackDeletion(snapshotId, options = {}, adminInfo) {
       for (const record of records) {
         try {
           // Check if record already exists (conflict)
-          const existing = await collection.findOne({ _id: record._id });
-          
+          const existing = await collection.findOne({ _id: record._id, tenantId });
+
           if (existing && !options.preserveNewData) {
             // Replace existing record
-            await collection.replaceOne({ _id: record._id }, record);
+            await collection.replaceOne({ _id: record._id, tenantId }, record);
             restoredCount++;
           } else if (!existing) {
-            // Insert restored record
-            await collection.insertOne(record);
+            // Insert restored record (ensure tenantId is on record)
+            await collection.insertOne({ ...record, tenantId });
             restoredCount++;
           } else {
             // Conflict - preserve new data
@@ -400,10 +410,10 @@ export async function rollbackDeletion(snapshotId, options = {}, adminInfo) {
 
     // Mark snapshot as used
     await snapshotsCollection.updateOne(
-      { _id: ObjectId.createFromHexString(snapshotId) },
-      { 
-        $set: { 
-          used: true, 
+      { _id: ObjectId.createFromHexString(snapshotId), tenantId },
+      {
+        $set: {
+          used: true,
           usedAt: new Date(),
           rollbackId,
           rollbackBy: adminInfo.id
@@ -446,11 +456,12 @@ export async function rollbackDeletion(snapshotId, options = {}, adminInfo) {
  * Get audit log of deletion operations
  */
 export async function getAuditLog(queryParams = {}) {
+  const tenantId = requireTenantId(queryParams?.tenantId || queryParams?.context?.tenantId);
   try {
     const auditCollection = await getCollection('deletionAuditLog');
-    
+
     // Build query filters
-    const query = {};
+    const query = { tenantId };
     if (queryParams.startDate) query.timestamp = { $gte: new Date(queryParams.startDate) };
     if (queryParams.endDate) {
       query.timestamp = query.timestamp || {};
@@ -522,16 +533,17 @@ export async function getAuditLog(queryParams = {}) {
  * Helper Functions
  */
 
-async function createDeletionSnapshot(studentId, operationId, adminInfo) {
+async function createDeletionSnapshot(studentId, operationId, adminInfo, tenantId) {
+  requireTenantId(tenantId);
   const snapshotsCollection = await getCollection('deletionSnapshots');
   const snapshotId = generateOperationId('snap');
-  
+
   const snapshotData = {};
-  
+
   // Collect data from all related collections
   for (const relationship of COLLECTION_RELATIONSHIPS.students) {
     const collection = await getCollection(relationship.collection);
-    let query = {};
+    let query = { tenantId };
 
     if (relationship.field.includes('.')) {
       query[relationship.field] = ObjectId.createFromHexString(studentId);
@@ -547,8 +559,9 @@ async function createDeletionSnapshot(studentId, operationId, adminInfo) {
 
   // Include the student record
   const studentCollection = await getCollection('students');
-  const student = await studentCollection.findOne({ 
-    _id: ObjectId.createFromHexString(studentId) 
+  const student = await studentCollection.findOne({
+    _id: ObjectId.createFromHexString(studentId),
+    tenantId
   });
   snapshotData.students = [student];
 
@@ -556,6 +569,7 @@ async function createDeletionSnapshot(studentId, operationId, adminInfo) {
     _id: ObjectId.createFromHexString(snapshotId.replace('snap_', '').substring(0, 24).padEnd(24, '0')),
     operationId,
     studentId,
+    tenantId,
     createdAt: new Date(),
     expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
     createdBy: adminInfo.id,
@@ -573,21 +587,21 @@ async function createDeletionSnapshot(studentId, operationId, adminInfo) {
   };
 }
 
-async function cleanupReferencesInCollection(collection, fieldPath, studentId) {
+async function cleanupReferencesInCollection(collection, fieldPath, studentId, tenantId) {
   if (fieldPath.includes('.')) {
     // Handle nested field cleanup (e.g., "attendees.studentId")
     const [arrayField, nestedField] = fieldPath.split('.');
-    
+
     const updateResult = await collection.updateMany(
-      { [fieldPath]: ObjectId.createFromHexString(studentId) },
+      { [fieldPath]: ObjectId.createFromHexString(studentId), tenantId },
       { $pull: { [arrayField]: { [nestedField]: ObjectId.createFromHexString(studentId) } } }
     );
-    
+
     return { removed: updateResult.modifiedCount, type: 'array_cleanup' };
   } else {
     // Handle direct field cleanup
     const updateResult = await collection.updateMany(
-      { [fieldPath]: ObjectId.createFromHexString(studentId) },
+      { [fieldPath]: ObjectId.createFromHexString(studentId), tenantId },
       { $unset: { [fieldPath]: 1 } }
     );
     
@@ -609,11 +623,12 @@ async function findAndCleanOrphansInCollection(collectionName, options) {
 async function logDeletionOperation(operationId, action, data, adminInfo) {
   try {
     const auditCollection = await getCollection('deletionAuditLog');
-    
+
     const logEntry = {
       operationId,
       action,
       timestamp: new Date(),
+      tenantId: adminInfo.tenantId,
       adminId: ObjectId.createFromHexString(adminInfo.id),
       adminName: adminInfo.displayName,
       entityType: 'student',
