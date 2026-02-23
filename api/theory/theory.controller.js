@@ -180,7 +180,8 @@ async function getTheoryLessonById(req, res, next) {
     if (err.message.includes('not found')) {
       return res.status(404).json({
         success: false,
-        error: 'Theory lesson not found',
+        error: 'Not Found',
+        message: 'The requested resource was not found',
         toast: {
           type: 'error',
           message: 'The requested theory lesson could not be found. It may have been deleted or moved.',
@@ -420,7 +421,7 @@ async function addTheoryLesson(req, res, next) {
       return sendErrorResponse(res, 'VALIDATION_ERROR', [{ message: err.message }]);
     }
 
-    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', err.message);
+    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
   }
 }
 
@@ -498,14 +499,14 @@ async function updateTheoryLesson(req, res, next) {
     console.error(`Error in updateTheoryLesson controller: ${err.message}`);
 
     if (err.message.includes('not found')) {
-      return sendErrorResponse(res, 'LESSON_NOT_FOUND', id);
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
 
     if (err.message.includes('Validation error')) {
       return sendErrorResponse(res, 'VALIDATION_ERROR', [{ message: err.message }]);
     }
 
-    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', err.message);
+    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
   }
 }
 
@@ -523,7 +524,7 @@ async function removeTheoryLesson(req, res, next) {
     console.error(`Error in removeTheoryLesson controller: ${err.message}`);
 
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
 
     next(err);
@@ -624,7 +625,7 @@ async function bulkCreateTheoryLessons(req, res, next) {
       return sendErrorResponse(res, 'VALIDATION_ERROR', [{ message: err.message }]);
     }
 
-    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', err.message);
+    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
   }
 }
 
@@ -651,7 +652,7 @@ async function updateTheoryAttendance(req, res, next) {
     console.error(`Error in updateTheoryAttendance controller: ${err.message}`);
 
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
 
     if (err.message.includes('Validation error')) {
@@ -676,7 +677,7 @@ async function getTheoryAttendance(req, res, next) {
     console.error(`Error in getTheoryAttendance controller: ${err.message}`);
 
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
 
     next(err);
@@ -706,7 +707,7 @@ async function addStudentToTheory(req, res, next) {
     console.error(`Error in addStudentToTheory controller: ${err.message}`);
 
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
 
     next(err);
@@ -737,7 +738,7 @@ async function removeStudentFromTheory(req, res, next) {
     );
 
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
 
     next(err);
@@ -818,10 +819,10 @@ async function bulkDeleteTheoryLessonsByDate(req, res, next) {
     }
 
     if (err.message.includes('Database error')) {
-      return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', err.message);
+      return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
     }
 
-    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', err.message);
+    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
   }
 }
 
@@ -871,10 +872,10 @@ async function bulkDeleteTheoryLessonsByCategory(req, res, next) {
     }
 
     if (err.message.includes('Database error')) {
-      return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', err.message);
+      return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
     }
 
-    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', err.message);
+    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
   }
 }
 
@@ -937,9 +938,9 @@ async function bulkDeleteTheoryLessonsByTeacher(req, res, next) {
     }
 
     if (err.message.includes('Database error')) {
-      return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', err.message);
+      return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
     }
 
-    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', err.message);
+    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
   }
 }

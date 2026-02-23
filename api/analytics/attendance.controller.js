@@ -53,10 +53,10 @@ async function getStudentAttendanceStats(req, res) {
     console.error(`Error in getStudentAttendanceStats: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -95,10 +95,10 @@ async function getTeacherAttendanceAnalytics(req, res) {
     console.error(`Error in getTeacherAttendanceAnalytics: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -134,7 +134,7 @@ async function getOverallAttendanceReport(req, res) {
     res.status(200).json(report);
   } catch (err) {
     console.error(`Error in getOverallAttendanceReport: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -184,7 +184,7 @@ async function getAttendanceTrends(req, res) {
     res.status(200).json(trends);
   } catch (err) {
     console.error(`Error in getAttendanceTrends: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -215,7 +215,7 @@ async function getAttendanceComparison(req, res) {
     res.status(200).json(comparison);
   } catch (err) {
     console.error(`Error in getAttendanceComparison: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -261,10 +261,10 @@ async function generateAttendanceInsights(req, res) {
     console.error(`Error in generateAttendanceInsights: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -308,6 +308,6 @@ async function exportAttendanceReport(req, res) {
     res.status(200).json(exportData);
   } catch (err) {
     console.error(`Error in exportAttendanceReport: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }

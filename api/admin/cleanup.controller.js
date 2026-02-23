@@ -104,7 +104,7 @@ async function fixAllInconsistencies(req, res, next) {
       return res.status(500).json({
         success: false,
         error: 'Database transaction failed - all changes have been rolled back',
-        message: err.message,
+        message: 'An unexpected error occurred',
         code: 'TRANSACTION_FAILED'
       });
     }
@@ -147,7 +147,8 @@ async function fixRelationship(req, res, next) {
     if (err.message.includes('not found')) {
       return res.status(404).json({
         success: false,
-        error: err.message,
+        error: 'Not Found',
+        message: 'The requested resource was not found',
         code: 'RESOURCE_NOT_FOUND'
       });
     }
@@ -189,11 +190,12 @@ async function fixOrphanedAssignments(req, res, next) {
     if (err.message.includes('not found')) {
       return res.status(404).json({
         success: false,
-        error: err.message,
+        error: 'Not Found',
+        message: 'The requested resource was not found',
         code: 'STUDENT_NOT_FOUND'
       });
     }
-    
+
     next(err);
   }
 }
@@ -231,7 +233,8 @@ async function fixOrphanedSchedule(req, res, next) {
     if (err.message.includes('not found')) {
       return res.status(404).json({
         success: false,
-        error: err.message,
+        error: 'Not Found',
+        message: 'The requested resource was not found',
         code: 'STUDENT_NOT_FOUND'
       });
     }
@@ -275,14 +278,16 @@ async function getStudentDeletionPreview(req, res, next) {
       if (result.error?.includes('not found')) {
         return res.status(404).json({
           success: false,
-          error: result.error,
+          error: 'Not Found',
+          message: 'The requested resource was not found',
           code: 'STUDENT_NOT_FOUND'
         });
       }
 
       return res.status(500).json({
         success: false,
-        error: result.error,
+        error: 'Internal Server Error',
+        message: 'An unexpected error occurred',
         code: result.code || 'PREVIEW_FAILED'
       });
     }

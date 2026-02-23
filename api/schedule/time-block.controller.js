@@ -57,10 +57,10 @@ async function createTimeBlock(req, res) {
     }
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -98,10 +98,10 @@ async function updateTimeBlock(req, res) {
     }
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -127,10 +127,10 @@ async function deleteTimeBlock(req, res) {
     console.error(`Error in deleteTimeBlock: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -168,10 +168,10 @@ async function getTeacherTimeBlocks(req, res) {
     console.error(`Error in getTeacherTimeBlocks: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -217,10 +217,10 @@ async function getAvailableSlots(req, res) {
     console.error(`Error in getAvailableSlots: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -256,14 +256,14 @@ async function assignLessonToBlock(req, res) {
     }
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
+
     if (err.message.includes('doesn\'t fit')) {
       return res.status(400).json({ error: err.message });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -294,10 +294,10 @@ async function removeLessonFromBlock(req, res) {
     console.error(`Error in removeLessonFromBlock: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -331,10 +331,10 @@ async function getTeacherScheduleWithBlocks(req, res) {
     console.error(`Error in getTeacherScheduleWithBlocks: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -369,10 +369,10 @@ async function findOptimalSlot(req, res) {
     console.error(`Error in findOptimalSlot: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -431,7 +431,7 @@ async function getLessonScheduleOptions(req, res) {
     });
   } catch (err) {
     console.error(`Error in getLessonScheduleOptions: ${err.message}`);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
@@ -587,9 +587,9 @@ async function getBlockUtilizationStats(req, res) {
     console.error(`Error in getBlockUtilizationStats: ${err.message}`);
     
     if (err.message.includes('not found')) {
-      return res.status(404).json({ error: err.message });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
-    
-    res.status(500).json({ error: err.message });
+
+    res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }

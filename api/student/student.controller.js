@@ -40,7 +40,7 @@ async function getStudentById(req, res, next) {
 
     // IDOR prevention via pre-loaded scopes (no extra DB query)
     if (!canAccessStudent(id, req.context)) {
-      return res.status(403).json({ error: 'Access denied: student not assigned to you' });
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
 
     const student = await studentService.getStudentById(id, { context: req.context });
@@ -155,8 +155,8 @@ async function updateStudentTest(req, res) {
   } catch (err) {
     console.error(`Error updating student test: ${err.message}`);
     res.status(500).json({
-      error: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+      error: 'Internal Server Error',
+      message: 'An unexpected error occurred',
     });
   }
 }

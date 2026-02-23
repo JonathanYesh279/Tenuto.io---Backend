@@ -214,7 +214,7 @@ async function bulkCreateRehearsals(req, res) {
     console.error(`Error in bulk create rehearsals: ${err}`);
     res
       .status(500)
-      .json({ error: err.message || 'Failed to create rehearsals in bulk' });
+      .json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
   }
 }
 
