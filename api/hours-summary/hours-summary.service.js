@@ -148,15 +148,29 @@ async function calculateTeacherHours(teacherId, schoolYearId, options = {}) {
     const accompMinutes = (mgmt.accompHours || 0) * 60;
     const coordMinutes = (mgmt.ensembleCoordHours || 0) * 60;
     const travelMinutes = (mgmt.travelTimeHours || 0) * 60;
+    const coordinationMinutes = (mgmt.coordinationHours || 0) * 60;
+    const breakTimeMinutes = (mgmt.breakTimeHours || 0) * 60;
 
-    // 5. Totals
+    // 5. Use declared managementInfo hours as fallback when no actual
+    //    scheduled data exists (e.g. freshly imported teachers)
+    const declaredTeachingMinutes = (mgmt.teachingHours || 0) * 60;
+    const declaredEnsembleMinutes = (mgmt.ensembleHours || 0) * 60;
+    const declaredTheoryMinutes = (mgmt.theoryHours || 0) * 60;
+
+    const effectiveIndividualMinutes = Math.max(individualMinutes, declaredTeachingMinutes);
+    const effectiveOrchestraMinutes = Math.max(orchestraMinutes, declaredEnsembleMinutes);
+    const effectiveTheoryMinutes = Math.max(theoryMinutes, declaredTheoryMinutes);
+
+    // 6. Totals
     const totalMinutes =
-      individualMinutes +
-      orchestraMinutes +
-      theoryMinutes +
+      effectiveIndividualMinutes +
+      effectiveOrchestraMinutes +
+      effectiveTheoryMinutes +
       managementMinutes +
       accompMinutes +
       coordMinutes +
+      coordinationMinutes +
+      breakTimeMinutes +
       travelMinutes;
 
     const summary = {
@@ -167,12 +181,14 @@ async function calculateTeacherHours(teacherId, schoolYearId, options = {}) {
       totals: {
         totalMinutes,
         totalWeeklyHours: roundToQuarterHour(minutesToWeeklyHours(totalMinutes)),
-        individualLessons: roundToQuarterHour(minutesToWeeklyHours(individualMinutes)),
-        orchestraConducting: roundToQuarterHour(minutesToWeeklyHours(orchestraMinutes)),
-        theoryTeaching: roundToQuarterHour(minutesToWeeklyHours(theoryMinutes)),
+        individualLessons: roundToQuarterHour(minutesToWeeklyHours(effectiveIndividualMinutes)),
+        orchestraConducting: roundToQuarterHour(minutesToWeeklyHours(effectiveOrchestraMinutes)),
+        theoryTeaching: roundToQuarterHour(minutesToWeeklyHours(effectiveTheoryMinutes)),
         management: roundToQuarterHour(minutesToWeeklyHours(managementMinutes)),
         accompaniment: roundToQuarterHour(minutesToWeeklyHours(accompMinutes)),
         ensembleCoordination: roundToQuarterHour(minutesToWeeklyHours(coordMinutes)),
+        coordination: roundToQuarterHour(minutesToWeeklyHours(coordinationMinutes)),
+        breakTime: roundToQuarterHour(minutesToWeeklyHours(breakTimeMinutes)),
         travelTime: roundToQuarterHour(minutesToWeeklyHours(travelMinutes)),
       },
       breakdown: {
