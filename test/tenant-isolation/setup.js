@@ -62,7 +62,7 @@ export async function setupTenantIsolationDB() {
       port: 0,
     },
     binary: {
-      version: '6.0.0',
+      version: '7.0.0',
       downloadDir: './node_modules/.cache/mongodb-memory-server/mongodb-binaries',
       skipMD5: true,
     },

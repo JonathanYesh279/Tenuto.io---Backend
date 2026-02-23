@@ -16,9 +16,9 @@ export default defineConfig({
     globals: true,
     include: ['test/tenant-isolation/**/*.test.js'],
     // NO setupFiles — intentionally omitted to avoid global mocks
-    pool: 'forks',
-    maxConcurrency: 3,
-    maxWorkers: 2,
+    pool: 'vmThreads',
+    maxConcurrency: 1,
+    maxWorkers: 1,
     testTimeout: 30000,
     hookTimeout: 30000,
     env: {
