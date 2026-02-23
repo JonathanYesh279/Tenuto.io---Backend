@@ -4,6 +4,7 @@ export const importController = {
   previewTeacherImport,
   previewStudentImport,
   executeImport,
+  repairImportedTeachers,
 };
 
 async function previewTeacherImport(req, res, next) {
@@ -35,6 +36,16 @@ async function executeImport(req, res, next) {
     const { importLogId } = req.params;
     const userId = req.teacher?._id || null;
     const result = await importService.executeImport(importLogId, userId, { context: req.context });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function repairImportedTeachers(req, res, next) {
+  try {
+    const adminId = req.teacher?._id?.toString() || null;
+    const result = await importService.repairImportedTeachers({ context: req.context, adminId });
     res.json(result);
   } catch (err) {
     next(err);

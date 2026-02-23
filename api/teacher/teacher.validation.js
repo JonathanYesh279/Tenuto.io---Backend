@@ -338,6 +338,93 @@ export function validateTeacherUpdate(teacher) {
   });
 }
 
+// Schema for import-created teachers (relaxed: phone/email/address optional)
+export const teacherImportSchema = Joi.object({
+  tenantId: Joi.string().required(),
+
+  personalInfo: Joi.object({
+    firstName: Joi.string().required(),
+    lastName: Joi.string().required(),
+    phone: Joi.string()
+      .pattern(/^05\d{8}$/)
+      .allow(null, '')
+      .default(null),
+    email: Joi.string().email().allow(null, '').default(null),
+    address: Joi.string().allow(null, '').default(null),
+    idNumber: Joi.string()
+      .pattern(/^\d{9}$/)
+      .allow(null, '')
+      .default(null),
+    birthYear: Joi.number()
+      .integer()
+      .min(1940)
+      .max(2010)
+      .allow(null)
+      .default(null),
+  }).required(),
+
+  roles: Joi.array()
+    .items(Joi.string().valid(...TEACHER_ROLES))
+    .default(['מורה']),
+
+  professionalInfo: Joi.object({
+    instrument: Joi.string().allow('', null).optional().default(null),
+    instruments: Joi.array()
+      .items(Joi.string().valid(...VALID_INSTRUMENTS))
+      .default([]),
+    isActive: Joi.boolean().default(true),
+    classification: Joi.string()
+      .valid(...TEACHER_CLASSIFICATIONS)
+      .allow(null)
+      .default(null),
+    degree: Joi.string()
+      .valid(...TEACHER_DEGREES)
+      .allow(null)
+      .default(null),
+    hasTeachingCertificate: Joi.boolean().allow(null).default(null),
+    teachingExperienceYears: Joi.number()
+      .integer()
+      .min(0)
+      .max(60)
+      .allow(null)
+      .default(null),
+    isUnionMember: Joi.boolean().allow(null).default(null),
+    teachingSubjects: Joi.array()
+      .items(Joi.string().valid(...TEACHING_SUBJECTS))
+      .default([]),
+  }).default(),
+
+  managementInfo: managementInfoSchema,
+
+  teaching: Joi.object({
+    timeBlocks: Joi.array().items(scheduleSlotSchema).default([]),
+  }).default({ timeBlocks: [] }),
+
+  conducting: Joi.object({
+    orchestraIds: Joi.array().items(Joi.string()).default([]),
+  }).default({ orchestraIds: [] }),
+
+  ensemblesIds: Joi.array().items(Joi.string()).default([]),
+  schoolYears: Joi.array().default([]),
+
+  credentials: Joi.object({
+    email: Joi.string().required(),
+    password: Joi.string().optional().allow(null, ''),
+    isInvitationAccepted: Joi.boolean().default(true),
+    requiresPasswordChange: Joi.boolean().default(true),
+    passwordSetAt: Joi.date().optional(),
+    invitedAt: Joi.date().optional(),
+    invitedBy: Joi.string().allow(null).optional(),
+    invitationMode: Joi.string().default('IMPORT'),
+  }).required(),
+
+  isActive: Joi.boolean().default(true),
+});
+
+export function validateTeacherImport(teacher) {
+  return teacherImportSchema.validate(teacher, { abortEarly: false });
+}
+
 export const TEACHER_CONSTANTS = {
   VALID_RULES: TEACHER_ROLES,
   TEACHER_CLASSIFICATIONS,

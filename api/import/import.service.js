@@ -23,11 +23,13 @@ import {
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
 import { authService } from '../auth/auth.service.js';
 import { invitationConfig, DEFAULT_PASSWORD } from '../../services/invitationConfig.js';
+import { validateTeacherImport } from '../teacher/teacher.validation.js';
 
 export const importService = {
   previewTeacherImport,
   previewStudentImport,
   executeImport,
+  repairImportedTeachers,
 };
 
 // ─── Column Mappings (Hebrew headers → internal keys) ────────────────────────
@@ -1224,7 +1226,15 @@ async function executeTeacherImport(log, importLogCollection, tenantId, adminId)
 
       // Normalize and build teacher document using shared functions
       const normalized = entry.normalized || normalizeTeacherMapped(mapped, instruments, roles, teachingHours);
-      const newTeacher = buildImportTeacherDocument(normalized, tenantId, hashedPassword, adminId);
+      const rawDoc = buildImportTeacherDocument(normalized, tenantId, hashedPassword, adminId);
+
+      // Validate through import schema to get Joi defaults and catch malformed data
+      const { error: validationError, value: newTeacher } = validateTeacherImport(rawDoc);
+      if (validationError) {
+        errorCount++;
+        errors.push({ row: entry.row, teacherName: entry.importedName, error: `Validation: ${validationError.message}` });
+        continue;
+      }
 
       const result = await teacherCollection.insertOne(newTeacher);
       createdCount++;
@@ -1366,4 +1376,114 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
   );
 
   return results;
+}
+
+// ─── Repair Utility ──────────────────────────────────────────────────────────
+
+/**
+ * Repair already-imported teachers that have missing/null properties due to the
+ * pre-fix import code path. Ensures all expected nested objects and fields exist
+ * with proper defaults matching the canonical teacher schema.
+ */
+async function repairImportedTeachers(options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+  const adminId = options.adminId || null;
+  const collection = await getCollection('teacher');
+
+  // Find teachers created via import
+  const importedTeachers = await collection.find({
+    tenantId,
+    'credentials.invitationMode': 'IMPORT',
+  }).toArray();
+
+  let repairedCount = 0;
+  const repairDetails = [];
+
+  for (const teacher of importedTeachers) {
+    const updates = {};
+
+    // Fix missing credentials.invitedBy
+    if (!teacher.credentials?.invitedBy && adminId) {
+      updates['credentials.invitedBy'] = adminId;
+    }
+
+    // Ensure all expected nested objects exist with proper defaults
+    if (!teacher.managementInfo) {
+      updates.managementInfo = {
+        role: null, managementHours: null, accompHours: null,
+        ensembleCoordHours: null, travelTimeHours: null,
+        teachingHours: null, ensembleHours: null, theoryHours: null,
+        coordinationHours: null, breakTimeHours: null, totalWeeklyHours: null,
+      };
+    } else {
+      // Ensure all managementInfo sub-fields exist
+      const mgmt = teacher.managementInfo;
+      const mgmtFields = ['role', 'managementHours', 'accompHours', 'ensembleCoordHours',
+        'travelTimeHours', 'teachingHours', 'ensembleHours', 'theoryHours',
+        'coordinationHours', 'breakTimeHours', 'totalWeeklyHours'];
+      for (const field of mgmtFields) {
+        if (!(field in mgmt)) {
+          updates[`managementInfo.${field}`] = null;
+        }
+      }
+    }
+
+    if (!teacher.conducting) {
+      updates.conducting = { orchestraIds: [] };
+    } else if (!teacher.conducting.orchestraIds) {
+      updates['conducting.orchestraIds'] = [];
+    }
+
+    if (!teacher.ensemblesIds) {
+      updates.ensemblesIds = [];
+    }
+
+    if (!teacher.schoolYears) {
+      updates.schoolYears = [];
+    }
+
+    // Ensure professionalInfo has all expected fields
+    if (teacher.professionalInfo) {
+      const prof = teacher.professionalInfo;
+      if (!Array.isArray(prof.instruments)) {
+        updates['professionalInfo.instruments'] = prof.instrument ? [prof.instrument] : [];
+      }
+      if (!Array.isArray(prof.teachingSubjects)) {
+        updates['professionalInfo.teachingSubjects'] = [];
+      }
+      if (!('isActive' in prof)) {
+        updates['professionalInfo.isActive'] = true;
+      }
+    }
+
+    // Ensure personalInfo has all expected fields
+    if (teacher.personalInfo) {
+      const pi = teacher.personalInfo;
+      if (!('address' in pi)) updates['personalInfo.address'] = null;
+      if (!('idNumber' in pi)) updates['personalInfo.idNumber'] = null;
+      if (!('birthYear' in pi)) updates['personalInfo.birthYear'] = null;
+      if (!('phone' in pi)) updates['personalInfo.phone'] = null;
+      if (!('email' in pi)) updates['personalInfo.email'] = null;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updates.updatedAt = new Date();
+      await collection.updateOne(
+        { _id: teacher._id, tenantId },
+        { $set: updates }
+      );
+      repairedCount++;
+      repairDetails.push({
+        teacherId: teacher._id.toString(),
+        teacherName: `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim(),
+        fieldsRepaired: Object.keys(updates).filter(k => k !== 'updatedAt'),
+      });
+    }
+  }
+
+  return {
+    totalImported: importedTeachers.length,
+    repairedCount,
+    repairDetails,
+  };
 }

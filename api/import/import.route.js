@@ -41,4 +41,11 @@ router.post(
   importController.executeImport
 );
 
+// Repair already-imported teachers with missing/null properties
+router.post(
+  '/repair-imported-teachers',
+  requireAuth(['מנהל']),
+  importController.repairImportedTeachers
+);
+
 export default router;
