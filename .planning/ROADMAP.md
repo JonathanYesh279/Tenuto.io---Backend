@@ -117,10 +117,13 @@ Plans:
   4. Tests cover all allowlisted cross-tenant operations to verify they work only for authorized roles
   5. Load tests with 100+ concurrent requests prove no async context contamination
   6. Human-walkable verification checklist executed and documented
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 06-01: TBD during planning
+- [ ] 06-01-PLAN.md -- Test infrastructure: vitest config, MMS setup, two-tenant seed fixtures, test app builder, token helper
+- [ ] 06-02-PLAN.md -- Cross-tenant read isolation tests across all 11 collections (TEST-01)
+- [ ] 06-03-PLAN.md -- Cross-tenant write isolation, middleware unit tests, concurrent contamination tests (TEST-02)
+- [ ] 06-04-PLAN.md -- Allowlist verification, route accountability, CI pipeline, verification checklist (TEST-03, TEST-04)
 
 ## Progress
 
@@ -134,7 +137,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Write Protection & Validation | 1/1 | ✓ Complete | 2026-02-23 |
 | 4. Super-Admin Allowlist | 2/2 | ✓ Complete | 2026-02-23 |
 | 5. Error Handling & Cascade Safety | 4/4 | ✓ Complete | 2026-02-24 |
-| 6. Testing & Verification | 0/TBD | Not started | - |
+| 6. Testing & Verification | 0/4 | In progress | - |
 | 7. Fix Import Teacher Feature | 1/1 | ✓ Complete | 2026-02-23 |
 | 8. Fix Import Teacher Bugs | 1/1 | ✓ Complete | 2026-02-23 |
 | 9. Fix Import Column Mapping | 1/1 | ✓ Complete | 2026-02-23 |
@@ -168,4 +171,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-24 (Phase 5 complete)*
+*Last updated: 2026-02-24 (Phase 6 planned)*
