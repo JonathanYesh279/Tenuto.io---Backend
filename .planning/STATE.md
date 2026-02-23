@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (Testing & Verification)
-Plan: 2 of 5 in current phase (06-02 complete)
+Plan: 3 of 5 in current phase (06-03 complete)
 Status: Phase 6 In Progress
-Last activity: 2026-02-24 - Completed 06-02 (Read isolation tests)
+Last activity: 2026-02-24 - Completed 06-03 (Write isolation + concurrent safety tests)
 
-Progress: [████████████████████] 93% (phases 1-5 + phase 7-9 hotfixes + 06-01 + 06-02)
+Progress: [████████████████████] 94% (phases 1-5 + phase 7-9 hotfixes + 06-01 + 06-02 + 06-03)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
+- Total plans completed: 24
 - Average duration: 6 min
-- Total execution time: 2.41 hours
+- Total execution time: 2.48 hours
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████████████████████] 93% (ph
 | 03-write-protection-validation | 1/1 | 4 min | 4 min |
 | 04-super-admin-allowlist | 2/2 | 9 min | 5 min |
 | 05-error-handling-cascade-safety | 4/4 | 27 min | 7 min |
-| 06-testing-verification | 2/5 | 22 min | 11 min |
+| 06-testing-verification | 3/5 | 26 min | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (3 min), 05-03 (9 min), 05-04 (10 min), 06-01 (5 min), 06-02 (17 min)
-- Trend: 06-02 took longer due to WSL/Node.js 22 environment fixes (MMS, vitest pool, workspace)
+- Last 5 plans: 05-03 (9 min), 05-04 (10 min), 06-01 (5 min), 06-02 (17 min), 06-03 (4 min)
+- Trend: 06-03 fast execution — environment issues resolved in 06-02, reused workspace and config
 
 *Updated after each plan completion*
 
@@ -156,6 +156,10 @@ Recent decisions affecting current work:
 - [06-02] Assert non-200 instead of strict 404 for getById (3 controllers return 500 for tenant-scoped not-found; security property holds)
 - [06-02] Activity attendance cross-tenant returns 200 with empty results (admin bypasses IDOR check, service tenantId filter prevents data leak)
 - [06-02] Import log and ministry report snapshots: no public GET endpoint (isolation enforced at service layer)
+- [06-03] beforeEach reseed for write tests (write tests modify data, unlike read-only tests that seed once in beforeAll)
+- [06-03] Assert non-200 for cross-tenant writes (accommodates varied error handling: 404, 500, 400 across controllers)
+- [06-03] Belt-and-suspenders DB verification after every write test (HTTP status alone insufficient proof)
+- [06-03] MMS standalone mode concurrent write test valid despite transaction errors (verifies DB state, not HTTP success)
 
 ### Pending Todos
 
@@ -189,6 +193,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24 (Phase 6 in progress)
-Stopped at: Completed 06-02-PLAN.md (Read isolation tests)
-Resume file: .planning/phases/06-testing-verification/06-03-PLAN.md
-Resume task: Plan 06-02 complete — 22 read isolation tests passing, ready for 06-03 write isolation tests
+Stopped at: Completed 06-03-PLAN.md (Write isolation + concurrent safety tests)
+Resume file: .planning/phases/06-testing-verification/06-04-PLAN.md
+Resume task: Plan 06-03 complete — 16 write/middleware/concurrent tests passing, ready for 06-04 allowlist verification
