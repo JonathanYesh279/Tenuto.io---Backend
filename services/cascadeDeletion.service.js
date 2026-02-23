@@ -20,8 +20,14 @@ export const cascadeDeletionService = {
    * @param {string} reason
    * @param {object} context - Must contain tenantId
    */
-  async cascadeDeleteStudent(studentId, userId, reason = 'Administrative deletion', context) {
+  async cascadeDeleteStudent(studentId, userId, reason = 'Administrative deletion', context, { dryRun = false } = {}) {
     const tenantId = requireTenantId(context?.tenantId);
+
+    if (dryRun) {
+      // Run impact analysis without modifying anything
+      return this.previewCascadeDeletion(studentId, tenantId);
+    }
+
     const db = getDB();
     const session = db.startSession();
 
@@ -157,21 +163,63 @@ export const cascadeDeletionService = {
   },
 
   /**
+   * Preview cascade deletion impact without modifying any data
+   * Returns tenant-scoped impact analysis for the given student
+   * @param {string} studentId
+   * @param {string} tenantId
+   * @returns {object} Dry-run impact analysis
+   */
+  async previewCascadeDeletion(studentId, tenantId) {
+    const db = getDB();
+    const studentObjectId = new ObjectId(studentId);
+
+    const student = await db.collection('student').findOne({ _id: studentObjectId, tenantId });
+    if (!student) {
+      return { dryRun: true, found: false, impact: {} };
+    }
+
+    const [teacherCount, orchestraCount, rehearsalCount, theoryCount, bagrutCount, attendanceCount] = await Promise.all([
+      db.collection('teacher').countDocuments({ 'teaching.timeBlocks.assignedLessons.studentId': studentId, tenantId, isActive: true }),
+      db.collection('orchestra').countDocuments({ memberIds: studentObjectId, tenantId, isActive: true }),
+      db.collection('rehearsal').countDocuments({ 'attendance.studentId': studentObjectId, tenantId }),
+      db.collection('theory_lesson').countDocuments({ studentIds: studentObjectId, tenantId }),
+      db.collection('bagrut').countDocuments({ studentId: studentObjectId, tenantId, isActive: true }),
+      db.collection('activity_attendance').countDocuments({ studentId: studentObjectId, tenantId })
+    ]);
+
+    return {
+      dryRun: true,
+      found: true,
+      studentId,
+      studentName: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim(),
+      impact: {
+        teachers: teacherCount,
+        orchestras: orchestraCount,
+        rehearsals: rehearsalCount,
+        theoryLessons: theoryCount,
+        bagrut: bagrutCount,
+        attendance: attendanceCount,
+        total: teacherCount + orchestraCount + rehearsalCount + theoryCount + bagrutCount + attendanceCount
+      }
+    };
+  },
+
+  /**
    * Bulk cascade deletion for multiple students
    * @param {string[]} studentIds
    * @param {string} userId
    * @param {string} reason
    * @param {object} context - Must contain tenantId
    */
-  async bulkCascadeDeleteStudents(studentIds, userId, reason = 'Bulk administrative deletion', context) {
+  async bulkCascadeDeleteStudents(studentIds, userId, reason = 'Bulk administrative deletion', context, options = {}) {
     const results = [];
     const errors = [];
 
-    console.log(`Starting bulk cascade deletion for ${studentIds.length} students`);
+    console.log(`Starting bulk cascade deletion for ${studentIds.length} students${options.dryRun ? ' (dry run)' : ''}`);
 
     for (const studentId of studentIds) {
       try {
-        const result = await this.cascadeDeleteStudent(studentId, userId, reason, context);
+        const result = await this.cascadeDeleteStudent(studentId, userId, reason, context, { dryRun: options.dryRun });
         results.push(result);
       } catch (error) {
         console.error(`Error deleting student ${studentId}:`, error);

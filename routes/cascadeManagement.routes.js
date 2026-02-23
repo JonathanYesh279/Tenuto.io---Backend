@@ -5,7 +5,6 @@
 
 import { Router } from 'express';
 import { cascadeManagementController } from '../controllers/cascadeManagementController.js';
-import { authMiddleware } from '../middleware/auth.middleware.js';
 import { adminMiddleware } from '../middleware/admin.middleware.js';
 import Joi from 'joi';
 
@@ -71,8 +70,8 @@ const validateJobId = (req, res, next) => {
   next();
 };
 
-// Apply authentication to all routes
-router.use(authMiddleware);
+// Authentication + tenant enforcement applied at server.js mount level
+// (authenticateToken -> buildContext -> enforceTenant -> stripTenantId)
 
 /**
  * @route   POST /api/cascade/delete/:studentId

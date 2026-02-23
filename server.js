@@ -33,6 +33,7 @@ import adminValidationRoutes from './api/admin/consistency-validation.route.js';
 import dateMonitoringRoutes from './api/admin/date-monitoring.route.js';
 import pastActivitiesRoutes from './api/admin/past-activities.route.js';
 import cascadeDeletionRoutes from './api/admin/cascade-deletion.routes.js';
+import cascadeManagementRoutes from './routes/cascadeManagement.routes.js';
 import cleanupRoutes from './api/admin/cleanup.route.js';
 import { invitationController } from './api/teacher/invitation.controller.js';
 import tenantRoutes from './api/tenant/tenant.route.js';
@@ -264,6 +265,14 @@ app.use(
   enforceTenant,
   stripTenantId,
   cascadeDeletionRoutes
+);
+app.use(
+  '/api/cascade',
+  authenticateToken,
+  buildContext,
+  enforceTenant,
+  stripTenantId,
+  cascadeManagementRoutes
 );
 app.use(
   '/api/admin/cleanup',
