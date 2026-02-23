@@ -207,6 +207,23 @@ const HOURS_FIELDS_WITH_ROLE_COLLISION = new Set([
   'theoryHours',     // "תאוריה"/"תיאוריה" appears at both C18 (hours) and C59 (role)
 ]);
 
+// Ministry-specific teaching subject columns (boolean true/false in Excel)
+const TEACHING_SUBJECT_MAP = {
+  'ליווי פסנתר': 'ליווי פסנתר',
+  'ניצוח': 'ניצוח',
+  'תאוריה': 'תאוריה',
+  'תיאוריה': 'תאוריה',   // Spelling variant with yod
+  'הלחנה': 'הלחנה',
+};
+
+// Teaching subject → teacher role mapping
+const TEACHING_SUBJECT_TO_ROLE = {
+  'ליווי פסנתר': 'ליווי פסנתר',
+  'ניצוח': 'ניצוח',
+  'תאוריה': 'תאוריה',
+  'הלחנה': 'הלחנה',
+};
+
 // ─── Israeli ID Validation (check digit) ─────────────────────────────────────
 
 function validateIsraeliId(id) {
@@ -718,6 +735,178 @@ function parseTeachingHours(mapped) {
   return hours;
 }
 
+// ─── Ministry Direct Parser (Boolean-Based Instrument Detection) ─────────────
+
+/**
+ * Parse a Ministry of Education teacher Excel file directly using boolean cell values.
+ * Ministry files use true/false booleans for instrument and teaching subject columns,
+ * NOT colored cells. The sheet name is "מצבת כח-אדם בהוראה".
+ *
+ * @param {Buffer} buffer - Excel file buffer
+ * @returns {Array|null} Array of { mapped, instruments, teachingSubjects, roles, teachingHours, excelRow }
+ *                        or null if the file is not a Ministry format
+ */
+async function parseMinistryTeacherSheet(buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+
+  const MINISTRY_SHEET_NAME = 'מצבת כח-אדם בהוראה';
+  const worksheet = workbook.worksheets.find(ws => ws.name === MINISTRY_SHEET_NAME);
+  if (!worksheet) return null;
+
+  // Collect all rows with cell objects and text values
+  const rowEntries = []; // { rowNumber, cells: Cell[], texts: string[] }
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    const cells = [];
+    const texts = [];
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      while (cells.length < colNumber - 1) {
+        cells.push(null);
+        texts.push('');
+      }
+      cells.push(cell);
+      const val = cell.value;
+      let text = '';
+      if (val == null) text = '';
+      else if (typeof val === 'boolean') text = ''; // Boolean data cells → not header text
+      else if (typeof val === 'object' && val.richText) {
+        text = val.richText.map(r => (r?.text ?? '')).join('');
+      } else if (typeof val === 'object' && ('formula' in val || 'sharedFormula' in val)) {
+        const result = val.result;
+        if (result == null || typeof result === 'boolean') text = '';
+        else if (typeof result === 'object' && result.richText) text = result.richText.map(r => (r?.text ?? '')).join('');
+        else text = String(result);
+      } else if (val instanceof Date) text = '';
+      else text = String(val).trim();
+      texts.push(text.replace(/[\u200F\u200E\uFEFF\u200B]/g, ''));
+    });
+    rowEntries.push({ rowNumber, cells, texts });
+  });
+
+  // Find the abbreviation header row (scan first 15 collected rows)
+  const maxScan = Math.min(15, rowEntries.length);
+  let headerIdx = -1;
+  let headerScore = 0;
+
+  for (let i = 0; i < maxScan; i++) {
+    let score = 0;
+    for (const text of rowEntries[i].texts) {
+      if (text && ABBREVIATION_TO_INSTRUMENT[text]) score++;
+    }
+    if (score > headerScore) {
+      headerScore = score;
+      headerIdx = i;
+    }
+  }
+
+  if (headerScore < 5) return null; // Not enough instrument abbreviations → not Ministry format
+
+  // Build column maps from the header row
+  const headerTexts = rowEntries[headerIdx].texts;
+
+  // Find instrument section boundaries for position-based disambiguation
+  let firstInstrCol = Infinity, lastInstrCol = -1;
+  for (let c = 0; c < headerTexts.length; c++) {
+    if (ABBREVIATION_TO_INSTRUMENT[headerTexts[c]]) {
+      if (c < firstInstrCol) firstInstrCol = c;
+      if (c > lastInstrCol) lastInstrCol = c;
+    }
+  }
+
+  const instrumentCols = new Map();    // colIndex → instrument Hebrew name
+  const teachSubjectCols = new Map();  // colIndex → teaching subject name
+  const personalCols = new Map();      // colIndex → mapped field key
+
+  for (let c = 0; c < headerTexts.length; c++) {
+    const text = headerTexts[c];
+    if (!text) continue;
+
+    if (ABBREVIATION_TO_INSTRUMENT[text]) {
+      instrumentCols.set(c, ABBREVIATION_TO_INSTRUMENT[text]);
+    } else if (c > lastInstrCol && TEACHING_SUBJECT_MAP[text]) {
+      // After instrument section → teaching subject boolean column
+      teachSubjectCols.set(c, TEACHING_SUBJECT_MAP[text]);
+    } else if (TEACHER_COLUMN_MAP[text]) {
+      personalCols.set(c, TEACHER_COLUMN_MAP[text]);
+    }
+  }
+
+  // Boolean check helper for cell values
+  const isCellTrue = (cell) => {
+    if (!cell) return false;
+    const val = cell.value;
+    if (val === true) return true;
+    if (typeof val === 'object' && val !== null && ('formula' in val || 'sharedFormula' in val)) {
+      return val.result === true;
+    }
+    if (typeof val === 'string') return TRUTHY_VALUES.includes(val);
+    if (val === 1) return true;
+    return false;
+  };
+
+  // Parse data rows (everything after the header row)
+  const parsedRows = [];
+  for (let i = headerIdx + 1; i < rowEntries.length; i++) {
+    const { rowNumber, cells, texts } = rowEntries[i];
+
+    // Build mapped personal/hours data — preserve raw types (boolean, number)
+    const mapped = {};
+    for (const [col, field] of personalCols) {
+      const cell = cells[col];
+      if (!cell) continue;
+      let val = cell.value;
+      if (val == null) continue;
+
+      // Formula cells: use computed result
+      if (typeof val === 'object' && val !== null && ('formula' in val || 'sharedFormula' in val)) {
+        val = val.result;
+        if (val == null) continue;
+      }
+
+      if (typeof val === 'boolean') {
+        mapped[field] = val;
+      } else if (typeof val === 'number') {
+        mapped[field] = val;
+      } else if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (trimmed) mapped[field] = trimmed;
+      } else if (typeof val === 'object' && val.richText) {
+        const text = val.richText.map(r => (r?.text ?? '')).join('').trim();
+        if (text) mapped[field] = text;
+      }
+    }
+
+    // Skip rows with no name data
+    if (!mapped.firstName && !mapped.lastName && !mapped.fullName) continue;
+
+    // Read instruments (boolean check)
+    const instruments = [];
+    for (const [col, instrumentName] of instrumentCols) {
+      if (isCellTrue(cells[col])) instruments.push(instrumentName);
+    }
+
+    // Read teaching subjects (boolean check)
+    const teachingSubjects = [];
+    for (const [col, subjectName] of teachSubjectCols) {
+      if (isCellTrue(cells[col])) teachingSubjects.push(subjectName);
+    }
+
+    // Derive roles from teaching subjects + default 'מורה'
+    const roles = ['מורה'];
+    for (const subject of teachingSubjects) {
+      const role = TEACHING_SUBJECT_TO_ROLE[subject];
+      if (role && !roles.includes(role)) roles.push(role);
+    }
+
+    // Parse teaching hours from mapped data
+    const teachingHours = parseTeachingHours(mapped);
+
+    parsedRows.push({ mapped, instruments, teachingSubjects, roles, teachingHours, excelRow: rowNumber });
+  }
+
+  return parsedRows.length > 0 ? parsedRows : null;
+}
+
 // ─── Validation ──────────────────────────────────────────────────────────────
 
 function validateTeacherRow(mapped, rowIndex) {
@@ -933,7 +1122,7 @@ function getNestedValue(obj, path) {
   return path.split('.').reduce((curr, key) => curr?.[key], obj);
 }
 
-function calculateTeacherChanges(teacher, mapped, instruments, roles = [], teachingHours = {}) {
+function calculateTeacherChanges(teacher, mapped, instruments, roles = [], teachingHours = {}, teachingSubjects = []) {
   const changes = [];
 
   for (const [key, path] of Object.entries(TEACHER_FIELD_PATHS)) {
@@ -954,6 +1143,20 @@ function calculateTeacherChanges(teacher, mapped, instruments, roles = [], teach
         field: 'professionalInfo.instruments',
         oldValue: currentInstruments,
         newValue: instruments,
+      });
+    }
+  }
+
+  // Teaching subjects changes
+  if (teachingSubjects && teachingSubjects.length > 0) {
+    const currentSubjects = teacher.professionalInfo?.teachingSubjects || [];
+    const sortedCurrent = [...currentSubjects].sort();
+    const sortedNew = [...teachingSubjects].sort();
+    if (JSON.stringify(sortedCurrent) !== JSON.stringify(sortedNew)) {
+      changes.push({
+        field: 'professionalInfo.teachingSubjects',
+        oldValue: currentSubjects,
+        newValue: teachingSubjects,
       });
     }
   }
@@ -996,7 +1199,7 @@ function calculateTeacherChanges(teacher, mapped, instruments, roles = [], teach
  * Normalize mapped teacher data to ensure ALL expected fields are explicitly present.
  * Prevents MongoDB from stripping undefined keys when storing in import_log.
  */
-function normalizeTeacherMapped(mapped, instruments, roles, teachingHours) {
+function normalizeTeacherMapped(mapped, instruments, roles, teachingHours, teachingSubjects) {
   return {
     firstName: mapped.firstName || '',
     lastName: mapped.lastName || '',
@@ -1012,6 +1215,7 @@ function normalizeTeacherMapped(mapped, instruments, roles, teachingHours) {
     isUnionMember: typeof mapped.isUnionMember === 'boolean' ? mapped.isUnionMember : null,
     managementRole: mapped.managementRole || null,
     instruments: Array.isArray(instruments) ? instruments : [],
+    teachingSubjects: Array.isArray(teachingSubjects) ? teachingSubjects : [],
     roles: Array.isArray(roles) && roles.length > 0 ? roles : ['מורה'],
     teachingHours: teachingHours || {},
   };
@@ -1043,7 +1247,7 @@ function buildImportTeacherDocument(data, tenantId, hashedPassword, adminId) {
       hasTeachingCertificate: data.teachingCertificate,
       teachingExperienceYears: data.experience,
       isUnionMember: data.isUnionMember,
-      teachingSubjects: [],
+      teachingSubjects: data.teachingSubjects || [],
     },
     managementInfo: {
       role: data.managementRole,
@@ -1100,16 +1304,119 @@ function calculateStudentChanges(student, mapped) {
 
 // ─── Preview (Dry Run) ──────────────────────────────────────────────────────
 
+/**
+ * Shared helper: build teacher preview from pre-processed parsed rows.
+ * Used by both Ministry direct parser and generic header-detection parser.
+ */
+async function buildTeacherPreviewFromParsedData(parsedRows, tenantId, metadata = {}) {
+  const teacherCollection = await getCollection('teacher');
+  const teachers = await teacherCollection.find({ isActive: true, tenantId }).toArray();
+
+  const preview = {
+    totalRows: parsedRows.length,
+    matched: [],
+    notFound: [],
+    errors: [],
+    warnings: [],
+    instrumentColumnsDetected: metadata.instrumentColumnsDetected || [],
+    roleColumnsDetected: metadata.roleColumnsDetected || [],
+    headerMappingReport: metadata.headerMappingReport || null,
+    headerRowIndex: metadata.headerRowIndex || 0,
+    matchedColumns: metadata.matchedColumns || 0,
+    source: metadata.source || 'generic',
+  };
+
+  const HEADER_NAME_KEYWORDS = new Set([
+    'פרטי', 'משפחה', 'פרטי משפחה', 'שם', 'שם פרטי', 'שם משפחה',
+    'הוראה', 'ביצוע', 'תיאוריה', 'ריכוז', 'מורה', 'מנהל',
+    'סה"כ', 'שבועיות', 'ביטול זמן', 'כן-לא', 'כן / לא',
+  ]);
+
+  for (const row of parsedRows) {
+    const { mapped, instruments, teachingSubjects = [], roles, teachingHours, excelRow } = row;
+
+    const fn = (mapped.firstName || '').trim();
+    const ln = (mapped.lastName || '').trim();
+    if (HEADER_NAME_KEYWORDS.has(fn) || HEADER_NAME_KEYWORDS.has(ln) ||
+        HEADER_NAME_KEYWORDS.has(`${fn} ${ln}`)) {
+      continue;
+    }
+
+    const { errors, warnings } = validateTeacherRow(mapped, excelRow);
+    if (errors.length > 0) {
+      preview.errors.push(...errors);
+      continue;
+    }
+    preview.warnings.push(...warnings);
+
+    const match = matchTeacher(mapped, teachers);
+    if (match) {
+      const changes = calculateTeacherChanges(match.teacher, mapped, instruments, roles, teachingHours, teachingSubjects);
+      preview.matched.push({
+        row: excelRow,
+        matchType: match.matchType,
+        teacherId: match.teacher._id.toString(),
+        teacherName: `${match.teacher.personalInfo?.firstName || ''} ${match.teacher.personalInfo?.lastName || ''}`.trim(),
+        importedName: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim(),
+        changes,
+        instruments,
+        teachingSubjects,
+        roles,
+        teachingHours,
+        mapped,
+      });
+    } else {
+      preview.notFound.push({
+        row: excelRow,
+        importedName: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim(),
+        mapped,
+        instruments,
+        teachingSubjects,
+        roles,
+        teachingHours,
+        normalized: normalizeTeacherMapped(mapped, instruments, roles, teachingHours, teachingSubjects),
+      });
+    }
+  }
+
+  const importLogCollection = await getCollection('import_log');
+  const logEntry = {
+    importType: 'teachers',
+    tenantId,
+    status: 'pending',
+    createdAt: new Date(),
+    preview,
+  };
+  const result = await importLogCollection.insertOne(logEntry);
+  return { importLogId: result.insertedId.toString(), preview };
+}
+
 async function previewTeacherImport(buffer, options = {}) {
   const tenantId = requireTenantId(options.context?.tenantId);
 
+  // Strategy 1: Ministry direct parser (boolean-based instrument detection)
+  const ministryRows = await parseMinistryTeacherSheet(buffer);
+  if (ministryRows) {
+    const allInstruments = new Set();
+    const allSubjects = new Set();
+    for (const row of ministryRows) {
+      row.instruments.forEach(i => allInstruments.add(i));
+      (row.teachingSubjects || []).forEach(s => allSubjects.add(s));
+    }
+    return buildTeacherPreviewFromParsedData(ministryRows, tenantId, {
+      source: 'ministry',
+      instrumentColumnsDetected: [...allInstruments],
+      roleColumnsDetected: [...allSubjects],
+    });
+  }
+
+  // Strategy 2: Generic header-detection fallback (non-Ministry files)
   const { rows, cellRows, headerColMap, headerRowIndex, matchedColumns, headers: parsedHeaders } = await parseExcelBufferWithHeaderDetection(buffer, TEACHER_COLUMN_MAP);
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
 
   const instrumentColumns = detectInstrumentColumns(parsedHeaders, headerColMap);
   const roleColumns = detectRoleColumns(parsedHeaders);
 
-  // Build diagnostic headerMappingReport for debugging unmapped columns
   const headerMappingReport = {
     detectedHeaders: parsedHeaders,
     mappedFields: {},
@@ -1126,95 +1433,26 @@ async function previewTeacherImport(buffer, options = {}) {
     }
   }
 
-  // Load all teachers in tenant
-  const teacherCollection = await getCollection('teacher');
-  const filter = { isActive: true, tenantId };
-  const teachers = await teacherCollection.find(filter).toArray();
+  // Convert generic parsed rows to the common format
+  const parsedRows = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const mapped = mapColumns(row, TEACHER_COLUMN_MAP, headerColMap);
+    const { instruments } = readInstrumentMatrix(row, instrumentColumns, cellRows[i], headerColMap);
+    const roles = readRoleMatrix(row, roleColumns, cellRows[i], headerColMap);
+    const teachingHours = parseTeachingHours(mapped);
+    const excelRow = headerRowIndex + 2 + i;
+    parsedRows.push({ mapped, instruments, teachingSubjects: [], roles, teachingHours, excelRow });
+  }
 
-  const preview = {
-    totalRows: rows.length,
-    matched: [],
-    notFound: [],
-    errors: [],
-    warnings: [],
-    instrumentColumnsDetected: instrumentColumns.map((c) => c.type === 'specific' ? c.instrument : c.header),
+  return buildTeacherPreviewFromParsedData(parsedRows, tenantId, {
+    source: 'generic',
+    instrumentColumnsDetected: instrumentColumns.map(c => c.type === 'specific' ? c.instrument : c.header),
     roleColumnsDetected: roleColumns.map(c => c.role),
     headerMappingReport,
     headerRowIndex,
     matchedColumns,
-  };
-
-  // Known header keywords that should never appear as teacher names
-  const HEADER_NAME_KEYWORDS = new Set([
-    'פרטי', 'משפחה', 'פרטי משפחה', 'שם', 'שם פרטי', 'שם משפחה',
-    'הוראה', 'ביצוע', 'תיאוריה', 'ריכוז', 'מורה', 'מנהל',
-    'סה"כ', 'שבועיות', 'ביטול זמן', 'כן-לא', 'כן / לא',
-  ]);
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const mapped = mapColumns(row, TEACHER_COLUMN_MAP, headerColMap);
-
-    // Safety: skip rows where firstName/lastName match known header keywords (leaked sub-headers)
-    const fn = (mapped.firstName || '').trim();
-    const ln = (mapped.lastName || '').trim();
-    if (HEADER_NAME_KEYWORDS.has(fn) || HEADER_NAME_KEYWORDS.has(ln) ||
-        HEADER_NAME_KEYWORDS.has(`${fn} ${ln}`)) {
-      continue;
-    }
-
-    const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns, cellRows[i], headerColMap);
-    const roles = readRoleMatrix(row, roleColumns, cellRows[i], headerColMap);
-    const teachingHours = parseTeachingHours(mapped);
-    const excelRow = headerRowIndex + 2 + i; // +2: 1-indexed + data starts after header
-    const { errors, warnings } = validateTeacherRow(mapped, excelRow);
-
-    if (errors.length > 0) {
-      preview.errors.push(...errors);
-      continue;
-    }
-    preview.warnings.push(...warnings);
-
-    const match = matchTeacher(mapped, teachers);
-    if (match) {
-      const changes = calculateTeacherChanges(match.teacher, mapped, instruments, roles, teachingHours);
-      preview.matched.push({
-        row: excelRow,
-        matchType: match.matchType,
-        teacherId: match.teacher._id.toString(),
-        teacherName: `${match.teacher.personalInfo?.firstName || ''} ${match.teacher.personalInfo?.lastName || ''}`.trim(),
-        importedName: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim(),
-        changes,
-        instruments,
-        roles,
-        teachingHours,
-        mapped,
-      });
-    } else {
-      preview.notFound.push({
-        row: excelRow,
-        importedName: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim(),
-        mapped,
-        instruments,
-        roles,
-        teachingHours,
-        normalized: normalizeTeacherMapped(mapped, instruments, roles, teachingHours),
-      });
-    }
-  }
-
-  // Save preview to import_log with status 'pending'
-  const importLogCollection = await getCollection('import_log');
-  const logEntry = {
-    importType: 'teachers',
-    tenantId,
-    status: 'pending',
-    createdAt: new Date(),
-    preview,
-  };
-  const result = await importLogCollection.insertOne(logEntry);
-
-  return { importLogId: result.insertedId.toString(), preview };
+  });
 }
 
 async function previewStudentImport(buffer, options = {}) {
