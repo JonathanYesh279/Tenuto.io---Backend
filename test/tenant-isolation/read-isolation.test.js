@@ -362,6 +362,49 @@ describe('Cross-Tenant Read Isolation - Bagrut', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════════
+// BAGRUT — Tenant B perspective (symmetry)
+// ════════════════════════════════════════════════════════════════════════════
+describe('Cross-Tenant Read Isolation - Bagrut (Tenant B perspective)', () => {
+  it('GET /api/bagrut - Tenant B sees only Tenant B bagrut records', async () => {
+    const res = await request(app)
+      .get('/api/bagrut')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(res.status).toBe(200);
+    const bagruts = extractList(res.body);
+
+    for (const b of bagruts) {
+      expect(b.tenantId).toBe(TENANT_B_ID);
+    }
+
+    const bagrutAIds = bagruts.map(b => b._id?.toString());
+    expect(bagrutAIds).not.toContain(bagrutA._id.toString());
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// ORCHESTRA — Tenant B perspective (symmetry)
+// ════════════════════════════════════════════════════════════════════════════
+describe('Cross-Tenant Read Isolation - Orchestra (Tenant B perspective)', () => {
+  it('GET /api/orchestra - Tenant B sees only Tenant B orchestras', async () => {
+    const res = await request(app)
+      .get('/api/orchestra')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    expect(res.status).toBe(200);
+    const orchestras = extractList(res.body);
+    expect(orchestras.length).toBeGreaterThan(0);
+
+    for (const orch of orchestras) {
+      expect(orch.tenantId).toBe(TENANT_B_ID);
+    }
+
+    const orchAIds = orchestras.map(o => o._id.toString());
+    expect(orchAIds).not.toContain(orchestraA._id.toString());
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
 // HOURS SUMMARY
 // ════════════════════════════════════════════════════════════════════════════
 describe('Cross-Tenant Read Isolation - Hours Summary', () => {
