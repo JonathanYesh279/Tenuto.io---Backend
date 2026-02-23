@@ -87,8 +87,20 @@ const TEACHER_COLUMN_MAP = {
   'שבועיות': 'totalWeeklyHours',         // Fragment of "סה"כ שעות שבועיות" — total weekly hours
   'זמן': 'breakTimeHours',              // Fragment of "ביטול זמן"
   'שעות': 'totalWeeklyHours',           // Fragment of "סה"כ ש"ש" — but note: "שעות" is generic, only use when no better match
-  // Management role
+  // Management role (multiple header variants across Ministry file layouts)
   'תיאור תפקיד': 'managementRole',
+  'תפקיד': 'managementRole',
+  'תפקיד ניהולי': 'managementRole',
+  'תפקיד ניהול': 'managementRole',
+  // Additional teaching certificate header variant
+  'תעודה': 'teachingCertificate',
+  // Additional hours column variants (Ministry composite headers)
+  'ש"ש הוראה': 'teachingHours',
+  "ש''ש הוראה": 'teachingHours',
+  'שעות ניהול': 'managementHours',
+  'שעות ריכוז': 'coordinationHours',
+  'שעות תאוריה': 'theoryHours',
+  'שעות ליווי': 'accompHours',
   // Full name for teachers (Ministry uses combined name column sometimes)
   'שם ומשפחה': 'fullName',
   'שם המורה': 'fullName',
@@ -551,7 +563,7 @@ async function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
     if (headers[c]) headerColMap[headers[c]] = c;
   }
 
-  return { rows, cellRows, headerColMap, headerRowIndex: dataStartRow - 1, matchedColumns, sheetNames };
+  return { rows, cellRows, headerColMap, headerRowIndex: dataStartRow - 1, matchedColumns, sheetNames, headers };
 }
 
 function mapColumns(row, columnMap, headerColMap) {
@@ -1091,12 +1103,28 @@ function calculateStudentChanges(student, mapped) {
 async function previewTeacherImport(buffer, options = {}) {
   const tenantId = requireTenantId(options.context?.tenantId);
 
-  const { rows, cellRows, headerColMap, headerRowIndex, matchedColumns } = await parseExcelBufferWithHeaderDetection(buffer, TEACHER_COLUMN_MAP);
+  const { rows, cellRows, headerColMap, headerRowIndex, matchedColumns, headers: parsedHeaders } = await parseExcelBufferWithHeaderDetection(buffer, TEACHER_COLUMN_MAP);
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
 
-  const headers = Object.keys(rows[0]);
-  const instrumentColumns = detectInstrumentColumns(headers, headerColMap);
-  const roleColumns = detectRoleColumns(headers);
+  const instrumentColumns = detectInstrumentColumns(parsedHeaders, headerColMap);
+  const roleColumns = detectRoleColumns(parsedHeaders);
+
+  // Build diagnostic headerMappingReport for debugging unmapped columns
+  const headerMappingReport = {
+    detectedHeaders: parsedHeaders,
+    mappedFields: {},
+    unmappedHeaders: [],
+    instrumentColumnsDetected: instrumentColumns.map(c => c.type === 'specific' ? c.instrument : c.header),
+    roleColumnsDetected: roleColumns.map(c => c.role),
+  };
+  for (const header of parsedHeaders) {
+    if (!header) continue;
+    if (TEACHER_COLUMN_MAP[header]) {
+      headerMappingReport.mappedFields[header] = TEACHER_COLUMN_MAP[header];
+    } else if (!ABBREVIATION_TO_INSTRUMENT[header] && !DEPARTMENT_TO_INSTRUMENTS[header] && !ROLE_COLUMN_NAMES[header]) {
+      headerMappingReport.unmappedHeaders.push(header);
+    }
+  }
 
   // Load all teachers in tenant
   const teacherCollection = await getCollection('teacher');
@@ -1110,6 +1138,8 @@ async function previewTeacherImport(buffer, options = {}) {
     errors: [],
     warnings: [],
     instrumentColumnsDetected: instrumentColumns.map((c) => c.type === 'specific' ? c.instrument : c.header),
+    roleColumnsDetected: roleColumns.map(c => c.role),
+    headerMappingReport,
     headerRowIndex,
     matchedColumns,
   };
