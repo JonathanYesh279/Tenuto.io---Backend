@@ -87,7 +87,7 @@ const teacherAssignmentSchema = Joi.object({
 
 // Schema for creating a new student (all required fields)
 export const studentSchema = Joi.object({
-  tenantId: Joi.string().required(),
+  tenantId: Joi.any().strip(),
 
   personalInfo: Joi.object({
     firstName: Joi.string().required(),
@@ -175,7 +175,7 @@ const teacherAssignmentUpdateSchema = Joi.object({
 
 // Schema for updating a student (partial updates allowed)
 export const studentUpdateSchema = Joi.object({
-  tenantId: Joi.string().optional(),
+  tenantId: Joi.any().strip(),
 
   personalInfo: Joi.object({
     firstName: Joi.string(),

@@ -68,7 +68,7 @@ export const VALID_THEORY_LOCATIONS = [
 
 // Schema for individual theory lesson
 export const theoryLessonSchema = Joi.object({
-  tenantId: Joi.string().optional(),
+  tenantId: Joi.any().strip(),
 
   category: Joi.string()
     .valid(...VALID_THEORY_CATEGORIES)

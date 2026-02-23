@@ -78,7 +78,7 @@ const managementInfoSchema = Joi.object({
 
 // Original schema for creating new teachers
 export const teacherSchema = Joi.object({
-  tenantId: Joi.string().required(),
+  tenantId: Joi.any().strip(),
 
   personalInfo: Joi.object({
     firstName: Joi.string().required(),
@@ -226,7 +226,7 @@ const managementInfoUpdateSchema = Joi.object({
 
 // Schema for updating existing teachers
 export const teacherUpdateSchema = Joi.object({
-  tenantId: Joi.string().optional(),
+  tenantId: Joi.any().strip(),
 
   personalInfo: Joi.object({
     firstName: Joi.string().optional(),
@@ -340,7 +340,7 @@ export function validateTeacherUpdate(teacher) {
 
 // Schema for import-created teachers (relaxed: phone/email/address optional)
 export const teacherImportSchema = Joi.object({
-  tenantId: Joi.string().required(),
+  tenantId: Joi.any().strip(),
 
   personalInfo: Joi.object({
     firstName: Joi.string().required(),

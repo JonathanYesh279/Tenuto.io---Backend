@@ -53,7 +53,7 @@ const ministryDataSchema = Joi.object({
 });
 
 export const orchestraSchema = Joi.object({
-  tenantId: Joi.string().required(),
+  tenantId: Joi.any().strip(),
   name: Joi.string().trim().required(),
   type: Joi.string()
     .valid(...ORCHESTRA_TYPES)
@@ -78,7 +78,7 @@ export const orchestraSchema = Joi.object({
 });
 
 export const orchestraUpdateSchema = Joi.object({
-  tenantId: Joi.string().optional(),
+  tenantId: Joi.any().strip(),
   name: Joi.string().trim().optional(),
   type: Joi.string()
     .valid(...ORCHESTRA_TYPES)
