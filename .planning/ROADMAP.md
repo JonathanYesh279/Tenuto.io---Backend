@@ -131,6 +131,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 4. Super-Admin Allowlist | 0/TBD | Not started | - |
 | 5. Error Handling & Cascade Safety | 0/TBD | Not started | - |
 | 6. Testing & Verification | 0/TBD | Not started | - |
+| 7. Fix Import Teacher Feature | 1/1 | ✓ Complete | 2026-02-23 |
+| 8. Fix Import Teacher Bugs | 0/1 | In progress | - |
 
 ### Phase 7: Fix Import Teacher Feature - Null Properties After Import
 
@@ -139,8 +141,17 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 **Plans:** 1 plan
 
 Plans:
-- [ ] 07-01-PLAN.md -- Normalize import document creation, add import validation schema, repair utility
+- [x] 07-01-PLAN.md -- Normalize import document creation, add import validation schema, repair utility
+
+### Phase 8: Fix Import Teacher Bugs — Wrong Labels, Missing Enums, Failed Creation
+
+**Goal:** Fix three import bugs: (1) Frontend preview shows 'תלמיד חדש' instead of 'מורה חדש', (2) Missing enum values for degrees (תואר שלישי, מוסמך בכיר) and management roles (תיאור תפקיד, ריכוז אחר (פרט)), (3) Import execution fails to create any teacher documents after Phase 7 changes
+**Depends on:** Phase 7
+**Plans:** 1 plan
+
+Plans:
+- [ ] 08-01-PLAN.md -- Fix backend constants/Joi schema and frontend labels/enums
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-23 (Phase 7 planned)*
+*Last updated: 2026-02-23 (Phase 8 planned)*
