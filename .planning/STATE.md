@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 5 of 9 (Error Handling & Cascade Safety)
-Plan: 1 of 4 in current phase (05-01 complete)
+Plan: 2 of 4 in current phase (05-01, 05-02 complete)
 Status: Executing Phase 5
-Last activity: 2026-02-24 - Completed 05-01 (Error response sanitization)
+Last activity: 2026-02-24 - Completed 05-02 (Cascade deletion tenant safety)
 
-Progress: [█████████████████░] 78% (phases 1-4 + phase 7-9 hotfixes + 05-01)
+Progress: [██████████████████░] 80% (phases 1-4 + phase 7-9 hotfixes + 05-01 + 05-02)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 19
 - Average duration: 6 min
-- Total execution time: 1.68 hours
+- Total execution time: 1.73 hours
 
 **By Phase:**
 
@@ -34,10 +34,10 @@ Progress: [█████████████████░] 78% (phases 1
 | 09-fix-import-teacher-missing-column-mapping-instruments-hours-degrees-certificates-management | 1/1 | 5 min | 5 min |
 | 03-write-protection-validation | 1/1 | 4 min | 4 min |
 | 04-super-admin-allowlist | 2/2 | 9 min | 5 min |
-| 05-error-handling-cascade-safety | 1/4 | 5 min | 5 min |
+| 05-error-handling-cascade-safety | 2/4 | 8 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (4 min), 04-01 (7 min), 04-02 (2 min), 05-01 (5 min)
+- Last 5 plans: 03-01 (4 min), 04-01 (7 min), 04-02 (2 min), 05-01 (5 min), 05-02 (3 min)
 - Trend: Stable (2-7 min typical)
 
 *Updated after each plan completion*
@@ -130,6 +130,10 @@ Recent decisions affecting current work:
 - [05-01] Keep 400/401/403/409 err.message (validation, auth, role-based, conflict messages are intentional)
 - [05-01] Service-layer throw messages untouched (debugging preserved at service boundary)
 - [05-01] 500 responses always return 'An unexpected error occurred' (never err.message)
+- [05-02] Direct tenantId injection over buildScopedFilter for cascade internals (admin-initiated, no role scoping)
+- [05-02] requireTenantId at 4 entry points: cascadeDeleteStudent, restoreStudent, getStudentDeletionAuditHistory, bulkUpdateTeacherSchedules
+- [05-02] tenantId threaded through cascadeJobProcessor job.data to service calls (serializable, survives queue persistence)
+- [05-02] Controller tenant-scopes student validation queries and passes req.context to all service calls
 
 ### Pending Todos
 
@@ -152,7 +156,7 @@ None yet.
 - ~~enforceTenant middleware exists but is not applied to any route~~ FIXED in 02-01
 - ~~buildContext tolerates null tenantId (does not throw)~~ FIXED in 02-01 (buildScopedFilter throws; buildContext still sets null for enforceTenant to catch)
 - ~~duplicateDetectionService.js and conflictDetectionService.js query without tenant scope~~ FIXED in 02-08
-- Two cascade deletion systems exist (need unification but not blocking)
+- ~~Two cascade deletion systems exist (need unification but not blocking)~~ Transaction-based system FIXED in 05-02 (tenant-scoped); collection-based system still needs scoping
 - ~~past-activities.service.js calls rehearsalService.getRehearsals without context (will fail with TENANT_GUARD until admin services hardened)~~ FIXED in 04-01 (context threaded through all 3 helpers + tenantId on teacher findOne)
 
 **Enforcement Checklist Summary (01-02):**
@@ -163,6 +167,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24 (Phase 5 in progress)
-Stopped at: Completed 05-01-PLAN.md (Error response sanitization)
-Resume file: .planning/phases/05-error-handling-cascade-safety/05-02-PLAN.md
-Resume task: Execute 05-02 (cascade deletion safety)
+Stopped at: Completed 05-02-PLAN.md (Cascade deletion tenant safety)
+Resume file: .planning/phases/05-error-handling-cascade-safety/05-03-PLAN.md
+Resume task: Execute 05-03 (collection-based cascade service tenant scoping)
