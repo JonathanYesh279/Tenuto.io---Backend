@@ -91,9 +91,9 @@ export function getInstrumentsByDepartment(department) {
 
 export const TEACHER_CLASSIFICATIONS = ['ממשיך', 'חדש'];
 
-export const TEACHER_DEGREES = ['תואר שני', 'תואר ראשון', 'מוסמך', 'בלתי מוסמך'];
+export const TEACHER_DEGREES = ['תואר שלישי', 'תואר שני', 'תואר ראשון', 'מוסמך בכיר', 'מוסמך', 'בלתי מוסמך'];
 
-export const MANAGEMENT_ROLES = ['ריכוז פדגוגי', 'ריכוז מחלקה', 'סגן מנהל', 'ריכוז אחר'];
+export const MANAGEMENT_ROLES = ['ריכוז פדגוגי', 'ריכוז מחלקה', 'סגן מנהל', 'ריכוז אחר', 'ריכוז אחר (פרט)', 'תיאור תפקיד'];
 
 export const TEACHING_SUBJECTS = [
   'ליווי פסנתר',

@@ -419,6 +419,8 @@ export const teacherImportSchema = Joi.object({
   }).required(),
 
   isActive: Joi.boolean().default(true),
+  createdAt: Joi.date().default(() => new Date()),
+  updatedAt: Joi.date().default(() => new Date()),
 });
 
 export function validateTeacherImport(teacher) {
