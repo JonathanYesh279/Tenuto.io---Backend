@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Every MongoDB query either includes a tenantId filter or is explicitly allowlisted as cross-tenant. No exceptions.
-**Current focus:** Phase 7 - Fix Import Teacher Feature (Null Properties After Import) -- COMPLETE
+**Current focus:** Phase 8 - Fix Import Teacher Bugs (Wrong Labels, Missing Enums, Failed Creation) -- COMPLETE
 
 ## Current Position
 
-Phase: 7 of 7 (Fix Import Teacher Feature) -- COMPLETE
+Phase: 8 of 8 (Fix Import Teacher Bugs) -- COMPLETE
 Plan: 1 of 1 in current phase (all plans complete)
-Status: Phase 7 Complete
-Last activity: 2026-02-23 - Completed 07-01 (fix import teacher null properties)
+Status: Phase 8 Complete
+Last activity: 2026-02-23 - Completed 08-01 (fix import teacher bugs: labels, enums, Joi schema)
 
-Progress: [████████████░] 58% (phases 1-2 of original roadmap + phase 7 hotfix)
+Progress: [█████████████░] 62% (phases 1-2 of original roadmap + phase 7-8 hotfixes)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 6 min
-- Total execution time: 1.21 hours
+- Total execution time: 1.30 hours
 
 **By Phase:**
 
@@ -30,9 +30,10 @@ Progress: [████████████░] 58% (phases 1-2 of original 
 | 01-audit-infrastructure | 3/3 | 17 min | 6 min |
 | 02-service-layer-query-hardening | 8/8 | 48 min | 6 min |
 | 07-fix-import-teacher-feature-null-properties-after-import | 1/1 | 7 min | 7 min |
+| 08-fix-import-teacher-bugs-wrong-labels-missing-enums-failed-creation | 1/1 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-06 (7 min), 02-07 (5 min), 02-08 (4 min), 07-01 (7 min)
+- Last 5 plans: 02-07 (5 min), 02-08 (4 min), 07-01 (7 min), 08-01 (5 min)
 - Trend: Stable (4-7 min typical)
 
 *Updated after each plan completion*
@@ -101,6 +102,10 @@ Recent decisions affecting current work:
 - [07-01] Store normalized data in preview notFound entries to prevent MongoDB undefined-key stripping
 - [07-01] Validate import documents through Joi before insertion for defaults and malformed data catching
 - [07-01] Repair utility queries by credentials.invitationMode: IMPORT to find affected teachers
+- [08-01] Add createdAt/updatedAt to Joi schema explicitly (not allowUnknown) for type validation and defaults
+- [08-01] TEACHER_DEGREES expanded to 6 values: תואר שלישי, מוסמך בכיר added (ordered by level descending)
+- [08-01] MANAGEMENT_ROLES expanded to 6 values: ריכוז אחר (פרט), תיאור תפקיד added
+- [08-01] Frontend enums.ts must stay synced with backend config/constants.js enum arrays
 
 ### Pending Todos
 
@@ -109,6 +114,7 @@ None yet.
 ### Roadmap Evolution
 
 - Phase 7 added: Fix Import Teacher Feature - Null Properties After Import
+- Phase 8 added: Fix Import Teacher Bugs — Wrong Labels, Missing Enums, Failed Creation
 
 ### Blockers/Concerns
 
@@ -131,7 +137,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-23 (Phase 7 COMPLETE)
-Stopped at: Completed 07-01-PLAN.md (Fix Import Teacher Null Properties -- only plan in Phase 7)
+Last session: 2026-02-23 (Phase 8 COMPLETE)
+Stopped at: Completed 08-01-PLAN.md (Fix Import Teacher Bugs -- only plan in Phase 8)
 Resume file: .planning/phases/03-middleware-route-hardening/ (Phase 3 plans)
 Resume task: Begin Phase 3 planning/execution (original roadmap) or continue with additional hotfixes
