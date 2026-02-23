@@ -77,7 +77,8 @@ class CascadeWebSocketService {
         socket.userId = decoded.id || decoded._id || 'unknown';
         socket.userRole = decoded.role || 'user';
         socket.isAdmin = decoded.role === 'מנהל' || decoded.role === 'admin' || decoded.role === 'super_admin';
-        
+        socket.tenantId = decoded.tenantId || null;
+
         next();
       } catch (error) {
         console.error('Socket authentication error:', error);
@@ -101,27 +102,32 @@ class CascadeWebSocketService {
         userId: socket.userId,
         userRole: socket.userRole,
         isAdmin: socket.isAdmin,
+        tenantId: socket.tenantId,
         connectedAt: new Date()
       });
 
       if (socket.isAdmin) {
         this.adminSockets.add(socket.id);
-        
+
         // Send current system status to new admin
         socket.emit('system.status', this.getSystemStatus());
-        
-        // Send recent notification history
+
+        // Send recent notification history (filtered by tenant)
+        const tenantHistory = socket.tenantId
+          ? this.notificationHistory.filter(n => !n.tenantId || n.tenantId === socket.tenantId).slice(-50)
+          : this.notificationHistory.slice(-50);
         socket.emit('notification.history', {
-          notifications: this.notificationHistory.slice(-50),
+          notifications: tenantHistory,
           timestamp: new Date()
         });
       }
 
       // Join user-specific room for targeted notifications
       socket.join(`user_${socket.userId}`);
-      
-      if (socket.isAdmin) {
-        socket.join('admins');
+
+      // Join tenant-scoped admin room (not global 'admins')
+      if (socket.isAdmin && socket.tenantId) {
+        socket.join(`admins_${socket.tenantId}`);
       }
 
       // Handle client subscriptions
@@ -133,17 +139,17 @@ class CascadeWebSocketService {
       });
 
       socket.on('subscribe.integrity', () => {
-        if (socket.isAdmin) {
-          socket.join('integrity_updates');
-          console.log(`Admin ${socket.userId} subscribed to integrity updates`);
+        if (socket.isAdmin && socket.tenantId) {
+          socket.join(`integrity_updates_${socket.tenantId}`);
+          console.log(`Admin ${socket.userId} subscribed to integrity updates (tenant: ${socket.tenantId})`);
         }
       });
 
       socket.on('subscribe.jobs', () => {
-        if (socket.isAdmin) {
-          socket.join('job_updates');
+        if (socket.isAdmin && socket.tenantId) {
+          socket.join(`job_updates_${socket.tenantId}`);
           socket.emit('job.status', cascadeJobProcessor.getQueueStatus());
-          console.log(`Admin ${socket.userId} subscribed to job updates`);
+          console.log(`Admin ${socket.userId} subscribed to job updates (tenant: ${socket.tenantId})`);
         }
       });
 
@@ -154,7 +160,7 @@ class CascadeWebSocketService {
           this.emitToAdmins('job.paused', {
             pausedBy: socket.userId,
             timestamp: new Date()
-          });
+          }, socket.tenantId);
         }
       });
 
@@ -164,7 +170,7 @@ class CascadeWebSocketService {
           this.emitToAdmins('job.resumed', {
             resumedBy: socket.userId,
             timestamp: new Date()
-          });
+          }, socket.tenantId);
         }
       });
 
@@ -204,55 +210,59 @@ class CascadeWebSocketService {
    * Setup job processor event listeners
    */
   setupJobProcessorListeners() {
-    // Job queue events
+    // Job queue events (extract tenantId from job.data for tenant-scoped broadcasts)
     cascadeJobProcessor.on('jobQueued', (job) => {
+      const tenantId = job.data?.tenantId;
       this.emitToAdmins('job.queued', {
         jobId: job.id,
         type: job.type,
         priority: job.priority,
         timestamp: new Date()
-      });
+      }, tenantId);
     });
 
     cascadeJobProcessor.on('jobStarted', (job) => {
+      const tenantId = job.data?.tenantId;
       this.emitToAdmins('job.started', {
         jobId: job.id,
         type: job.type,
         attempts: job.attempts,
         timestamp: new Date()
-      });
+      }, tenantId);
     });
 
     cascadeJobProcessor.on('jobCompleted', (job) => {
+      const tenantId = job.data?.tenantId;
       this.emitToAdmins('job.completed', {
         jobId: job.id,
         type: job.type,
         processingTime: job.processingTime,
         result: job.result,
         timestamp: new Date()
-      });
+      }, tenantId);
 
       this.addToHistory('job_completed', {
         jobId: job.id,
         type: job.type,
         processingTime: job.processingTime
-      });
+      }, false, tenantId);
     });
 
     cascadeJobProcessor.on('jobFailed', (job) => {
+      const tenantId = job.data?.tenantId;
       this.emitToAdmins('job.failed', {
         jobId: job.id,
         type: job.type,
         error: job.error,
         attempts: job.attempts,
         timestamp: new Date()
-      });
+      }, tenantId);
 
       this.addToHistory('job_failed', {
         jobId: job.id,
         type: job.type,
         error: job.error
-      });
+      }, false, tenantId);
 
       // Send critical alert for important job failures
       if (['cascadeDeletion', 'batchCascadeDeletion'].includes(job.type)) {
@@ -262,11 +272,12 @@ class CascadeWebSocketService {
           jobId: job.id,
           error: job.error,
           requiresAttention: true
-        });
+        }, tenantId);
       }
     });
 
     cascadeJobProcessor.on('jobRetry', ({ job, delay }) => {
+      const tenantId = job.data?.tenantId;
       this.emitToAdmins('job.retry', {
         jobId: job.id,
         type: job.type,
@@ -274,7 +285,7 @@ class CascadeWebSocketService {
         maxRetries: job.maxRetries,
         delay,
         timestamp: new Date()
-      });
+      }, tenantId);
     });
 
     // Cascade operation events
@@ -313,6 +324,7 @@ class CascadeWebSocketService {
    * Emit cascade operation progress
    */
   emitCascadeProgress(data) {
+    const tenantId = data.tenantId;
     const progressEvent = {
       studentId: data.studentId,
       jobId: data.jobId,
@@ -322,9 +334,9 @@ class CascadeWebSocketService {
       timestamp: new Date()
     };
 
-    // Send to student-specific room and admins
+    // Send to student-specific room and tenant-scoped admins
     this.io.to(`cascade_${data.studentId}`).emit('cascade.progress', progressEvent);
-    this.emitToAdmins('cascade.progress', progressEvent);
+    this.emitToAdmins('cascade.progress', progressEvent, tenantId);
 
     // Store active notification
     this.activeNotifications.set(`cascade_${data.studentId}`, progressEvent);
@@ -334,6 +346,7 @@ class CascadeWebSocketService {
    * Emit cascade completion
    */
   emitCascadeComplete(data) {
+    const tenantId = data.tenantId;
     const completeEvent = {
       studentId: data.studentId,
       jobId: data.jobId,
@@ -343,7 +356,7 @@ class CascadeWebSocketService {
     };
 
     this.io.to(`cascade_${data.studentId}`).emit('cascade.complete', completeEvent);
-    this.emitToAdmins('cascade.complete', completeEvent);
+    this.emitToAdmins('cascade.complete', completeEvent, tenantId);
 
     // Remove from active notifications
     this.activeNotifications.delete(`cascade_${data.studentId}`);
@@ -353,7 +366,7 @@ class CascadeWebSocketService {
       studentId: data.studentId,
       affectedDocuments: data.summary?.totalAffectedDocuments || 0,
       duration: data.duration
-    });
+    }, false, tenantId);
 
     // Send success notification
     this.emitNotification(`user_${data.summary?.userId}`, 'success', {
@@ -368,6 +381,7 @@ class CascadeWebSocketService {
    * Emit integrity check progress
    */
   emitIntegrityProgress(data) {
+    const tenantId = data.tenantId;
     const progressEvent = {
       jobId: data.jobId,
       step: data.step,
@@ -376,13 +390,17 @@ class CascadeWebSocketService {
       timestamp: new Date()
     };
 
-    this.io.to('integrity_updates').emit('integrity.progress', progressEvent);
+    // Emit to tenant-scoped integrity room
+    if (tenantId) {
+      this.io.to(`integrity_updates_${tenantId}`).emit('integrity.progress', progressEvent);
+    }
   }
 
   /**
    * Emit integrity issue found
    */
   emitIntegrityIssue(data) {
+    const tenantId = data.tenantId;
     const issueEvent = {
       severity: data.severity,
       collection: data.collection,
@@ -394,14 +412,17 @@ class CascadeWebSocketService {
       timestamp: new Date()
     };
 
-    this.io.to('integrity_updates').emit('integrity.issue', issueEvent);
+    // Emit to tenant-scoped integrity room
+    if (tenantId) {
+      this.io.to(`integrity_updates_${tenantId}`).emit('integrity.issue', issueEvent);
+    }
 
     // Add to history
     this.addToHistory('integrity_issue', {
       severity: data.severity,
       collection: data.collection,
       count: data.count
-    });
+    }, false, tenantId);
 
     // Send critical alert for high severity issues
     if (data.severity === 'high') {
@@ -412,7 +433,7 @@ class CascadeWebSocketService {
         count: data.count,
         fixable: data.fixable,
         requiresAttention: true
-      });
+      }, tenantId);
     }
   }
 
@@ -420,25 +441,30 @@ class CascadeWebSocketService {
    * Emit integrity check completion
    */
   emitIntegrityComplete(data) {
+    const tenantId = data.tenantId;
     const completeEvent = {
       jobId: data.jobId,
       results: data.results,
       timestamp: new Date()
     };
 
-    this.io.to('integrity_updates').emit('integrity.complete', completeEvent);
+    // Emit to tenant-scoped integrity room
+    if (tenantId) {
+      this.io.to(`integrity_updates_${tenantId}`).emit('integrity.complete', completeEvent);
+    }
 
     // Add to history
     this.addToHistory('integrity_complete', {
       totalIssues: data.results?.integrityIssues || 0,
       recommendationsCount: data.results?.recommendations?.length || 0
-    });
+    }, false, tenantId);
   }
 
   /**
    * Emit batch operation progress
    */
   emitBatchProgress(data) {
+    const tenantId = data.tenantId;
     const progressEvent = {
       jobId: data.jobId,
       step: data.step,
@@ -447,33 +473,36 @@ class CascadeWebSocketService {
       timestamp: new Date()
     };
 
-    this.emitToAdmins('batch.progress', progressEvent);
+    this.emitToAdmins('batch.progress', progressEvent, tenantId);
   }
 
   /**
    * Emit batch operation completion
    */
   emitBatchComplete(data) {
+    const tenantId = data.tenantId;
     const completeEvent = {
       jobId: data.jobId,
       summary: data.summary,
       timestamp: new Date()
     };
 
-    this.emitToAdmins('batch.complete', completeEvent);
+    this.emitToAdmins('batch.complete', completeEvent, tenantId);
 
     // Add to history
     this.addToHistory('batch_complete', {
       successful: data.summary?.successful || 0,
       failed: data.summary?.failed || 0,
       totalDocuments: data.summary?.totalDocumentsAffected || 0
-    });
+    }, false, tenantId);
   }
 
   /**
    * Emit deletion impact warning
+   * @param {object} data - Warning data including studentId, impact, etc.
+   * @param {string} [tenantId] - Tenant to scope broadcast to
    */
-  emitDeletionWarning(data) {
+  emitDeletionWarning(data, tenantId) {
     const warningEvent = {
       studentId: data.studentId,
       impact: data.impact,
@@ -483,21 +512,24 @@ class CascadeWebSocketService {
       timestamp: new Date()
     };
 
-    // Send to specific student observers and admins
+    // Send to specific student observers and tenant-scoped admins
     this.io.to(`cascade_${data.studentId}`).emit('deletion.warning', warningEvent);
-    this.emitToAdmins('deletion.warning', warningEvent);
+    this.emitToAdmins('deletion.warning', warningEvent, tenantId);
 
     this.addToHistory('deletion_warning', {
       studentId: data.studentId,
       severity: warningEvent.severity,
       affectedCollections: data.affectedCollections?.length || 0
-    });
+    }, false, tenantId);
   }
 
   /**
    * Emit critical system alert
+   * @param {string} type
+   * @param {object} data
+   * @param {string} [tenantId] - Tenant to scope alert to. If null, broadcasts to ALL tenant admin rooms (system-wide alert).
    */
-  emitCriticalAlert(type, data) {
+  emitCriticalAlert(type, data, tenantId) {
     const alertEvent = {
       type,
       severity: data.severity,
@@ -508,11 +540,24 @@ class CascadeWebSocketService {
       id: `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     };
 
-    // Send to all admins
-    this.emitToAdmins('system.alert', alertEvent);
+    if (tenantId) {
+      // Tenant-specific critical alert
+      this.emitToAdmins('system.alert', alertEvent, tenantId);
+    } else {
+      // System-wide critical alert — broadcast to ALL tenant admin rooms
+      const tenantIds = new Set();
+      for (const [, user] of this.connectedUsers) {
+        if (user.isAdmin && user.tenantId) {
+          tenantIds.add(user.tenantId);
+        }
+      }
+      for (const tid of tenantIds) {
+        this.emitToAdmins('system.alert', alertEvent, tid);
+      }
+    }
 
     // Add to history with high priority
-    this.addToHistory('critical_alert', alertEvent, true);
+    this.addToHistory('critical_alert', alertEvent, true, tenantId);
 
     console.log(`Critical alert emitted: ${type} - ${data.message}`);
   }
@@ -534,10 +579,17 @@ class CascadeWebSocketService {
   }
 
   /**
-   * Emit to all admin sockets
+   * Emit to admin sockets in a tenant-scoped room
+   * @param {string} event
+   * @param {object} data
+   * @param {string} [tenantId] - If provided, emit to admins_{tenantId}. If not, log warning and skip.
    */
-  emitToAdmins(event, data) {
-    this.io.to('admins').emit(event, data);
+  emitToAdmins(event, data, tenantId) {
+    if (!tenantId) {
+      console.warn(`[CascadeWebSocket] emitToAdmins called without tenantId for event "${event}" — skipping broadcast to prevent cross-tenant leak`);
+      return;
+    }
+    this.io.to(`admins_${tenantId}`).emit(event, data);
   }
 
   /**
@@ -589,11 +641,16 @@ class CascadeWebSocketService {
 
   /**
    * Add event to notification history
+   * @param {string} type
+   * @param {object} data
+   * @param {boolean} [priority=false]
+   * @param {string} [tenantId] - Tenant this notification belongs to
    */
-  addToHistory(type, data, priority = false) {
+  addToHistory(type, data, priority = false, tenantId = null) {
     const historyItem = {
       type,
       data,
+      tenantId,
       timestamp: new Date(),
       id: `hist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     };
@@ -631,12 +688,21 @@ class CascadeWebSocketService {
   }
 
   /**
-   * Send periodic system health updates
+   * Send periodic system health updates to all connected tenant admin rooms
    */
   startHealthBroadcast(intervalMs = 30000) {
     setInterval(() => {
       const status = this.getSystemStatus();
-      this.emitToAdmins('system.health', status);
+      // Broadcast to each connected tenant's admin room
+      const tenantIds = new Set();
+      for (const [, user] of this.connectedUsers) {
+        if (user.isAdmin && user.tenantId) {
+          tenantIds.add(user.tenantId);
+        }
+      }
+      for (const tenantId of tenantIds) {
+        this.emitToAdmins('system.health', status, tenantId);
+      }
     }, intervalMs);
   }
 

@@ -56,7 +56,7 @@ export const cascadeManagementController = {
         tenantId
       }, priority);
 
-      // Emit warning about deletion impact
+      // Emit warning about deletion impact (tenant-scoped broadcast)
       const impactAnalysis = await this.analyzeDeletionImpact(studentId, tenantId);
       cascadeWebSocketService.emitDeletionWarning({
         studentId,
@@ -64,7 +64,7 @@ export const cascadeManagementController = {
         affectedCollections: impactAnalysis.affectedCollections,
         recommendation: impactAnalysis.recommendation,
         severity: impactAnalysis.severity
-      });
+      }, tenantId);
 
       res.status(202).json({
         success: true,
@@ -162,7 +162,8 @@ export const cascadeManagementController = {
   async getJobStatus(req, res) {
     try {
       const { jobId } = req.params;
-      
+      const tenantId = req.context?.tenantId;
+
       // Check active jobs
       const activeJob = cascadeJobProcessor.activeJobs.get(jobId);
       if (activeJob) {
@@ -182,10 +183,11 @@ export const cascadeManagementController = {
         });
       }
 
-      // Check database for completed/failed jobs
+      // Check database for completed/failed jobs (tenant-scoped)
       const db = getDB();
       const auditRecord = await db.collection('deletion_audit').findOne({
-        'cascadeOperations.jobId': jobId
+        'cascadeOperations.jobId': jobId,
+        tenantId
       }, { sort: { timestamp: -1 } });
 
       if (auditRecord) {
@@ -261,10 +263,12 @@ export const cascadeManagementController = {
       }
 
       const { priority = 'high' } = req.body;
+      const tenantId = req.context?.tenantId;
 
       const jobId = cascadeJobProcessor.addJob('orphanedReferenceCleanup', {
         triggeredBy: req.user.id,
-        manual: true
+        manual: true,
+        tenantId
       }, priority);
 
       res.json({
@@ -295,10 +299,12 @@ export const cascadeManagementController = {
       }
 
       const { priority = 'medium' } = req.body;
+      const tenantId = req.context?.tenantId;
 
       const jobId = cascadeJobProcessor.addJob('integrityValidation', {
         triggeredBy: req.user.id,
-        manual: true
+        manual: true,
+        tenantId
       }, priority);
 
       res.json({
@@ -416,30 +422,33 @@ export const cascadeManagementController = {
       }
 
       const db = getDB();
-      
+      const tenantId = req.context?.tenantId;
+
       // Get basic metrics
       const queueMetrics = cascadeJobProcessor.metrics;
-      
-      // Get database statistics
+
+      // Get database statistics (tenant-scoped)
       const [
         totalAuditRecords,
         recentDeletions,
         integrityIssues,
         orphanedReferences
       ] = await Promise.all([
-        db.collection('deletion_audit').countDocuments(),
-        
+        db.collection('deletion_audit').countDocuments({ tenantId }),
+
         db.collection('deletion_audit').countDocuments({
+          tenantId,
           timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
         }),
-        
+
         db.collection('deletion_audit').countDocuments({
+          tenantId,
           deletionType: 'cascade_cleanup',
           'cascadeOperations.0': { $exists: true }
         }),
 
-        // Estimate orphaned references (simplified)
-        this.getOrphanedReferenceCount()
+        // Estimate orphaned references (simplified, tenant-scoped)
+        this.getOrphanedReferenceCount(tenantId)
       ]);
 
       res.json({
@@ -590,20 +599,23 @@ export const cascadeManagementController = {
   /**
    * Helper: Get orphaned reference count (simplified estimation)
    */
-  async getOrphanedReferenceCount() {
+  async getOrphanedReferenceCount(tenantId) {
     try {
       const db = getDB();
-      
-      // Quick check: count students with active assignments referencing inactive teachers
-      const orphanedAssignments = await db.collection('student').countDocuments({
+
+      // Quick check: count students with active assignments referencing inactive teachers (tenant-scoped)
+      const query = {
         isActive: true,
         'teacherAssignments': {
           $elemMatch: { isActive: { $ne: false } }
         }
-      });
+      };
+      if (tenantId) query.tenantId = tenantId;
+
+      const orphanedAssignments = await db.collection('student').countDocuments(query);
 
       return Math.floor(orphanedAssignments * 0.05); // Rough estimation
-      
+
     } catch (error) {
       console.error('Error getting orphaned reference count:', error);
       return 0;

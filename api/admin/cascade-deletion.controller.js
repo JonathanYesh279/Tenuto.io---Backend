@@ -16,13 +16,16 @@ async function previewCascadeDeletion(req, res, next) {
   try {
     const { studentId } = req.params;
     const options = req.validatedData || req.body;
+    const context = req.context;
+    const tenantId = context?.tenantId;
 
     console.log(`Preview cascade deletion for student ${studentId}:`, options);
 
-    // Validate student exists
+    // Validate student exists (tenant-scoped)
     const studentCollection = await getCollection('students');
-    const student = await studentCollection.findOne({ 
-      _id: ObjectId.createFromHexString(studentId) 
+    const student = await studentCollection.findOne({
+      _id: ObjectId.createFromHexString(studentId),
+      tenantId
     });
 
     if (!student) {
@@ -34,8 +37,8 @@ async function previewCascadeDeletion(req, res, next) {
       });
     }
 
-    // Execute preview
-    const result = await cascadeDeletionService.previewCascadeDeletion(studentId, options);
+    // Execute preview (pass tenantId to service)
+    const result = await cascadeDeletionService.previewCascadeDeletion(studentId, { ...options, tenantId });
 
     if (result.success) {
       res.status(200).json({
@@ -77,6 +80,8 @@ async function executeCascadeDeletion(req, res, next) {
   try {
     const { studentId } = req.params;
     const options = req.validatedData || req.body;
+    const context = req.context;
+    const tenantId = context?.tenantId;
 
     console.log(`Execute cascade deletion for student ${studentId}:`, {
       ...options,
@@ -93,10 +98,11 @@ async function executeCascadeDeletion(req, res, next) {
       });
     }
 
-    // Validate student exists
+    // Validate student exists (tenant-scoped)
     const studentCollection = await getCollection('students');
-    const student = await studentCollection.findOne({ 
-      _id: ObjectId.createFromHexString(studentId) 
+    const student = await studentCollection.findOne({
+      _id: ObjectId.createFromHexString(studentId),
+      tenantId
     });
 
     if (!student) {
@@ -113,14 +119,15 @@ async function executeCascadeDeletion(req, res, next) {
       id: req.loggedinUser._id,
       displayName: req.loggedinUser.displayName,
       email: req.loggedinUser.email,
+      tenantId,
       ipAddress: req.ip || req.connection?.remoteAddress || 'unknown',
       userAgent: req.get('User-Agent') || 'unknown'
     };
 
-    // Execute deletion
+    // Execute deletion (pass tenantId to service)
     const result = await cascadeDeletionService.executeCascadeDeletion(
-      studentId, 
-      options, 
+      studentId,
+      { ...options, tenantId },
       adminInfo
     );
 
@@ -169,6 +176,8 @@ async function executeCascadeDeletion(req, res, next) {
 async function cleanupOrphanedReferences(req, res, next) {
   try {
     const options = req.validatedData || req.body;
+    const context = req.context;
+    const tenantId = context?.tenantId;
 
     console.log('Cleanup orphaned references:', options);
 
@@ -177,11 +186,12 @@ async function cleanupOrphanedReferences(req, res, next) {
       id: req.loggedinUser._id,
       displayName: req.loggedinUser.displayName,
       email: req.loggedinUser.email,
+      tenantId,
       ipAddress: req.ip || req.connection?.remoteAddress || 'unknown'
     };
 
-    // Execute cleanup
-    const result = await cascadeDeletionService.cleanupOrphanedReferences(options, adminInfo);
+    // Execute cleanup (pass tenantId to service)
+    const result = await cascadeDeletionService.cleanupOrphanedReferences({ ...options, tenantId }, adminInfo);
 
     if (result.success) {
       res.status(200).json({
@@ -225,16 +235,19 @@ async function rollbackDeletion(req, res, next) {
   try {
     const { snapshotId } = req.params;
     const options = req.validatedData || req.body;
+    const context = req.context;
+    const tenantId = context?.tenantId;
 
     console.log(`Rollback deletion for snapshot ${snapshotId}:`, {
       ...options,
       adminPassword: options.adminPassword ? '[REDACTED]' : undefined
     });
 
-    // Validate snapshot exists
+    // Validate snapshot exists (tenant-scoped)
     const snapshotsCollection = await getCollection('deletionSnapshots');
     const snapshot = await snapshotsCollection.findOne({
-      _id: ObjectId.createFromHexString(snapshotId)
+      _id: ObjectId.createFromHexString(snapshotId),
+      tenantId
     });
 
     if (!snapshot) {
@@ -277,13 +290,14 @@ async function rollbackDeletion(req, res, next) {
       id: req.loggedinUser._id,
       displayName: req.loggedinUser.displayName,
       email: req.loggedinUser.email,
+      tenantId,
       ipAddress: req.ip || req.connection?.remoteAddress || 'unknown'
     };
 
-    // Execute rollback
+    // Execute rollback (pass tenantId to service)
     const result = await cascadeDeletionService.rollbackDeletion(
-      snapshotId, 
-      options, 
+      snapshotId,
+      { ...options, tenantId },
       adminInfo
     );
 
@@ -328,11 +342,12 @@ async function rollbackDeletion(req, res, next) {
 async function getAuditLog(req, res, next) {
   try {
     const queryParams = req.validatedQuery || req.query;
+    const tenantId = req.context?.tenantId;
 
     console.log('Get deletion audit log:', queryParams);
 
-    // Execute audit log query
-    const result = await cascadeDeletionService.getAuditLog(queryParams);
+    // Execute audit log query (pass tenantId to service)
+    const result = await cascadeDeletionService.getAuditLog({ ...queryParams, tenantId });
 
     if (result.success) {
       res.status(200).json({
@@ -373,13 +388,14 @@ async function getAuditLog(req, res, next) {
 async function getAvailableSnapshots(req, res, next) {
   try {
     const { entityType, limit = 50, includeExpired = false } = req.query;
+    const tenantId = req.context?.tenantId;
 
     console.log('Get available snapshots:', req.query);
 
     const snapshotsCollection = await getCollection('deletionSnapshots');
-    
-    // Build query
-    const query = { used: { $ne: true } };
+
+    // Build query (tenant-scoped)
+    const query = { used: { $ne: true }, tenantId };
     if (entityType) query.entityType = entityType;
     if (!includeExpired) query.expiresAt = { $gt: new Date() };
 

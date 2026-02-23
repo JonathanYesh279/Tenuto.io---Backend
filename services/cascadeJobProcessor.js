@@ -267,7 +267,8 @@ class CascadeJobProcessor extends EventEmitter {
       jobId: job.id,
       step: 'starting',
       percentage: 0,
-      details: 'Initiating cascade deletion'
+      details: 'Initiating cascade deletion',
+      tenantId
     });
 
     try {
@@ -278,14 +279,16 @@ class CascadeJobProcessor extends EventEmitter {
         jobId: job.id,
         step: 'completed',
         percentage: 100,
-        details: `Deleted successfully - ${result.totalAffectedDocuments} documents affected`
+        details: `Deleted successfully - ${result.totalAffectedDocuments} documents affected`,
+        tenantId
       });
 
       this.emit('cascade.complete', {
         studentId,
         jobId: job.id,
         summary: result,
-        duration: job.processingTime
+        duration: job.processingTime,
+        tenantId
       });
 
       return result;
@@ -296,7 +299,8 @@ class CascadeJobProcessor extends EventEmitter {
         jobId: job.id,
         step: 'error',
         percentage: 0,
-        details: error.message
+        details: error.message,
+        tenantId
       });
       throw error;
     }
@@ -304,9 +308,43 @@ class CascadeJobProcessor extends EventEmitter {
 
   /**
    * Execute orphaned reference cleanup
+   * If tenantId is provided in job.data, scopes to that tenant.
+   * If not (scheduled system job), runs for all tenants.
    */
   async executeOrphanedReferenceCleanup(job) {
     const db = getDB();
+    const { tenantId } = job.data || {};
+
+    // If no tenantId, get all tenants and run per-tenant
+    if (!tenantId) {
+      const tenants = await db.collection('tenant').find({ isActive: true }).toArray();
+      const allResults = { orphansFound: 0, orphansRemoved: 0, collectionsChecked: 0, errors: [], tenants: tenants.length };
+      for (const tenant of tenants) {
+        const tid = tenant._id.toString();
+        const tenantJob = { ...job, data: { ...job.data, tenantId: tid } };
+        const result = await this._executeOrphanedReferenceCleanupForTenant(tenantJob, db);
+        allResults.orphansFound += result.orphansFound;
+        allResults.orphansRemoved += result.orphansRemoved;
+        allResults.collectionsChecked += result.collectionsChecked;
+        allResults.errors.push(...result.errors);
+        // Emit per-tenant completion
+        this.emit('integrity.complete', { jobId: job.id, results: result, timestamp: new Date(), tenantId: tid });
+      }
+      this.metrics.orphansCleanedUp += allResults.orphansRemoved;
+      return allResults;
+    }
+
+    const results = await this._executeOrphanedReferenceCleanupForTenant(job, db);
+    this.metrics.orphansCleanedUp += results.orphansRemoved;
+    this.emit('integrity.complete', { jobId: job.id, results, timestamp: new Date(), tenantId });
+    return results;
+  }
+
+  /**
+   * Execute orphaned reference cleanup for a single tenant
+   */
+  async _executeOrphanedReferenceCleanupForTenant(job, db) {
+    const { tenantId } = job.data || {};
     const results = {
       orphansFound: 0,
       orphansRemoved: 0,
@@ -327,7 +365,8 @@ class CascadeJobProcessor extends EventEmitter {
       jobId: job.id,
       step: 'scanning',
       percentage: 0,
-      details: 'Scanning for orphaned references'
+      details: `Scanning for orphaned references${tenantId ? ` (tenant: ${tenantId})` : ''}`,
+      tenantId
     });
 
     for (let i = 0; i < collections.length; i++) {
@@ -339,11 +378,12 @@ class CascadeJobProcessor extends EventEmitter {
           jobId: job.id,
           step: 'scanning',
           percentage: progress,
-          details: `Checking ${collection.name} collection`
+          details: `Checking ${collection.name} collection`,
+          tenantId
         });
 
         for (const field of collection.studentRefFields) {
-          const orphans = await this.findOrphanedReferences(collection.name, field);
+          const orphans = await this.findOrphanedReferences(collection.name, field, tenantId);
           results.orphansFound += orphans.length;
 
           if (orphans.length > 0) {
@@ -356,7 +396,8 @@ class CascadeJobProcessor extends EventEmitter {
               field,
               count: orphans.length,
               cleaned,
-              fixable: true
+              fixable: true,
+              tenantId
             });
           }
         }
@@ -375,28 +416,25 @@ class CascadeJobProcessor extends EventEmitter {
           collection: collection.name,
           count: 0,
           error: error.message,
-          fixable: false
+          fixable: false,
+          tenantId
         });
       }
     }
-
-    this.metrics.orphansCleanedUp += results.orphansRemoved;
-
-    this.emit('integrity.complete', {
-      jobId: job.id,
-      results,
-      timestamp: new Date()
-    });
 
     return results;
   }
 
   /**
    * Find orphaned references in collection
+   * @param {string} collectionName
+   * @param {string} fieldPath
+   * @param {string} [tenantId] - If provided, scope queries to this tenant
    */
-  async findOrphanedReferences(collectionName, fieldPath) {
+  async findOrphanedReferences(collectionName, fieldPath, tenantId) {
     const db = getDB();
     const orphans = [];
+    const tenantFilter = tenantId ? { tenantId } : {};
 
     try {
       if (fieldPath.includes('.')) {
@@ -405,7 +443,7 @@ class CascadeJobProcessor extends EventEmitter {
         // Handle nested fields like 'attendance.studentId' where attendance is an array
         {
           const docs = await db.collection(collectionName)
-            .find({ [parentField]: { $exists: true, $ne: [] } })
+            .find({ [parentField]: { $exists: true, $ne: [] }, ...tenantFilter })
             .toArray();
 
           for (const doc of docs) {
@@ -415,7 +453,7 @@ class CascadeJobProcessor extends EventEmitter {
               for (const item of arrayData) {
                 if (item && item[childField]) {
                   const studentExists = await db.collection('student')
-                    .findOne({ _id: new ObjectId(item[childField]), isActive: true });
+                    .findOne({ _id: new ObjectId(item[childField]), isActive: true, ...tenantFilter });
                   
                   if (!studentExists) {
                     orphans.push({
@@ -432,6 +470,8 @@ class CascadeJobProcessor extends EventEmitter {
       } else {
         // Handle direct reference fields
         const pipeline = [
+          // Scope to tenant if tenantId provided
+          ...(tenantId ? [{ $match: { tenantId } }] : []),
           {
             $lookup: {
               from: 'student',
@@ -442,7 +482,8 @@ class CascadeJobProcessor extends EventEmitter {
                     $expr: {
                       $and: [
                         { $in: ['$_id', { $ifNull: ['$$refIds', []] }] },
-                        { $eq: ['$isActive', true] }
+                        { $eq: ['$isActive', true] },
+                        ...(tenantId ? [{ $eq: ['$tenantId', tenantId] }] : [])
                       ]
                     }
                   }
@@ -537,9 +578,38 @@ class CascadeJobProcessor extends EventEmitter {
 
   /**
    * Execute integrity validation
+   * If tenantId is provided in job.data, scopes to that tenant.
+   * If not (scheduled system job), runs for all tenants.
    */
   async executeIntegrityValidation(job) {
     const db = getDB();
+    const { tenantId } = job.data || {};
+
+    // If no tenantId, get all tenants and run per-tenant
+    if (!tenantId) {
+      const tenants = await db.collection('tenant').find({ isActive: true }).toArray();
+      const allResults = { totalDocuments: 0, integrityIssues: 0, issuesByType: {}, recommendations: [], tenants: tenants.length };
+      for (const tenant of tenants) {
+        const tenantJob = { ...job, data: { ...job.data, tenantId: tenant._id.toString() } };
+        const result = await this._executeIntegrityValidationForTenant(tenantJob, db);
+        allResults.integrityIssues += result.integrityIssues;
+        allResults.recommendations.push(...result.recommendations);
+        for (const [key, value] of Object.entries(result.issuesByType)) {
+          allResults.issuesByType[`${tenant._id}_${key}`] = value;
+        }
+      }
+      this.metrics.integrityIssuesFound += allResults.integrityIssues;
+      return allResults;
+    }
+
+    return await this._executeIntegrityValidationForTenant(job, db);
+  }
+
+  /**
+   * Execute integrity validation for a single tenant
+   */
+  async _executeIntegrityValidationForTenant(job, db) {
+    const { tenantId } = job.data || {};
     const results = {
       totalDocuments: 0,
       integrityIssues: 0,
@@ -551,7 +621,8 @@ class CascadeJobProcessor extends EventEmitter {
       jobId: job.id,
       step: 'validating',
       percentage: 0,
-      details: 'Starting comprehensive integrity validation'
+      details: `Starting comprehensive integrity validation${tenantId ? ` (tenant: ${tenantId})` : ''}`,
+      tenantId
     });
 
     const validationChecks = [
@@ -566,10 +637,10 @@ class CascadeJobProcessor extends EventEmitter {
 
     for (const check of validationChecks) {
       try {
-        const checkResult = await this.executeIntegrityCheck(check.name, db);
+        const checkResult = await this.executeIntegrityCheck(check.name, db, tenantId);
         results.integrityIssues += checkResult.issuesFound;
         results.issuesByType[check.name] = checkResult;
-        
+
         if (checkResult.recommendations) {
           results.recommendations.push(...checkResult.recommendations);
         }
@@ -579,7 +650,8 @@ class CascadeJobProcessor extends EventEmitter {
           jobId: job.id,
           step: 'validating',
           percentage: totalProgress,
-          details: `Completed ${check.name} validation - ${checkResult.issuesFound} issues found`
+          details: `Completed ${check.name} validation - ${checkResult.issuesFound} issues found`,
+          tenantId
         });
 
       } catch (error) {
@@ -598,7 +670,8 @@ class CascadeJobProcessor extends EventEmitter {
         severity: results.integrityIssues > 100 ? 'high' : 'medium',
         collection: 'system_wide',
         count: results.integrityIssues,
-        fixable: results.recommendations.length > 0
+        fixable: results.recommendations.length > 0,
+        tenantId
       });
     }
 
@@ -607,19 +680,22 @@ class CascadeJobProcessor extends EventEmitter {
 
   /**
    * Execute specific integrity check
+   * @param {string} checkType
+   * @param {object} db
+   * @param {string} [tenantId] - If provided, scope check to this tenant
    */
-  async executeIntegrityCheck(checkType, db) {
+  async executeIntegrityCheck(checkType, db, tenantId) {
     switch (checkType) {
       case 'studentReferences':
-        return await this.validateStudentReferences(db);
+        return await this.validateStudentReferences(db, tenantId);
       case 'scheduleConsistency':
-        return await this.validateScheduleConsistency(db);
+        return await this.validateScheduleConsistency(db, tenantId);
       case 'membershipIntegrity':
-        return await this.validateMembershipIntegrity(db);
+        return await this.validateMembershipIntegrity(db, tenantId);
       case 'auditTrailConsistency':
-        return await this.validateAuditTrailConsistency(db);
+        return await this.validateAuditTrailConsistency(db, tenantId);
       case 'dataArchivalIntegrity':
-        return await this.validateDataArchivalIntegrity(db);
+        return await this.validateDataArchivalIntegrity(db, tenantId);
       default:
         throw new Error(`Unknown integrity check: ${checkType}`);
     }
@@ -627,14 +703,17 @@ class CascadeJobProcessor extends EventEmitter {
 
   /**
    * Validate student references across collections
+   * @param {object} db
+   * @param {string} [tenantId]
    */
-  async validateStudentReferences(db) {
+  async validateStudentReferences(db, tenantId) {
     const issues = [];
     let issuesFound = 0;
+    const tenantFilter = tenantId ? { tenantId } : {};
 
     // Check for students with active teacherAssignments referencing non-existent teachers
     const invalidAssignments = await db.collection('student').aggregate([
-      { $match: { isActive: true, 'teacherAssignments.0': { $exists: true } } },
+      { $match: { isActive: true, 'teacherAssignments.0': { $exists: true }, ...tenantFilter } },
       { $unwind: '$teacherAssignments' },
       { $match: { 'teacherAssignments.isActive': { $ne: false } } },
       {
@@ -647,7 +726,8 @@ class CascadeJobProcessor extends EventEmitter {
                 $expr: {
                   $and: [
                     { $eq: [{ $toString: '$_id' }, '$$teacherId'] },
-                    { $eq: ['$isActive', true] }
+                    { $eq: ['$isActive', true] },
+                    ...(tenantId ? [{ $eq: ['$tenantId', tenantId] }] : [])
                   ]
                 }
               }
@@ -674,12 +754,16 @@ class CascadeJobProcessor extends EventEmitter {
 
   /**
    * Validate schedule consistency
+   * @param {object} db
+   * @param {string} [tenantId]
    */
-  async validateScheduleConsistency(db) {
+  async validateScheduleConsistency(db, tenantId) {
     let issuesFound = 0;
+    const tenantFilter = tenantId ? { tenantId } : {};
 
     // Check for timeBlock lesson conflicts
     const timeBlockConflicts = await db.collection('teacher').aggregate([
+      ...(tenantId ? [{ $match: { tenantId } }] : []),
       { $unwind: { path: '$teaching.timeBlocks', preserveNullAndEmptyArrays: false } },
       { $unwind: { path: '$teaching.timeBlocks.assignedLessons', preserveNullAndEmptyArrays: false } },
       { $match: { 'teaching.timeBlocks.assignedLessons.isActive': { $ne: false } } },
@@ -711,17 +795,31 @@ class CascadeJobProcessor extends EventEmitter {
 
   /**
    * Validate membership integrity
+   * @param {object} db
+   * @param {string} [tenantId]
    */
-  async validateMembershipIntegrity(db) {
+  async validateMembershipIntegrity(db, tenantId) {
     let issuesFound = 0;
 
-    // Check orchestra membership consistency
+    // Check orchestra membership consistency (tenant-scoped)
     const membershipIssues = await db.collection('orchestra').aggregate([
+      ...(tenantId ? [{ $match: { tenantId } }] : []),
       {
         $lookup: {
           from: 'student',
-          localField: 'memberIds',
-          foreignField: '_id',
+          let: { mIds: '$memberIds' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $in: ['$_id', { $ifNull: ['$$mIds', []] }] },
+                    ...(tenantId ? [{ $eq: ['$tenantId', tenantId] }] : [])
+                  ]
+                }
+              }
+            }
+          ],
           as: 'validMembers'
         }
       },
@@ -749,23 +847,36 @@ class CascadeJobProcessor extends EventEmitter {
 
   /**
    * Validate audit trail consistency
+   * @param {object} db
+   * @param {string} [tenantId]
    */
-  async validateAuditTrailConsistency(db) {
+  async validateAuditTrailConsistency(db, tenantId) {
     let issuesFound = 0;
 
-    // Check for audit records without corresponding entity data
+    // Check for audit records without corresponding entity data (tenant-scoped)
     const orphanedAudits = await db.collection('deletion_audit').aggregate([
+      { $match: { entityType: 'student', ...(tenantId ? { tenantId } : {}) } },
       {
         $lookup: {
           from: 'student',
-          localField: 'entityId',
-          foreignField: '_id',
+          let: { eId: '$entityId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$_id', '$$eId'] },
+                    ...(tenantId ? [{ $eq: ['$tenantId', tenantId] }] : [])
+                  ]
+                }
+              }
+            }
+          ],
           as: 'entity'
         }
       },
       {
         $match: {
-          entityType: 'student',
           'entity.0': { $exists: false }
         }
       }
@@ -785,16 +896,20 @@ class CascadeJobProcessor extends EventEmitter {
 
   /**
    * Validate data archival integrity
+   * @param {object} db
+   * @param {string} [tenantId]
    */
-  async validateDataArchivalIntegrity(db) {
+  async validateDataArchivalIntegrity(db, tenantId) {
     let issuesFound = 0;
+    const tenantFilter = tenantId ? { tenantId } : {};
 
-    // Check for archived data that should be active
+    // Check for archived data that should be active (tenant-scoped)
     const incorrectlyArchived = await db.collection('bagrut').countDocuments({
       archived: true,
       archivedReason: 'student_deleted',
+      ...tenantFilter,
       studentId: {
-        $in: await db.collection('student').distinct('_id', { isActive: true })
+        $in: await db.collection('student').distinct('_id', { isActive: true, ...tenantFilter })
       }
     });
 
@@ -850,7 +965,8 @@ class CascadeJobProcessor extends EventEmitter {
       jobId: job.id,
       step: 'starting',
       percentage: 0,
-      details: `Starting batch deletion of ${studentIds.length} students`
+      details: `Starting batch deletion of ${studentIds.length} students`,
+      tenantId
     });
 
     for (let i = 0; i < studentIds.length; i++) {
@@ -863,7 +979,8 @@ class CascadeJobProcessor extends EventEmitter {
           jobId: job.id,
           step: 'processing',
           percentage: progress,
-          details: `Processing student ${i + 1} of ${studentIds.length}`
+          details: `Processing student ${i + 1} of ${studentIds.length}`,
+          tenantId
         });
 
         const result = await cascadeDeletionService.cascadeDeleteStudent(studentId, userId, reason, { tenantId });
@@ -890,7 +1007,8 @@ class CascadeJobProcessor extends EventEmitter {
     this.emit('batch.complete', {
       jobId: job.id,
       summary,
-      timestamp: new Date()
+      timestamp: new Date(),
+      tenantId
     });
 
     return summary;
