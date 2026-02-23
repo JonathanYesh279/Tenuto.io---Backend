@@ -77,6 +77,39 @@ export async function buildContext(req, res, next) {
 }
 
 /**
+ * Middleware that strips client-supplied tenantId from req.body and req.query.
+ * Returns 400 TENANT_MISMATCH if client tenantId differs from server context.
+ * Silently strips matching tenantId (defense-in-depth against spoofing).
+ * Must run AFTER enforceTenant (so req.context.tenantId is guaranteed present).
+ */
+export function stripTenantId(req, res, next) {
+  // Check req.body for client-supplied tenantId
+  if (req.body && typeof req.body === 'object' && 'tenantId' in req.body) {
+    if (req.context?.tenantId && req.body.tenantId !== req.context.tenantId) {
+      log.warn({
+        userId: req.context?.userId,
+        path: req.path,
+        method: req.method,
+        clientTenantId: req.body.tenantId,
+        serverTenantId: req.context.tenantId,
+      }, 'TENANT_MISMATCH: Client-supplied tenantId differs from server context — rejected');
+      return res.status(400).json({
+        error: 'TENANT_MISMATCH',
+        message: 'Client-supplied tenantId differs from server context',
+      });
+    }
+    delete req.body.tenantId;
+  }
+
+  // Also strip tenantId from query params (defense-in-depth)
+  if (req.query && 'tenantId' in req.query) {
+    delete req.query.tenantId;
+  }
+
+  next();
+}
+
+/**
  * Middleware that enforces tenantId presence.
  * Use on routes that MUST be tenant-scoped.
  * Must run AFTER buildContext.

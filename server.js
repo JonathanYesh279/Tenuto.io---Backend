@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import cookieParser from 'cookie-parser';
 import { authenticateToken } from './middleware/auth.middleware.js';
 import { addSchoolYearToRequest } from './middleware/school-year.middleware.js';
-import { buildContext, enforceTenant } from './middleware/tenant.middleware.js';
+import { buildContext, enforceTenant, stripTenantId } from './middleware/tenant.middleware.js';
 import { validateEnvironment } from './config/validateEnv.js';
 import logger from './services/logger.service.js';
 import healthRoutes from './api/health/health.route.js';
@@ -126,9 +126,10 @@ app.get('/api/config', (req, res) => {
 
 // API Routes
 //
-// enforceTenant middleware pattern:
-//   All data-access routes include enforceTenant AFTER buildContext and BEFORE addSchoolYearToRequest.
-//   This rejects requests without tenant context at the route level (defense-in-depth).
+// enforceTenant + stripTenantId middleware pattern:
+//   Chain: authenticateToken -> buildContext -> enforceTenant -> stripTenantId -> addSchoolYearToRequest -> routes
+//   enforceTenant rejects requests without tenant context; stripTenantId strips client-supplied tenantId
+//   from req.body/req.query (returns 400 TENANT_MISMATCH on mismatch, silently strips on match).
 //
 //   EXEMPT from enforceTenant (intentionally):
 //     /api/auth        — public login, no tenant context before authentication
@@ -151,6 +152,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   studentRoutes
 );
@@ -159,6 +161,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   teacherRoutes
 );
@@ -168,6 +171,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   teacherRoutes
 );
@@ -176,6 +180,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   orchestraRoutes
 );
@@ -184,16 +189,18 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   rehearsalRoutes
 );
-app.use('/api/theory', authenticateToken, buildContext, enforceTenant, addSchoolYearToRequest, theoryRoutes);
-app.use('/api/bagrut', authenticateToken, buildContext, enforceTenant, addSchoolYearToRequest, bagrutRoutes);
+app.use('/api/theory', authenticateToken, buildContext, enforceTenant, stripTenantId, addSchoolYearToRequest, theoryRoutes);
+app.use('/api/bagrut', authenticateToken, buildContext, enforceTenant, stripTenantId, addSchoolYearToRequest, bagrutRoutes);
 app.use(
   '/api/school-year',
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   schoolYearRoutes
 );
@@ -202,6 +209,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   scheduleRoutes
 );
@@ -210,6 +218,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   attendanceRoutes
 );
@@ -218,6 +227,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   analyticsRoutes
 );
@@ -257,6 +267,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   hoursSummaryRoutes
 );
@@ -265,6 +276,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   importRoutes
 );
 app.use(
@@ -272,6 +284,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   exportRoutes
 );
@@ -287,6 +300,7 @@ app.use(
   authenticateToken,
   buildContext,
   enforceTenant,
+  stripTenantId,
   addSchoolYearToRequest,
   timeBlockRoutes
 );
