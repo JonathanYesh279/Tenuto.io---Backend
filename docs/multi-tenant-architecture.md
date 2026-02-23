@@ -1,8 +1,8 @@
 # Multi-Tenant Architecture Guide
 
-**Last updated:** 2026-02-14
+**Last updated:** 2026-02-23
 **Status:** Canonical reference for all multi-tenant implementation work
-**Audience:** Developers implementing Phase 2+ query hardening
+**Audience:** Developers working on tenant isolation, route security, and query hardening
 
 ---
 
@@ -180,60 +180,87 @@ app.use('/api/orchestra', authenticateToken, buildContext, enforceTenant, addSch
 
 ### Current Status
 
-`enforceTenant` exists but is NOT applied to any route in `server.js` (see query inventory Finding 5). All authenticated routes have `buildContext` but not `enforceTenant`. This means a teacher without `tenantId` can access routes with `req.context.tenantId === null`, and queries will run without tenant isolation.
+`enforceTenant` is applied to all data-access routes and all admin routes in `server.js` (20 route groups total). Routes exempt from `enforceTenant` are documented in `config/crossTenantAllowlist.js` (6 entries). See Section 6 for details.
 
 ---
 
-## 6. Allowlist Pattern (Phase 4)
+## 6. Cross-Tenant Allowlist (Phase 4 -- Complete)
 
-Cross-tenant operations must be explicitly documented and require special authorization.
+### Overview
 
-### Pattern
+Every route registered in `server.js` is accounted for -- either enforced via `enforceTenant` middleware or documented in `CROSS_TENANT_ALLOWLIST`. Admin routes are tenant-scoped (not cross-tenant). There are no unaccounted routes.
 
-```javascript
-// config/constants.js or dedicated file
-export const CROSS_TENANT_ALLOWLIST = [
-  {
-    route: '/api/auth/login',
-    method: 'POST',
-    reason: 'Login occurs before tenant context is established. Uses tenant selection flow.',
-    requiredRole: null,  // Public
-  },
-  {
-    route: '/api/auth/tenants',
-    method: 'GET',
-    reason: 'Returns available tenants for a given email during login.',
-    requiredRole: null,  // Public
-  },
-  {
-    route: '/api/super-admin/*',
-    method: '*',
-    reason: 'Super admin operates across all tenants by design.',
-    requiredRole: 'super_admin',
-  },
-  {
-    route: '/api/health/*',
-    method: 'GET',
-    reason: 'Health checks are system-level, not tenant-scoped.',
-    requiredRole: null,  // Public
-  },
-  {
-    route: '/api/admin/cascade-deletion/*',
-    method: '*',
-    reason: 'Cascade deletion operates by entity ID under admin authorization.',
-    requiredRole: 'מנהל',
-  },
-];
+### Allowlist Location
+
+**File:** `config/crossTenantAllowlist.js`
+
+The allowlist is a frozen constant (`Object.freeze`). Each entry includes:
+
+| Field | Description |
+|-------|-------------|
+| `route` | Route pattern (supports `*` wildcard) |
+| `method` | HTTP method (`*` for all) |
+| `reason` | Why this route needs cross-tenant access |
+| `requiredRole` | Minimum role required (`null` for public/pre-auth) |
+| `allowCrossTenant` | Always `true` (explicit flag for audit clarity) |
+| `category` | One of AUTH, SUPER_ADMIN, TENANT_MGMT, SYSTEM |
+
+### Categories
+
+| Category | Routes | Description |
+|----------|--------|-------------|
+| AUTH | 1 (`/api/auth/*`) | Public authentication endpoints operating before tenant context is established |
+| SUPER_ADMIN | 1 (`/api/super-admin/*`) | Platform-level super admin endpoints with separate auth path |
+| TENANT_MGMT | 1 (`/api/tenant/*`) | Tenant CRUD operations managing tenant records themselves |
+| SYSTEM | 3 (`/api/health/*`, `/api/files/*`, `/api/config`) | System-level endpoints (health, config, static files) |
+
+**Total:** 6 allowlist entries across 4 categories.
+
+### Route Accountability Model
+
+| Route Type | Enforcement | Count |
+|------------|------------|-------|
+| Data-access routes (student, teacher, orchestra, etc.) | `enforceTenant` + `stripTenantId` | 15 |
+| Admin diagnostic routes (consistency-validation, date-monitoring, past-activities, cascade-deletion, cleanup) | `enforceTenant` + `stripTenantId` (tenant-scoped to admin's own tenant) | 5 |
+| Auth, super-admin, tenant, health, files, config | `CROSS_TENANT_ALLOWLIST` (documented exemptions) | 6 |
+| **Total** | | **26** |
+
+### Validation
+
+Run the validation utility to verify every route is accounted for:
+
+```bash
+node utils/validateAllowlist.js
 ```
 
-### Phase 4 Implementation
+Output on success:
+```
+=== Route Accountability Validation ===
+Total registered routes: 26
+  Enforced (enforceTenant): 20
+  Allowlisted (CROSS_TENANT_ALLOWLIST): 6
+  Unaccounted: 0
 
-Each cross-tenant operation entry should include:
-- `route` and `method` -- exact route pattern
-- `reason` -- why it needs cross-tenant access
-- `requiredRole` -- minimum role required (null for public)
+All routes accounted for. No security gaps detected.
+```
 
-See the enforcement checklist (`docs/tenant-enforcement-checklist.md`) for the complete list of currently exempt operations.
+The utility exits with code 1 if any route is unaccounted for. Integrate into CI to prevent drift.
+
+### Adding New Routes (Developer Checklist)
+
+When adding a new route to `server.js`:
+
+1. **Data route?** Add `enforceTenant` + `stripTenantId` to the middleware chain. Add the prefix to `ENFORCED_ROUTE_PREFIXES` in `utils/validateAllowlist.js`.
+
+2. **Cross-tenant route?** Add an entry to `CROSS_TENANT_ALLOWLIST` in `config/crossTenantAllowlist.js` with a justification. Add the prefix to `ALL_REGISTERED_PREFIXES` in `utils/validateAllowlist.js`.
+
+3. **Either way:** Run `node utils/validateAllowlist.js` to verify zero unaccounted routes before merging.
+
+### Admin Route Decision
+
+Admin routes (cascade deletion, cleanup, consistency validation, date monitoring, past activities) were tenant-scoped in Phase 4 using `enforceTenant`. Tenant admins see only their own tenant's data through their JWT-derived `tenantId`. These routes are NOT in the allowlist -- they are enforced.
+
+The super-admin dashboard (`/api/super-admin/*`) exists separately for cross-tenant operations and uses its own `authenticateSuperAdmin` middleware with a `super_admin` JWT type.
 
 ---
 
