@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Every MongoDB query either includes a tenantId filter or is explicitly allowlisted as cross-tenant. No exceptions.
-**Current focus:** Phase 5 - Error Handling & Cascade Safety -- COMPLETE
+**Current focus:** Phase 6 - Testing & Verification
 
 ## Current Position
 
-Phase: 5 of 9 (Error Handling & Cascade Safety)
-Plan: 4 of 4 in current phase (05-01, 05-02, 05-03, 05-04 complete)
-Status: Phase 5 Complete
-Last activity: 2026-02-24 - Completed 05-04 (Cascade controller/WebSocket/JobProcessor tenant wiring)
+Phase: 6 of 9 (Testing & Verification)
+Plan: 1 of 5 in current phase (06-01 complete)
+Status: Phase 6 In Progress
+Last activity: 2026-02-24 - Completed 06-01 (Test infrastructure scaffold)
 
-Progress: [████████████████████] 90% (phases 1-5 + phase 7-9 hotfixes)
+Progress: [████████████████████] 92% (phases 1-5 + phase 7-9 hotfixes + 06-01)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
+- Total plans completed: 22
 - Average duration: 6 min
-- Total execution time: 2.05 hours
+- Total execution time: 2.13 hours
 
 **By Phase:**
 
@@ -35,10 +35,11 @@ Progress: [████████████████████] 90% (ph
 | 03-write-protection-validation | 1/1 | 4 min | 4 min |
 | 04-super-admin-allowlist | 2/2 | 9 min | 5 min |
 | 05-error-handling-cascade-safety | 4/4 | 27 min | 7 min |
+| 06-testing-verification | 1/5 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (2 min), 05-01 (5 min), 05-02 (3 min), 05-03 (9 min), 05-04 (10 min)
-- Trend: Stable (2-10 min typical)
+- Last 5 plans: 05-01 (5 min), 05-02 (3 min), 05-03 (9 min), 05-04 (10 min), 06-01 (5 min)
+- Trend: Stable (3-10 min typical)
 
 *Updated after each plan completion*
 
@@ -145,6 +146,11 @@ Recent decisions affecting current work:
 - [05-04] Critical system alerts broadcast to ALL tenant admin rooms (system-wide, no specific tenant)
 - [05-04] dryRun as 5th param to cascadeDeleteStudent for preview mode without data modification
 - [05-04] Cascade management routes mounted at /api/cascade with enforceTenant (were previously dead code)
+- [06-01] bcryptjs over bcrypt for test seed fixtures (pure JS, avoids native ELF binary issues on WSL)
+- [06-01] No setupFiles in vitest tenant-isolation config (avoids global mocks that bypass tenant guards)
+- [06-01] patchMongoDBService(db) must be called BEFORE importing any app modules (ESM static import resolution)
+- [06-01] test-app.js mirrors server.js middleware chain exactly (real authenticateToken, buildContext, enforceTenant, stripTenantId, addSchoolYearToRequest)
+- [06-01] git add -f for test-app.js (.gitignore test-*.js targets root throwaway scripts, not test infrastructure)
 
 ### Pending Todos
 
@@ -177,7 +183,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (Phase 5 complete)
-Stopped at: Completed 05-04-PLAN.md (Cascade controller/WebSocket/JobProcessor tenant wiring — Phase 5 final plan)
-Resume file: Next phase (Phase 6 or as directed)
-Resume task: Phase 5 complete — all 4 plans executed successfully
+Last session: 2026-02-24 (Phase 6 in progress)
+Stopped at: Completed 06-01-PLAN.md (Test infrastructure scaffold)
+Resume file: .planning/phases/06-testing-verification/06-02-PLAN.md
+Resume task: Plan 06-01 complete — test infrastructure ready for 06-02 read isolation tests
