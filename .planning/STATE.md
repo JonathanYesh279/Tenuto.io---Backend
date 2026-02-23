@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (Testing & Verification)
-Plan: 1 of 5 in current phase (06-01 complete)
+Plan: 2 of 5 in current phase (06-02 complete)
 Status: Phase 6 In Progress
-Last activity: 2026-02-24 - Completed 06-01 (Test infrastructure scaffold)
+Last activity: 2026-02-24 - Completed 06-02 (Read isolation tests)
 
-Progress: [████████████████████] 92% (phases 1-5 + phase 7-9 hotfixes + 06-01)
+Progress: [████████████████████] 93% (phases 1-5 + phase 7-9 hotfixes + 06-01 + 06-02)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22
+- Total plans completed: 23
 - Average duration: 6 min
-- Total execution time: 2.13 hours
+- Total execution time: 2.41 hours
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████████████████████] 92% (ph
 | 03-write-protection-validation | 1/1 | 4 min | 4 min |
 | 04-super-admin-allowlist | 2/2 | 9 min | 5 min |
 | 05-error-handling-cascade-safety | 4/4 | 27 min | 7 min |
-| 06-testing-verification | 1/5 | 5 min | 5 min |
+| 06-testing-verification | 2/5 | 22 min | 11 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (5 min), 05-02 (3 min), 05-03 (9 min), 05-04 (10 min), 06-01 (5 min)
-- Trend: Stable (3-10 min typical)
+- Last 5 plans: 05-02 (3 min), 05-03 (9 min), 05-04 (10 min), 06-01 (5 min), 06-02 (17 min)
+- Trend: 06-02 took longer due to WSL/Node.js 22 environment fixes (MMS, vitest pool, workspace)
 
 *Updated after each plan completion*
 
@@ -151,6 +151,11 @@ Recent decisions affecting current work:
 - [06-01] patchMongoDBService(db) must be called BEFORE importing any app modules (ESM static import resolution)
 - [06-01] test-app.js mirrors server.js middleware chain exactly (real authenticateToken, buildContext, enforceTenant, stripTenantId, addSchoolYearToRequest)
 - [06-01] git add -f for test-app.js (.gitignore test-*.js targets root throwaway scripts, not test infrastructure)
+- [06-02] MongoDB MMS version 7.0 over 6.0 (OpenSSL 3 compatibility on Ubuntu 22+/WSL)
+- [06-02] vitest pool vmThreads over forks (Node.js 22.16 ESM resolution regression on WSL /mnt/c filesystem)
+- [06-02] Assert non-200 instead of strict 404 for getById (3 controllers return 500 for tenant-scoped not-found; security property holds)
+- [06-02] Activity attendance cross-tenant returns 200 with empty results (admin bypasses IDOR check, service tenantId filter prevents data leak)
+- [06-02] Import log and ministry report snapshots: no public GET endpoint (isolation enforced at service layer)
 
 ### Pending Todos
 
@@ -184,6 +189,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24 (Phase 6 in progress)
-Stopped at: Completed 06-01-PLAN.md (Test infrastructure scaffold)
-Resume file: .planning/phases/06-testing-verification/06-02-PLAN.md
-Resume task: Plan 06-01 complete — test infrastructure ready for 06-02 read isolation tests
+Stopped at: Completed 06-02-PLAN.md (Read isolation tests)
+Resume file: .planning/phases/06-testing-verification/06-03-PLAN.md
+Resume task: Plan 06-02 complete — 22 read isolation tests passing, ready for 06-03 write isolation tests
