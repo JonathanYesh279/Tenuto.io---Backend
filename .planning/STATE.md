@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Every MongoDB query either includes a tenantId filter or is explicitly allowlisted as cross-tenant. No exceptions.
-**Current focus:** Phase 5 - Error Handling & Cascade Safety -- IN PROGRESS
+**Current focus:** Phase 5 - Error Handling & Cascade Safety -- COMPLETE
 
 ## Current Position
 
 Phase: 5 of 9 (Error Handling & Cascade Safety)
-Plan: 3 of 4 in current phase (05-01, 05-02, 05-03 complete)
-Status: Executing Phase 5
-Last activity: 2026-02-24 - Completed 05-03 (Secondary cascade & aggregation tenant scoping)
+Plan: 4 of 4 in current phase (05-01, 05-02, 05-03, 05-04 complete)
+Status: Phase 5 Complete
+Last activity: 2026-02-24 - Completed 05-04 (Cascade controller/WebSocket/JobProcessor tenant wiring)
 
-Progress: [███████████████████░] 85% (phases 1-4 + phase 7-9 hotfixes + 05-01 + 05-02 + 05-03)
+Progress: [████████████████████] 90% (phases 1-5 + phase 7-9 hotfixes)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: 6 min
-- Total execution time: 1.88 hours
+- Total execution time: 2.05 hours
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [███████████████████░] 85% (ph
 | 09-fix-import-teacher-missing-column-mapping-instruments-hours-degrees-certificates-management | 1/1 | 5 min | 5 min |
 | 03-write-protection-validation | 1/1 | 4 min | 4 min |
 | 04-super-admin-allowlist | 2/2 | 9 min | 5 min |
-| 05-error-handling-cascade-safety | 3/4 | 17 min | 6 min |
+| 05-error-handling-cascade-safety | 4/4 | 27 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (7 min), 04-02 (2 min), 05-01 (5 min), 05-02 (3 min), 05-03 (9 min)
-- Trend: Stable (2-9 min typical)
+- Last 5 plans: 04-02 (2 min), 05-01 (5 min), 05-02 (3 min), 05-03 (9 min), 05-04 (10 min)
+- Trend: Stable (2-10 min typical)
 
 *Updated after each plan completion*
 
@@ -138,6 +138,13 @@ Recent decisions affecting current work:
 - [05-03] requireTenantId at every public entry point (22 guards across 4 files)
 - [05-03] $lookup sub-pipelines include $eq tenantId filter to prevent cross-tenant joins in bidirectional consistency checks
 - [05-03] Deletion snapshots and audit logs include tenantId on document for scoped retrieval
+- [05-04] emitToAdmins requires tenantId param; skips broadcast without it (prevents cross-tenant WebSocket leak)
+- [05-04] WebSocket rooms tenant-scoped: admins_{tenantId}, integrity_updates_{tenantId}, job_updates_{tenantId}
+- [05-04] socket.tenantId extracted from JWT during WebSocket auth (no protocol change needed)
+- [05-04] Scheduled jobs (orphan cleanup, integrity validation) iterate all tenants when no tenantId in job data
+- [05-04] Critical system alerts broadcast to ALL tenant admin rooms (system-wide, no specific tenant)
+- [05-04] dryRun as 5th param to cascadeDeleteStudent for preview mode without data modification
+- [05-04] Cascade management routes mounted at /api/cascade with enforceTenant (were previously dead code)
 
 ### Pending Todos
 
@@ -170,7 +177,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (Phase 5 in progress)
-Stopped at: Completed 05-03-PLAN.md (Secondary cascade & aggregation tenant scoping)
-Resume file: .planning/phases/05-error-handling-cascade-safety/05-04-PLAN.md
-Resume task: Execute 05-04 (final error handling plan)
+Last session: 2026-02-24 (Phase 5 complete)
+Stopped at: Completed 05-04-PLAN.md (Cascade controller/WebSocket/JobProcessor tenant wiring — Phase 5 final plan)
+Resume file: Next phase (Phase 6 or as directed)
+Resume task: Phase 5 complete — all 4 plans executed successfully
