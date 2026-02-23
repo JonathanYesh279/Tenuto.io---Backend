@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Service Layer Query Hardening** - Universal tenantId filtering in all services ✓ 2026-02-15
 - [x] **Phase 3: Write Protection & Validation** - Prevent client-supplied tenantId from overriding server context ✓ 2026-02-23
 - [x] **Phase 4: Super-Admin Allowlist** - Explicit cross-tenant operations with authorization ✓ 2026-02-23
-- [ ] **Phase 5: Error Handling & Cascade Safety** - Tenant-scoped errors, safe cascade deletions
+- [x] **Phase 5: Error Handling & Cascade Safety** - Tenant-scoped errors, safe cascade deletions ✓ 2026-02-24
 - [ ] **Phase 6: Testing & Verification** - Automated + manual verification of complete isolation
 
 ## Phase Details
@@ -101,10 +101,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- Error response sanitization (NotFoundError class, error handler, IDOR fix, controller cleanup)
-- [ ] 05-02-PLAN.md -- Cascade deletion tenant hardening: cascadeDeletion.service.js (primary, transaction-based)
-- [ ] 05-03-PLAN.md -- Cascade deletion tenant hardening: cascadeDeletionService.js + aggregation + admin + preview services
-- [ ] 05-04-PLAN.md -- Cascade controllers, job processor, WebSocket tenant isolation, dry-run preview
+- [x] 05-01-PLAN.md -- Error response sanitization (NotFoundError class, error handler, IDOR fix, controller cleanup)
+- [x] 05-02-PLAN.md -- Cascade deletion tenant hardening: cascadeDeletion.service.js (primary, transaction-based)
+- [x] 05-03-PLAN.md -- Cascade deletion tenant hardening: cascadeDeletionService.js + aggregation + admin + preview services
+- [x] 05-04-PLAN.md -- Cascade controllers, job processor, WebSocket tenant isolation, dry-run preview
 
 ### Phase 6: Testing & Verification
 **Goal**: Automated test suite proves cross-tenant isolation works with zero false negatives
@@ -133,7 +133,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Service Layer Query Hardening | 8/8 | ✓ Complete | 2026-02-15 |
 | 3. Write Protection & Validation | 1/1 | ✓ Complete | 2026-02-23 |
 | 4. Super-Admin Allowlist | 2/2 | ✓ Complete | 2026-02-23 |
-| 5. Error Handling & Cascade Safety | 0/4 | Not started | - |
+| 5. Error Handling & Cascade Safety | 4/4 | ✓ Complete | 2026-02-24 |
 | 6. Testing & Verification | 0/TBD | Not started | - |
 | 7. Fix Import Teacher Feature | 1/1 | ✓ Complete | 2026-02-23 |
 | 8. Fix Import Teacher Bugs | 1/1 | ✓ Complete | 2026-02-23 |
@@ -168,4 +168,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-24 (Phase 5 planned)*
+*Last updated: 2026-02-24 (Phase 5 complete)*
