@@ -21,7 +21,10 @@
     "test:cascade:integration": "vitest run --config vitest.config.integration.js test/integration/cascade-deletion.test.js test/integration/data-integrity.test.js",
     "test:cascade:performance": "vitest run --config vitest.config.performance.js test/performance/cascade-operations.test.js",
     "test:coverage:cascade": "vitest run --coverage test/unit/cascadeDeletionService.test.js test/integration/cascade-deletion.test.js test/integration/data-integrity.test.js",
-    "test:phase2": "vitest run --config vitest.config.phase2.js"
+    "test:phase2": "vitest run --config vitest.config.phase2.js",
+    "test:tenant-isolation": "vitest run --config vitest.config.tenant-isolation.js",
+    "test:tenant-isolation:watch": "vitest --config vitest.config.tenant-isolation.js",
+    "test:ci": "npm run test:tenant-isolation && node utils/validateAllowlist.js"
   },
   "author": "Yehonatan Yeshayahu",
   "license": "ISC",

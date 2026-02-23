@@ -60,6 +60,14 @@ const hoursSummaryBId = new ObjectId();
 const attendanceAId = new ObjectId();
 const attendanceBId = new ObjectId();
 
+// Import log
+const importLogAId = new ObjectId();
+const importLogBId = new ObjectId();
+
+// Ministry report snapshots
+const ministrySnapshotAId = new ObjectId();
+const ministrySnapshotBId = new ObjectId();
+
 // ── Password hash (shared, pre-computed for speed) ───────────────────────
 const hashedPassword = bcrypt.hashSync('testpass123', 10);
 
@@ -358,17 +366,68 @@ export const attendanceB = {
   updatedAt: new Date('2025-10-15'),
 };
 
+// ── Import Log ───────────────────────────────────────────────────────────
+export const importLogA = {
+  _id: importLogAId,
+  tenantId: TENANT_A_ID,
+  type: 'teacher',
+  status: 'completed',
+  fileName: 'teachers-raanana.xlsx',
+  importedBy: teacherAId.toString(),
+  recordsTotal: 5,
+  recordsImported: 5,
+  recordsFailed: 0,
+  createdAt: new Date('2025-11-15'),
+  updatedAt: new Date('2025-11-15'),
+};
+
+export const importLogB = {
+  _id: importLogBId,
+  tenantId: TENANT_B_ID,
+  type: 'teacher',
+  status: 'completed',
+  fileName: 'teachers-rishon.xlsx',
+  importedBy: teacherBId.toString(),
+  recordsTotal: 3,
+  recordsImported: 3,
+  recordsFailed: 0,
+  createdAt: new Date('2025-11-15'),
+  updatedAt: new Date('2025-11-15'),
+};
+
+// ── Ministry Report Snapshots ────────────────────────────────────────────
+export const ministrySnapshotA = {
+  _id: ministrySnapshotAId,
+  tenantId: TENANT_A_ID,
+  schoolYearId: schoolYearAId.toString(),
+  generatedBy: teacherAId.toString(),
+  completionPercentage: 85,
+  createdAt: new Date('2025-12-01'),
+  updatedAt: new Date('2025-12-01'),
+};
+
+export const ministrySnapshotB = {
+  _id: ministrySnapshotBId,
+  tenantId: TENANT_B_ID,
+  schoolYearId: schoolYearBId.toString(),
+  generatedBy: teacherBId.toString(),
+  completionPercentage: 72,
+  createdAt: new Date('2025-12-01'),
+  updatedAt: new Date('2025-12-01'),
+};
+
 // ── Seed Function ────────────────────────────────────────────────────────
 
 /**
  * Insert all two-tenant seed data into the given database.
+ * Covers all 11 tenant-scoped collections plus the tenant collection itself.
  * Returns all document references for test assertions.
  *
  * @param {import('mongodb').Db} db - MongoDB database instance
  * @returns {Promise<object>} All seed document references
  */
 export async function seedTwoTenants(db) {
-  // Tenants (if tenant collection exists in scope)
+  // Tenants
   await db.collection('tenant').insertMany([tenantA, tenantB]);
 
   // Teachers
@@ -398,6 +457,12 @@ export async function seedTwoTenants(db) {
   // Activity attendance
   await db.collection('activity_attendance').insertMany([attendanceA, attendanceB]);
 
+  // Import log
+  await db.collection('import_log').insertMany([importLogA, importLogB]);
+
+  // Ministry report snapshots
+  await db.collection('ministry_report_snapshots').insertMany([ministrySnapshotA, ministrySnapshotB]);
+
   return {
     tenantA, tenantB,
     teacherA, teacherB, teacherTeacherA,
@@ -409,5 +474,7 @@ export async function seedTwoTenants(db) {
     bagrutA, bagrutB,
     hoursSummaryA, hoursSummaryB,
     attendanceA, attendanceB,
+    importLogA, importLogB,
+    ministrySnapshotA, ministrySnapshotB,
   };
 }
