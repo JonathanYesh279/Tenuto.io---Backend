@@ -21,6 +21,7 @@ export const pastActivitiesService = {
 async function getPastActivities(filterBy, options = {}) {
   try {
     const { type, teacherId, startDate, endDate, limit, page } = filterBy;
+    const { context } = options;
 
     // Set default end date to yesterday if not provided
     const yesterday = new Date();
@@ -48,9 +49,9 @@ async function getPastActivities(filterBy, options = {}) {
     switch (type) {
       case 'all':
         const [rehearsals, theoryLessons, privateLessons] = await Promise.all([
-          _getPastRehearsals(dateFilter, options),
-          _getPastTheoryLessons(dateFilter, options),
-          teacherId ? _getPastPrivateLessons({ ...dateFilter, teacherId }) : []
+          _getPastRehearsals(dateFilter, { context }),
+          _getPastTheoryLessons(dateFilter, { context }),
+          teacherId ? _getPastPrivateLessons({ ...dateFilter, teacherId }, { context }) : []
         ]);
         
         activities = [
@@ -65,22 +66,22 @@ async function getPastActivities(filterBy, options = {}) {
         break;
         
       case 'rehearsals':
-        const rehearsalData = await _getPastRehearsals(dateFilter, options);
+        const rehearsalData = await _getPastRehearsals(dateFilter, { context });
         activities = rehearsalData.map(item => ({ ...item, activityType: 'rehearsal' }));
         summary.rehearsalsCount = activities.length;
         break;
 
       case 'theory':
-        const theoryData = await _getPastTheoryLessons(dateFilter, options);
+        const theoryData = await _getPastTheoryLessons(dateFilter, { context });
         activities = theoryData.map(item => ({ ...item, activityType: 'theory' }));
         summary.theoryCount = activities.length;
         break;
-        
+
       case 'private-lessons':
         if (!teacherId) {
           throw new Error('teacherId is required for private lessons filtering');
         }
-        const privateLessonData = await _getPastPrivateLessons({ ...dateFilter, teacherId });
+        const privateLessonData = await _getPastPrivateLessons({ ...dateFilter, teacherId }, { context });
         activities = privateLessonData.map(item => ({ ...item, activityType: 'private-lesson' }));
         summary.privateLessonsCount = activities.length;
         break;
@@ -135,6 +136,7 @@ async function getPastActivitiesByType(filterBy, options = {}) {
  */
 async function _getPastRehearsals(dateFilter, options = {}) {
   try {
+    const { context } = options;
     const { startDate, endDate } = dateFilter;
 
     const filterBy = {
@@ -145,7 +147,7 @@ async function _getPastRehearsals(dateFilter, options = {}) {
       filterBy.fromDate = startDate;
     }
 
-    const rehearsals = await rehearsalService.getRehearsals(filterBy, options);
+    const rehearsals = await rehearsalService.getRehearsals(filterBy, { context });
     
     // Filter to only include past dates (before today)
     const today = new Date();
@@ -178,6 +180,7 @@ async function _getPastRehearsals(dateFilter, options = {}) {
  */
 async function _getPastTheoryLessons(dateFilter, options = {}) {
   try {
+    const { context } = options;
     const { startDate, endDate } = dateFilter;
 
     const filterBy = {
@@ -188,7 +191,7 @@ async function _getPastTheoryLessons(dateFilter, options = {}) {
       filterBy.fromDate = startDate;
     }
 
-    const theoryResult = await theoryService.getTheoryLessons(filterBy, { limit: 10000 }, options);
+    const theoryResult = await theoryService.getTheoryLessons(filterBy, { limit: 10000 }, { context });
     const theoryLessons = theoryResult.data || theoryResult;
 
     // Filter to only include past dates (before today)
@@ -221,8 +224,9 @@ async function _getPastTheoryLessons(dateFilter, options = {}) {
  * Get past private lessons for a specific teacher
  * Reads from teaching.timeBlocks.assignedLessons
  */
-async function _getPastPrivateLessons(filterBy) {
+async function _getPastPrivateLessons(filterBy, options = {}) {
   try {
+    const { context } = options;
     const { teacherId, startDate, endDate } = filterBy;
 
     if (!teacherId) {
@@ -232,7 +236,8 @@ async function _getPastPrivateLessons(filterBy) {
     const teacherCollection = await getCollection('teacher');
 
     const teacher = await teacherCollection.findOne({
-      _id: ObjectId.createFromHexString(teacherId)
+      _id: ObjectId.createFromHexString(teacherId),
+      ...(context?.tenantId ? { tenantId: context.tenantId } : {})
     });
 
     if (!teacher || !teacher.teaching?.timeBlocks) {

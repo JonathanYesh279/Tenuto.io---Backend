@@ -131,14 +131,16 @@ app.get('/api/config', (req, res) => {
 //   enforceTenant rejects requests without tenant context; stripTenantId strips client-supplied tenantId
 //   from req.body/req.query (returns 400 TENANT_MISMATCH on mismatch, silently strips on match).
 //
-//   EXEMPT from enforceTenant (intentionally):
+//   EXEMPT from enforceTenant (see config/crossTenantAllowlist.js):
 //     /api/auth        — public login, no tenant context before authentication
 //     /api/tenant      — manages tenant records themselves
 //     /api/super-admin — cross-tenant by design
 //     /api/health      — system-level health check
 //     /api/files       — static file serving
-//     /api/admin/*     — admin tools (5 route groups)
 //     /api/config      — public config endpoint
+//
+//   TENANT-SCOPED (admin uses their own tenantId):
+//     /api/admin/*     — admin diagnostic tools (5 route groups)
 //
 app.use('/api/auth', authRoutes);
 app.use(
@@ -235,30 +237,40 @@ app.use(
   '/api/admin/consistency-validation',
   authenticateToken,
   buildContext,
+  enforceTenant,
+  stripTenantId,
   adminValidationRoutes
 );
 app.use(
   '/api/admin/date-monitoring',
   authenticateToken,
   buildContext,
+  enforceTenant,
+  stripTenantId,
   dateMonitoringRoutes
 );
 app.use(
   '/api/admin/past-activities',
   authenticateToken,
   buildContext,
+  enforceTenant,
+  stripTenantId,
   pastActivitiesRoutes
 );
 app.use(
   '/api/admin',
   authenticateToken,
   buildContext,
+  enforceTenant,
+  stripTenantId,
   cascadeDeletionRoutes
 );
 app.use(
   '/api/admin/cleanup',
   authenticateToken,
   buildContext,
+  enforceTenant,
+  stripTenantId,
   cleanupRoutes
 );
 app.use('/api/files', authenticateToken, buildContext, fileRoutes);
