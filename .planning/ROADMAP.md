@@ -132,7 +132,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 5. Error Handling & Cascade Safety | 0/TBD | Not started | - |
 | 6. Testing & Verification | 0/TBD | Not started | - |
 | 7. Fix Import Teacher Feature | 1/1 | ✓ Complete | 2026-02-23 |
-| 8. Fix Import Teacher Bugs | 0/1 | In progress | - |
+| 8. Fix Import Teacher Bugs | 1/1 | ✓ Complete | 2026-02-23 |
 
 ### Phase 7: Fix Import Teacher Feature - Null Properties After Import
 
@@ -150,8 +150,8 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 08-01-PLAN.md -- Fix backend constants/Joi schema and frontend labels/enums
+- [x] 08-01-PLAN.md -- Fix backend constants/Joi schema and frontend labels/enums
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-23 (Phase 8 planned)*
+*Last updated: 2026-02-23 (Phase 8 complete)*

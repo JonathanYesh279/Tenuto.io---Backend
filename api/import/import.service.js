@@ -906,7 +906,7 @@ function buildImportTeacherDocument(data, tenantId, hashedPassword, adminId) {
       requiresPasswordChange: true,
       passwordSetAt: new Date(),
       invitedAt: new Date(),
-      invitedBy: adminId || null,
+      invitedBy: adminId?.toString() || null,
       invitationMode: 'IMPORT',
     },
     isActive: true,

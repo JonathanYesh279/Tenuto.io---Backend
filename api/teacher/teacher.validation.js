@@ -52,16 +52,16 @@ const scheduleSlotSchema = Joi.object({
 // managementInfo sub-schema (new Ministry fields)
 const managementInfoSchema = Joi.object({
   role: Joi.string().valid(...MANAGEMENT_ROLES).allow(null).default(null),
-  managementHours: Joi.number().min(0).max(50).allow(null).default(null),
-  accompHours: Joi.number().min(0).max(50).allow(null).default(null),
-  ensembleCoordHours: Joi.number().min(0).max(50).allow(null).default(null),
-  travelTimeHours: Joi.number().min(0).max(50).allow(null).default(null),
-  teachingHours: Joi.number().min(0).max(50).allow(null).default(null),      // שעות הוראה
-  ensembleHours: Joi.number().min(0).max(50).allow(null).default(null),       // הרכב ביצוע
-  theoryHours: Joi.number().min(0).max(50).allow(null).default(null),         // תאוריה
-  coordinationHours: Joi.number().min(0).max(50).allow(null).default(null),   // ריכוז
-  breakTimeHours: Joi.number().min(0).max(50).allow(null).default(null),      // ביטול זמן
-  totalWeeklyHours: Joi.number().min(0).max(100).allow(null).default(null),   // סה"כ ש"ש
+  managementHours: Joi.number().min(0).max(100).allow(null).default(null),
+  accompHours: Joi.number().min(0).max(100).allow(null).default(null),
+  ensembleCoordHours: Joi.number().min(0).max(100).allow(null).default(null),
+  travelTimeHours: Joi.number().min(0).max(100).allow(null).default(null),
+  teachingHours: Joi.number().min(0).max(100).allow(null).default(null),      // שעות הוראה
+  ensembleHours: Joi.number().min(0).max(100).allow(null).default(null),       // הרכב ביצוע
+  theoryHours: Joi.number().min(0).max(100).allow(null).default(null),         // תאוריה
+  coordinationHours: Joi.number().min(0).max(100).allow(null).default(null),   // ריכוז
+  breakTimeHours: Joi.number().min(0).max(100).allow(null).default(null),      // ביטול זמן
+  totalWeeklyHours: Joi.number().min(0).max(200).allow(null).default(null),   // סה"כ ש"ש
 }).default({
   role: null,
   managementHours: null,
@@ -212,16 +212,16 @@ const scheduleSlotUpdateSchema = Joi.object({
 // managementInfo update sub-schema
 const managementInfoUpdateSchema = Joi.object({
   role: Joi.string().valid(...MANAGEMENT_ROLES).allow(null),
-  managementHours: Joi.number().min(0).max(50).allow(null),
-  accompHours: Joi.number().min(0).max(50).allow(null),
-  ensembleCoordHours: Joi.number().min(0).max(50).allow(null),
-  travelTimeHours: Joi.number().min(0).max(50).allow(null),
-  teachingHours: Joi.number().min(0).max(50).allow(null),
-  ensembleHours: Joi.number().min(0).max(50).allow(null),
-  theoryHours: Joi.number().min(0).max(50).allow(null),
-  coordinationHours: Joi.number().min(0).max(50).allow(null),
-  breakTimeHours: Joi.number().min(0).max(50).allow(null),
-  totalWeeklyHours: Joi.number().min(0).max(100).allow(null),
+  managementHours: Joi.number().min(0).max(100).allow(null),
+  accompHours: Joi.number().min(0).max(100).allow(null),
+  ensembleCoordHours: Joi.number().min(0).max(100).allow(null),
+  travelTimeHours: Joi.number().min(0).max(100).allow(null),
+  teachingHours: Joi.number().min(0).max(100).allow(null),
+  ensembleHours: Joi.number().min(0).max(100).allow(null),
+  theoryHours: Joi.number().min(0).max(100).allow(null),
+  coordinationHours: Joi.number().min(0).max(100).allow(null),
+  breakTimeHours: Joi.number().min(0).max(100).allow(null),
+  totalWeeklyHours: Joi.number().min(0).max(200).allow(null),
 }).optional();
 
 // Schema for updating existing teachers
