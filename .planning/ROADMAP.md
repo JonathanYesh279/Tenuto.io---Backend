@@ -152,6 +152,15 @@ Plans:
 Plans:
 - [x] 08-01-PLAN.md -- Fix backend constants/Joi schema and frontend labels/enums
 
+### Phase 9: Fix Import Teacher — Missing Column Mapping (instruments, hours, degrees, certificates, management)
+
+**Goal:** Fix seven column-mapping bugs in the Ministry Excel import that cause instruments, hours, degrees, certificates, and management role data to be silently lost during teacher import due to rigid column detection, sub-header overwriting, boolean label collisions, and limited header variants.
+**Depends on:** Phase 8
+**Plans:** 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md -- Fix column detection logic (dynamic instrument threshold, sub-header guard, boolean disambiguation, header variants, diagnostic report)
+
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-23 (Phase 8 complete)*
+*Last updated: 2026-02-23 (Phase 9 planned)*
