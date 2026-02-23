@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Every MongoDB query either includes a tenantId filter or is explicitly allowlisted as cross-tenant. No exceptions.
-**Current focus:** Phase 8 - Fix Import Teacher Bugs (Wrong Labels, Missing Enums, Failed Creation) -- COMPLETE
+**Current focus:** Phase 9 - Fix Import Teacher Missing Column Mapping -- COMPLETE
 
 ## Current Position
 
-Phase: 8 of 8 (Fix Import Teacher Bugs) -- COMPLETE
+Phase: 9 of 9 (Fix Import Teacher Missing Column Mapping) -- COMPLETE
 Plan: 1 of 1 in current phase (all plans complete)
-Status: Phase 8 Complete
-Last activity: 2026-02-23 - Completed 08-01 (fix import teacher bugs: labels, enums, Joi schema)
+Status: Phase 9 Complete
+Last activity: 2026-02-23 - Completed 09-01 (fix import teacher column mapping: instruments, hours, degrees, certificates, management)
 
-Progress: [█████████████░] 62% (phases 1-2 of original roadmap + phase 7-8 hotfixes)
+Progress: [██████████████░] 65% (phases 1-2 of original roadmap + phase 7-9 hotfixes)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: 6 min
-- Total execution time: 1.30 hours
+- Total execution time: 1.38 hours
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [█████████████░] 62% (phases 1-2 of origin
 | 02-service-layer-query-hardening | 8/8 | 48 min | 6 min |
 | 07-fix-import-teacher-feature-null-properties-after-import | 1/1 | 7 min | 7 min |
 | 08-fix-import-teacher-bugs-wrong-labels-missing-enums-failed-creation | 1/1 | 5 min | 5 min |
+| 09-fix-import-teacher-missing-column-mapping-instruments-hours-degrees-certificates-management | 1/1 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-07 (5 min), 02-08 (4 min), 07-01 (7 min), 08-01 (5 min)
+- Last 5 plans: 02-08 (4 min), 07-01 (7 min), 08-01 (5 min), 09-01 (5 min)
 - Trend: Stable (4-7 min typical)
 
 *Updated after each plan completion*
@@ -106,6 +107,11 @@ Recent decisions affecting current work:
 - [08-01] TEACHER_DEGREES expanded to 6 values: תואר שלישי, מוסמך בכיר added (ordered by level descending)
 - [08-01] MANAGEMENT_ROLES expanded to 6 values: ריכוז אחר (פרט), תיאור תפקיד added
 - [08-01] Frontend enums.ts must stay synced with backend config/constants.js enum arrays
+- [09-01] Dynamic instrumentSectionStart replaces hardcoded colIndex < 24 threshold for instrument detection
+- [09-01] KNOWN_NON_INSTRUMENT_HEADERS set prevents hours columns from being treated as instruments
+- [09-01] Sub-header refinement only replaces headers when current header is NOT already mapped to a valid field
+- [09-01] Parent-row context resolves generic "כן-לא" boolean labels to specific fields (certificate vs union)
+- [09-01] parsedHeaders from parseExcelBufferWithHeaderDetection used instead of Object.keys(rows[0])
 
 ### Pending Todos
 
@@ -115,6 +121,7 @@ None yet.
 
 - Phase 7 added: Fix Import Teacher Feature - Null Properties After Import
 - Phase 8 added: Fix Import Teacher Bugs — Wrong Labels, Missing Enums, Failed Creation
+- Phase 9 added: Fix Import Teacher — Missing Column Mapping (instruments, hours, degrees, certificates, management)
 
 ### Blockers/Concerns
 
@@ -137,7 +144,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-23 (Phase 8 COMPLETE)
-Stopped at: Completed 08-01-PLAN.md (Fix Import Teacher Bugs -- only plan in Phase 8)
+Last session: 2026-02-23 (Phase 9 COMPLETE)
+Stopped at: Completed 09-01-PLAN.md (Fix Import Teacher Missing Column Mapping -- only plan in Phase 9)
 Resume file: .planning/phases/03-middleware-route-hardening/ (Phase 3 plans)
 Resume task: Begin Phase 3 planning/execution (original roadmap) or continue with additional hotfixes
