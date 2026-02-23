@@ -43,6 +43,7 @@ const TEACHER_COLUMN_MAP = {
   'ת.ז.': 'idNumber',
   'ת.ז': 'idNumber',
   'תעודת זהות': 'idNumber',
+  'זהות': 'idNumber',                       // Short form in multi-row merged headers
   'כולל ס.ב. ללא מקף (-)': 'idNumber',  // Ministry file variant
   'שנת לידה': 'birthYear',
   'לידה': 'birthYear',                      // Ministry file — merged header fragment
@@ -73,6 +74,7 @@ const TEACHER_COLUMN_MAP = {
   'שעות הוראה': 'teachingHours',
   'ליווי פסנתר': 'accompHours',
   'הרכב ביצוע': 'ensembleHours',
+  'להרכב ביצוע': 'ensembleHours',         // Multi-row header composite with "ל" prefix
   'ריכוז הרכב': 'ensembleCoordHours',
   'תאוריה': 'theoryHours',
   'תיאוריה': 'theoryHours',   // Ministry spelling variant (with yod)
@@ -82,7 +84,7 @@ const TEACHER_COLUMN_MAP = {
   'סה"כ ש"ש': 'totalWeeklyHours',
   "סה''כ ש''ש": 'totalWeeklyHours',
   // Short header fragments from Ministry multi-row merged headers (row 11 bottom fragments)
-  'שבועיות': 'theoryHours',            // Fragment of "שעורי תאוריה סך שעות שבועיות"
+  'שבועיות': 'totalWeeklyHours',         // Fragment of "סה"כ שעות שבועיות" — total weekly hours
   'זמן': 'breakTimeHours',              // Fragment of "ביטול זמן"
   'שעות': 'totalWeeklyHours',           // Fragment of "סה"כ ש"ש" — but note: "שעות" is generic, only use when no better match
   // Management role
@@ -333,7 +335,28 @@ async function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
     }
   }
 
-  // Second pass: Composite header construction and disambiguation for duplicates
+  // Second pass (instrument-specific): Scan parent rows for instrument abbreviations.
+  // Ministry files often have instrument abbreviations (Vi, FL, PI, etc.) in a parent row
+  // while the bottom header row has a different value. If the header at column c does NOT
+  // already map to a known column in TEACHER_COLUMN_MAP, replace it with the parent-row
+  // instrument abbreviation. This ensures instruments are detected even with multi-row headers.
+  for (let c = 0; c < headers.length; c++) {
+    // Skip if this header already maps to a known field (e.g., hours, name, etc.)
+    if (headers[c] && columnMap[headers[c]]) continue;
+    // Scan parent rows for instrument abbreviations/department names
+    for (let r = headerRowIndex - 1; r >= 0; r--) {
+      const parentRow = allTextRows[r];
+      if (parentRow && parentRow[c]) {
+        const parentText = parentRow[c].replace(/[\u200F\u200E\uFEFF\u200B]/g, '').trim();
+        if (parentText && (ABBREVIATION_TO_INSTRUMENT[parentText] || DEPARTMENT_TO_INSTRUMENTS[parentText])) {
+          headers[c] = parentText;
+          break;
+        }
+      }
+    }
+  }
+
+  // Third pass: Composite header construction and disambiguation for duplicates
   // (a) Resolving duplicate headers using parent row disambiguation
   // (b) Constructing known composite headers for short fragments
 
@@ -397,12 +420,112 @@ async function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
     }
   }
 
-  // Build data rows as objects (keyed by header name) starting after header row
+  // --- Sub-header detection and refinement ---
+  // Ministry files often have multi-row headers with 2+ rows of sub-headers:
+  //   Row N:   parent categories (e.g., "פרטי משפחה", "הוראה", ...)
+  //   Row N+1: sub-categories (e.g., "פרטי", "משפחה", "כן-לא", ...)
+  //   Row N+2: more sub-labels (e.g., "מס' שנים", ...)
+  // Loop through consecutive rows after the header, refining column names each time.
+  let dataStartRow = headerRowIndex + 1;
+
+  // Known sub-header keywords that are NOT real teacher data
+  const SUB_HEADER_KEYWORDS = new Set([
+    'כן-לא', 'כן / לא', 'מס\' שנים', 'שנים', 'פרטי', 'משפחה',
+    'פרטי משפחה', 'נייד', 'דוא"ל', 'כתובת', 'הוראה', 'ביצוע',
+    'תיאוריה', 'ריכוז', 'ביטול זמן', 'שבועיות', 'סה"כ',
+  ]);
+
+  for (let subRowIdx = headerRowIndex + 1; subRowIdx < allTextRows.length; subRowIdx++) {
+    const nextRow = allTextRows[subRowIdx];
+    if (!nextRow) break;
+
+    let subMatches = 0;
+    let subKeywordMatches = 0;
+    let subNonEmpty = 0;
+    for (const text of nextRow) {
+      if (text && text.trim()) {
+        subNonEmpty++;
+        const cleaned = text.trim().replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
+        if (columnMap[cleaned]) subMatches++;
+        if (SUB_HEADER_KEYWORDS.has(cleaned)) subKeywordMatches++;
+      }
+    }
+
+    // Row is a sub-header if it has known column map matches OR known sub-header keywords
+    const totalHeaderLike = subMatches + subKeywordMatches;
+    const isSubHeader = subNonEmpty > 3 && (totalHeaderLike / subNonEmpty > 0.25);
+    if (!isSubHeader) break; // First non-sub-header row = data starts here
+
+    // Refine headers using sub-header values (more specific than parent category)
+    for (let c = 0; c < headers.length; c++) {
+      const subText = (nextRow[c] || '').trim().replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
+      if (!subText) continue;
+
+      // Disambiguate generic "כן-לא" / "כן / לא" boolean labels using parent-row context.
+      // Ministry files use this label for BOTH teaching certificate and union membership columns.
+      // Check parent rows to determine which boolean field this column represents.
+      if (subText === 'כן-לא' || subText === 'כן / לא') {
+        for (let r = headerRowIndex - 1; r >= Math.max(0, headerRowIndex - 3); r--) {
+          const parentRow = allTextRows[r];
+          if (parentRow?.[c]) {
+            const parentText = parentRow[c].replace(/[\u200F\u200E\uFEFF\u200B]/g, '').trim();
+            if (parentText.includes('תעודת הוראה') || parentText.includes('תעודה')) {
+              headers[c] = 'תעודת הוראה';
+              break;
+            } else if (parentText.includes('ארגון') || parentText.includes('חבר')) {
+              headers[c] = 'חבר ארגון';
+              break;
+            }
+          }
+        }
+        continue; // Skip the generic columnMap lookup for "כן-לא"
+      }
+
+      // Direct match: sub-header value is a known column name
+      // Guard: only replace if current header does NOT already map to a valid field.
+      // This prevents overwriting correct headers like "סיווג" or "תואר" with
+      // generic sub-header fragments.
+      if (columnMap[subText]) {
+        if (!columnMap[headers[c]]) {
+          headers[c] = subText;
+        }
+        continue;
+      }
+
+      // Composite: parent + " " + sub (e.g., "ליווי" + "פסנתר" = "ליווי פסנתר")
+      if (headers[c]) {
+        const composite = `${headers[c]} ${subText}`;
+        if (columnMap[composite]) {
+          headers[c] = composite;
+          continue;
+        }
+        // Reversed composite
+        const reversed = `${subText} ${headers[c]}`;
+        if (columnMap[reversed]) {
+          headers[c] = reversed;
+          continue;
+        }
+        // Try stripping Hebrew "ל" prefix from parent (e.g., "להרכב" → "הרכב")
+        if (headers[c].startsWith('ל') && headers[c].length > 2) {
+          const stripped = headers[c].slice(1);
+          const strippedComposite = `${stripped} ${subText}`;
+          if (columnMap[strippedComposite]) {
+            headers[c] = strippedComposite;
+            continue;
+          }
+        }
+      }
+    }
+
+    dataStartRow = subRowIdx + 1; // skip this sub-header row
+  }
+
+  // Build data rows as objects (keyed by header name) starting after header + sub-header rows
   // ALSO build parallel array of cell-row arrays for style access
   const rows = [];
   const cellRows = [];   // parallel array — cellRows[i] corresponds to rows[i]
 
-  for (let i = headerRowIndex + 1; i < allTextRows.length; i++) {
+  for (let i = dataStartRow; i < allTextRows.length; i++) {
     const textRow = allTextRows[i];
     const cellRow = allCellRows[i];
     const obj = {};
@@ -428,7 +551,7 @@ async function parseExcelBufferWithHeaderDetection(buffer, columnMap) {
     if (headers[c]) headerColMap[headers[c]] = c;
   }
 
-  return { rows, cellRows, headerColMap, headerRowIndex, matchedColumns, sheetNames };
+  return { rows, cellRows, headerColMap, headerRowIndex: dataStartRow - 1, matchedColumns, sheetNames };
 }
 
 function mapColumns(row, columnMap, headerColMap) {
@@ -450,19 +573,47 @@ function mapColumns(row, columnMap, headerColMap) {
   return mapped;
 }
 
+// Headers that map to hours/data fields but share names with instruments or departments.
+// These must NOT be treated as instrument columns when they appear before the instrument section.
+const KNOWN_NON_INSTRUMENT_HEADERS = new Set([
+  'הוראה', 'ליווי פסנתר', 'הרכב ביצוע', 'להרכב ביצוע', 'ריכוז הרכב',
+  'תאוריה', 'תיאוריה', 'ניהול', 'ריכוז', 'ביטול זמן',
+  'סה"כ ש"ש', "סה''כ ש''ש", 'שבועיות', 'זמן', 'שעות',
+]);
+
 function detectInstrumentColumns(headers, headerColMap) {
   const instrumentColumns = [];
+
+  // First pass: find the EARLIEST column index where a header matches an instrument
+  // abbreviation or department name. This replaces the hardcoded colIndex < 24 threshold.
+  let instrumentSectionStart = Infinity;
   for (const header of headers) {
     const trimmed = header.trim();
-
-    // If headerColMap is available, only look for instruments in columns >= 24
-    // (C25+ is the instrument abbreviation section in Ministry files)
-    if (headerColMap) {
-      const colIndex = headerColMap[trimmed];
-      if (colIndex !== undefined && colIndex < 24) {
-        continue; // Not in instrument section — skip (e.g., "פסנתר" at C15 is accomp hours)
+    if (KNOWN_NON_INSTRUMENT_HEADERS.has(trimmed)) continue; // Skip hours headers
+    if (ABBREVIATION_TO_INSTRUMENT[trimmed] || DEPARTMENT_TO_INSTRUMENTS[trimmed]) {
+      const colIndex = headerColMap?.[trimmed];
+      if (colIndex !== undefined && colIndex < instrumentSectionStart) {
+        instrumentSectionStart = colIndex;
       }
     }
+  }
+
+  // If no instruments found at all, return empty
+  if (instrumentSectionStart === Infinity) return instrumentColumns;
+
+  // Second pass: collect all instrument columns at or after instrumentSectionStart.
+  // Skip known hours/data headers that appear BEFORE the instrument section.
+  for (const header of headers) {
+    const trimmed = header.trim();
+    const colIndex = headerColMap?.[trimmed];
+
+    // If a header is in KNOWN_NON_INSTRUMENT_HEADERS and appears BEFORE the instrument
+    // section, it's a hours/data column, not an instrument. If it appears AT or AFTER
+    // the section start, it could be a role column — still skip for instrument detection.
+    if (KNOWN_NON_INSTRUMENT_HEADERS.has(trimmed)) continue;
+
+    // Only consider columns at or after the instrument section start
+    if (colIndex !== undefined && colIndex < instrumentSectionStart) continue;
 
     if (ABBREVIATION_TO_INSTRUMENT[trimmed]) {
       instrumentColumns.push({
@@ -963,13 +1114,30 @@ async function previewTeacherImport(buffer, options = {}) {
     matchedColumns,
   };
 
+  // Known header keywords that should never appear as teacher names
+  const HEADER_NAME_KEYWORDS = new Set([
+    'פרטי', 'משפחה', 'פרטי משפחה', 'שם', 'שם פרטי', 'שם משפחה',
+    'הוראה', 'ביצוע', 'תיאוריה', 'ריכוז', 'מורה', 'מנהל',
+    'סה"כ', 'שבועיות', 'ביטול זמן', 'כן-לא', 'כן / לא',
+  ]);
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const mapped = mapColumns(row, TEACHER_COLUMN_MAP, headerColMap);
+
+    // Safety: skip rows where firstName/lastName match known header keywords (leaked sub-headers)
+    const fn = (mapped.firstName || '').trim();
+    const ln = (mapped.lastName || '').trim();
+    if (HEADER_NAME_KEYWORDS.has(fn) || HEADER_NAME_KEYWORDS.has(ln) ||
+        HEADER_NAME_KEYWORDS.has(`${fn} ${ln}`)) {
+      continue;
+    }
+
     const { instruments, departmentHint } = readInstrumentMatrix(row, instrumentColumns, cellRows[i], headerColMap);
     const roles = readRoleMatrix(row, roleColumns, cellRows[i], headerColMap);
     const teachingHours = parseTeachingHours(mapped);
-    const { errors, warnings } = validateTeacherRow(mapped, i + 2); // +2 for 1-indexed + header row
+    const excelRow = headerRowIndex + 2 + i; // +2: 1-indexed + data starts after header
+    const { errors, warnings } = validateTeacherRow(mapped, excelRow);
 
     if (errors.length > 0) {
       preview.errors.push(...errors);
@@ -981,7 +1149,7 @@ async function previewTeacherImport(buffer, options = {}) {
     if (match) {
       const changes = calculateTeacherChanges(match.teacher, mapped, instruments, roles, teachingHours);
       preview.matched.push({
-        row: i + 2,
+        row: excelRow,
         matchType: match.matchType,
         teacherId: match.teacher._id.toString(),
         teacherName: `${match.teacher.personalInfo?.firstName || ''} ${match.teacher.personalInfo?.lastName || ''}`.trim(),
@@ -994,7 +1162,7 @@ async function previewTeacherImport(buffer, options = {}) {
       });
     } else {
       preview.notFound.push({
-        row: i + 2,
+        row: excelRow,
         importedName: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim(),
         mapped,
         instruments,
