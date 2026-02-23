@@ -53,3 +53,16 @@ export function canAccessOwnResource(ownerId, context) {
   if (context.isAdmin) return true;
   return context.userId === ownerId;
 }
+
+/**
+ * Custom error class for not-found resources.
+ * The resourceType parameter is for SERVER-SIDE logging only.
+ * The error handler must always return a generic message to clients.
+ */
+export class NotFoundError extends Error {
+  constructor(resourceType = 'Resource') {
+    super(`${resourceType} not found`);
+    this.name = 'NotFoundError';
+    this.statusCode = 404;
+  }
+}

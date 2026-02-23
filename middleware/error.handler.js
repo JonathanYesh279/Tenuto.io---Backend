@@ -95,7 +95,7 @@ export function errorHandler(err, req, res, next) {
     case 'NotFoundError':
       return res.status(404).json({
         error: 'Not Found',
-        message: err.message
+        message: 'The requested resource was not found'
       })
       
     default:
@@ -103,7 +103,7 @@ export function errorHandler(err, req, res, next) {
       if (err.statusCode === 404) {
         return res.status(404).json({
           error: 'Not Found',
-          message: err.message
+          message: 'The requested resource was not found'
         })
       }
       
@@ -131,7 +131,7 @@ export function errorHandler(err, req, res, next) {
       // Default error response
       return res.status(500).json({
         error: 'Internal Server Error',
-        message: err.message
+        message: 'An unexpected error occurred'
       })
   }
 }
