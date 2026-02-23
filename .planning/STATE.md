@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Every MongoDB query either includes a tenantId filter or is explicitly allowlisted as cross-tenant. No exceptions.
-**Current focus:** Phase 2 - Service Layer Query Hardening
+**Current focus:** Phase 7 - Fix Import Teacher Feature (Null Properties After Import) -- COMPLETE
 
 ## Current Position
 
-Phase: 2 of 6 (Service Layer Query Hardening) -- COMPLETE
-Plan: 8 of 8 in current phase (all plans complete)
-Status: Phase 2 Complete -- Ready for Phase 3
-Last activity: 2026-02-15 - Completed 02-08 (shared services hardening)
+Phase: 7 of 7 (Fix Import Teacher Feature) -- COMPLETE
+Plan: 1 of 1 in current phase (all plans complete)
+Status: Phase 7 Complete
+Last activity: 2026-02-23 - Completed 07-01 (fix import teacher null properties)
 
-Progress: [████████████░] 58%
+Progress: [████████████░] 58% (phases 1-2 of original roadmap + phase 7 hotfix)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 6 min
-- Total execution time: 1.09 hours
+- Total execution time: 1.21 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [████████████░] 58%
 |-------|-------|-------|----------|
 | 01-audit-infrastructure | 3/3 | 17 min | 6 min |
 | 02-service-layer-query-hardening | 8/8 | 48 min | 6 min |
+| 07-fix-import-teacher-feature-null-properties-after-import | 1/1 | 7 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-04 (6 min), 02-05 (12 min), 02-06 (7 min), 02-07 (5 min), 02-08 (4 min)
-- Trend: Stable (4-7 min typical, outliers for complex services)
+- Last 5 plans: 02-06 (7 min), 02-07 (5 min), 02-08 (4 min), 07-01 (7 min)
+- Trend: Stable (4-7 min typical)
 
 *Updated after each plan completion*
 
@@ -96,10 +97,18 @@ Recent decisions affecting current work:
 - [02-08] conflictDetectionService requireTenantId at leaf query methods (checkRoomConflicts/checkTeacherConflicts)
 - [02-08] permissionService getFilteredData scopes admin queries by tenantId (admin sees own tenant only)
 - [02-08] enhancedAuth.middleware.js updated despite being deprecated (defense-in-depth)
+- [07-01] Separate teacherImportSchema instead of modifying main teacherSchema (relaxes phone/email/address for import)
+- [07-01] Store normalized data in preview notFound entries to prevent MongoDB undefined-key stripping
+- [07-01] Validate import documents through Joi before insertion for defaults and malformed data catching
+- [07-01] Repair utility queries by credentials.invitationMode: IMPORT to find affected teachers
 
 ### Pending Todos
 
 None yet.
+
+### Roadmap Evolution
+
+- Phase 7 added: Fix Import Teacher Feature - Null Properties After Import
 
 ### Blockers/Concerns
 
@@ -122,7 +131,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15 (Phase 2 COMPLETE)
-Stopped at: Completed 02-08-PLAN.md (Shared Services Hardening -- final plan in Phase 2)
+Last session: 2026-02-23 (Phase 7 COMPLETE)
+Stopped at: Completed 07-01-PLAN.md (Fix Import Teacher Null Properties -- only plan in Phase 7)
 Resume file: .planning/phases/03-middleware-route-hardening/ (Phase 3 plans)
-Resume task: Begin Phase 3 planning/execution
+Resume task: Begin Phase 3 planning/execution (original roadmap) or continue with additional hotfixes
