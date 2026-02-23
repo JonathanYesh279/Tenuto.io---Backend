@@ -21,12 +21,14 @@ export const cascadeManagementController = {
       const { studentId } = req.params;
       const { reason, priority = 'high' } = req.body;
       const userId = req.user.id;
+      const tenantId = req.context?.tenantId;
 
-      // Validate student exists
+      // Validate student exists (tenant-scoped)
       const db = getDB();
       const student = await db.collection('student').findOne({
         _id: new ObjectId(studentId),
-        isActive: true
+        isActive: true,
+        tenantId
       });
 
       if (!student) {
@@ -46,15 +48,16 @@ export const cascadeManagementController = {
         });
       }
 
-      // Queue the deletion job
+      // Queue the deletion job (pass tenantId for tenant-scoped cascade)
       const jobId = cascadeJobProcessor.addJob('cascadeDeletion', {
         studentId,
         userId,
-        reason: reason || 'API deletion request'
+        reason: reason || 'API deletion request',
+        tenantId
       }, priority);
 
       // Emit warning about deletion impact
-      const impactAnalysis = await this.analyzeDeletionImpact(studentId);
+      const impactAnalysis = await this.analyzeDeletionImpact(studentId, tenantId);
       cascadeWebSocketService.emitDeletionWarning({
         studentId,
         impact: impactAnalysis,
@@ -89,6 +92,7 @@ export const cascadeManagementController = {
     try {
       const { studentIds, reason, priority = 'medium' } = req.body;
       const userId = req.user.id;
+      const tenantId = req.context?.tenantId;
 
       if (!Array.isArray(studentIds) || studentIds.length === 0) {
         return res.status(400).json({
@@ -102,11 +106,12 @@ export const cascadeManagementController = {
         });
       }
 
-      // Validate all students exist
+      // Validate all students exist (tenant-scoped)
       const db = getDB();
       const validStudents = await db.collection('student').find({
         _id: { $in: studentIds.map(id => new ObjectId(id)) },
-        isActive: true
+        isActive: true,
+        tenantId
       }).toArray();
 
       const invalidStudents = studentIds.filter(id => 
@@ -121,15 +126,16 @@ export const cascadeManagementController = {
         });
       }
 
-      // Queue the batch deletion job
+      // Queue the batch deletion job (pass tenantId for tenant-scoped cascade)
       const jobId = cascadeJobProcessor.addJob('batchCascadeDeletion', {
         studentIds,
         userId,
-        reason: reason || 'Batch API deletion request'
+        reason: reason || 'Batch API deletion request',
+        tenantId
       }, priority);
 
       // Analyze combined impact
-      const batchImpact = await this.analyzeBatchDeletionImpact(studentIds);
+      const batchImpact = await this.analyzeBatchDeletionImpact(studentIds, tenantId);
 
       res.status(202).json({
         success: true,
@@ -319,7 +325,7 @@ export const cascadeManagementController = {
       const { studentId } = req.params;
       const { limit = 10, offset = 0 } = req.query;
 
-      const auditHistory = await cascadeDeletionService.getStudentDeletionAuditHistory(studentId);
+      const auditHistory = await cascadeDeletionService.getStudentDeletionAuditHistory(studentId, req.context);
       
       const paginatedHistory = auditHistory
         .slice(offset, offset + limit)
@@ -380,7 +386,7 @@ export const cascadeManagementController = {
         });
       }
 
-      const result = await cascadeDeletionService.restoreStudent(studentId, userId, auditId);
+      const result = await cascadeDeletionService.restoreStudent(studentId, userId, auditId, req.context);
 
       res.json({
         success: true,
@@ -466,9 +472,9 @@ export const cascadeManagementController = {
   /**
    * Helper: Analyze deletion impact
    */
-  async analyzeDeletionImpact(studentId) {
+  async analyzeDeletionImpact(studentId, tenantId) {
     try {
-      const snapshot = await cascadeDeletionService.createStudentSnapshot(new ObjectId(studentId));
+      const snapshot = await cascadeDeletionService.createStudentSnapshot(new ObjectId(studentId), null, tenantId);
       
       const impact = {
         affectedCollections: [],
@@ -531,10 +537,10 @@ export const cascadeManagementController = {
   /**
    * Helper: Analyze batch deletion impact
    */
-  async analyzeBatchDeletionImpact(studentIds) {
+  async analyzeBatchDeletionImpact(studentIds, tenantId) {
     try {
       const impacts = await Promise.all(
-        studentIds.map(id => this.analyzeDeletionImpact(id))
+        studentIds.map(id => this.analyzeDeletionImpact(id, tenantId))
       );
 
       const combinedImpact = {

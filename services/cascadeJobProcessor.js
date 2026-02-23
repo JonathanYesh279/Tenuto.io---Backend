@@ -260,8 +260,8 @@ class CascadeJobProcessor extends EventEmitter {
    * Execute cascade deletion job
    */
   async executeCascadeDeletion(job) {
-    const { studentId, userId, reason } = job.data;
-    
+    const { studentId, userId, reason, tenantId } = job.data;
+
     this.emit('cascade.progress', {
       studentId,
       jobId: job.id,
@@ -271,7 +271,7 @@ class CascadeJobProcessor extends EventEmitter {
     });
 
     try {
-      const result = await cascadeDeletionService.cascadeDeleteStudent(studentId, userId, reason);
+      const result = await cascadeDeletionService.cascadeDeleteStudent(studentId, userId, reason, { tenantId });
 
       this.emit('cascade.progress', {
         studentId,
@@ -842,7 +842,7 @@ class CascadeJobProcessor extends EventEmitter {
    * Execute batch cascade deletion
    */
   async executeBatchCascadeDeletion(job) {
-    const { studentIds, userId, reason } = job.data;
+    const { studentIds, userId, reason, tenantId } = job.data;
     const results = [];
     const errors = [];
 
@@ -866,7 +866,7 @@ class CascadeJobProcessor extends EventEmitter {
           details: `Processing student ${i + 1} of ${studentIds.length}`
         });
 
-        const result = await cascadeDeletionService.cascadeDeleteStudent(studentId, userId, reason);
+        const result = await cascadeDeletionService.cascadeDeleteStudent(studentId, userId, reason, { tenantId });
         results.push(result);
 
       } catch (error) {
