@@ -5,6 +5,7 @@
 
 import { getDB } from './mongoDB.service.js';
 import { ObjectId } from 'mongodb';
+import { requireTenantId } from '../middleware/tenant.middleware.js';
 
 export const cascadeDeletionAggregationService = {
   
@@ -12,22 +13,23 @@ export const cascadeDeletionAggregationService = {
    * Find all orphaned student references across collections
    * Returns students referenced in other collections but missing from student collection
    */
-  async findOrphanedStudentReferences() {
+  async findOrphanedStudentReferences(tenantId) {
+    requireTenantId(tenantId);
     const db = getDB();
-    
+
     try {
       // Get all active student IDs for reference
       const activeStudents = await db.collection('student').aggregate([
-        { $match: { isActive: true } },
+        { $match: { isActive: true, tenantId } },
         { $project: { _id: 1 } },
         { $group: { _id: null, activeStudentIds: { $push: '$_id' } } }
       ]).toArray();
-      
+
       const activeStudentIds = activeStudents[0]?.activeStudentIds || [];
-      
+
       // Find orphaned student references in teacher timeBlock lessons
       const teacherOrphans = await db.collection('teacher').aggregate([
-        { $match: { isActive: true } },
+        { $match: { isActive: true, tenantId } },
         { $unwind: { path: '$teaching.timeBlocks', preserveNullAndEmptyArrays: false } },
         { $unwind: { path: '$teaching.timeBlocks.assignedLessons', preserveNullAndEmptyArrays: false } },
         { $match: { 'teaching.timeBlocks.assignedLessons.isActive': { $ne: false } } },
@@ -55,7 +57,7 @@ export const cascadeDeletionAggregationService = {
 
       // Find orphaned references in orchestra collection
       const orchestraOrphans = await db.collection('orchestra').aggregate([
-        { $match: { isActive: true } },
+        { $match: { isActive: true, tenantId } },
         { $unwind: '$memberIds' },
         { 
           $match: { 
@@ -81,6 +83,7 @@ export const cascadeDeletionAggregationService = {
 
       // Find orphaned references in rehearsal attendance
       const rehearsalOrphans = await db.collection('rehearsal').aggregate([
+        { $match: { tenantId } },
         { $unwind: '$attendance' },
         { 
           $match: { 
@@ -106,6 +109,7 @@ export const cascadeDeletionAggregationService = {
 
       // Find orphaned references in theory lessons
       const theoryOrphans = await db.collection('theory_lesson').aggregate([
+        { $match: { tenantId } },
         { $unwind: '$studentIds' },
         { 
           $match: { 
@@ -131,7 +135,7 @@ export const cascadeDeletionAggregationService = {
 
       // Find orphaned references in bagrut collection
       const bagrutOrphans = await db.collection('bagrut').aggregate([
-        { $match: { isActive: true } },
+        { $match: { isActive: true, tenantId } },
         { 
           $match: { 
             studentId: { $nin: activeStudentIds }
@@ -149,10 +153,11 @@ export const cascadeDeletionAggregationService = {
 
       // Find orphaned references in activity attendance
       const attendanceOrphans = await db.collection('activity_attendance').aggregate([
-        { 
-          $match: { 
-            studentId: { $nin: activeStudentIds }
-          } 
+        {
+          $match: {
+            studentId: { $nin: activeStudentIds },
+            tenantId
+          }
         },
         {
           $group: {
@@ -209,14 +214,15 @@ export const cascadeDeletionAggregationService = {
    * Detect bidirectional reference inconsistencies
    * Finds cases where relationships are not properly maintained in both directions
    */
-  async detectBidirectionalInconsistencies() {
+  async detectBidirectionalInconsistencies(tenantId) {
+    requireTenantId(tenantId);
     const db = getDB();
-    
+
     try {
       // Student-Teacher assignment inconsistencies:
       // Find active teacherAssignments referencing non-existent or inactive teachers
       const studentTeacherInconsistencies = await db.collection('student').aggregate([
-        { $match: { isActive: true, 'teacherAssignments.0': { $exists: true } } },
+        { $match: { isActive: true, 'teacherAssignments.0': { $exists: true }, tenantId } },
         { $unwind: '$teacherAssignments' },
         { $match: { 'teacherAssignments.isActive': { $ne: false } } },
         {
@@ -229,7 +235,8 @@ export const cascadeDeletionAggregationService = {
                   $expr: {
                     $and: [
                       { $eq: [{ $toString: '$_id' }, '$$teacherId'] },
-                      { $eq: ['$isActive', true] }
+                      { $eq: ['$isActive', true] },
+                      { $eq: ['$tenantId', tenantId] }
                     ]
                   }
                 }
@@ -252,7 +259,7 @@ export const cascadeDeletionAggregationService = {
       // Teacher-Student assignment inconsistencies:
       // Find inactive students that still have active teacherAssignments
       const teacherStudentInconsistencies = await db.collection('student').aggregate([
-        { $match: { isActive: false, 'teacherAssignments.0': { $exists: true } } },
+        { $match: { isActive: false, 'teacherAssignments.0': { $exists: true }, tenantId } },
         { $unwind: '$teacherAssignments' },
         { $match: { 'teacherAssignments.isActive': { $ne: false } } },
         {
@@ -267,7 +274,7 @@ export const cascadeDeletionAggregationService = {
 
       // Orchestra-Student relationship inconsistencies
       const orchestraStudentInconsistencies = await db.collection('orchestra').aggregate([
-        { $match: { isActive: true } },
+        { $match: { isActive: true, tenantId } },
         { $unwind: '$memberIds' },
         {
           $lookup: {
@@ -280,6 +287,7 @@ export const cascadeDeletionAggregationService = {
                     $and: [
                       { $eq: ['$_id', '$$studentId'] },
                       { $eq: ['$isActive', true] },
+                      { $eq: ['$tenantId', tenantId] },
                       { $not: { $in: ['$$orchestraId', '$orchestraIds'] } }
                     ]
                   }
@@ -302,7 +310,7 @@ export const cascadeDeletionAggregationService = {
 
       // Student-Orchestra relationship inconsistencies
       const studentOrchestraInconsistencies = await db.collection('student').aggregate([
-        { $match: { isActive: true } },
+        { $match: { isActive: true, tenantId } },
         { $unwind: '$orchestraIds' },
         {
           $lookup: {
@@ -315,6 +323,7 @@ export const cascadeDeletionAggregationService = {
                     $and: [
                       { $eq: ['$_id', '$$orchestraId'] },
                       { $eq: ['$isActive', true] },
+                      { $eq: ['$tenantId', tenantId] },
                       { $not: { $in: ['$$studentId', '$memberIds'] } }
                     ]
                   }
@@ -337,7 +346,7 @@ export const cascadeDeletionAggregationService = {
 
       // Bagrut relationship inconsistencies
       const bagrutInconsistencies = await db.collection('bagrut').aggregate([
-        { $match: { isActive: true } },
+        { $match: { isActive: true, tenantId } },
         {
           $lookup: {
             from: 'student',
@@ -349,6 +358,7 @@ export const cascadeDeletionAggregationService = {
                     $and: [
                       { $eq: ['$_id', '$$studentId'] },
                       { $eq: ['$isActive', true] },
+                      { $eq: ['$tenantId', tenantId] },
                       { $ne: ['$bagrutId', '$$bagrutId'] }
                     ]
                   }
@@ -402,14 +412,15 @@ export const cascadeDeletionAggregationService = {
    * Generate cascade deletion impact report for a specific student
    * Shows all references that would be affected by deleting a student
    */
-  async generateCascadeDeletionImpactReport(studentId) {
+  async generateCascadeDeletionImpactReport(studentId, tenantId) {
+    requireTenantId(tenantId);
     const db = getDB();
-    
+
     try {
       const studentObjectId = new ObjectId(studentId);
-      
+
       // Find student details
-      const student = await db.collection('student').findOne({ _id: studentObjectId });
+      const student = await db.collection('student').findOne({ _id: studentObjectId, tenantId });
       
       if (!student) {
         throw new Error(`Student with ID ${studentId} not found`);
@@ -420,7 +431,8 @@ export const cascadeDeletionAggregationService = {
         {
           $match: {
             'teaching.timeBlocks.assignedLessons.studentId': studentId,
-            isActive: true
+            isActive: true,
+            tenantId
           }
         },
         {
@@ -452,10 +464,11 @@ export const cascadeDeletionAggregationService = {
 
       // Find all orchestra relationships
       const orchestraImpact = await db.collection('orchestra').aggregate([
-        { 
-          $match: { 
+        {
+          $match: {
             memberIds: studentObjectId,
-            isActive: true
+            isActive: true,
+            tenantId
           }
         },
         {
@@ -470,9 +483,10 @@ export const cascadeDeletionAggregationService = {
 
       // Find all rehearsal attendance
       const rehearsalImpact = await db.collection('rehearsal').aggregate([
-        { 
-          $match: { 
-            'attendance.studentId': studentObjectId
+        {
+          $match: {
+            'attendance.studentId': studentObjectId,
+            tenantId
           }
         },
         {
@@ -497,9 +511,10 @@ export const cascadeDeletionAggregationService = {
 
       // Find all theory lesson relationships
       const theoryImpact = await db.collection('theory_lesson').aggregate([
-        { 
-          $match: { 
-            studentIds: studentObjectId
+        {
+          $match: {
+            studentIds: studentObjectId,
+            tenantId
           }
         },
         {
@@ -515,10 +530,11 @@ export const cascadeDeletionAggregationService = {
 
       // Find bagrut relationship
       const bagrutImpact = await db.collection('bagrut').aggregate([
-        { 
-          $match: { 
+        {
+          $match: {
             studentId: studentObjectId,
-            isActive: true
+            isActive: true,
+            tenantId
           }
         },
         {
@@ -540,9 +556,10 @@ export const cascadeDeletionAggregationService = {
 
       // Find activity attendance
       const attendanceImpact = await db.collection('activity_attendance').aggregate([
-        { 
-          $match: { 
-            studentId: studentObjectId
+        {
+          $match: {
+            studentId: studentObjectId,
+            tenantId
           }
         },
         {
@@ -609,20 +626,21 @@ export const cascadeDeletionAggregationService = {
    * Validate data integrity across all collections
    * Comprehensive check for referential integrity and data consistency
    */
-  async validateDataIntegrity() {
+  async validateDataIntegrity(tenantId) {
+    requireTenantId(tenantId);
     const db = getDB();
-    
+
     try {
       console.log('Starting comprehensive data integrity validation...');
-      
+
       // Get collection statistics
       const collections = ['student', 'teacher', 'orchestra', 'rehearsal', 'theory_lesson', 'bagrut', 'activity_attendance'];
       const stats = {};
-      
+
       for (const collectionName of collections) {
         const collection = db.collection(collectionName);
-        const count = await collection.countDocuments();
-        const activeCount = await collection.countDocuments({ isActive: true });
+        const count = await collection.countDocuments({ tenantId });
+        const activeCount = await collection.countDocuments({ isActive: true, tenantId });
         stats[collectionName] = { total: count, active: activeCount };
       }
 
@@ -633,9 +651,9 @@ export const cascadeDeletionAggregationService = {
         duplicateReferences,
         invalidObjectIds
       ] = await Promise.all([
-        this.findOrphanedStudentReferences(),
-        this.detectBidirectionalInconsistencies(),
-        this.findDuplicateReferences(),
+        this.findOrphanedStudentReferences(tenantId),
+        this.detectBidirectionalInconsistencies(tenantId),
+        this.findDuplicateReferences(tenantId),
         this.findInvalidObjectIds()
       ]);
 
@@ -679,12 +697,13 @@ export const cascadeDeletionAggregationService = {
   },
 
   // Helper methods
-  async findDuplicateReferences() {
+  async findDuplicateReferences(tenantId) {
+    requireTenantId(tenantId);
     const db = getDB();
-    
+
     // Find students with duplicate teacherAssignments (same teacherId appearing multiple times as active)
     const assignmentDuplicates = await db.collection('student').aggregate([
-      { $match: { isActive: true, 'teacherAssignments.0': { $exists: true } } },
+      { $match: { isActive: true, 'teacherAssignments.0': { $exists: true }, tenantId } },
       { $unwind: '$teacherAssignments' },
       { $match: { 'teacherAssignments.isActive': { $ne: false } } },
       {

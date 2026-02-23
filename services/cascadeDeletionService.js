@@ -1,4 +1,5 @@
 import { getCollection } from './mongoDB.service.js';
+import { requireTenantId } from '../middleware/tenant.middleware.js';
 import dayjs from 'dayjs';
 
 /**
@@ -30,16 +31,17 @@ async function cascadeDeleteStudent(studentId, options = {}) {
     preserveAcademic = true,
     createSnapshot = true
   } = options;
+  const tenantId = requireTenantId(options?.context?.tenantId);
 
   const startTime = new Date();
   let session = null;
   let snapshotId = null;
-  
+
   try {
     // Validate student exists
     const studentCollection = await getCollection('student');
-    const student = await studentCollection.findOne({ _id: studentId });
-    
+    const student = await studentCollection.findOne({ _id: studentId, tenantId });
+
     if (!student) {
       throw new Error(`Student with ID ${studentId} not found`);
     }
@@ -50,17 +52,18 @@ async function cascadeDeleteStudent(studentId, options = {}) {
 
     // Create snapshot if requested
     if (createSnapshot) {
-      snapshotId = await createDeletionSnapshot(studentId);
+      snapshotId = await createDeletionSnapshot(studentId, tenantId);
     }
 
     // Start MongoDB session for transaction
     session = studentCollection.client.startSession();
-    
+
     let result;
     await session.withTransaction(async () => {
       result = await executeStudentCascade(studentId, session, {
         hardDelete,
-        preserveAcademic
+        preserveAcademic,
+        tenantId
       });
     });
 
@@ -69,7 +72,8 @@ async function cascadeDeleteStudent(studentId, options = {}) {
       startTime,
       endTime: new Date(),
       snapshotId,
-      options
+      options,
+      tenantId
     });
 
     return {
@@ -109,60 +113,68 @@ async function cascadeDeleteStudent(studentId, options = {}) {
  * @param {string} studentId - Student ID to snapshot
  * @returns {Promise<string>} Snapshot ID for rollback
  */
-async function createDeletionSnapshot(studentId) {
+async function createDeletionSnapshot(studentId, tenantId) {
   try {
+    requireTenantId(tenantId);
     const snapshotId = `snapshot_${studentId}_${Date.now()}`;
     const snapshot = {
       _id: snapshotId,
       studentId,
+      tenantId,
       createdAt: new Date(),
       data: {}
     };
 
     // Collect data from all related collections
     const collections = ['student', 'teacher', 'orchestra', 'rehearsal', 'theory_lesson', 'bagrut', 'activity_attendance'];
-    
+
     for (const collectionName of collections) {
       const collection = await getCollection(collectionName);
-      
+
       switch (collectionName) {
         case 'student':
-          snapshot.data.student = await collection.findOne({ _id: studentId });
+          snapshot.data.student = await collection.findOne({ _id: studentId, tenantId });
           break;
-          
+
         case 'teacher':
           snapshot.data.teachers = await collection.find({
-            'teaching.timeBlocks.assignedLessons.studentId': studentId
+            'teaching.timeBlocks.assignedLessons.studentId': studentId,
+            tenantId
           }).toArray();
           break;
-          
+
         case 'orchestra':
           snapshot.data.orchestras = await collection.find({
-            memberIds: studentId
+            memberIds: studentId,
+            tenantId
           }).toArray();
           break;
-          
+
         case 'rehearsal':
           snapshot.data.rehearsals = await collection.find({
-            'attendance.studentId': studentId
+            'attendance.studentId': studentId,
+            tenantId
           }).toArray();
           break;
-          
+
         case 'theory_lesson':
           snapshot.data.theoryLessons = await collection.find({
-            studentIds: studentId
+            studentIds: studentId,
+            tenantId
           }).toArray();
           break;
-          
+
         case 'bagrut':
           snapshot.data.bagrut = await collection.find({
-            studentId: studentId
+            studentId: studentId,
+            tenantId
           }).toArray();
           break;
-          
+
         case 'activity_attendance':
           snapshot.data.activityAttendance = await collection.find({
-            studentId: studentId
+            studentId: studentId,
+            tenantId
           }).toArray();
           break;
       }
@@ -188,7 +200,8 @@ async function createDeletionSnapshot(studentId) {
  * @returns {Promise<Object>} Operation results
  */
 async function executeStudentCascade(studentId, session, options = {}) {
-  const { hardDelete = false, preserveAcademic = true } = options;
+  const { hardDelete = false, preserveAcademic = true, tenantId } = options;
+  requireTenantId(tenantId);
   const operations = [];
   const operationCounts = {};
   const affectedCollections = new Set();
@@ -197,7 +210,7 @@ async function executeStudentCascade(studentId, session, options = {}) {
     // 1. Deactivate student's teacherAssignments
     const studentCollection2 = await getCollection('student');
     const assignmentDeactivation = await studentCollection2.updateOne(
-      { _id: studentId },
+      { _id: studentId, tenantId },
       {
         $set: {
           'teacherAssignments.$[elem].isActive': false,
@@ -214,7 +227,7 @@ async function executeStudentCascade(studentId, session, options = {}) {
     // 1b. Deactivate teacher timeBlock lessons for this student
     const teacherCollection = await getCollection('teacher');
     const teacherUpdateResult = await teacherCollection.updateMany(
-      { 'teaching.timeBlocks.assignedLessons.studentId': studentId },
+      { 'teaching.timeBlocks.assignedLessons.studentId': studentId, tenantId },
       {
         $set: {
           'teaching.timeBlocks.$[block].assignedLessons.$[lesson].isActive': false,
@@ -243,7 +256,7 @@ async function executeStudentCascade(studentId, session, options = {}) {
     // 2. Clean up orchestra memberships
     const orchestraCollection = await getCollection('orchestra');
     const orchestraUpdateResult = await orchestraCollection.updateMany(
-      { memberIds: studentId },
+      { memberIds: studentId, tenantId },
       { 
         $pull: { memberIds: studentId },
         $set: { lastModified: new Date() }
@@ -263,7 +276,7 @@ async function executeStudentCascade(studentId, session, options = {}) {
     // 3. Clean up rehearsal attendance
     const rehearsalCollection = await getCollection('rehearsal');
     const rehearsalUpdateResult = await rehearsalCollection.updateMany(
-      { 'attendance.studentId': studentId },
+      { 'attendance.studentId': studentId, tenantId },
       { 
         $pull: { attendance: { studentId: studentId } },
         $set: { lastModified: new Date() }
@@ -283,7 +296,7 @@ async function executeStudentCascade(studentId, session, options = {}) {
     // 4. Clean up theory lesson enrollments
     const theoryLessonCollection = await getCollection('theory_lesson');
     const theoryUpdateResult = await theoryLessonCollection.updateMany(
-      { studentIds: studentId },
+      { studentIds: studentId, tenantId },
       { 
         $pull: { studentIds: studentId },
         $set: { lastModified: new Date() }
@@ -307,7 +320,7 @@ async function executeStudentCascade(studentId, session, options = {}) {
     if (preserveAcademic) {
       // Soft delete bagrut records
       bagrutResult = await bagrutCollection.updateMany(
-        { studentId: studentId },
+        { studentId: studentId, tenantId },
         { 
           $set: { 
             isActive: false,
@@ -327,7 +340,7 @@ async function executeStudentCascade(studentId, session, options = {}) {
     } else {
       // Hard delete bagrut records if specified
       bagrutResult = await bagrutCollection.deleteMany(
-        { studentId: studentId },
+        { studentId: studentId, tenantId },
         { session }
       );
       
@@ -345,7 +358,7 @@ async function executeStudentCascade(studentId, session, options = {}) {
     // 6. Clean up activity attendance
     const activityAttendanceCollection = await getCollection('activity_attendance');
     const attendanceDeleteResult = await activityAttendanceCollection.deleteMany(
-      { studentId: studentId },
+      { studentId: studentId, tenantId },
       { session }
     );
     
@@ -364,10 +377,10 @@ async function executeStudentCascade(studentId, session, options = {}) {
     
     if (hardDelete) {
       studentResult = await studentCollection.deleteOne(
-        { _id: studentId },
+        { _id: studentId, tenantId },
         { session }
       );
-      
+
       operations.push({
         collection: 'student',
         operation: 'deleteOne',
@@ -378,7 +391,7 @@ async function executeStudentCascade(studentId, session, options = {}) {
     } else {
       // Soft delete student
       studentResult = await studentCollection.updateOne(
-        { _id: studentId },
+        { _id: studentId, tenantId },
         { 
           $set: { 
             isActive: false,
@@ -418,7 +431,8 @@ async function executeStudentCascade(studentId, session, options = {}) {
  * @param {boolean} dryRun - Whether to only report findings without making changes
  * @returns {Promise<Object>} Cleanup results
  */
-async function cleanupOrphanedReferences(dryRun = true) {
+async function cleanupOrphanedReferences(dryRun = true, tenantId) {
+  requireTenantId(tenantId);
   try {
     const findings = {
       orphanedTeacherReferences: [],
@@ -432,7 +446,7 @@ async function cleanupOrphanedReferences(dryRun = true) {
     // Get all active student IDs
     const studentCollection = await getCollection('student');
     const activeStudents = await studentCollection.find(
-      { isActive: true },
+      { isActive: true, tenantId },
       { projection: { _id: 1 } }
     ).toArray();
     const activeStudentIds = new Set(activeStudents.map(s => s._id.toString()));
@@ -440,13 +454,14 @@ async function cleanupOrphanedReferences(dryRun = true) {
     // Check for orphaned teacherAssignments (referencing non-existent/inactive teachers)
     const teacherCollection = await getCollection('teacher');
     const activeTeachers = await teacherCollection.find(
-      { isActive: { $ne: false } },
+      { isActive: { $ne: false }, tenantId },
       { projection: { _id: 1 } }
     ).toArray();
     const activeTeacherIds = new Set(activeTeachers.map(t => t._id.toString()));
 
     const studentsWithAssignments = await studentCollection.find({
-      'teacherAssignments.0': { $exists: true }
+      'teacherAssignments.0': { $exists: true },
+      tenantId
     }).toArray();
 
     for (const student of studentsWithAssignments) {
@@ -464,7 +479,8 @@ async function cleanupOrphanedReferences(dryRun = true) {
     // Check orchestra references
     const orchestraCollection = await getCollection('orchestra');
     const orchestrasWithMembers = await orchestraCollection.find({
-      memberIds: { $exists: true, $ne: [] }
+      memberIds: { $exists: true, $ne: [] },
+      tenantId
     }).toArray();
 
     for (const orchestra of orchestrasWithMembers) {
@@ -492,7 +508,7 @@ async function cleanupOrphanedReferences(dryRun = true) {
           for (const item of findings.orphanedTeacherReferences) {
             for (const teacherId of item.orphanedTeacherIds) {
               await studentCollection.updateOne(
-                { _id: item.studentId },
+                { _id: item.studentId, tenantId },
                 {
                   $set: {
                     'teacherAssignments.$[elem].isActive': false,
@@ -511,7 +527,7 @@ async function cleanupOrphanedReferences(dryRun = true) {
           // Clean orchestra references
           for (const item of findings.orphanedOrchestraReferences) {
             await orchestraCollection.updateOne(
-              { _id: item.orchestraId },
+              { _id: item.orchestraId, tenantId },
               { $pullAll: { memberIds: item.orphanedStudentIds } },
               { session }
             );
@@ -540,7 +556,8 @@ async function cleanupOrphanedReferences(dryRun = true) {
  * @param {string} studentId - Student ID to analyze
  * @returns {Promise<Object>} Impact analysis
  */
-async function validateDeletionImpact(studentId) {
+async function validateDeletionImpact(studentId, tenantId) {
+  requireTenantId(tenantId);
   try {
     const impact = {
       studentExists: false,
@@ -552,7 +569,7 @@ async function validateDeletionImpact(studentId) {
 
     // Check if student exists and is active
     const studentCollection = await getCollection('student');
-    const student = await studentCollection.findOne({ _id: studentId });
+    const student = await studentCollection.findOne({ _id: studentId, tenantId });
     
     if (!student) {
       throw new Error(`Student with ID ${studentId} not found`);
@@ -570,25 +587,25 @@ async function validateDeletionImpact(studentId) {
       
       switch (collectionName) {
         case 'teacher':
-          count = await collection.countDocuments({ 'teaching.timeBlocks.assignedLessons.studentId': studentId });
+          count = await collection.countDocuments({ 'teaching.timeBlocks.assignedLessons.studentId': studentId, tenantId });
           break;
         case 'orchestra':
-          count = await collection.countDocuments({ memberIds: studentId });
+          count = await collection.countDocuments({ memberIds: studentId, tenantId });
           break;
         case 'rehearsal':
-          count = await collection.countDocuments({ 'attendance.studentId': studentId });
+          count = await collection.countDocuments({ 'attendance.studentId': studentId, tenantId });
           break;
         case 'theory_lesson':
-          count = await collection.countDocuments({ studentIds: studentId });
+          count = await collection.countDocuments({ studentIds: studentId, tenantId });
           break;
         case 'bagrut':
-          count = await collection.countDocuments({ studentId: studentId });
+          count = await collection.countDocuments({ studentId: studentId, tenantId });
           if (count > 0) {
             impact.criticalDependencies.push('Academic bagrut records exist - consider preserveAcademic option');
           }
           break;
         case 'activity_attendance':
-          count = await collection.countDocuments({ studentId: studentId });
+          count = await collection.countDocuments({ studentId: studentId, tenantId });
           break;
       }
       
@@ -626,13 +643,14 @@ async function validateDeletionImpact(studentId) {
  * @param {string} snapshotId - Snapshot ID to restore from
  * @returns {Promise<Object>} Rollback result
  */
-async function rollbackDeletion(snapshotId) {
+async function rollbackDeletion(snapshotId, tenantId) {
+  requireTenantId(tenantId);
   let session = null;
-  
+
   try {
     // Get snapshot data
     const snapshotCollection = await getCollection('deletion_snapshots');
-    const snapshot = await snapshotCollection.findOne({ _id: snapshotId });
+    const snapshot = await snapshotCollection.findOne({ _id: snapshotId, tenantId });
     
     if (!snapshot) {
       throw new Error(`Snapshot with ID ${snapshotId} not found`);
@@ -648,7 +666,7 @@ async function rollbackDeletion(snapshotId) {
       if (snapshot.data.student) {
         const studentCollection = await getCollection('student');
         await studentCollection.replaceOne(
-          { _id: snapshot.data.student._id },
+          { _id: snapshot.data.student._id, tenantId },
           snapshot.data.student,
           { session, upsert: true }
         );
@@ -660,7 +678,7 @@ async function rollbackDeletion(snapshotId) {
         const teacherCollection = await getCollection('teacher');
         for (const teacher of snapshot.data.teachers) {
           await teacherCollection.replaceOne(
-            { _id: teacher._id },
+            { _id: teacher._id, tenantId },
             teacher,
             { session }
           );
@@ -679,7 +697,7 @@ async function rollbackDeletion(snapshotId) {
           
           for (const doc of snapshot.data[collectionKey]) {
             await collection.replaceOne(
-              { _id: doc._id },
+              { _id: doc._id, tenantId },
               doc,
               { session, upsert: true }
             );
@@ -691,9 +709,9 @@ async function rollbackDeletion(snapshotId) {
 
     // Mark snapshot as used
     await snapshotCollection.updateOne(
-      { _id: snapshotId },
-      { 
-        $set: { 
+      { _id: snapshotId, tenantId },
+      {
+        $set: {
           usedAt: new Date(),
           status: 'used_for_rollback'
         }
@@ -735,6 +753,7 @@ async function generateDeletionAuditLog(studentId, operations, metadata = {}) {
       _id: `audit_${studentId}_${Date.now()}`,
       type: 'student_cascade_deletion',
       studentId,
+      tenantId: metadata.tenantId,
       timestamp: new Date(),
       operations,
       metadata,
