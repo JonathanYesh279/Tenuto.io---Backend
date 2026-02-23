@@ -825,6 +825,94 @@ function calculateTeacherChanges(teacher, mapped, instruments, roles = [], teach
   return changes;
 }
 
+// ─── Import Normalization & Document Building ────────────────────────────────
+
+/**
+ * Normalize mapped teacher data to ensure ALL expected fields are explicitly present.
+ * Prevents MongoDB from stripping undefined keys when storing in import_log.
+ */
+function normalizeTeacherMapped(mapped, instruments, roles, teachingHours) {
+  return {
+    firstName: mapped.firstName || '',
+    lastName: mapped.lastName || '',
+    email: mapped.email || null,
+    phone: mapped.phone || null,
+    address: null, // Ministry Excel never has address
+    idNumber: mapped.idNumber || null,
+    birthYear: typeof mapped.birthYear === 'number' ? mapped.birthYear : null,
+    classification: mapped.classification || null,
+    degree: mapped.degree || null,
+    experience: typeof mapped.experience === 'number' ? mapped.experience : null,
+    teachingCertificate: typeof mapped.teachingCertificate === 'boolean' ? mapped.teachingCertificate : null,
+    isUnionMember: typeof mapped.isUnionMember === 'boolean' ? mapped.isUnionMember : null,
+    managementRole: mapped.managementRole || null,
+    instruments: Array.isArray(instruments) ? instruments : [],
+    roles: Array.isArray(roles) && roles.length > 0 ? roles : ['מורה'],
+    teachingHours: teachingHours || {},
+  };
+}
+
+/**
+ * Build a teacher document that exactly matches the canonical shape produced by addTeacher + Joi defaults.
+ * This ensures import-created teachers are indistinguishable from UI-created teachers.
+ */
+function buildImportTeacherDocument(data, tenantId, hashedPassword, adminId) {
+  return {
+    tenantId,
+    personalInfo: {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      idNumber: data.idNumber,
+      birthYear: data.birthYear,
+    },
+    roles: data.roles,
+    professionalInfo: {
+      instrument: data.instruments[0] || null,
+      instruments: data.instruments,
+      isActive: true,
+      classification: data.classification,
+      degree: data.degree,
+      hasTeachingCertificate: data.teachingCertificate,
+      teachingExperienceYears: data.experience,
+      isUnionMember: data.isUnionMember,
+      teachingSubjects: [],
+    },
+    managementInfo: {
+      role: data.managementRole,
+      managementHours: data.teachingHours?.managementHours ?? null,
+      accompHours: data.teachingHours?.accompHours ?? null,
+      ensembleCoordHours: data.teachingHours?.ensembleCoordHours ?? null,
+      travelTimeHours: null,
+      teachingHours: data.teachingHours?.teachingHours ?? null,
+      ensembleHours: data.teachingHours?.ensembleHours ?? null,
+      theoryHours: data.teachingHours?.theoryHours ?? null,
+      coordinationHours: data.teachingHours?.coordinationHours ?? null,
+      breakTimeHours: data.teachingHours?.breakTimeHours ?? null,
+      totalWeeklyHours: data.teachingHours?.totalWeeklyHours ?? null,
+    },
+    teaching: { timeBlocks: [] },
+    conducting: { orchestraIds: [] },
+    ensemblesIds: [],
+    schoolYears: [],
+    credentials: {
+      email: data.email || `import-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@temp.local`,
+      password: hashedPassword,
+      isInvitationAccepted: true,
+      requiresPasswordChange: true,
+      passwordSetAt: new Date(),
+      invitedAt: new Date(),
+      invitedBy: adminId || null,
+      invitationMode: 'IMPORT',
+    },
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
 function calculateStudentChanges(student, mapped) {
   const changes = [];
 
@@ -910,6 +998,7 @@ async function previewTeacherImport(buffer, options = {}) {
         instruments,
         roles,
         teachingHours,
+        normalized: normalizeTeacherMapped(mapped, instruments, roles, teachingHours),
       });
     }
   }
@@ -1066,9 +1155,9 @@ async function executeImport(importLogId, userId, options = {}) {
 
   try {
     if (log.importType === 'teachers') {
-      return await executeTeacherImport(log, importLogCollection, tenantId);
+      return await executeTeacherImport(log, importLogCollection, tenantId, userId);
     } else if (log.importType === 'students') {
-      return await executeStudentImport(log, importLogCollection, tenantId);
+      return await executeStudentImport(log, importLogCollection, tenantId, userId);
     } else {
       throw new Error(`סוג ייבוא לא מוכר: ${log.importType}`);
     }
@@ -1081,7 +1170,7 @@ async function executeImport(importLogId, userId, options = {}) {
   }
 }
 
-async function executeTeacherImport(log, importLogCollection, tenantId) {
+async function executeTeacherImport(log, importLogCollection, tenantId, adminId) {
   const teacherCollection = await getCollection('teacher');
   const matched = log.preview.matched || [];
   let successCount = 0;
@@ -1133,63 +1222,9 @@ async function executeTeacherImport(log, importLogCollection, tenantId) {
       // Hash default password
       const hashedPassword = await authService.encryptPassword(DEFAULT_PASSWORD);
 
-      // Determine roles — default to ['מורה'] if no role columns detected
-      const teacherRoles = roles.length > 0 ? roles : ['מורה'];
-
-      // Build teacher document
-      const newTeacher = {
-        tenantId,
-        personalInfo: {
-          firstName: mapped.firstName,
-          lastName: mapped.lastName,
-          email: mapped.email || null,
-          phone: mapped.phone || null,
-          address: null,
-          idNumber: mapped.idNumber || null,
-          birthYear: mapped.birthYear ?? null,
-        },
-        roles: teacherRoles,
-        professionalInfo: {
-          instrument: instruments[0] || null,  // backward-compat single instrument
-          instruments: instruments,             // array of all instruments
-          isActive: true,
-          classification: mapped.classification || null,
-          degree: mapped.degree || null,
-          hasTeachingCertificate: mapped.teachingCertificate ?? null,
-          teachingExperienceYears: mapped.experience ?? null,
-          isUnionMember: mapped.isUnionMember ?? null,
-          teachingSubjects: [],
-        },
-        managementInfo: {
-          role: mapped.managementRole || null,
-          managementHours: teachingHours.managementHours ?? null,
-          accompHours: teachingHours.accompHours ?? null,
-          ensembleCoordHours: teachingHours.ensembleCoordHours ?? null,
-          travelTimeHours: null,
-          teachingHours: teachingHours.teachingHours ?? null,
-          ensembleHours: teachingHours.ensembleHours ?? null,
-          theoryHours: teachingHours.theoryHours ?? null,
-          coordinationHours: teachingHours.coordinationHours ?? null,
-          breakTimeHours: teachingHours.breakTimeHours ?? null,
-          totalWeeklyHours: teachingHours.totalWeeklyHours ?? null,
-        },
-        teaching: { timeBlocks: [] },
-        conducting: { orchestraIds: [] },
-        ensemblesIds: [],
-        schoolYears: [],
-        credentials: {
-          email: mapped.email || `import-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@temp.local`,
-          password: hashedPassword,
-          isInvitationAccepted: true,
-          requiresPasswordChange: true,
-          passwordSetAt: new Date(),
-          invitedAt: new Date(),
-          invitationMode: 'IMPORT',
-        },
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
+      // Normalize and build teacher document using shared functions
+      const normalized = entry.normalized || normalizeTeacherMapped(mapped, instruments, roles, teachingHours);
+      const newTeacher = buildImportTeacherDocument(normalized, tenantId, hashedPassword, adminId);
 
       const result = await teacherCollection.insertOne(newTeacher);
       createdCount++;
@@ -1222,7 +1257,7 @@ async function executeTeacherImport(log, importLogCollection, tenantId) {
   return results;
 }
 
-async function executeStudentImport(log, importLogCollection, tenantId) {
+async function executeStudentImport(log, importLogCollection, tenantId, adminId) {
   const studentCollection = await getCollection('student');
   const matched = log.preview.matched || [];
   let successCount = 0;

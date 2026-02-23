@@ -132,6 +132,15 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 5. Error Handling & Cascade Safety | 0/TBD | Not started | - |
 | 6. Testing & Verification | 0/TBD | Not started | - |
 
+### Phase 7: Fix Import Teacher Feature - Null Properties After Import
+
+**Goal:** Fix the import teacher feature where many null properties appear on teacher documents after importing from Excel. Ensure imported teacher documents match the canonical schema produced by addTeacher.
+**Depends on:** None (bug fix, can run independently)
+**Plans:** 1 plan
+
+Plans:
+- [ ] 07-01-PLAN.md -- Normalize import document creation, add import validation schema, repair utility
+
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-15 (Phase 2 complete)*
+*Last updated: 2026-02-23 (Phase 7 planned)*
