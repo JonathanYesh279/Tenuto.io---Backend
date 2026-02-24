@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (Testing & Verification)
-Plan: 3 of 5 in current phase (06-03 complete)
+Plan: 4 of 5 in current phase (06-04 complete)
 Status: Phase 6 In Progress
-Last activity: 2026-02-24 - Completed 06-03 (Write isolation + concurrent safety tests)
+Last activity: 2026-02-24 - Completed 06-04 (Allowlist verification, CI pipeline, verification checklist)
 
-Progress: [████████████████████] 94% (phases 1-5 + phase 7-9 hotfixes + 06-01 + 06-02 + 06-03)
+Progress: [████████████████████] 96% (phases 1-5 + phase 7-9 hotfixes + 06-01 + 06-02 + 06-03 + 06-04)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: 6 min
-- Total execution time: 2.48 hours
+- Total execution time: 2.60 hours
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [████████████████████] 94% (ph
 | 03-write-protection-validation | 1/1 | 4 min | 4 min |
 | 04-super-admin-allowlist | 2/2 | 9 min | 5 min |
 | 05-error-handling-cascade-safety | 4/4 | 27 min | 7 min |
-| 06-testing-verification | 3/5 | 26 min | 9 min |
+| 06-testing-verification | 4/5 | 33 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-03 (9 min), 05-04 (10 min), 06-01 (5 min), 06-02 (17 min), 06-03 (4 min)
-- Trend: 06-03 fast execution — environment issues resolved in 06-02, reused workspace and config
+- Last 5 plans: 05-04 (10 min), 06-01 (5 min), 06-02 (17 min), 06-03 (4 min), 06-04 (7 min)
+- Trend: Steady execution pace, 06-04 pure logic tests + CI/docs faster than integration-heavy 06-02
 
 *Updated after each plan completion*
 
@@ -160,6 +160,11 @@ Recent decisions affecting current work:
 - [06-03] Assert non-200 for cross-tenant writes (accommodates varied error handling: 404, 500, 400 across controllers)
 - [06-03] Belt-and-suspenders DB verification after every write test (HTTP status alone insufficient proof)
 - [06-03] MMS standalone mode concurrent write test valid despite transaction errors (verifies DB state, not HTTP success)
+- [06-04] Health endpoint tested at /api/health/live (not /api/health root which has no handler)
+- [06-04] beforeAll 60s timeout for MMS startup in allowlist tests (default 30s insufficient for binary startup)
+- [06-04] MMS cache key 7.0.0 in CI workflow (matches actual binary version in setup.js)
+- [06-04] Route accountability check runs first in CI (fast-fail before slow integration tests)
+- [06-04] Node 20.x in CI (production version, avoids Node 22 ESM regression)
 
 ### Pending Todos
 
@@ -193,6 +198,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24 (Phase 6 in progress)
-Stopped at: Completed 06-03-PLAN.md (Write isolation + concurrent safety tests)
-Resume file: .planning/phases/06-testing-verification/06-04-PLAN.md
-Resume task: Plan 06-03 complete — 16 write/middleware/concurrent tests passing, ready for 06-04 allowlist verification
+Stopped at: Completed 06-04-PLAN.md (Allowlist verification, CI pipeline, verification checklist)
+Resume file: .planning/phases/06-testing-verification/06-05-PLAN.md
+Resume task: Plan 06-04 complete — 12 allowlist/route tests passing, CI workflow + checklist created, ready for 06-05
