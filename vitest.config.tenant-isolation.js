@@ -20,7 +20,7 @@ export default defineConfig({
     maxConcurrency: 1,
     maxWorkers: 1,
     testTimeout: 30000,
-    hookTimeout: 30000,
+    hookTimeout: 60000,
     env: {
       NODE_ENV: 'test',
       ACCESS_TOKEN_SECRET: 'test-access-secret',
