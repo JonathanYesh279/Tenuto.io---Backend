@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 11 complete, ready for Phase 12
+**Current focus:** Phase 12 in progress — platform reporting services
 
 ## Current Position
 
-Phase: 11 of 14 (Tenant Lifecycle Management) -- COMPLETE
-Plan: 3 of 3 in current phase (all complete)
-Status: Phase 11 complete, ready for Phase 12
-Last activity: 2026-02-24 - Completed 11-03 (tenant lifecycle API)
+Phase: 12 of 14 (Platform Reporting)
+Plan: 1 of 2 in current phase (12-01 complete)
+Status: 12-01 complete, ready for 12-02
+Last activity: 2026-02-24 - Completed 12-01 (reporting service functions)
 
-Progress: [########################......] 79% (v1.0 complete, v1.1 in progress)
+Progress: [#########################.....] 83% (v1.0 complete, v1.1 in progress)
 
 ## Performance Metrics
 
@@ -26,7 +26,7 @@ Progress: [########################......] 79% (v1.0 complete, v1.1 in progress)
 - Timeline: 11 days (2026-02-14 -> 2026-02-24)
 
 **v1.1 Milestone:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Phases: 5 (10-14)
 - Requirements: 19
 
@@ -37,6 +37,7 @@ Progress: [########################......] 79% (v1.0 complete, v1.1 in progress)
 | 11-01 | tenant-isActive-gating-audit-trail | 2min | 2 | 4 |
 | 11-02 | cascade-deletion-consolidation | 5min | 2 | 5 |
 | 11-03 | tenant-lifecycle-api | 3min | 2 | 5 |
+| 12-01 | reporting-service-functions | 3min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -81,6 +82,12 @@ Phase 11-03 decisions:
 - Service methods accept optional actorId for backward compatibility
 - Purge failure rolls back deletionStatus to 'scheduled' for retry
 
+Phase 12-01 decisions:
+- New reporting functions are additive — existing getTenantsWithStats and getPlatformAnalytics untouched
+- getReportingDashboard computes overview from tenantHealth array (no duplicate DB queries)
+- computeUtilization returns null when max is falsy to distinguish "no limit" from "0% utilization"
+- deriveHealthAlerts uses 30-day lookahead for expiry with severity escalation at 7 days
+
 ### Pending Todos
 
 None.
@@ -94,7 +101,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (11-03 executed)
-Stopped at: Completed 11-03-PLAN.md (Phase 11 complete)
-Resume file: .planning/phases/12-*/ (next phase)
-Resume task: Plan Phase 12
+Last session: 2026-02-24 (12-01 executed)
+Stopped at: Completed 12-01-PLAN.md
+Resume file: .planning/phases/12-platform-reporting/12-02-PLAN.md
+Resume task: Execute 12-02

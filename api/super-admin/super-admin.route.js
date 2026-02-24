@@ -35,6 +35,12 @@ router.get('/audit-log/:tenantId', superAdminController.getTenantAuditLog);
 // Analytics
 router.get('/analytics', superAdminController.getAnalytics);
 
+// Reporting
+router.get('/reporting/dashboard', superAdminController.getReportingDashboard);
+router.get('/reporting/tenants', superAdminController.getReportingTenants);
+router.get('/reporting/tenants/:id', superAdminController.getReportingTenantById);
+router.get('/reporting/ministry-status', superAdminController.getReportingMinistryStatus);
+
 // Admin management (requires manage_tenants permission)
 router.get('/admins', requirePermission('manage_tenants'), superAdminController.getAdmins);
 router.post('/admins', requirePermission('manage_tenants'), superAdminController.createAdmin);

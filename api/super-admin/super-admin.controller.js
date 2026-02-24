@@ -1,6 +1,6 @@
 import { superAdminService } from './super-admin.service.js';
 import { tenantService } from '../tenant/tenant.service.js';
-import { softDeleteTenantSchema, purgeTenantSchema } from './super-admin.validation.js';
+import { softDeleteTenantSchema, purgeTenantSchema, reportingTenantDetailParamsSchema } from './super-admin.validation.js';
 import { auditTrailService } from '../../services/auditTrail.service.js';
 import { AUDIT_ACTIONS } from '../../config/constants.js';
 import { createLogger } from '../../services/logger.service.js';
@@ -28,6 +28,10 @@ export const superAdminController = {
   purge,
   getAuditLog,
   getTenantAuditLog,
+  getReportingDashboard,
+  getReportingTenants,
+  getReportingTenantById,
+  getReportingMinistryStatus,
 };
 
 async function login(req, res) {
@@ -310,6 +314,54 @@ async function getTenantAuditLog(req, res) {
     res.json({ success: true, data: entries });
   } catch (err) {
     log.error({ err: err.message }, 'Error getting tenant audit log');
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// --- Platform Reporting Endpoints ---
+
+async function getReportingDashboard(req, res) {
+  try {
+    const dashboard = await superAdminService.getReportingDashboard();
+    res.json({ success: true, data: dashboard });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error getting reporting dashboard');
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function getReportingTenants(req, res) {
+  try {
+    const tenants = await superAdminService.getReportingTenantList();
+    res.json({ success: true, data: tenants });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error getting reporting tenants');
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function getReportingTenantById(req, res) {
+  try {
+    const { error } = reportingTenantDetailParamsSchema.validate(req.params);
+    if (error) {
+      return res.status(400).json({ success: false, error: error.details[0].message });
+    }
+
+    const tenant = await superAdminService.getReportingTenantDetail(req.params.id);
+    res.json({ success: true, data: tenant });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error getting reporting tenant detail');
+    const status = err.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function getReportingMinistryStatus(req, res) {
+  try {
+    const status = await superAdminService.getReportingMinistryStatus();
+    res.json({ success: true, data: status });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error getting reporting ministry status');
     res.status(500).json({ success: false, error: err.message });
   }
 }
