@@ -77,6 +77,19 @@ async function login(email, password, tenantId) {
       throw new Error('Invalid email or password')
     }
 
+    // Check tenant.isActive — block login for deactivated tenant users
+    if (teacher.tenantId) {
+      const tenantCollection = await getCollection('tenant')
+      const tenant = await tenantCollection.findOne({
+        _id: ObjectId.createFromHexString(teacher.tenantId),
+      })
+
+      if (!tenant || !tenant.isActive) {
+        log.info({ teacherId: teacher._id.toString(), tenantId: teacher.tenantId }, 'Login rejected — tenant deactivated')
+        throw new Error('Tenant account is deactivated')
+      }
+    }
+
     // Multi-tenant check: if no tenantId was specified, see if multiple tenants exist
     if (!tenantId) {
       const teacherCount = await collection.countDocuments({
@@ -181,6 +194,19 @@ async function refreshAccessToken(refreshToken) {
 
     if (!teacher) {
       throw new Error('Invalid refresh token - teacher not found or inactive')
+    }
+
+    // Check tenant.isActive — block refresh for deactivated tenant users
+    if (teacher.tenantId) {
+      const tenantCollection = await getCollection('tenant')
+      const tenant = await tenantCollection.findOne({
+        _id: ObjectId.createFromHexString(teacher.tenantId),
+      })
+
+      if (!tenant || !tenant.isActive) {
+        log.info({ teacherId: teacher._id.toString(), tenantId: teacher.tenantId }, 'Token refresh rejected — tenant deactivated')
+        throw new Error('Tenant account is deactivated - refresh denied')
+      }
     }
 
     // Check token version for revocation support

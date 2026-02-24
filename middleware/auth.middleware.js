@@ -57,6 +57,23 @@ export async function authenticateToken(req, res, next) {
       });
     }
 
+    // Check tenant.isActive — block deactivated tenant users
+    if (teacher.tenantId) {
+      const tenantCollection = await getCollection('tenant');
+      const tenant = await tenantCollection.findOne({
+        _id: ObjectId.createFromHexString(teacher.tenantId),
+      });
+
+      if (!tenant || !tenant.isActive) {
+        log.debug({ teacherId: teacher._id.toString(), tenantId: teacher.tenantId }, 'Tenant deactivated — rejecting request');
+        return res.status(403).json({
+          success: false,
+          error: 'Tenant account is deactivated',
+          code: 'TENANT_DEACTIVATED'
+        });
+      }
+    }
+
     const displayName = `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim() || 'Unknown';
 
     req.teacher = teacher;
