@@ -47,3 +47,7 @@ export const purgeTenantSchema = Joi.object({
 export const reportingTenantDetailParamsSchema = Joi.object({
   id: Joi.string().hex().length(24).required(),
 });
+
+export const impersonationStartSchema = Joi.object({
+  tenantId: Joi.string().hex().length(24).required(),
+});

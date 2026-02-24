@@ -1,6 +1,6 @@
 import { getCollection } from './mongoDB.service.js';
 import { createLogger } from './logger.service.js';
-import { COLLECTIONS } from '../config/constants.js';
+import { COLLECTIONS, AUDIT_ACTIONS } from '../config/constants.js';
 
 const log = createLogger('audit-trail');
 
@@ -8,6 +8,7 @@ export const auditTrailService = {
   logAction,
   getAuditLog,
   getAuditLogForTenant,
+  logImpersonatedAction,
 };
 
 /**
@@ -103,4 +104,36 @@ async function getAuditLog(filters = {}) {
  */
 async function getAuditLogForTenant(tenantId, options = {}) {
   return getAuditLog({ ...options, targetId: tenantId });
+}
+
+/**
+ * Log a mutating action performed during an impersonation session.
+ * Defensive — catches errors internally; audit logging never breaks the main operation.
+ *
+ * @param {object} impersonationContext - req.impersonation (set by enrichImpersonationContext)
+ * @param {object} req - Express request object
+ */
+async function logImpersonatedAction(impersonationContext, req) {
+  try {
+    const collection = await getCollection(COLLECTIONS.PLATFORM_AUDIT_LOG);
+    const entry = {
+      action: AUDIT_ACTIONS.IMPERSONATION_ACTION,
+      actorId: impersonationContext.superAdminId,
+      actorType: 'super_admin',
+      targetType: 'impersonated_action',
+      targetId: impersonationContext.impersonatedUserId,
+      details: {
+        sessionId: impersonationContext.sessionId,
+        tenantId: impersonationContext.tenantId,
+        method: req.method,
+        path: req.originalUrl,
+        // Do NOT log request body (may contain sensitive data)
+      },
+      timestamp: new Date(),
+      ip: req.ip || null,
+    };
+    await collection.insertOne(entry);
+  } catch (err) {
+    log.error({ err: err.message }, 'Failed to log impersonated action');
+  }
 }

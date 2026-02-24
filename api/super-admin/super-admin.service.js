@@ -9,6 +9,7 @@ import {
   createSuperAdminSchema,
   updateSuperAdminSchema,
   updateSubscriptionSchema,
+  impersonationStartSchema,
 } from './super-admin.validation.js';
 import { auditTrailService } from '../../services/auditTrail.service.js';
 import { tenantPurgeService } from '../../services/tenantPurge.service.js';
@@ -44,6 +45,8 @@ export const superAdminService = {
   getReportingTenantList,
   getReportingTenantDetail,
   getReportingMinistryStatus,
+  startImpersonation,
+  stopImpersonation,
 };
 
 async function login(email, password) {
@@ -914,6 +917,119 @@ async function getReportingDashboard() {
   };
 
   return { overview, tenantHealth, alerts };
+}
+
+// ─── Impersonation Methods ───────────────────────────────────────────────────
+
+/**
+ * Start an impersonation session. Generates a JWT that authenticateToken
+ * will accept as a valid teacher token, with additional impersonation claims.
+ *
+ * @param {string} tenantId - Tenant _id (hex string)
+ * @param {string} superAdminId - Super admin _id (string)
+ * @returns {{ accessToken, sessionId, tenant, impersonatedAdmin }}
+ */
+async function startImpersonation(tenantId, superAdminId) {
+  // Validate tenantId format
+  const { error } = impersonationStartSchema.validate({ tenantId });
+  if (error) throw new Error(error.details[0].message);
+
+  const tenantCollection = await getCollection(COLLECTIONS.TENANT);
+  const tenant = await tenantCollection.findOne({
+    _id: ObjectId.createFromHexString(tenantId),
+  });
+
+  if (!tenant) {
+    throw new Error(`Tenant with id ${tenantId} not found`);
+  }
+
+  if (!tenant.isActive) {
+    throw new Error('Cannot impersonate a deactivated tenant');
+  }
+
+  // Find an active admin teacher for this tenant
+  const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
+  const tid = tenant.tenantId || tenant._id.toString();
+  const adminTeacher = await teacherCollection.findOne({
+    tenantId: tid,
+    roles: 'מנהל',
+    isActive: true,
+  });
+
+  if (!adminTeacher) {
+    throw new Error('No active admin found for this tenant');
+  }
+
+  const sessionId = new ObjectId().toString();
+
+  // Build token payload matching generateAccessToken output (auth.service.js)
+  // plus impersonation claims
+  const tokenData = {
+    _id: adminTeacher._id.toString(),
+    tenantId: adminTeacher.tenantId || null,
+    firstName: adminTeacher.personalInfo?.firstName || '',
+    lastName: adminTeacher.personalInfo?.lastName || '',
+    email: adminTeacher.credentials.email,
+    roles: adminTeacher.roles,
+    version: adminTeacher.credentials?.tokenVersion || 0,
+    isImpersonation: true,
+    impersonatedBy: superAdminId,
+    impersonationSessionId: sessionId,
+  };
+
+  const accessToken = jwt.sign(tokenData, process.env.ACCESS_TOKEN_SECRET, {
+    expiresIn: '1h',
+  });
+
+  const impersonatedAdminId = adminTeacher._id.toString();
+  const impersonatedAdminEmail = adminTeacher.credentials.email;
+  const impersonatedAdminName = `${adminTeacher.personalInfo?.firstName || ''} ${adminTeacher.personalInfo?.lastName || ''}`.trim() || 'Unknown';
+
+  // Log audit
+  await auditTrailService.logAction(AUDIT_ACTIONS.IMPERSONATION_STARTED, superAdminId, {
+    targetId: tenantId,
+    targetType: 'tenant',
+    tenantName: tenant.name,
+    impersonatedAdminId,
+    impersonatedAdminEmail,
+    sessionId,
+  });
+
+  log.info({ superAdminId, tenantId, impersonatedAdminId, sessionId }, 'Impersonation session started');
+
+  return {
+    accessToken,
+    sessionId,
+    tenant: {
+      _id: tenant._id.toString(),
+      name: tenant.name,
+      slug: tenant.slug,
+    },
+    impersonatedAdmin: {
+      _id: impersonatedAdminId,
+      name: impersonatedAdminName,
+      email: impersonatedAdminEmail,
+    },
+  };
+}
+
+/**
+ * Stop an impersonation session. Logs the session end in platform_audit_log.
+ *
+ * @param {string} sessionId - Impersonation session ID
+ * @param {string} superAdminId - Super admin _id (string)
+ * @returns {{ success: true, message: string }}
+ */
+async function stopImpersonation(sessionId, superAdminId) {
+  await auditTrailService.logAction(AUDIT_ACTIONS.IMPERSONATION_ENDED, superAdminId, {
+    targetType: 'impersonation_session',
+    targetId: sessionId,
+    sessionId,
+  });
+
+  log.info({ superAdminId, sessionId }, 'Impersonation session ended');
+
+  return { success: true, message: 'Impersonation session ended' };
 }
 
 // --- Reporting Index Initialization (internal, not exported) ---
