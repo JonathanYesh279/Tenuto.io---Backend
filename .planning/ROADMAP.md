@@ -65,12 +65,12 @@ Plans:
   3. Super admin can soft-delete a tenant (marking it for deletion with a configurable grace period) and later permanently purge it — all data across all collections removed atomically with a pre-deletion snapshot preserved
   4. Every super admin mutation (create, update, delete, toggle-active) is recorded in an audit trail with the actor's identity and timestamp
   5. The two existing cascade deletion systems are consolidated into one transaction-based system before tenant deletion is built on top
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 11-01: TBD
-- [ ] 11-02: TBD
-- [ ] 11-03: TBD
+- [ ] 11-01-PLAN.md -- Auth middleware tenant.isActive gating (FIX-03) + audit trail service (TLCM-04 foundation)
+- [ ] 11-02-PLAN.md -- Cascade deletion system consolidation (success criteria #5)
+- [ ] 11-03-PLAN.md -- Tenant lifecycle endpoints: deletion preview, soft-delete, purge, audit log wiring (TLCM-01, TLCM-02, TLCM-03, TLCM-04)
 
 ### Phase 12: Platform Reporting
 **Goal**: Super admin can view cross-tenant analytics covering usage statistics, Ministry report status, and subscription health from dedicated API endpoints
@@ -134,11 +134,11 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 8. Fix Import Teacher Bugs | v1.0 | 1/1 | Complete | 2026-02-23 |
 | 9. Fix Import Column Mapping | v1.0 | 1/1 | Complete | 2026-02-23 |
 | 10. Super Admin Auth Fixes | v1.1 | 2/2 | Complete | 2026-02-24 |
-| 11. Tenant Lifecycle Management | v1.1 | 0/TBD | Not started | - |
+| 11. Tenant Lifecycle Management | v1.1 | 0/3 | Not started | - |
 | 12. Platform Reporting | v1.1 | 0/TBD | Not started | - |
 | 13. Impersonation | v1.1 | 0/TBD | Not started | - |
 | 14. Super Admin Frontend | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-24 (v1.1 phases 10-14 added)*
+*Last updated: 2026-02-24 (Phase 11 planned — 3 plans in 2 waves)*
