@@ -32,7 +32,7 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 - Integer phases (10, 11, 12, ...): Planned milestone work
 - Decimal phases (10.1, 10.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 10: Super Admin Auth Fixes** - Fix broken auth so super admin can access the dashboard without 401 errors
+- [x] **Phase 10: Super Admin Auth Fixes** (2/2 plans) - completed 2026-02-24
 - [ ] **Phase 11: Tenant Lifecycle Management** - Full tenant deactivation gating, cascade deletion, and audit trail
 - [ ] **Phase 12: Platform Reporting** - Cross-tenant analytics and dashboard data APIs
 - [ ] **Phase 13: Impersonation** - Super admin can view-as-tenant-admin with full audit trail
@@ -52,8 +52,8 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md -- Backend refresh endpoint + frontend auth wiring (FIX-04)
-- [ ] 10-02-PLAN.md -- Frontend layout, provider, and route guards (FIX-01, FIX-02)
+- [x] 10-01-PLAN.md -- Backend refresh endpoint + frontend auth wiring (FIX-04)
+- [x] 10-02-PLAN.md -- Frontend layout, provider, and route guards (FIX-01, FIX-02)
 
 ### Phase 11: Tenant Lifecycle Management
 **Goal**: Super admin can deactivate tenants (blocking login), preview deletion impact, soft-delete with grace period, permanently purge tenant data, and every mutation is audit-logged
@@ -133,7 +133,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 7. Fix Import Teacher Null Properties | v1.0 | 1/1 | Complete | 2026-02-23 |
 | 8. Fix Import Teacher Bugs | v1.0 | 1/1 | Complete | 2026-02-23 |
 | 9. Fix Import Column Mapping | v1.0 | 1/1 | Complete | 2026-02-23 |
-| 10. Super Admin Auth Fixes | v1.1 | 0/TBD | Not started | - |
+| 10. Super Admin Auth Fixes | v1.1 | 2/2 | Complete | 2026-02-24 |
 | 11. Tenant Lifecycle Management | v1.1 | 0/TBD | Not started | - |
 | 12. Platform Reporting | v1.1 | 0/TBD | Not started | - |
 | 13. Impersonation | v1.1 | 0/TBD | Not started | - |
