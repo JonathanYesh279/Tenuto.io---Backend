@@ -22,6 +22,7 @@ const ADMIN_PROJECTION = { password: 0, refreshToken: 0 };
 export const superAdminService = {
   login,
   logout,
+  refreshAccessToken,
   seedSuperAdmin,
   getSuperAdmins,
   createSuperAdmin,
@@ -89,6 +90,45 @@ async function logout(adminId) {
     { $set: { refreshToken: null, updatedAt: new Date() } }
   );
   log.info({ adminId }, 'Super admin logged out');
+}
+
+async function refreshAccessToken(refreshToken) {
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+    if (decoded.type !== 'super_admin') {
+      throw new Error('Invalid token type');
+    }
+
+    const collection = await getCollection(COLLECTIONS.SUPER_ADMIN);
+    const admin = await collection.findOne({
+      _id: ObjectId.createFromHexString(decoded._id),
+      refreshToken: refreshToken,
+      isActive: true,
+    });
+
+    if (!admin) {
+      throw new Error('Invalid refresh token - admin not found or inactive');
+    }
+
+    const accessToken = jwt.sign(
+      { _id: admin._id.toString(), type: 'super_admin', email: admin.email },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: ACCESS_TOKEN_EXPIRY }
+    );
+
+    return { accessToken };
+  } catch (err) {
+    log.error({ err: err.message }, 'Error in super admin refreshAccessToken');
+
+    if (err.name === 'TokenExpiredError') {
+      throw new Error('Refresh token has expired');
+    } else if (err.name === 'JsonWebTokenError') {
+      throw new Error('Malformed refresh token');
+    }
+
+    throw new Error('Invalid refresh token');
+  }
 }
 
 async function seedSuperAdmin(data) {

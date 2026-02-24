@@ -7,6 +7,7 @@ const log = createLogger('super-admin.controller');
 export const superAdminController = {
   login,
   logout,
+  refresh,
   seed,
   getAdmins,
   createAdmin,
@@ -23,6 +24,14 @@ export const superAdminController = {
 async function login(req, res) {
   try {
     const result = await superAdminService.login(req.body.email, req.body.password);
+
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+
     res.json({ success: true, data: result });
   } catch (err) {
     log.error({ err: err.message }, 'Super admin login error');
@@ -33,10 +42,41 @@ async function login(req, res) {
 async function logout(req, res) {
   try {
     await superAdminService.logout(req.superAdmin._id.toString());
+
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+    });
+
     res.json({ success: true, message: 'Logged out successfully' });
   } catch (err) {
     log.error({ err: err.message }, 'Super admin logout error');
     res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function refresh(req, res) {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({
+        success: false,
+        error: 'Refresh token is required',
+        code: 'MISSING_REFRESH_TOKEN',
+      });
+    }
+
+    const { accessToken } = await superAdminService.refreshAccessToken(refreshToken);
+    res.json({
+      success: true,
+      data: { accessToken },
+      message: 'Token refreshed successfully',
+    });
+  } catch (err) {
+    log.error({ err: err.message }, 'Super admin refresh token error');
+    res.status(401).json({ success: false, error: 'Invalid or expired refresh token' });
   }
 }
 

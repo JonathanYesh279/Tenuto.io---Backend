@@ -6,6 +6,7 @@ const router = Router();
 
 // Public routes
 router.post('/auth/login', superAdminController.login);
+router.post('/auth/refresh', superAdminController.refresh);
 router.post('/seed', superAdminController.seed);
 
 // All routes below require super admin authentication
