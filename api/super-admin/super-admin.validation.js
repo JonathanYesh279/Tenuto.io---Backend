@@ -34,3 +34,12 @@ export const updateSubscriptionSchema = Joi.object({
   maxTeachers: Joi.number().positive().integer(),
   maxStudents: Joi.number().positive().integer(),
 }).min(1);
+
+export const softDeleteTenantSchema = Joi.object({
+  gracePeriodDays: Joi.number().integer().min(1).max(365).default(30),
+  reason: Joi.string().trim().max(500).allow('').default(''),
+});
+
+export const purgeTenantSchema = Joi.object({
+  confirmTenantName: Joi.string().required(),
+});

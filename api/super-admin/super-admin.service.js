@@ -3,13 +3,15 @@ import bcrypt from 'bcryptjs';
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { createLogger } from '../../services/logger.service.js';
-import { COLLECTIONS } from '../../config/constants.js';
+import { COLLECTIONS, AUDIT_ACTIONS } from '../../config/constants.js';
 import {
   superAdminLoginSchema,
   createSuperAdminSchema,
   updateSuperAdminSchema,
   updateSubscriptionSchema,
 } from './super-admin.validation.js';
+import { auditTrailService } from '../../services/auditTrail.service.js';
+import { tenantPurgeService } from '../../services/tenantPurge.service.js';
 
 const log = createLogger('super-admin.service');
 
@@ -32,6 +34,12 @@ export const superAdminService = {
   updateSubscription,
   toggleTenantActive,
   getPlatformAnalytics,
+  deletionPreview,
+  softDeleteTenant,
+  cancelDeletion,
+  purgeTenant,
+  getPlatformAuditLog,
+  getTenantAuditLog,
 };
 
 async function login(email, password) {
@@ -173,7 +181,7 @@ async function getSuperAdmins() {
   return collection.find({}, { projection: ADMIN_PROJECTION }).toArray();
 }
 
-async function createSuperAdmin(data) {
+async function createSuperAdmin(data, actorId) {
   const { error, value } = createSuperAdminSchema.validate(data, { abortEarly: false });
   if (error) throw error;
 
@@ -200,7 +208,7 @@ async function createSuperAdmin(data) {
   const result = await collection.insertOne(doc);
   log.info({ adminId: result.insertedId.toString() }, 'Super admin created');
 
-  return {
+  const created = {
     _id: result.insertedId.toString(),
     email: doc.email,
     name: doc.name,
@@ -208,9 +216,19 @@ async function createSuperAdmin(data) {
     isActive: doc.isActive,
     createdAt: doc.createdAt,
   };
+
+  if (actorId) {
+    await auditTrailService.logAction(AUDIT_ACTIONS.SUPER_ADMIN_CREATED, actorId, {
+      targetType: 'super_admin',
+      targetId: created._id,
+      adminEmail: created.email,
+    });
+  }
+
+  return created;
 }
 
-async function updateSuperAdmin(id, data) {
+async function updateSuperAdmin(id, data, actorId) {
   const { error, value } = updateSuperAdminSchema.validate(data, { abortEarly: false });
   if (error) throw error;
 
@@ -243,6 +261,15 @@ async function updateSuperAdmin(id, data) {
   }
 
   log.info({ adminId: id }, 'Super admin updated');
+
+  if (actorId) {
+    await auditTrailService.logAction(AUDIT_ACTIONS.SUPER_ADMIN_UPDATED, actorId, {
+      targetType: 'super_admin',
+      targetId: id,
+      changes: Object.keys(data),
+    });
+  }
+
   return result;
 }
 
@@ -307,7 +334,7 @@ async function getTenantWithStats(tenantId) {
   };
 }
 
-async function updateSubscription(tenantId, data) {
+async function updateSubscription(tenantId, data, actorId) {
   const { error, value } = updateSubscriptionSchema.validate(data, { abortEarly: false });
   if (error) throw error;
 
@@ -330,10 +357,19 @@ async function updateSubscription(tenantId, data) {
   }
 
   log.info({ tenantId }, 'Subscription updated');
+
+  if (actorId) {
+    await auditTrailService.logAction(AUDIT_ACTIONS.SUBSCRIPTION_UPDATED, actorId, {
+      targetId: tenantId,
+      tenantName: result.name,
+      changes: Object.keys(data),
+    });
+  }
+
   return result;
 }
 
-async function toggleTenantActive(tenantId) {
+async function toggleTenantActive(tenantId, actorId) {
   const collection = await getCollection(COLLECTIONS.TENANT);
 
   const tenant = await collection.findOne({
@@ -351,6 +387,15 @@ async function toggleTenantActive(tenantId) {
   );
 
   log.info({ tenantId, isActive: result.isActive }, 'Tenant active status toggled');
+
+  if (actorId) {
+    const action = result.isActive ? AUDIT_ACTIONS.TENANT_ACTIVATED : AUDIT_ACTIONS.TENANT_DEACTIVATED;
+    await auditTrailService.logAction(action, actorId, {
+      targetId: tenantId,
+      tenantName: result.name,
+    });
+  }
+
   return result;
 }
 
@@ -388,4 +433,157 @@ async function getPlatformAnalytics() {
     totalStudents,
     subscriptionsByPlan: planCounts,
   };
+}
+
+// ─── Tenant Lifecycle Methods ────────────────────────────────────────────────
+
+async function deletionPreview(tenantId) {
+  const tenantCollection = await getCollection(COLLECTIONS.TENANT);
+  const tenant = await tenantCollection.findOne({
+    _id: ObjectId.createFromHexString(tenantId),
+  });
+
+  if (!tenant) {
+    throw new Error(`Tenant with id ${tenantId} not found`);
+  }
+
+  const tenantIdString = tenant.tenantId || tenant._id.toString();
+  const preview = await tenantPurgeService.previewDeletion(tenantIdString);
+
+  return {
+    tenantId,
+    tenantName: tenant.name,
+    ...preview,
+  };
+}
+
+async function softDeleteTenant(tenantId, { gracePeriodDays = 30, reason = '' } = {}, actorId) {
+  const collection = await getCollection(COLLECTIONS.TENANT);
+  const tenant = await collection.findOne({
+    _id: ObjectId.createFromHexString(tenantId),
+  });
+
+  if (!tenant) {
+    throw new Error(`Tenant with id ${tenantId} not found`);
+  }
+
+  if (tenant.deletionStatus === 'scheduled' || tenant.deletionStatus === 'purging') {
+    throw new Error(`Tenant is already in deletion status: ${tenant.deletionStatus}`);
+  }
+
+  const result = await collection.findOneAndUpdate(
+    { _id: ObjectId.createFromHexString(tenantId) },
+    {
+      $set: {
+        isActive: false,
+        deletionStatus: 'scheduled',
+        deletionScheduledAt: new Date(),
+        deletionPurgeAt: new Date(Date.now() + gracePeriodDays * 24 * 60 * 60 * 1000),
+        deletionRequestedBy: actorId,
+        deletionReason: reason,
+        updatedAt: new Date(),
+      },
+    },
+    { returnDocument: 'after' }
+  );
+
+  await auditTrailService.logAction(AUDIT_ACTIONS.TENANT_SOFT_DELETED, actorId, {
+    targetId: tenantId,
+    tenantName: tenant.name,
+    gracePeriodDays,
+    reason,
+  });
+
+  log.info({ tenantId, gracePeriodDays }, 'Tenant soft-deleted');
+  return result;
+}
+
+async function cancelDeletion(tenantId, actorId) {
+  const collection = await getCollection(COLLECTIONS.TENANT);
+  const tenant = await collection.findOne({
+    _id: ObjectId.createFromHexString(tenantId),
+  });
+
+  if (!tenant) {
+    throw new Error(`Tenant with id ${tenantId} not found`);
+  }
+
+  if (tenant.deletionStatus !== 'scheduled') {
+    throw new Error(`Cannot cancel deletion: tenant deletion status is '${tenant.deletionStatus || 'none'}', expected 'scheduled'`);
+  }
+
+  // Note: Keep isActive: false -- cancelling deletion does NOT reactivate.
+  // Super admin must explicitly toggle-active to reactivate.
+  const result = await collection.findOneAndUpdate(
+    { _id: ObjectId.createFromHexString(tenantId) },
+    {
+      $set: { deletionStatus: 'cancelled', updatedAt: new Date() },
+      $unset: { deletionPurgeAt: '', deletionRequestedBy: '', deletionReason: '' },
+    },
+    { returnDocument: 'after' }
+  );
+
+  await auditTrailService.logAction(AUDIT_ACTIONS.TENANT_DELETION_CANCELLED, actorId, {
+    targetId: tenantId,
+    tenantName: tenant.name,
+  });
+
+  log.info({ tenantId }, 'Tenant deletion cancelled');
+  return result;
+}
+
+async function purgeTenant(tenantId, actorId) {
+  const collection = await getCollection(COLLECTIONS.TENANT);
+  const tenant = await collection.findOne({
+    _id: ObjectId.createFromHexString(tenantId),
+  });
+
+  if (!tenant) {
+    throw new Error(`Tenant with id ${tenantId} not found`);
+  }
+
+  if (tenant.deletionStatus !== 'scheduled') {
+    throw new Error(`Cannot purge: tenant must be soft-deleted first (current status: '${tenant.deletionStatus || 'none'}')`);
+  }
+
+  const tenantIdString = tenant.tenantId || tenant._id.toString();
+
+  // Mark as purging
+  await collection.updateOne(
+    { _id: ObjectId.createFromHexString(tenantId) },
+    { $set: { deletionStatus: 'purging', updatedAt: new Date() } }
+  );
+
+  try {
+    // Step 1: Create snapshot
+    const snapshotResult = await tenantPurgeService.createTenantSnapshot(tenantIdString);
+
+    // Step 2: Purge all tenant data
+    const purgeResult = await tenantPurgeService.purgeTenant(tenantIdString, snapshotResult.snapshotId);
+
+    // Step 3: Log audit
+    await auditTrailService.logAction(AUDIT_ACTIONS.TENANT_PURGED, actorId, {
+      targetId: tenantId,
+      tenantName: tenant.name,
+      snapshotId: snapshotResult.snapshotId.toString(),
+    });
+
+    log.info({ tenantId, snapshotId: snapshotResult.snapshotId.toString() }, 'Tenant purged');
+    return purgeResult;
+  } catch (err) {
+    // Rollback status to scheduled so purge can be retried
+    await collection.updateOne(
+      { _id: ObjectId.createFromHexString(tenantId) },
+      { $set: { deletionStatus: 'scheduled', updatedAt: new Date() } }
+    );
+    throw err;
+  }
+}
+
+async function getPlatformAuditLog(filters) {
+  return auditTrailService.getAuditLog(filters);
+}
+
+async function getTenantAuditLog(tenantId) {
+  return auditTrailService.getAuditLogForTenant(tenantId);
 }
