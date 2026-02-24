@@ -3,7 +3,8 @@ import request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { MongoClient, ObjectId } from 'mongodb';
 import express from 'express';
-import { cascadeDeletionService } from '../../services/cascadeDeletionService.js';
+// Updated import: canonical cascade deletion service (consolidated in Phase 11)
+import { cascadeDeletionService } from '../../services/cascadeDeletion.service.js';
 import * as dataIntegrityService from '../../api/admin/data-integrity.service.js';
 import { dataIntegrityController } from '../../api/admin/data-integrity.controller.js';
 import { partialFailureScenario, performanceTestScenario, testHelpers } from '../fixtures/cascade-test-data.js';

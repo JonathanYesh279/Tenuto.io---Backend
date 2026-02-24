@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { MongoClient, ObjectId } from 'mongodb';
-import { cascadeDeletionService } from '../../services/cascadeDeletionService.js';
+// Updated import: canonical cascade deletion service (consolidated in Phase 11)
+import { cascadeDeletionService } from '../../services/cascadeDeletion.service.js';
 import { performanceTestScenario, testHelpers } from '../fixtures/cascade-test-data.js';
 
 /**
