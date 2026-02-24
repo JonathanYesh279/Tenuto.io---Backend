@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-24)
 ## Current Position
 
 Phase: 11 of 14 (Tenant Lifecycle Management)
-Plan: 0 of N in current phase
-Status: Ready for next phase
-Last activity: 2026-02-24 - Completed Phase 10 (all plans)
+Plan: 1 of 3 in current phase
+Status: Plan 11-01 complete, ready for 11-02
+Last activity: 2026-02-24 - Completed 11-01 (tenant isActive gating + audit trail)
 
-Progress: [######################........] 73% (v1.0 complete, v1.1 in progress)
+Progress: [#######################.......] 76% (v1.0 complete, v1.1 in progress)
 
 ## Performance Metrics
 
@@ -26,7 +26,7 @@ Progress: [######################........] 73% (v1.0 complete, v1.1 in progress)
 - Timeline: 11 days (2026-02-14 -> 2026-02-24)
 
 **v1.1 Milestone:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Phases: 5 (10-14)
 - Requirements: 19
 
@@ -34,6 +34,7 @@ Progress: [######################........] 73% (v1.0 complete, v1.1 in progress)
 |-------|------|----------|-------|-------|
 | 10-01 | super-admin-refresh-token | 3min | 2 | 5 |
 | 10-02 | frontend-super-admin-layout | 2min | 2 | 4 |
+| 11-01 | tenant-isActive-gating-audit-trail | 2min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -59,6 +60,12 @@ Phase 10-02 decisions:
 - useLocation hook moved to top of ProtectedRoute to comply with React Rules of Hooks
 - Sidebar.tsx not modified -- already handles super admin navigation correctly
 
+Phase 11-01 decisions:
+- Tenant check guarded by if (teacher.tenantId) to skip gracefully for legacy data without tenantId
+- Tenant check placed AFTER teacher.isActive and token version checks in auth middleware
+- Audit logAction is defensive (catches errors, logs them, never throws) — audit failures cannot break operations
+- TENANT_SCOPED_COLLECTIONS excludes tenant (deleted separately), super_admin (platform-level), platform_audit_log (must survive)
+
 ### Pending Todos
 
 None.
@@ -72,7 +79,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (10-02 executed)
-Stopped at: Completed Phase 10 (all plans)
+Last session: 2026-02-24 (11-01 executed)
+Stopped at: Completed 11-01-PLAN.md
 Resume file: .planning/phases/11-tenant-lifecycle-management/
-Resume task: Begin Phase 11 planning/execution
+Resume task: Execute 11-02-PLAN.md (tenant CRUD API)
