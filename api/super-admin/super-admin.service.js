@@ -40,6 +40,10 @@ export const superAdminService = {
   purgeTenant,
   getPlatformAuditLog,
   getTenantAuditLog,
+  getReportingDashboard,
+  getReportingTenantList,
+  getReportingTenantDetail,
+  getReportingMinistryStatus,
 };
 
 async function login(email, password) {
@@ -586,4 +590,328 @@ async function getPlatformAuditLog(filters) {
 
 async function getTenantAuditLog(tenantId) {
   return auditTrailService.getAuditLogForTenant(tenantId);
+}
+
+// --- Platform Reporting Methods ---
+
+/**
+ * Compute utilization percentage. Returns null if max is falsy/0.
+ */
+function computeUtilization(count, max) {
+  if (!max) return null;
+  return Math.round((count / max) * 100);
+}
+
+/**
+ * Derive health alert objects for a tenant based on subscription and stats.
+ */
+function deriveHealthAlerts(tenant, stats) {
+  const alerts = [];
+  const sub = tenant.subscription;
+
+  // Expiring soon
+  if (sub?.endDate) {
+    const endDate = new Date(sub.endDate);
+    const now = Date.now();
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    if (endDate.getTime() <= now + thirtyDaysMs) {
+      const daysRemaining = Math.ceil((endDate.getTime() - now) / (24 * 60 * 60 * 1000));
+      alerts.push({
+        type: 'expiring_soon',
+        daysRemaining,
+        severity: daysRemaining <= 7 ? 'critical' : 'warning',
+      });
+    }
+  }
+
+  // Over limit teachers
+  const maxTeachers = sub?.maxTeachers || 0;
+  if (maxTeachers > 0 && stats.teacherCount >= maxTeachers) {
+    alerts.push({
+      type: 'over_limit_teachers',
+      current: stats.teacherCount,
+      max: maxTeachers,
+      severity: 'warning',
+    });
+  }
+
+  // Over limit students
+  const maxStudents = sub?.maxStudents || 0;
+  if (maxStudents > 0 && stats.studentCount >= maxStudents) {
+    alerts.push({
+      type: 'over_limit_students',
+      current: stats.studentCount,
+      max: maxStudents,
+      severity: 'warning',
+    });
+  }
+
+  // Inactive
+  if (!tenant.isActive || !sub?.isActive) {
+    alerts.push({ type: 'inactive', severity: 'info' });
+  }
+
+  return alerts;
+}
+
+/**
+ * REPT-01 + REPT-02 + REPT-03: Enriched tenant list with usage stats,
+ * ministry report status, and health alerts.
+ */
+async function getReportingTenantList() {
+  const tenantCollection = await getCollection(COLLECTIONS.TENANT);
+  const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
+  const studentCollection = await getCollection(COLLECTIONS.STUDENT);
+  const orchestraCollection = await getCollection(COLLECTIONS.ORCHESTRA);
+  const snapshotCollection = await getCollection(COLLECTIONS.MINISTRY_REPORT_SNAPSHOTS);
+
+  const tenants = await tenantCollection.find().sort({ name: 1 }).toArray();
+  const tenantIds = tenants.map((t) => t.tenantId || t._id.toString());
+
+  const [teacherCounts, studentCounts, orchestraCounts, adminLogins, snapshotStats] =
+    await Promise.all([
+      // Teacher counts per tenant
+      teacherCollection
+        .aggregate([
+          { $match: { tenantId: { $in: tenantIds }, isActive: true } },
+          { $group: { _id: '$tenantId', count: { $sum: 1 } } },
+        ])
+        .toArray(),
+      // Student counts per tenant
+      studentCollection
+        .aggregate([
+          { $match: { tenantId: { $in: tenantIds }, isActive: true } },
+          { $group: { _id: '$tenantId', count: { $sum: 1 } } },
+        ])
+        .toArray(),
+      // Orchestra counts per tenant
+      orchestraCollection
+        .aggregate([
+          { $match: { tenantId: { $in: tenantIds }, isActive: true } },
+          { $group: { _id: '$tenantId', count: { $sum: 1 } } },
+        ])
+        .toArray(),
+      // Last admin login per tenant
+      teacherCollection
+        .aggregate([
+          { $match: { tenantId: { $in: tenantIds }, isActive: true, roles: 'מנהל' } },
+          { $sort: { 'credentials.lastLogin': -1 } },
+          {
+            $group: {
+              _id: '$tenantId',
+              lastAdminLogin: { $first: '$credentials.lastLogin' },
+            },
+          },
+        ])
+        .toArray(),
+      // Ministry report snapshot stats per tenant
+      snapshotCollection
+        .aggregate([
+          { $match: { tenantId: { $in: tenantIds } } },
+          { $sort: { generatedAt: -1 } },
+          {
+            $group: {
+              _id: '$tenantId',
+              latestDate: { $first: '$generatedAt' },
+              completionPercentage: { $first: '$completionPercentage' },
+              count: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray(),
+    ]);
+
+  const teacherMap = new Map(teacherCounts.map((r) => [r._id, r.count]));
+  const studentMap = new Map(studentCounts.map((r) => [r._id, r.count]));
+  const orchestraMap = new Map(orchestraCounts.map((r) => [r._id, r.count]));
+  const adminLoginMap = new Map(adminLogins.map((r) => [r._id, r]));
+  const snapshotMap = new Map(snapshotStats.map((r) => [r._id, r]));
+
+  return tenants.map((t) => {
+    const tid = t.tenantId || t._id.toString();
+    const teacherCount = teacherMap.get(tid) || 0;
+    const studentCount = studentMap.get(tid) || 0;
+    const orchestraCount = orchestraMap.get(tid) || 0;
+
+    return {
+      ...t,
+      stats: {
+        teacherCount,
+        studentCount,
+        orchestraCount,
+        lastAdminLogin: adminLoginMap.get(tid)?.lastAdminLogin || null,
+        teacherUtilization: computeUtilization(teacherCount, t.subscription?.maxTeachers),
+        studentUtilization: computeUtilization(studentCount, t.subscription?.maxStudents),
+      },
+      ministryStatus: {
+        latestSnapshotDate: snapshotMap.get(tid)?.latestDate || null,
+        completionPercentage: snapshotMap.get(tid)?.completionPercentage ?? null,
+        snapshotCount: snapshotMap.get(tid)?.count || 0,
+      },
+      alerts: deriveHealthAlerts(t, { teacherCount, studentCount }),
+    };
+  });
+}
+
+/**
+ * Single-tenant reporting detail.
+ */
+async function getReportingTenantDetail(tenantId) {
+  const tenantCollection = await getCollection(COLLECTIONS.TENANT);
+  const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
+  const studentCollection = await getCollection(COLLECTIONS.STUDENT);
+  const orchestraCollection = await getCollection(COLLECTIONS.ORCHESTRA);
+  const snapshotCollection = await getCollection(COLLECTIONS.MINISTRY_REPORT_SNAPSHOTS);
+
+  const tenant = await tenantCollection.findOne({
+    _id: ObjectId.createFromHexString(tenantId),
+  });
+
+  if (!tenant) {
+    throw new Error(`Tenant with id ${tenantId} not found`);
+  }
+
+  const tid = tenant.tenantId || tenant._id.toString();
+
+  const [teacherCount, studentCount, orchestraCount, adminLogins, snapshotStats] =
+    await Promise.all([
+      teacherCollection.countDocuments({ tenantId: tid, isActive: true }),
+      studentCollection.countDocuments({ tenantId: tid, isActive: true }),
+      orchestraCollection.countDocuments({ tenantId: tid, isActive: true }),
+      teacherCollection
+        .aggregate([
+          { $match: { tenantId: tid, isActive: true, roles: 'מנהל' } },
+          { $sort: { 'credentials.lastLogin': -1 } },
+          {
+            $group: {
+              _id: '$tenantId',
+              lastAdminLogin: { $first: '$credentials.lastLogin' },
+            },
+          },
+        ])
+        .toArray(),
+      snapshotCollection
+        .aggregate([
+          { $match: { tenantId: tid } },
+          { $sort: { generatedAt: -1 } },
+          {
+            $group: {
+              _id: '$tenantId',
+              latestDate: { $first: '$generatedAt' },
+              completionPercentage: { $first: '$completionPercentage' },
+              count: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray(),
+    ]);
+
+  const adminLogin = adminLogins[0] || null;
+  const snapshot = snapshotStats[0] || null;
+
+  return {
+    ...tenant,
+    stats: {
+      teacherCount,
+      studentCount,
+      orchestraCount,
+      lastAdminLogin: adminLogin?.lastAdminLogin || null,
+      teacherUtilization: computeUtilization(teacherCount, tenant.subscription?.maxTeachers),
+      studentUtilization: computeUtilization(studentCount, tenant.subscription?.maxStudents),
+    },
+    ministryStatus: {
+      latestSnapshotDate: snapshot?.latestDate || null,
+      completionPercentage: snapshot?.completionPercentage ?? null,
+      snapshotCount: snapshot?.count || 0,
+    },
+    alerts: deriveHealthAlerts(tenant, { teacherCount, studentCount }),
+  };
+}
+
+/**
+ * REPT-02 standalone: Ministry report status across all tenants.
+ */
+async function getReportingMinistryStatus() {
+  const tenantCollection = await getCollection(COLLECTIONS.TENANT);
+  const snapshotCollection = await getCollection(COLLECTIONS.MINISTRY_REPORT_SNAPSHOTS);
+
+  const tenants = await tenantCollection
+    .find({}, { projection: { _id: 1, name: 1, slug: 1, tenantId: 1 } })
+    .toArray();
+
+  const tenantIds = tenants.map((t) => t.tenantId || t._id.toString());
+
+  const snapshotStats = await snapshotCollection
+    .aggregate([
+      { $match: { tenantId: { $in: tenantIds } } },
+      { $sort: { generatedAt: -1 } },
+      {
+        $group: {
+          _id: '$tenantId',
+          latestDate: { $first: '$generatedAt' },
+          completionPercentage: { $first: '$completionPercentage' },
+          count: { $sum: 1 },
+        },
+      },
+    ])
+    .toArray();
+
+  const snapshotMap = new Map(snapshotStats.map((r) => [r._id, r]));
+
+  return tenants.map((t) => {
+    const tid = t.tenantId || t._id.toString();
+    const snap = snapshotMap.get(tid);
+    return {
+      tenantId: tid,
+      tenantName: t.name,
+      slug: t.slug,
+      latestSnapshotDate: snap?.latestDate || null,
+      completionPercentage: snap?.completionPercentage ?? null,
+      snapshotCount: snap?.count || 0,
+    };
+  });
+}
+
+/**
+ * REPT-04: Combined dashboard with overview cards, tenant health, and alerts.
+ */
+async function getReportingDashboard() {
+  const tenantHealth = await getReportingTenantList();
+
+  // Compute overview from the tenant list
+  const totalTenants = tenantHealth.length;
+  const activeTenants = tenantHealth.filter((t) => t.isActive).length;
+  const totalTeachers = tenantHealth.reduce((sum, t) => sum + t.stats.teacherCount, 0);
+  const totalStudents = tenantHealth.reduce((sum, t) => sum + t.stats.studentCount, 0);
+  const totalOrchestras = tenantHealth.reduce((sum, t) => sum + t.stats.orchestraCount, 0);
+
+  // Subscriptions by plan
+  const planCounts = {};
+  for (const t of tenantHealth) {
+    const plan = t.subscription?.plan || 'basic';
+    planCounts[plan] = (planCounts[plan] || 0) + 1;
+  }
+
+  // Flatten alerts across all tenants
+  const alerts = tenantHealth
+    .filter((t) => t.alerts.length > 0)
+    .flatMap((t) =>
+      t.alerts.map((a) => ({
+        ...a,
+        tenantId: t._id?.toString() || t.tenantId,
+        tenantName: t.name,
+      }))
+    );
+
+  const overview = {
+    totalTenants,
+    activeTenants,
+    totalTeachers,
+    totalStudents,
+    totalOrchestras,
+    alertCount: alerts.length,
+    subscriptionsByPlan: planCounts,
+  };
+
+  return { overview, tenantHealth, alerts };
 }
