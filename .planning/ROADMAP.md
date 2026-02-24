@@ -49,11 +49,11 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
   2. Super admin sees a dedicated frontend layout with its own sidebar containing only platform-level navigation — no school year selector, no tenant-scoped menu items
   3. Super admin can refresh their access token via `POST /api/super-admin/auth/refresh` and continue using the dashboard without re-authenticating
   4. Regular tenant admin login flow is completely unaffected by these changes
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
+- [ ] 10-01-PLAN.md -- Backend refresh endpoint + frontend auth wiring (FIX-04)
+- [ ] 10-02-PLAN.md -- Frontend layout, provider, and route guards (FIX-01, FIX-02)
 
 ### Phase 11: Tenant Lifecycle Management
 **Goal**: Super admin can deactivate tenants (blocking login), preview deletion impact, soft-delete with grace period, permanently purge tenant data, and every mutation is audit-logged
