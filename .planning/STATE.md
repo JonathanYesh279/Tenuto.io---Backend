@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 11 - Tenant Lifecycle Management
+**Current focus:** Phase 11 complete, ready for Phase 12
 
 ## Current Position
 
-Phase: 11 of 14 (Tenant Lifecycle Management)
-Plan: 2 of 3 in current phase
-Status: Plan 11-02 complete, ready for 11-03
-Last activity: 2026-02-24 - Completed 11-02 (cascade deletion consolidation)
+Phase: 11 of 14 (Tenant Lifecycle Management) -- COMPLETE
+Plan: 3 of 3 in current phase (all complete)
+Status: Phase 11 complete, ready for Phase 12
+Last activity: 2026-02-24 - Completed 11-03 (tenant lifecycle API)
 
-Progress: [#######################.......] 76% (v1.0 complete, v1.1 in progress)
+Progress: [########################......] 79% (v1.0 complete, v1.1 in progress)
 
 ## Performance Metrics
 
@@ -26,7 +26,7 @@ Progress: [#######################.......] 76% (v1.0 complete, v1.1 in progress)
 - Timeline: 11 days (2026-02-14 -> 2026-02-24)
 
 **v1.1 Milestone:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Phases: 5 (10-14)
 - Requirements: 19
 
@@ -36,6 +36,7 @@ Progress: [#######################.......] 76% (v1.0 complete, v1.1 in progress)
 | 10-02 | frontend-super-admin-layout | 2min | 2 | 4 |
 | 11-01 | tenant-isActive-gating-audit-trail | 2min | 2 | 4 |
 | 11-02 | cascade-deletion-consolidation | 5min | 2 | 5 |
+| 11-03 | tenant-lifecycle-api | 3min | 2 | 5 |
 
 ## Accumulated Context
 
@@ -72,6 +73,14 @@ Phase 11-02 decisions:
 - Test suites skipped (not deleted) -- preserves test code for future rewrite to System A API
 - Third cascade implementation (api/admin/cascade-deletion.service.js) left as-is with TODO -- different admin endpoint concern
 
+Phase 11-03 decisions:
+- Snapshot split per collection to avoid MongoDB 16MB BSON document limit
+- Cancelling soft-delete does NOT reactivate tenant -- super admin must explicitly toggle-active
+- Purge requires confirmTenantName safety check in controller (destructive action guard)
+- Audit logging for createTenant/updateTenant done in controller (tenantService is shared with non-super-admin flows)
+- Service methods accept optional actorId for backward compatibility
+- Purge failure rolls back deletionStatus to 'scheduled' for retry
+
 ### Pending Todos
 
 None.
@@ -85,7 +94,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (11-02 executed)
-Stopped at: Completed 11-02-PLAN.md
-Resume file: .planning/phases/11-tenant-lifecycle-management/
-Resume task: Execute 11-03-PLAN.md (tenant CRUD API)
+Last session: 2026-02-24 (11-03 executed)
+Stopped at: Completed 11-03-PLAN.md (Phase 11 complete)
+Resume file: .planning/phases/12-*/ (next phase)
+Resume task: Plan Phase 12
