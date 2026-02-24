@@ -22,6 +22,16 @@ router.put('/tenants/:id', superAdminController.updateTenant);
 router.put('/tenants/:id/subscription', superAdminController.updateSubscription);
 router.put('/tenants/:id/toggle-active', superAdminController.toggleTenantActive);
 
+// Tenant lifecycle
+router.get('/tenants/:id/deletion-preview', superAdminController.deletionPreview);
+router.post('/tenants/:id/soft-delete', superAdminController.softDelete);
+router.post('/tenants/:id/cancel-deletion', superAdminController.cancelDeletion);
+router.post('/tenants/:id/purge', superAdminController.purge);
+
+// Audit log
+router.get('/audit-log', superAdminController.getAuditLog);
+router.get('/audit-log/:tenantId', superAdminController.getTenantAuditLog);
+
 // Analytics
 router.get('/analytics', superAdminController.getAnalytics);
 
