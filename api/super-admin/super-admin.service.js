@@ -915,3 +915,36 @@ async function getReportingDashboard() {
 
   return { overview, tenantHealth, alerts };
 }
+
+// --- Reporting Index Initialization (internal, not exported) ---
+
+async function ensureReportingIndexes() {
+  try {
+    const snapshotCollection = await getCollection(COLLECTIONS.MINISTRY_REPORT_SNAPSHOTS);
+    const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
+    const orchestraCollection = await getCollection(COLLECTIONS.ORCHESTRA);
+
+    await Promise.all([
+      snapshotCollection.createIndex(
+        { tenantId: 1, generatedAt: -1 },
+        { name: 'idx_reporting_tenant_snapshot', background: true }
+      ),
+      teacherCollection.createIndex(
+        { tenantId: 1, roles: 1, 'credentials.lastLogin': -1 },
+        { name: 'idx_reporting_admin_login', background: true }
+      ),
+      orchestraCollection.createIndex(
+        { tenantId: 1, isActive: 1 },
+        { name: 'idx_reporting_orchestra_tenant', background: true }
+      ),
+    ]);
+
+    log.info('Reporting indexes ensured');
+  } catch (err) {
+    // Index creation is best-effort -- queries work without them, just slower
+    log.warn({ err: err.message }, 'Failed to ensure reporting indexes');
+  }
+}
+
+// Trigger index creation on first module import (idempotent)
+ensureReportingIndexes();
