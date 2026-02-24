@@ -33,7 +33,7 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 - Decimal phases (10.1, 10.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 10: Super Admin Auth Fixes** (2/2 plans) - completed 2026-02-24
-- [ ] **Phase 11: Tenant Lifecycle Management** - Full tenant deactivation gating, cascade deletion, and audit trail
+- [x] **Phase 11: Tenant Lifecycle Management** (3/3 plans) - completed 2026-02-24
 - [ ] **Phase 12: Platform Reporting** - Cross-tenant analytics and dashboard data APIs
 - [ ] **Phase 13: Impersonation** - Super admin can view-as-tenant-admin with full audit trail
 - [ ] **Phase 14: Super Admin Frontend** - Dedicated dashboard, tenant management pages, and admin CRUD UI
@@ -68,9 +68,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 11-01-PLAN.md -- Auth middleware tenant.isActive gating (FIX-03) + audit trail service (TLCM-04 foundation)
-- [ ] 11-02-PLAN.md -- Cascade deletion system consolidation (success criteria #5)
-- [ ] 11-03-PLAN.md -- Tenant lifecycle endpoints: deletion preview, soft-delete, purge, audit log wiring (TLCM-01, TLCM-02, TLCM-03, TLCM-04)
+- [x] 11-01-PLAN.md -- Auth middleware tenant.isActive gating (FIX-03) + audit trail service (TLCM-04 foundation)
+- [x] 11-02-PLAN.md -- Cascade deletion system consolidation (success criteria #5)
+- [x] 11-03-PLAN.md -- Tenant lifecycle endpoints: deletion preview, soft-delete, purge, audit log wiring (TLCM-01, TLCM-02, TLCM-03, TLCM-04)
 
 ### Phase 12: Platform Reporting
 **Goal**: Super admin can view cross-tenant analytics covering usage statistics, Ministry report status, and subscription health from dedicated API endpoints
@@ -134,11 +134,11 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 8. Fix Import Teacher Bugs | v1.0 | 1/1 | Complete | 2026-02-23 |
 | 9. Fix Import Column Mapping | v1.0 | 1/1 | Complete | 2026-02-23 |
 | 10. Super Admin Auth Fixes | v1.1 | 2/2 | Complete | 2026-02-24 |
-| 11. Tenant Lifecycle Management | v1.1 | 0/3 | Not started | - |
+| 11. Tenant Lifecycle Management | v1.1 | 3/3 | Complete | 2026-02-24 |
 | 12. Platform Reporting | v1.1 | 0/TBD | Not started | - |
 | 13. Impersonation | v1.1 | 0/TBD | Not started | - |
 | 14. Super Admin Frontend | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-24 (Phase 11 planned — 3 plans in 2 waves)*
+*Last updated: 2026-02-24 (Phase 11 complete — 3/3 plans executed)*
