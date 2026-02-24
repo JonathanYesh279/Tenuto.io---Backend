@@ -43,3 +43,7 @@ export const softDeleteTenantSchema = Joi.object({
 export const purgeTenantSchema = Joi.object({
   confirmTenantName: Joi.string().required(),
 });
+
+export const reportingTenantDetailParamsSchema = Joi.object({
+  id: Joi.string().hex().length(24).required(),
+});
