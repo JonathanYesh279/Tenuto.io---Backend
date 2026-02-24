@@ -1,7 +1,13 @@
 /**
- * Cascade Deletion Service
+ * Cascade Deletion Service (Admin API)
  * Core business logic for safe cascade deletion with rollback capabilities
  * Handles student deletion with comprehensive data integrity management
+ *
+ * TODO(Phase 11): This is a THIRD cascade deletion implementation separate from
+ * the canonical services/cascadeDeletion.service.js. It uses different collection
+ * names ('students' instead of 'student', 'deletionSnapshots', 'deletionAuditLog')
+ * that may not match the COLLECTIONS constants. Should be consolidated with the
+ * canonical service in a future cleanup pass.
  */
 
 import { getCollection } from '../../services/mongoDB.service.js';
