@@ -81,11 +81,11 @@ Plans:
   2. Super admin can view Ministry report status per tenant showing latest snapshot date, completion percentage, and number of snapshots
   3. Tenant list displays subscription health alerts — expiring soon, over-limit, and inactive flags — alongside each tenant
   4. A single combined dashboard API endpoint returns overview cards, tenant health list, and alerts in one response (consumed by Phase 14 frontend)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 12-01: TBD
-- [ ] 12-02: TBD
+- [ ] 12-01-PLAN.md -- Reporting service functions and validation schemas (REPT-01, REPT-02, REPT-03, REPT-04 data layer)
+- [ ] 12-02-PLAN.md -- Reporting controller, routes, and database indexes (REPT-04 HTTP layer)
 
 ### Phase 13: Impersonation
 **Goal**: Super admin can impersonate a tenant's admin to see exactly what they see, with every action audit-logged and a clear visual indicator in the frontend
@@ -135,10 +135,10 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 9. Fix Import Column Mapping | v1.0 | 1/1 | Complete | 2026-02-23 |
 | 10. Super Admin Auth Fixes | v1.1 | 2/2 | Complete | 2026-02-24 |
 | 11. Tenant Lifecycle Management | v1.1 | 3/3 | Complete | 2026-02-24 |
-| 12. Platform Reporting | v1.1 | 0/TBD | Not started | - |
+| 12. Platform Reporting | v1.1 | 0/2 | Not started | - |
 | 13. Impersonation | v1.1 | 0/TBD | Not started | - |
 | 14. Super Admin Frontend | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-24 (Phase 11 complete — 3/3 plans executed)*
+*Last updated: 2026-02-24 (Phase 12 planned — 2 plans created)*
