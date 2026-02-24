@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 12 complete — ready for Phase 13 (Impersonation)
+**Current focus:** Phase 13 in progress — Impersonation backend endpoints complete, frontend plan next
 
 ## Current Position
 
-Phase: 12 of 14 (Platform Reporting) -- COMPLETE
-Plan: 2 of 2 in current phase (all plans complete)
-Status: Phase 12 complete, ready for Phase 13
-Last activity: 2026-02-24 - Completed 12-02 (reporting controller, routes, indexes)
+Phase: 13 of 14 (Impersonation)
+Plan: 1 of 2 in current phase (13-01 complete)
+Status: 13-01 complete, ready for 13-02
+Last activity: 2026-02-24 - Completed 13-01 (impersonation backend endpoints)
 
-Progress: [##########################....] 87% (v1.0 complete, v1.1 in progress)
+Progress: [############################..] 93% (v1.0 complete, v1.1 in progress)
 
 ## Performance Metrics
 
@@ -26,7 +26,7 @@ Progress: [##########################....] 87% (v1.0 complete, v1.1 in progress)
 - Timeline: 11 days (2026-02-14 -> 2026-02-24)
 
 **v1.1 Milestone:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Phases: 5 (10-14)
 - Requirements: 19
 
@@ -39,6 +39,7 @@ Progress: [##########################....] 87% (v1.0 complete, v1.1 in progress)
 | 11-03 | tenant-lifecycle-api | 3min | 2 | 5 |
 | 12-01 | reporting-service-functions | 3min | 2 | 2 |
 | 12-02 | reporting-controller-routes-indexes | 2min | 2 | 3 |
+| 13-01 | impersonation-backend-endpoints | 5min | 2 | 8 |
 
 ## Accumulated Context
 
@@ -94,6 +95,14 @@ Phase 12-02 decisions:
 - Index creation is fire-and-forget at module load with defensive error handling (never crashes)
 - Controller validates tenant ID param with Joi before calling service (returns 400 for invalid ObjectId)
 
+Phase 13-01 decisions:
+- Impersonation token mirrors generateAccessToken payload exactly plus 3 claims (isImpersonation, impersonatedBy, impersonationSessionId) -- authenticateToken accepts it unchanged
+- enrichImpersonationContext uses jwt.decode() (not verify) since authenticateToken already verified the signature
+- Audit logging for mutating requests is fire-and-forget (not awaited) to avoid adding latency
+- Middleware placed after authenticateToken and before buildContext in all 23 tenant-scoped route chains
+- GET requests during impersonation are NOT logged as audit entries (only debug log) to reduce noise
+- No refresh token issued for impersonation sessions -- forces re-impersonation after 1h expiry
+
 ### Pending Todos
 
 None.
@@ -101,13 +110,13 @@ None.
 ### Blockers/Concerns
 
 - RESOLVED: Two cascade deletion systems consolidated in 11-02 (re-export wrapper to canonical service)
-- Impersonation token design must not break existing authenticateToken middleware (Phase 13)
+- RESOLVED: Impersonation token mirrors teacher JWT exactly with 3 extra claims -- authenticateToken unchanged (13-01)
 - Frontend auth localStorage collision between super admin and regular admin tokens (Phase 10/13)
 - Settings page shows toast error when super admin visits /settings (tenantId null) -- Phase 14 fix
 
 ## Session Continuity
 
-Last session: 2026-02-24 (12-02 executed)
-Stopped at: Completed 12-02-PLAN.md (Phase 12 complete)
-Resume file: .planning/phases/13-impersonation/ (next phase)
-Resume task: Plan Phase 13
+Last session: 2026-02-24 (13-01 executed)
+Stopped at: Completed 13-01-PLAN.md (impersonation backend endpoints)
+Resume file: .planning/phases/13-impersonation/13-02-PLAN.md
+Resume task: Execute 13-02 (frontend impersonation UI)
