@@ -231,4 +231,35 @@ export const COLLECTIONS = {
   MIGRATION_BACKUPS: 'migration_backups',
   INTEGRITY_AUDIT_LOG: 'integrityAuditLog',
   INTEGRITY_STATUS: 'integrityStatus',
+  PLATFORM_AUDIT_LOG: 'platform_audit_log',
+  TENANT_DELETION_SNAPSHOTS: 'tenant_deletion_snapshots',
 };
+
+// ─── Audit Actions ────────────────────────────────────────────────────────────
+
+export const AUDIT_ACTIONS = {
+  TENANT_CREATED: 'TENANT_CREATED',
+  TENANT_UPDATED: 'TENANT_UPDATED',
+  TENANT_ACTIVATED: 'TENANT_ACTIVATED',
+  TENANT_DEACTIVATED: 'TENANT_DEACTIVATED',
+  TENANT_SOFT_DELETED: 'TENANT_SOFT_DELETED',
+  TENANT_DELETION_CANCELLED: 'TENANT_DELETION_CANCELLED',
+  TENANT_PURGED: 'TENANT_PURGED',
+  SUBSCRIPTION_UPDATED: 'SUBSCRIPTION_UPDATED',
+  SUPER_ADMIN_CREATED: 'SUPER_ADMIN_CREATED',
+  SUPER_ADMIN_UPDATED: 'SUPER_ADMIN_UPDATED',
+};
+
+// ─── Tenant-Scoped Collections ────────────────────────────────────────────────
+// Collections that store tenant data (have tenantId on documents).
+// Used during tenant purge to delete all tenant-specific data.
+// Excludes: tenant (deleted separately), super_admin (platform-level),
+// platform_audit_log (must survive deletion), migration_backups (one-time scripts),
+// integrityAuditLog/integrityStatus (may not have consistent tenantId).
+
+export const TENANT_SCOPED_COLLECTIONS = [
+  'teacher', 'student', 'orchestra', 'rehearsal', 'theory_lesson',
+  'bagrut', 'school_year', 'activity_attendance', 'hours_summary',
+  'import_log', 'ministry_report_snapshots', 'deletion_audit',
+  'deletion_snapshots', 'security_log',
+];
