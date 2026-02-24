@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Write Protection & Validation** - Prevent client-supplied tenantId from overriding server context ✓ 2026-02-23
 - [x] **Phase 4: Super-Admin Allowlist** - Explicit cross-tenant operations with authorization ✓ 2026-02-23
 - [x] **Phase 5: Error Handling & Cascade Safety** - Tenant-scoped errors, safe cascade deletions ✓ 2026-02-24
-- [ ] **Phase 6: Testing & Verification** - Automated + manual verification of complete isolation
+- [x] **Phase 6: Testing & Verification** - Automated + manual verification of complete isolation ✓ 2026-02-24
 
 ## Phase Details
 
@@ -120,10 +120,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- Test infrastructure: vitest config, MMS setup, two-tenant seed fixtures, test app builder, token helper
-- [ ] 06-02-PLAN.md -- Cross-tenant read isolation tests across all 11 collections (TEST-01)
-- [ ] 06-03-PLAN.md -- Cross-tenant write isolation, middleware unit tests, concurrent contamination tests (TEST-02)
-- [ ] 06-04-PLAN.md -- Allowlist verification, route accountability, CI pipeline, verification checklist (TEST-03, TEST-04)
+- [x] 06-01-PLAN.md -- Test infrastructure: vitest config, MMS setup, two-tenant seed fixtures, test app builder, token helper
+- [x] 06-02-PLAN.md -- Cross-tenant read isolation tests across all 11 collections (TEST-01)
+- [x] 06-03-PLAN.md -- Cross-tenant write isolation, middleware unit tests, concurrent contamination tests (TEST-02)
+- [x] 06-04-PLAN.md -- Allowlist verification, route accountability, CI pipeline, verification checklist (TEST-03, TEST-04)
 
 ## Progress
 
@@ -137,7 +137,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Write Protection & Validation | 1/1 | ✓ Complete | 2026-02-23 |
 | 4. Super-Admin Allowlist | 2/2 | ✓ Complete | 2026-02-23 |
 | 5. Error Handling & Cascade Safety | 4/4 | ✓ Complete | 2026-02-24 |
-| 6. Testing & Verification | 0/4 | In progress | - |
+| 6. Testing & Verification | 4/4 | ✓ Complete | 2026-02-24 |
 | 7. Fix Import Teacher Feature | 1/1 | ✓ Complete | 2026-02-23 |
 | 8. Fix Import Teacher Bugs | 1/1 | ✓ Complete | 2026-02-23 |
 | 9. Fix Import Column Mapping | 1/1 | ✓ Complete | 2026-02-23 |
@@ -171,4 +171,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-24 (Phase 6 planned)*
+*Last updated: 2026-02-24 (Phase 6 complete — all milestone phases done)*
