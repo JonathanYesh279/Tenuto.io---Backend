@@ -13,6 +13,7 @@ import cookieParser from 'cookie-parser';
 import { authenticateToken } from './middleware/auth.middleware.js';
 import { addSchoolYearToRequest } from './middleware/school-year.middleware.js';
 import { buildContext, enforceTenant, stripTenantId } from './middleware/tenant.middleware.js';
+import { enrichImpersonationContext } from './middleware/impersonation-audit.middleware.js';
 import { validateEnvironment } from './config/validateEnv.js';
 import logger from './services/logger.service.js';
 import healthRoutes from './api/health/health.route.js';
@@ -147,12 +148,14 @@ app.use('/api/auth', authRoutes);
 app.use(
   '/api/tenant',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   tenantRoutes
 );
 app.use(
   '/api/student',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -162,6 +165,7 @@ app.use(
 app.use(
   '/api/teacher',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -172,6 +176,7 @@ app.use(
 app.use(
   '/api/teachers',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -181,6 +186,7 @@ app.use(
 app.use(
   '/api/orchestra',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -190,17 +196,19 @@ app.use(
 app.use(
   '/api/rehearsal',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
   addSchoolYearToRequest,
   rehearsalRoutes
 );
-app.use('/api/theory', authenticateToken, buildContext, enforceTenant, stripTenantId, addSchoolYearToRequest, theoryRoutes);
-app.use('/api/bagrut', authenticateToken, buildContext, enforceTenant, stripTenantId, addSchoolYearToRequest, bagrutRoutes);
+app.use('/api/theory', authenticateToken, enrichImpersonationContext, buildContext, enforceTenant, stripTenantId, addSchoolYearToRequest, theoryRoutes);
+app.use('/api/bagrut', authenticateToken, enrichImpersonationContext, buildContext, enforceTenant, stripTenantId, addSchoolYearToRequest, bagrutRoutes);
 app.use(
   '/api/school-year',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -210,6 +218,7 @@ app.use(
 app.use(
   '/api/schedule',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -219,6 +228,7 @@ app.use(
 app.use(
   '/api/attendance',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -228,6 +238,7 @@ app.use(
 app.use(
   '/api/analytics',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -237,6 +248,7 @@ app.use(
 app.use(
   '/api/admin/consistency-validation',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -245,6 +257,7 @@ app.use(
 app.use(
   '/api/admin/date-monitoring',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -253,6 +266,7 @@ app.use(
 app.use(
   '/api/admin/past-activities',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -261,6 +275,7 @@ app.use(
 app.use(
   '/api/admin',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -269,6 +284,7 @@ app.use(
 app.use(
   '/api/cascade',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -277,15 +293,17 @@ app.use(
 app.use(
   '/api/admin/cleanup',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
   cleanupRoutes
 );
-app.use('/api/files', authenticateToken, buildContext, fileRoutes);
+app.use('/api/files', authenticateToken, enrichImpersonationContext, buildContext, fileRoutes);
 app.use(
   '/api/hours-summary',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -295,6 +313,7 @@ app.use(
 app.use(
   '/api/import',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -303,6 +322,7 @@ app.use(
 app.use(
   '/api/export',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,
@@ -319,6 +339,7 @@ app.use('/api/health', healthRoutes);
 app.use(
   '/api',
   authenticateToken,
+  enrichImpersonationContext,
   buildContext,
   enforceTenant,
   stripTenantId,

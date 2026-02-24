@@ -1,6 +1,6 @@
 import { superAdminService } from './super-admin.service.js';
 import { tenantService } from '../tenant/tenant.service.js';
-import { softDeleteTenantSchema, purgeTenantSchema, reportingTenantDetailParamsSchema } from './super-admin.validation.js';
+import { softDeleteTenantSchema, purgeTenantSchema, reportingTenantDetailParamsSchema, impersonationStartSchema } from './super-admin.validation.js';
 import { auditTrailService } from '../../services/auditTrail.service.js';
 import { AUDIT_ACTIONS } from '../../config/constants.js';
 import { createLogger } from '../../services/logger.service.js';
@@ -32,6 +32,8 @@ export const superAdminController = {
   getReportingTenants,
   getReportingTenantById,
   getReportingMinistryStatus,
+  startImpersonation,
+  stopImpersonation,
 };
 
 async function login(req, res) {
@@ -362,6 +364,48 @@ async function getReportingMinistryStatus(req, res) {
     res.json({ success: true, data: status });
   } catch (err) {
     log.error({ err: err.message }, 'Error getting reporting ministry status');
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ─── Impersonation Endpoints ────────────────────────────────────────────────
+
+async function startImpersonation(req, res) {
+  try {
+    const { error } = impersonationStartSchema.validate(req.params);
+    if (error) {
+      return res.status(400).json({ success: false, error: error.details[0].message });
+    }
+
+    const result = await superAdminService.startImpersonation(
+      req.params.tenantId,
+      req.superAdmin._id.toString()
+    );
+    res.json({ success: true, data: result });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error starting impersonation');
+    let status = 500;
+    if (err.message.includes('not found')) status = 404;
+    else if (err.message.includes('deactivated')) status = 400;
+    else if (err.message.includes('No active admin')) status = 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function stopImpersonation(req, res) {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ success: false, error: 'sessionId is required' });
+    }
+
+    const result = await superAdminService.stopImpersonation(
+      sessionId,
+      req.superAdmin._id.toString()
+    );
+    res.json({ success: true, data: result });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error stopping impersonation');
     res.status(500).json({ success: false, error: err.message });
   }
 }

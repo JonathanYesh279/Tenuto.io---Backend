@@ -14,6 +14,10 @@ router.use(authenticateSuperAdmin);
 
 router.post('/auth/logout', superAdminController.logout);
 
+// Impersonation
+router.post('/impersonate/:tenantId', superAdminController.startImpersonation);
+router.post('/stop-impersonation', superAdminController.stopImpersonation);
+
 // Tenant management
 router.get('/tenants', superAdminController.getTenants);
 router.get('/tenants/:id', superAdminController.getTenantById);
