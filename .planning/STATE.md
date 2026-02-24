@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 12 in progress — platform reporting services
+**Current focus:** Phase 12 complete — ready for Phase 13 (Impersonation)
 
 ## Current Position
 
-Phase: 12 of 14 (Platform Reporting)
-Plan: 1 of 2 in current phase (12-01 complete)
-Status: 12-01 complete, ready for 12-02
-Last activity: 2026-02-24 - Completed 12-01 (reporting service functions)
+Phase: 12 of 14 (Platform Reporting) -- COMPLETE
+Plan: 2 of 2 in current phase (all plans complete)
+Status: Phase 12 complete, ready for Phase 13
+Last activity: 2026-02-24 - Completed 12-02 (reporting controller, routes, indexes)
 
-Progress: [#########################.....] 83% (v1.0 complete, v1.1 in progress)
+Progress: [##########################....] 87% (v1.0 complete, v1.1 in progress)
 
 ## Performance Metrics
 
@@ -26,7 +26,7 @@ Progress: [#########################.....] 83% (v1.0 complete, v1.1 in progress)
 - Timeline: 11 days (2026-02-14 -> 2026-02-24)
 
 **v1.1 Milestone:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Phases: 5 (10-14)
 - Requirements: 19
 
@@ -38,6 +38,7 @@ Progress: [#########################.....] 83% (v1.0 complete, v1.1 in progress)
 | 11-02 | cascade-deletion-consolidation | 5min | 2 | 5 |
 | 11-03 | tenant-lifecycle-api | 3min | 2 | 5 |
 | 12-01 | reporting-service-functions | 3min | 2 | 2 |
+| 12-02 | reporting-controller-routes-indexes | 2min | 2 | 3 |
 
 ## Accumulated Context
 
@@ -88,6 +89,11 @@ Phase 12-01 decisions:
 - computeUtilization returns null when max is falsy to distinguish "no limit" from "0% utilization"
 - deriveHealthAlerts uses 30-day lookahead for expiry with severity escalation at 7 days
 
+Phase 12-02 decisions:
+- Reporting routes placed after authenticateSuperAdmin router.use and before requirePermission admin routes
+- Index creation is fire-and-forget at module load with defensive error handling (never crashes)
+- Controller validates tenant ID param with Joi before calling service (returns 400 for invalid ObjectId)
+
 ### Pending Todos
 
 None.
@@ -101,7 +107,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-24 (12-01 executed)
-Stopped at: Completed 12-01-PLAN.md
-Resume file: .planning/phases/12-platform-reporting/12-02-PLAN.md
-Resume task: Execute 12-02
+Last session: 2026-02-24 (12-02 executed)
+Stopped at: Completed 12-02-PLAN.md (Phase 12 complete)
+Resume file: .planning/phases/13-impersonation/ (next phase)
+Resume task: Plan Phase 13
