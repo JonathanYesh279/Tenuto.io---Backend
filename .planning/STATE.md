@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 13 complete — Phase 14 (Super Admin Frontend) next
+**Current focus:** Phase 14 (Super Admin Frontend) in progress — plan 01 complete
 
 ## Current Position
 
-Phase: 13 of 14 (Impersonation) — COMPLETE
-Plan: 2/2 complete
-Status: Phase 13 verified (8/8 must-haves, human testing recommended)
-Last activity: 2026-02-25 - Phase 13 completed (bug fix + checkpoint approved + verified)
+Phase: 14 of 14 (Super Admin Frontend)
+Plan: 1/4 complete
+Status: Plan 14-01 complete (API wrappers, types, routes, sidebar)
+Last activity: 2026-02-25 - Plan 14-01 executed (2 tasks, 4 files)
 
-Progress: [############################..] 96% (v1.0 complete, v1.1 phases 10-13 done, phase 14 remaining)
+Progress: [############################..] 97% (v1.0 complete, v1.1 phases 10-13 done, phase 14 plan 1/4)
 
 ## Performance Metrics
 
@@ -26,8 +26,8 @@ Progress: [############################..] 96% (v1.0 complete, v1.1 phases 10-13
 - Timeline: 11 days (2026-02-14 -> 2026-02-24)
 
 **v1.1 Milestone:**
-- Total plans completed: 9
-- Phases: 5 (10-14), 4 complete
+- Total plans completed: 10
+- Phases: 5 (10-14), 4 complete + phase 14 in progress (1/4 plans)
 - Requirements: 19
 
 | Phase | Plan | Duration | Tasks | Files |
@@ -41,6 +41,7 @@ Progress: [############################..] 96% (v1.0 complete, v1.1 phases 10-13
 | 12-02 | reporting-controller-routes-indexes | 2min | 2 | 3 |
 | 13-01 | impersonation-backend-endpoints | 5min | 2 | 8 |
 | 13-02 | frontend-impersonation-ui | 15min | 3 | 4 |
+| 14-01 | api-wrappers-types-routes-sidebar | 2min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -104,6 +105,12 @@ Phase 13-01 decisions:
 - GET requests during impersonation are NOT logged as audit entries (only debug log) to reduce noise
 - No refresh token issued for impersonation sessions -- forces re-impersonation after 1h expiry
 
+Phase 14-01 decisions:
+- Params passed directly to apiClient.get() matching existing codebase pattern (not axios { params } convention)
+- superAdminNavigation expanded to 4 items: dashboard, tenants, super-admins, settings
+- Routes added before catch-all to ensure correct matching order
+- Super admin pages lazy-loaded from pages/super-admin/ directory (consistent with createProtectedRoute pattern)
+
 ### Pending Todos
 
 None.
@@ -125,6 +132,6 @@ Phase 13-02 decisions:
 
 ## Session Continuity
 
-Last session: 2026-02-25 (Phase 13 completed)
-Stopped at: Phase 13 complete, Phase 14 next
-Resume: /gsd:plan-phase 14
+Last session: 2026-02-25 (Phase 14-01 completed)
+Stopped at: Completed 14-01-PLAN.md
+Resume: Execute 14-02-PLAN.md (TenantListPage)
