@@ -110,12 +110,13 @@ Plans:
   2. Tenant detail page shows full tenant info (subscription details, usage stats, Ministry report status) with working edit, delete, and impersonate action buttons
   3. Tenant create and edit forms submit correctly via the super admin frontend and the tenant list reflects changes immediately
   4. Super admin management page allows listing, creating, and editing super admin accounts via a dedicated UI
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 14-01: TBD
-- [ ] 14-02: TBD
-- [ ] 14-03: TBD
+- [ ] 14-01-PLAN.md -- Foundation: API wrappers, TypeScript types, routes, sidebar navigation (all requirements)
+- [ ] 14-02-PLAN.md -- Enhanced dashboard with reporting API + Tenant list page with inline actions (SAUI-01)
+- [ ] 14-03-PLAN.md -- Tenant detail page + create/edit form page (SAUI-02, SAUI-03)
+- [ ] 14-04-PLAN.md -- Super admin management page + human verification checkpoint (SAUI-04)
 
 ## Progress
 
@@ -137,8 +138,8 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 11. Tenant Lifecycle Management | v1.1 | 3/3 | Complete | 2026-02-24 |
 | 12. Platform Reporting | v1.1 | 2/2 | Complete | 2026-02-25 |
 | 13. Impersonation | v1.1 | 2/2 | Complete | 2026-02-25 |
-| 14. Super Admin Frontend | v1.1 | 0/TBD | Not started | - |
+| 14. Super Admin Frontend | v1.1 | 0/4 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-25 (Phase 13 complete -- 2/2 plans executed)*
+*Last updated: 2026-02-25 (Phase 14 planned -- 4 plans in 2 waves)*
