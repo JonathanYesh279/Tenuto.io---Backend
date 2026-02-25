@@ -35,7 +35,7 @@ See: `.planning/milestones/v1.0-ROADMAP.md` for full details.
 - [x] **Phase 10: Super Admin Auth Fixes** (2/2 plans) - completed 2026-02-24
 - [x] **Phase 11: Tenant Lifecycle Management** (3/3 plans) - completed 2026-02-24
 - [x] **Phase 12: Platform Reporting** (2/2 plans) - completed 2026-02-25
-- [ ] **Phase 13: Impersonation** (2 plans) - Super admin can view-as-tenant-admin with full audit trail
+- [x] **Phase 13: Impersonation** (2/2 plans) - completed 2026-02-25
 - [ ] **Phase 14: Super Admin Frontend** - Dedicated dashboard, tenant management pages, and admin CRUD UI
 
 ## Phase Details
@@ -98,8 +98,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md -- Backend impersonation endpoints, audit enrichment middleware, and audit constants (IMPR-01, IMPR-02)
-- [ ] 13-02-PLAN.md -- Frontend impersonation: auth context, token stashing, ImpersonationBanner component (IMPR-03)
+- [x] 13-01-PLAN.md -- Backend impersonation endpoints, audit enrichment middleware, and audit constants (IMPR-01, IMPR-02)
+- [x] 13-02-PLAN.md -- Frontend impersonation: auth context, token stashing, ImpersonationBanner component (IMPR-03)
 
 ### Phase 14: Super Admin Frontend
 **Goal**: Super admin has a complete frontend dashboard with platform overview, tenant management pages with inline CRUD actions, and a super admin management page
@@ -136,9 +136,9 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 10. Super Admin Auth Fixes | v1.1 | 2/2 | Complete | 2026-02-24 |
 | 11. Tenant Lifecycle Management | v1.1 | 3/3 | Complete | 2026-02-24 |
 | 12. Platform Reporting | v1.1 | 2/2 | Complete | 2026-02-25 |
-| 13. Impersonation | v1.1 | 0/2 | Not started | - |
+| 13. Impersonation | v1.1 | 2/2 | Complete | 2026-02-25 |
 | 14. Super Admin Frontend | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-25 (Phase 13 planned -- 2 plans created)*
+*Last updated: 2026-02-25 (Phase 13 complete -- 2/2 plans executed)*

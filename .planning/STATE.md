@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 13 in progress — Impersonation backend endpoints complete, frontend plan next
+**Current focus:** Phase 13 complete — Phase 14 (Super Admin Frontend) next
 
 ## Current Position
 
-Phase: 13 of 14 (Impersonation)
-Plan: 1 of 2 in current phase (13-01 complete)
-Status: 13-01 complete, ready for 13-02
-Last activity: 2026-02-24 - Completed 13-01 (impersonation backend endpoints)
+Phase: 13 of 14 (Impersonation) — COMPLETE
+Plan: 2/2 complete
+Status: Phase 13 verified (8/8 must-haves, human testing recommended)
+Last activity: 2026-02-25 - Phase 13 completed (bug fix + checkpoint approved + verified)
 
-Progress: [############################..] 93% (v1.0 complete, v1.1 in progress)
+Progress: [############################..] 96% (v1.0 complete, v1.1 phases 10-13 done, phase 14 remaining)
 
 ## Performance Metrics
 
@@ -26,8 +26,8 @@ Progress: [############################..] 93% (v1.0 complete, v1.1 in progress)
 - Timeline: 11 days (2026-02-14 -> 2026-02-24)
 
 **v1.1 Milestone:**
-- Total plans completed: 8
-- Phases: 5 (10-14)
+- Total plans completed: 9
+- Phases: 5 (10-14), 4 complete
 - Requirements: 19
 
 | Phase | Plan | Duration | Tasks | Files |
@@ -40,6 +40,7 @@ Progress: [############################..] 93% (v1.0 complete, v1.1 in progress)
 | 12-01 | reporting-service-functions | 3min | 2 | 2 |
 | 12-02 | reporting-controller-routes-indexes | 2min | 2 | 3 |
 | 13-01 | impersonation-backend-endpoints | 5min | 2 | 8 |
+| 13-02 | frontend-impersonation-ui | 15min | 3 | 4 |
 
 ## Accumulated Context
 
@@ -111,12 +112,19 @@ None.
 
 - RESOLVED: Two cascade deletion systems consolidated in 11-02 (re-export wrapper to canonical service)
 - RESOLVED: Impersonation token mirrors teacher JWT exactly with 3 extra claims -- authenticateToken unchanged (13-01)
+- RESOLVED: stop-impersonation JWT ordering bug -- super admin token now restored before API call (13-02 bug fix)
 - Frontend auth localStorage collision between super admin and regular admin tokens (Phase 10/13)
 - Settings page shows toast error when super admin visits /settings (tenantId null) -- Phase 14 fix
 
+Phase 13-02 decisions:
+- Token stashing uses sessionStorage (preImpersonation_authToken/loginType/superAdminUser) -- survives page refresh within tab, cleared on tab close
+- ImpersonationBanner reads from localStorage and listens for storage events to detect cross-tab changes
+- Impersonation token expiry triggers automatic exit via stopImpersonation in refreshToken callback
+- Banner uses fixed positioning with z-[100] to overlay above header -- intentional strong visual indicator
+- Super admin token restored BEFORE stop-impersonation API call (bug fix: route requires authenticateSuperAdmin)
+
 ## Session Continuity
 
-Last session: 2026-02-24 (13-01 executed)
-Stopped at: Completed 13-01-PLAN.md (impersonation backend endpoints)
-Resume file: .planning/phases/13-impersonation/13-02-PLAN.md
-Resume task: Execute 13-02 (frontend impersonation UI)
+Last session: 2026-02-25 (Phase 13 completed)
+Stopped at: Phase 13 complete, Phase 14 next
+Resume: /gsd:plan-phase 14
