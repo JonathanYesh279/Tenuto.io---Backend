@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 14 (Super Admin Frontend) in progress — plan 01 complete
+**Current focus:** Phase 14 (Super Admin Frontend) in progress — plan 02 complete
 
 ## Current Position
 
 Phase: 14 of 14 (Super Admin Frontend)
-Plan: 1/4 complete
-Status: Plan 14-01 complete (API wrappers, types, routes, sidebar)
-Last activity: 2026-02-25 - Plan 14-01 executed (2 tasks, 4 files)
+Plan: 2/4 complete
+Status: Plan 14-02 complete (dashboard enhancement, tenant list page)
+Last activity: 2026-02-26 - Plan 14-02 executed (2 tasks, 2 files)
 
-Progress: [############################..] 97% (v1.0 complete, v1.1 phases 10-13 done, phase 14 plan 1/4)
+Progress: [############################..] 98% (v1.0 complete, v1.1 phases 10-13 done, phase 14 plan 2/4)
 
 ## Performance Metrics
 
@@ -26,8 +26,8 @@ Progress: [############################..] 97% (v1.0 complete, v1.1 phases 10-13
 - Timeline: 11 days (2026-02-14 -> 2026-02-24)
 
 **v1.1 Milestone:**
-- Total plans completed: 10
-- Phases: 5 (10-14), 4 complete + phase 14 in progress (1/4 plans)
+- Total plans completed: 11
+- Phases: 5 (10-14), 4 complete + phase 14 in progress (2/4 plans)
 - Requirements: 19
 
 | Phase | Plan | Duration | Tasks | Files |
@@ -42,6 +42,7 @@ Progress: [############################..] 97% (v1.0 complete, v1.1 phases 10-13
 | 13-01 | impersonation-backend-endpoints | 5min | 2 | 8 |
 | 13-02 | frontend-impersonation-ui | 15min | 3 | 4 |
 | 14-01 | api-wrappers-types-routes-sidebar | 2min | 2 | 4 |
+| 14-02 | dashboard-enhancement-tenant-list | 17min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -111,6 +112,12 @@ Phase 14-01 decisions:
 - Routes added before catch-all to ensure correct matching order
 - Super admin pages lazy-loaded from pages/super-admin/ directory (consistent with createProtectedRoute pattern)
 
+Phase 14-02 decisions:
+- Dashboard uses single getReportingDashboard API call instead of separate getTenants + getAnalytics
+- Plan labels updated to match backend SUBSCRIPTION_PLANS enum: standard/premium (not professional/enterprise)
+- Impersonate button hidden for inactive tenants (backend rejects anyway, better UX to hide)
+- Delete button replaced with grayed-out indicator when deletionStatus=scheduled (prevents double-scheduling)
+
 ### Pending Todos
 
 None.
@@ -132,6 +139,6 @@ Phase 13-02 decisions:
 
 ## Session Continuity
 
-Last session: 2026-02-25 (Phase 14-01 completed)
-Stopped at: Completed 14-01-PLAN.md
-Resume: Execute 14-02-PLAN.md (TenantListPage)
+Last session: 2026-02-26 (Phase 14-02 completed)
+Stopped at: Completed 14-02-PLAN.md
+Resume: Execute 14-03-PLAN.md (TenantDetailPage + TenantFormPage)
