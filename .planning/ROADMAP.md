@@ -57,11 +57,10 @@ See: `.planning/milestones/v1.1-ROADMAP.md` for full details.
   1. Student import preview detects instrument columns with the same accuracy as teacher import (no misdetection from missing headerColMap)
   2. Uploading a Ministry Excel file with a "מגמת מוסיקה" or "מגמה" column produces a preview that includes the bagrut flag value for each student row
   3. Student schema accepts `academicInfo.isBagrutCandidate` boolean without breaking existing student documents
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 15-01: TBD
-- [ ] 15-02: TBD
+- [ ] 15-01-PLAN.md -- Fix headerColMap passthrough bug + add bagrut column mapping and schema field
 
 ### Phase 16: Instrument Progress + Student Data Enrichment
 **Goal**: Imported students have proper instrumentProgress[] entries with stage tracking, and the import detects changes across all enriched fields
@@ -129,11 +128,11 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 12. Platform Reporting | v1.1 | 2/2 | Complete | 2026-02-25 |
 | 13. Impersonation | v1.1 | 2/2 | Complete | 2026-02-25 |
 | 14. Super Admin Frontend | v1.1 | 4/4 | Complete | 2026-02-26 |
-| 15. Bug Fix + Column Map Extensions | v1.2 | 0/TBD | Not started | - |
+| 15. Bug Fix + Column Map Extensions | v1.2 | 0/1 | Planning complete | - |
 | 16. Instrument Progress + Student Data Enrichment | v1.2 | 0/TBD | Not started | - |
 | 17. Teacher-Student Linking | v1.2 | 0/TBD | Not started | - |
 | 18. Frontend Preview Enhancement | v1.2 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-27 — v1.2 milestone roadmap created*
+*Last updated: 2026-02-27 — Phase 15 planned (1 plan)*
