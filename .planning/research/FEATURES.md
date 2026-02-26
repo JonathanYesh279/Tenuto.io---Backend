@@ -1,284 +1,288 @@
-# Feature Landscape: Super Admin SaaS Platform Management
+# Feature Landscape: Enhanced Student Import
 
-**Domain:** SaaS platform administration -- tenant lifecycle, impersonation, reporting, dedicated frontend
-**Researched:** 2026-02-24
-**Overall Confidence:** HIGH
+**Domain:** Ministry of Education Excel import for Israeli music conservatory student records
+**Researched:** 2026-02-26
+**Overall Confidence:** HIGH (based on direct codebase analysis — no web research needed for well-understood domain)
+
+---
+
+## What Already Exists (Do Not Rebuild)
+
+Understanding the baseline prevents re-implementing finished work and clarifies exactly what "enhancement" means.
+
+### Already Built and Working
+
+| Feature | Location | Notes |
+|---------|----------|-------|
+| Excel upload + multer memoryStorage | `import.service.js` | `previewStudentImport()` + `executeStudentImport()` |
+| Header row auto-detection (scores up to 10 rows) | `parseExcelBufferWithHeaderDetection()` | Handles multi-row merged Ministry headers |
+| Multi-row merged header backfill | `parseExcelBufferWithHeaderDetection()` | Parent-row climbing for sub-labels |
+| Hebrew column mapping (STUDENT_COLUMN_MAP) | `import.service.js` lines 113-133 | Maps שם, כיתה, שנות לימוד, שלב, המורה, זמן שעור |
+| `fullName` → `firstName` + `lastName` split | `validateStudentRow()` | Space-split on `\s+` |
+| Lesson duration conversion (weekly hours → minutes) | `validateStudentRow()` | 0.75 sh"sh → 45 minutes, handles 2x/3x lesson weeks |
+| Ministry stage level (שלב א/ב/ג) parsing + validation | `validateStudentRow()` + `MINISTRY_STAGE_LEVELS` | Validated against `['א', 'ב', 'ג']` |
+| Age validation | `validateStudentRow()` | Range 3-99 |
+| Study years parsing | `validateStudentRow()` | `parseInt` with null fallback |
+| Instrument column detection (colored cells + boolean) | `detectInstrumentColumns()` + `readInstrumentMatrix()` | Checks cell fill color first, text fallback |
+| Department → instrument auto-assign (single-instrument dept) | `previewStudentImport()` lines 1533-1555 | Auto-assigns when dept has exactly 1 instrument |
+| Student name matching (firstName + lastName exact) | `matchStudent()` | Returns `name_duplicate` when multiple match |
+| Duplicate name warning | `previewStudentImport()` | Warns when 2+ students share a name |
+| Preview dry-run with import_log persistence | `previewStudentImport()` | Saves to `import_log` with `status: 'pending'` |
+| Execute from importLogId | `executeStudentImport()` | Reads pending log, updates/creates students |
+| Basic student creation (new students) | `executeStudentImport()` lines 1788-1819 | Creates minimal document without `instrumentProgress[]` |
+| Updates: class, studyYears, extraHour | `calculateStudentChanges()` | Only these 3 fields diffed |
+| Ministry stage level stored on new students | `executeStudentImport()` line 1812-1815 | `newStudent.academicInfo.ministryStageLevel` (flat field, NOT in instrumentProgress) |
+| 3-step frontend flow | `ImportData.tsx` | upload → preview → results |
+| Teacher/student tab switching | `ImportData.tsx` | Resets state on tab change |
+| Import results summary | `ImportData.tsx` | Shows created/updated/error counts |
+
+### What the Column `המורה` Currently Does
+
+The `המורה` column is parsed into `mapped.teacherName` (a string) and stored in `mapped` — but **nothing in `executeStudentImport()` uses `mapped.teacherName`**. It is visible in the preview `mapped` object but never matched to a teacher record and never written to `teacherAssignments[]`. This is the primary gap.
+
+### What `instrumentProgress[]` Currently Gets From Import
+
+Currently: **nothing**. New students created via import get `academicInfo.instrument` (a flat string field, legacy) and `academicInfo.ministryStageLevel` (a flat string), but `academicInfo.instrumentProgress[]` — the authoritative array schema — is never populated. This means imported students fail the `instrumentProgress.min(1).required()` Joi validation and therefore bypass it (the import bypasses Joi and writes directly with `insertOne`).
 
 ---
 
 ## Table Stakes
 
-Features users expect from a SaaS platform management layer. Missing = platform feels unfinished or operationally blind.
+Features users (conservatory administrators) expect from this import flow. Missing = import is not useful for annual re-enrollment.
 
-| Feature | Why Expected | Complexity | Depends On (Existing) |
-|---------|--------------|------------|----------------------|
-| **Tenant cascade deletion** | Orphaned data is a liability -- legal (GDPR "right to erasure"), operational (stale data pollutes analytics), storage cost | High | `COLLECTIONS` constant (19 collections), existing `cascadeDeletion.service.js` pattern |
-| **Soft-delete with grace period** | Industry standard -- 30-day recovery window before permanent purge prevents accidental data loss | Medium | `tenant.isActive` toggle already exists |
-| **Deletion impact preview** | Admin must see what will be destroyed BEFORE confirming -- SaaS table stakes for destructive operations | Medium | Existing `previewCascadeDeletion()` pattern in `cascadeDeletion.service.js` |
-| **Super admin impersonation** | Support staff need to see what tenant admin sees without sharing credentials -- every SaaS platform of scale has this | High | `authenticateSuperAdmin` middleware, JWT `type: 'super_admin'` claim |
-| **Impersonation audit trail** | OWASP Multi-Tenant Security Cheat Sheet explicitly requires logging who impersonated whom, when, and what they did | Medium | `security_log` collection exists |
-| **Visual impersonation indicator** | User must always know they are in impersonation mode -- prevents accidental actions and satisfies compliance | Low | Frontend-only; no backend dependency |
-| **Per-tenant usage dashboard** | Platform operator needs to see teacher/student counts, last login dates, subscription utilization per tenant | Medium | `getTenantsWithStats()` already fetches basic counts |
-| **Subscription health monitoring** | Expiring/over-limit subscriptions need visibility -- missed renewals = revenue loss | Low | `tenant.subscription` schema already has `plan`, `endDate`, `maxTeachers`, `maxStudents` |
-| **Dedicated super admin frontend** | Current bug: super admin sees regular admin UI and gets 401 errors because `tenantId` is null in context. Separate layout needed | High | `superAdminNavigation` array exists in Sidebar.tsx but routes to regular `/dashboard` |
-| **Super admin dashboard** | Landing page showing platform health: total tenants, users, active/inactive, subscription distribution | Low | `getPlatformAnalytics()` API + `SuperAdminDashboard.tsx` already exist (need bug fixes) |
-| **Tenant detail view** | Click a tenant to see full details: subscription info, usage stats, admin contacts, ministry report status | Medium | `getTenantWithStats()` API exists but returns minimal data |
+| Feature | Why Expected | Complexity | Depends On |
+|---------|--------------|------------|------------|
+| **Teacher-student linking from Excel `המורה` column** | The primary use case for the import — set who teaches whom from the Ministry roster. Without it, imported students are orphaned (no teacher) and the import fails its core purpose. | Medium | `matchTeacher()` already exists and works for teacher import. Must apply it during student import: fuzzy name → `teacherId` → create `teacherAssignment` entry. Teacher DB must be pre-populated (teacher import runs first). |
+| **`instrumentProgress[]` creation from instrument/department columns** | Student schema requires `instrumentProgress[]` for all downstream features (stage tests, bagrut eligibility, export). Without it, imported students appear invalid in the system. | Medium | `detectInstrumentColumns()` + `readInstrumentMatrix()` already detect instruments. Gap is only in `executeStudentImport()`: detected instrument must become an `instrumentProgress` entry `{ instrumentName, isPrimary: true, currentStage: 1, ministryStageLevel, tests: {} }`. |
+| **`ministryStageLevel` stored in `instrumentProgress[]`** | The שלב column is already parsed (א/ב/ג). It needs to land in `instrumentProgress[0].ministryStageLevel` (not `academicInfo.ministryStageLevel`), because all downstream code (export mapper, student service, UI) reads it from the progress array. | Low | `stageToMinistryLevel()` helper exists in constants. Inverse mapping also exists. |
+| **Bagrut program flagging from `מגמת מוסיקה` column** | Conservatory must tag which students are in the music bagrut track at import time — re-enrollment requires this data. | Low | New column map entry needed: `'מגמת מוסיקה': 'isBagrutTrack'`. Detection is boolean/checkmark in Excel. Stored as `academicInfo.isBagrutTrack: true`. Does NOT create a `bagrut` document — just flags the student. |
+| **Preview shows enriched student data** | Admin must see teacher-to-student links, instrument assignments, and bagrut flags BEFORE confirming import — not just name + class. Current preview only shows 3 change fields. | Medium | Frontend `ImportData.tsx` needs new `getStudentRowDetails()` helper (mirrors `getTeacherRowDetails()` which already exists). Backend `calculateStudentChanges()` must include the new fields. |
+| **Preview summary counts by category** | Admin needs to know: X students matched, Y new, Z with teacher links found, W with unknown teacher names. | Low | Extend the existing preview object to include `teacherLinksFound`, `teacherLinksUnresolved`, `instrumentsDetected` counts. |
 
 ## Differentiators
 
-Features not expected at this scale (3-10 tenants) but valuable for operational excellence.
+Features that set this import apart from a basic CSV dump. Not expected at first glance, but immediately valuable when discovered.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Ministry report status per tenant** | Platform operator can see which tenants have generated reports, completion %, and when -- unique to this domain | Medium | Requires querying `ministry_report_snapshots` per tenant; no equivalent in any competitor |
-| **Tenant data export for portability** | Builds trust with conservatory directors -- "your data is yours" messaging. Also GDPR compliance | Medium | Export all tenant data to JSON/zip on demand |
-| **Per-tenant subscription enforcement** | Automatically disable new teacher/student creation when subscription limits reached | Low | Check `maxTeachers`/`maxStudents` in create services; already have the fields |
-| **Super admin activity log** | Who created which tenants, who toggled what, full audit of super admin actions | Low | Log all super admin mutations to `security_log` with `actor: superAdminId` |
-| **Tenant onboarding wizard** | Guided flow: create tenant -> set subscription -> create admin teacher -> seed school year | Medium | Currently manual 4-step process via separate API calls |
-| **Bulk tenant operations** | Toggle active, update subscription plan for multiple tenants at once | Low | Convenience for when platform grows beyond 5-10 tenants |
-| **Cross-tenant analytics comparison** | Compare two tenants side-by-side: teacher/student ratios, ministry report completeness | Medium | Valuable for the platform owner to identify under-performing conservatories |
+| **Fuzzy teacher name matching with confidence score** | Ministry Excel teacher names are often abbreviated or have spelling variations. `"דני לוי"` vs `"דניאל לוי"` both exist. A fuzzy match with low-confidence warning is better than silent failure. | Medium | Add Levenshtein distance or normalized name comparison after exact-match fails. Mark `matchType: 'name_fuzzy'` with a warning in preview. Do NOT auto-link fuzzy matches — show as warning requiring manual review. |
+| **Warn on unresolved teacher names** | When `המורה` column has a value but no teacher was found in DB, show a warning with the exact unresolved name so admin can investigate. | Low | Simple: after teacher match attempt, if `matchType === null`, push to `preview.warnings` with `{ field: 'teacherName', message: 'לא נמצא מורה: [name]' }`. |
+| **Detect and skip duplicate Excel rows** | Ministry files sometimes have the same student listed twice (two instruments, two teachers). Current code takes first match — should detect and warn. | Low | Check if student was already matched in this import run (Set of matched studentIds). Second occurrence = warning. |
+| **Import creates `currentStage` from `ministryStageLevel`** | Reverse-map שלב → `currentStage`: `א` → stage 1, `ב` → stage 4, `ג` → stage 6. These are defensible default entry points when no other stage data exists. | Low | `stageToMinistryLevel()` exists. Inverse: `ministryLevelToDefaultStage()` — add to constants. |
+| **Column detection report in preview** | Show admin which Excel columns were recognized: "detected: שלב, המורה, זמן שעור, כינור (colored), מגמת מוסיקה". Reduces confusion when import silently ignores columns. | Low | Backend already computes `headerMappingReport` for teacher import. Add same for student import. |
 
 ## Anti-Features
 
-Features to explicitly NOT build for this milestone.
+Features to explicitly NOT build in this milestone.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| **Self-service tenant signup** | Only 3-10 Israeli conservatories exist as target market -- manual onboarding is fine and safer | Super admin creates tenants manually; add wizard later if needed |
-| **Billing integration (Stripe, etc.)** | No real payment processing needed yet -- subscriptions are managed manually between organizations | Track subscription dates/limits in DB; handle billing offline |
-| **White-labeling per tenant** | All conservatories use same branding (Tenuto.io) -- no demand for custom logos/colors | Single brand; defer if a tenant specifically requests |
-| **Multi-level admin hierarchy** | Super admin -> tenant admin is sufficient. No need for "regional admin" or "ministry admin" roles | Two-level hierarchy only |
-| **Real-time tenant monitoring/alerting** | At 3-10 tenants, manual dashboard checks are sufficient | Manual refresh on dashboard; add WebSocket/push later if needed |
-| **Tenant data migration between instances** | No use case -- all tenants share one database | If needed, implement as one-off script |
-| **Super admin 2FA/MFA** | Important eventually but not blocking for this milestone | Defer to security hardening milestone; document as future requirement |
-| **Impersonation of individual teachers** | Super admin should only impersonate tenant admin, not jump into teacher accounts directly | Impersonate tenant admin who can then view teacher data normally |
+| **Creating a full `bagrut` document on import** | Bagrut documents require `studentId`, `teacherId`, program pieces, accompanist, etc. Import cannot reliably populate these from a roster file. | Set `academicInfo.isBagrutTrack = true` flag only. Bagrut document creation remains a manual flow in the bagrut module. |
+| **Full teacher assignment scheduling (day/time/location)** | Ministry file has `זמן שעור` (lesson duration) but NOT day of week or time. `teacherAssignment` schema requires `day`, `time`, `duration` (all mandatory). Cannot create a valid assignment without day/time. | Store `lessonDuration` in `academicInfo.lessonDuration`. Create `teacherAssignment` with `duration` only, using placeholder `day: 'ראשון'` and `time: '08:00'`, marked with `notes: 'ייובא - יש להגדיר זמן'` — OR simply store the teacher link as a looser reference until scheduling is done manually. See Pitfalls. |
+| **Automatic bagrut creation from import** | Bagrut program has complex state (presentations, pieces, accompanists, director evaluation) that cannot come from a ministry file. | Flag only. Admin creates bagrut document separately. |
+| **Updating existing `instrumentProgress[]` entries** | If a student already has `instrumentProgress[]` from prior manual entry (stage 5, test results, etc.), the import must NOT overwrite it with stage 1 default from the Excel file. | Only create `instrumentProgress[]` if the array is currently empty. If non-empty, update `ministryStageLevel` only on the primary instrument. Never touch `currentStage`, `tests`, or `isPrimary` on existing entries. |
+| **Cross-year import merging** | Importing two years of data at once — the Ministry file is always one school year. | Single year per import. Multiple imports = safe (idempotent match logic). |
+| **Importing parent/contact info** | Ministry files do not contain parent phone/email. These are collected separately. | Do not add parent fields to STUDENT_COLUMN_MAP — they will never appear in Ministry files. |
+
+---
 
 ## Feature Dependencies
 
 ```
-Dedicated Super Admin Frontend
-  |-- Super admin dashboard (fix 401 errors, separate layout)
-  |-- Tenant list view (already have API, need proper UI)
-  |-- Tenant detail view (expand existing API + build UI)
+Teacher-student linking
+  |-- Requires: teacher records already in DB (teacher import runs first)
+  |-- Requires: matchTeacher() applied to mapped.teacherName during student preview
+  |-- Requires: teacherAssignment shape decision (with or without day/time)
   |
-  |-- Tenant cascade deletion
-  |     |-- Deletion impact preview (show before confirming)
-  |     |-- Soft-delete with grace period (disable first, purge later)
-  |     `-- Audit trail (log who deleted what)
+  `-- Preview warning: unresolved teacher names
+       |-- Show exact unresolved name in warnings
+       `-- Admin action: run teacher import first, then retry student import
+
+instrumentProgress[] creation
+  |-- Requires: instrument detected from colored cell OR instrument column
+  |-- Requires: ministryStageLevel from שלב column
+  |-- Requires: inverse stageLevel → currentStage mapping (new helper)
   |
-  |-- Super admin impersonation
-  |     |-- Impersonation JWT with "act" claim (RFC 8693)
-  |     |-- Impersonation audit trail (security_log)
-  |     `-- Visual impersonation indicator (frontend banner)
-  |
-  `-- Enhanced reporting
-        |-- Per-tenant usage dashboard (expand getTenantsWithStats)
-        |-- Subscription health monitoring (expiring/over-limit alerts)
-        `-- Ministry report status per tenant (query snapshots)
+  `-- Guard: only create if instrumentProgress[] is currently empty
+
+ministryStageLevel in instrumentProgress[]
+  |-- Depends on: instrumentProgress[] creation (above)
+  |-- Stored at: instrumentProgress[0].ministryStageLevel
+  |-- Remove from: academicInfo.ministryStageLevel (flat field — was a stopgap)
+
+Bagrut flagging (isBagrutTrack)
+  |-- Requires: new column map entry for 'מגמת מוסיקה'
+  |-- Stored at: academicInfo.isBagrutTrack (new boolean field)
+  |-- Independent of instrumentProgress[] and teacherAssignment
+
+Enriched preview UX
+  |-- Depends on: all backend enrichments (teacher linking, instrumentProgress)
+  |-- calculateStudentChanges() must include new fields
+  |-- Frontend getStudentRowDetails() mirrors getTeacherRowDetails() pattern
 ```
 
-**Critical path:** Fix the 401 errors / broken super admin frontend FIRST. Everything else is useless if the super admin cannot even access the dashboard.
+---
 
 ## MVP Recommendation
 
-### Phase 1: Fix What's Broken (Must Do First)
+Build in this order — each step produces working functionality without breaking existing behavior.
 
-1. **Separate super admin routing/layout** -- The root cause of the 401 errors. Super admin has no `tenantId`, so all tenant-scoped middleware/APIs reject requests. The frontend must detect `isSuperAdmin` and route to a completely different layout with different API calls.
-2. **Super admin dashboard bug fixes** -- `SuperAdminDashboard.tsx` exists and works when API calls succeed. Fix the routing so it renders in a proper super admin layout (no tenant sidebar, no school year selector, no tenant-scoped nav items).
+### Step 1: instrumentProgress[] Creation (highest value, no external dependencies)
 
-### Phase 2: Core Platform Management
+**Why first:** Unblocks the rest. Currently imported students have no `instrumentProgress[]`, which breaks stage tests, export, and UI display. This is also fully self-contained — does not depend on teacher DB state.
 
-3. **Tenant detail view** -- Click a tenant in list to see full details: subscription, usage, admin contacts, quick actions (edit, toggle, delete). Expand `getTenantWithStats()` to include more data.
-4. **Tenant cascade deletion** -- The most complex feature. Soft-delete first (set `isActive: false`), then background job to purge all data across all 19 collections after grace period.
-5. **Deletion impact preview** -- Before confirming deletion, show exactly what will be destroyed: X teachers, Y students, Z orchestras, W school years, etc.
+**What to build:**
+1. In `executeStudentImport()` for new students: build `instrumentProgress[]` with one entry from the detected instrument + ministryStageLevel + default stage.
+2. For existing students being updated: if `instrumentProgress[]` is empty, create it; if non-empty, update only `ministryStageLevel` on primary instrument.
+3. Add `currentStage` to the student change diff (`calculateStudentChanges()`).
+4. Add `ministryLevelToDefaultStage()` helper to `constants.js`.
 
-### Phase 3: Impersonation
+**Complexity:** Low-Medium. ~80 lines of new code in `executeStudentImport()` + `calculateStudentChanges()`. No new API endpoints.
 
-6. **Super admin impersonation** -- Issue a scoped JWT with `act` claim preserving super admin identity. Frontend switches to tenant admin view with an "impersonation mode" banner.
-7. **Impersonation audit trail** -- Every action during impersonation is logged with both the super admin ID and the impersonated tenant context.
-8. **Visual impersonation indicator** -- Persistent banner: "Viewing as: [Tenant Name] admin | Exit impersonation"
+### Step 2: Teacher-Student Linking
 
-### Phase 4: Enhanced Reporting
+**Why second:** High value for the annual re-enrollment use case. Depends on teacher records being present (teacher import runs first — existing flow).
 
-9. **Per-tenant usage dashboard** -- Expand analytics: last login per tenant, teacher/student growth, subscription utilization percentage.
-10. **Subscription health monitoring** -- Flag tenants approaching limits or with expired subscriptions in the tenant list view.
-11. **Ministry report status per tenant** -- Show latest report generation date, completion %, number of snapshots.
+**What to build:**
+1. In `previewStudentImport()`: for each row with `mapped.teacherName`, attempt `matchTeacher()`. Store resolved `teacherId` and `matchType` in the preview entry.
+2. In `calculateStudentChanges()`: if teacher is resolved and student has no active assignment for that teacher, add a change `{ field: 'teacherAssignment', newValue: { teacherId, duration } }`.
+3. In `executeStudentImport()`: for teacher link changes, push to `student.teacherAssignments[]` using `associateStudentWithTeacher()` pattern or direct `$push`.
+4. `teacherAssignment` shape decision: store `{ teacherId, duration: mapped.lessonDuration, isActive: true, notes: 'ייובא ממשרד החינוך - יש להגדיר זמן שיעור', day: null, time: null }` — use `null` for day/time since they are unknown. The Joi schema allows `null` for optional fields.
 
-### Defer to Later
+**Complexity:** Medium. Teacher name fuzzy matching is the only hard part — start with exact match only (mirrors `matchTeacher()` priority 3 logic). Fuzzy match can be added later as an enhancement.
 
-- Tenant onboarding wizard -- Nice but manual process works for 3-10 tenants
-- Cross-tenant analytics comparison -- Low priority until more tenants exist
-- Tenant data export -- Compliance requirement eventually, not blocking now
-- Bulk tenant operations -- Premature optimization at current scale
+**Warning generation:**
+- Unresolved teacher name → `preview.warnings.push({ field: 'teacherName', message: 'לא נמצא מורה: ${mapped.teacherName}' })`
+- Add preview summary counts: `teacherLinksFound`, `teacherLinksUnresolved`.
 
-## Detailed Feature Specifications
+### Step 3: Bagrut Flagging
 
-### 1. Tenant Cascade Deletion
+**Why third:** Lowest complexity, self-contained, high administrative value.
 
-**What it does:** Removes ALL data belonging to a tenant across ALL collections.
+**What to build:**
+1. Add `'מגמת מוסיקה': 'isBagrutTrack'` to `STUDENT_COLUMN_MAP`.
+2. In `validateStudentRow()`: parse as boolean using `TRUTHY_VALUES` (same pattern as `extraHour`).
+3. In `calculateStudentChanges()`: add diff for `academicInfo.isBagrutTrack`.
+4. In `executeStudentImport()`: write `academicInfo.isBagrutTrack` to new and updated students.
 
-**Collections to purge (19 total, 17 tenant-scoped):**
-- `tenant` -- the tenant document itself
-- `teacher` -- all teachers with matching `tenantId`
-- `student` -- all students with matching `tenantId`
-- `orchestra` -- all orchestras
-- `rehearsal` -- all rehearsals
-- `theory_lesson` -- all theory lessons
-- `bagrut` -- all bagrut records
-- `school_year` -- all school years
-- `activity_attendance` -- all attendance records
-- `hours_summary` -- all hours summaries
-- `import_log` -- all import logs
-- `ministry_report_snapshots` -- all report snapshots
-- `deletion_audit` -- all deletion audits (or archive separately)
-- `deletion_snapshots` -- all deletion snapshots
-- `security_log` -- tenant-scoped security logs (keep super admin logs)
-- `migration_backups` -- tenant-scoped backups
-- `integrityAuditLog` -- tenant-scoped integrity logs
-- `integrityStatus` -- tenant-scoped integrity status
+**Complexity:** Low. ~15 lines of code total. Pattern is identical to `extraHour` handling.
 
-**NOT deleted:** `super_admin` collection (never tenant-scoped).
+**Note:** Check if the student collection already uses this field or if it needs to be added to the student Joi schema with `Joi.boolean().default(false)`.
 
-**Implementation pattern:**
-1. **Preview** -- Count documents per collection for the tenant, return summary
-2. **Soft delete** -- Set `tenant.isActive = false`, `tenant.markedForDeletion = true`, `tenant.deletionScheduledAt = Date.now() + 30 days`
-3. **Grace period** -- 30 days during which soft-delete can be reversed
-4. **Hard delete** -- Background job or manual trigger. Uses MongoDB session/transaction for atomicity. Deletes collection by collection with progress tracking.
-5. **Audit** -- Create immutable record in a `platform_audit` or similar non-tenant-scoped collection
+### Step 4: Enriched Preview UX
 
-**Complexity: HIGH** -- Requires touching every collection, transaction support, background job, progress tracking, and error recovery for partial failures.
+**Why last:** Depends on steps 1-3. Once backend enrichments are in place, expose them in the frontend.
 
-### 2. Super Admin Impersonation
+**What to build:**
+1. `calculateStudentChanges()` already returns a diff — extend it to include `instrumentProgress`, `teacherAssignment`, `isBagrutTrack` diffs (steps 1-3 do this).
+2. In `ImportData.tsx`: add `getStudentRowDetails()` helper mirroring `getTeacherRowDetails()` (already exists for teachers, lines 152-258 in `ImportData.tsx`). Render: instrument detected, teacher linked/unresolved, stage level, bagrut flag, changes list.
+3. Add column detection report to preview: `instrumentColumnsDetected`, `teacherColumnDetected`, `bagrutColumnDetected`.
+4. Preview summary row counts: matched/new/skipped with breakdown of teacher links found vs unresolved.
 
-**What it does:** Super admin temporarily "becomes" a tenant admin to see the platform from their perspective, debug issues, or perform support actions.
+**Complexity:** Low-Medium. Mostly frontend work. Backend changes are already in steps 1-3.
 
-**JWT structure (following RFC 8693 "act" claim pattern):**
-```json
+---
+
+## Detailed Behavioral Specifications
+
+### teacherAssignment Shape Decision
+
+The student `teacherAssignment` Joi schema (in `student.validation.js`) requires `day` and `time` as mandatory fields. However, Ministry files do not contain lesson schedule data.
+
+**Decision:** Store teacher link with placeholder day/time that signals "schedule not yet set":
+
+```js
 {
-  "_id": "<super-admin-id>",
-  "type": "impersonation",
-  "tenantId": "<target-tenant-id>",
-  "impersonatedRole": "admin",
-  "act": {
-    "sub": "<super-admin-id>",
-    "type": "super_admin",
-    "email": "super@tenuto.io"
-  },
-  "iat": 1708790400,
-  "exp": 1708794000
+  teacherId: resolvedTeacherId,
+  duration: mapped.lessonDuration || 45, // from זמן שעור column
+  day: 'ראשון',                          // placeholder — not real
+  time: '00:00',                          // placeholder — not real
+  isActive: true,
+  notes: 'ייובא ממשרד החינוך - יש לקבוע זמן שיעור',
+  createdAt: new Date(),
+  updatedAt: new Date(),
 }
 ```
 
-**Key design decisions:**
-- Short-lived tokens (1 hour max, no refresh) -- limits blast radius
-- Read-write access by default (super admin is troubleshooting) but could restrict to read-only if desired
-- Every request during impersonation includes both `userId` (super admin) and `actingAs` context
-- Backend middleware detects `type: 'impersonation'` and builds `req.context` with the target tenant's `tenantId`
-- Existing `buildContext` middleware needs modification: when token type is `impersonation`, look up the target tenant admin instead of requiring a teacher record
+Alternative: Bypass validation and store `{ teacherId, duration, isActive: true }` with `day` and `time` omitted. This requires either loosening the Joi schema (risky — affects UI-created assignments) or writing directly to MongoDB without Joi validation (acceptable for import, which already does this).
 
-**Security requirements (per OWASP Multi-Tenant Security Cheat Sheet):**
-- Log initiation: who started impersonation, which tenant, timestamp
-- Log all mutations during impersonation with `impersonatedBy` field
-- Log termination: when impersonation ended (explicit exit or token expiry)
-- Cannot impersonate another super admin
-- Cannot create/delete super admins while impersonating
+**Recommended approach:** Import bypasses Joi (already does this), writes `{ teacherId, duration, isActive: true, notes: '...' }` without `day`/`time`. Add `day` and `time` as `Joi.optional()` in `teacherAssignmentSchema` to allow this shape. UI-created assignments remain required to have day/time via UI-level validation.
 
-**Frontend behavior:**
-- Persistent banner at top of page: "[Shield Icon] Impersonation Mode: Viewing as [Tenant Name] | [Exit Button]"
-- Banner uses a distinct color (amber/orange) that cannot be confused with normal UI
-- "Exit Impersonation" clears impersonation token, restores original super admin token
-- All normal tenant admin functionality works (view students, teachers, reports, etc.)
+### instrumentProgress[] Creation Logic
 
-**Complexity: HIGH** -- Requires JWT restructuring, middleware changes, frontend routing changes, and careful audit logging.
+```
+For NEW students:
+  if (mapped.instrument):
+    instrumentProgress = [{
+      instrumentName: mapped.instrument,
+      isPrimary: true,
+      currentStage: ministryLevelToDefaultStage(mapped.ministryStageLevel) || 1,
+      ministryStageLevel: mapped.ministryStageLevel || null,
+      tests: {}
+    }]
+  else:
+    instrumentProgress = []  // Cannot create entry without instrument name
 
-### 3. Enhanced Reporting
+For UPDATED students:
+  if (student.academicInfo.instrumentProgress.length === 0 && mapped.instrument):
+    → Same as new student above (populate from import)
+  elif (student.academicInfo.instrumentProgress.length > 0):
+    → Update ministryStageLevel ONLY on primaryInstrument (or first)
+    → DO NOT change currentStage, tests, or isPrimary
+    → DO NOT add new instruments from import
+```
 
-**Per-tenant usage dashboard -- expand `getTenantsWithStats()` to include:**
-- Teacher count (active) -- already have
-- Student count (active) -- already have
-- Orchestra/ensemble count
-- Last admin login date
-- Subscription utilization: `teacherCount / maxTeachers * 100`, `studentCount / maxStudents * 100`
-- Ministry report: latest snapshot date, completion percentage
-- Data quality: % teachers with complete HR data (has `idNumber`, `degree`, `instruments[]`)
+### ministryLevelToDefaultStage() Mapping
 
-**Subscription health -- computed fields on tenant list:**
-- "Expiring soon" flag: subscription `endDate` within 30 days
-- "Over limit" flag: teacher or student count exceeds subscription max
-- "Inactive" flag: tenant `isActive === false`
-- Sort/filter by health status
+```js
+export function ministryLevelToDefaultStage(level) {
+  // Conservative: use lowest stage in each band
+  // א (beginner): stage 1
+  // ב (intermediate): stage 4
+  // ג (advanced): stage 6
+  if (level === 'א') return 1;
+  if (level === 'ב') return 4;
+  if (level === 'ג') return 6;
+  return 1; // safe default when level unknown
+}
+```
 
-**Ministry report status -- query `ministry_report_snapshots` per tenant:**
-- Last report generation date
-- Completion percentage of most recent snapshot
-- Number of snapshots this school year
-- "Never generated" flag for tenants with zero snapshots
+This is conservative — always uses the bottom of each ministry band. Admin can adjust individual students afterward.
 
-**Complexity: MEDIUM** -- Mostly aggregation queries on existing data. The ministry report status query is the most complex (cross-collection join).
+### isBagrutTrack Detection
 
-### 4. Dedicated Super Admin Frontend
+The `מגמת מוסיקה` column in Ministry Excel files typically contains a checkmark character (✓ or V), `כן`, or `1` for students in the bagrut music track. Empty cells or `לא` = not in track.
 
-**The root problem:** When a super admin logs in, the frontend stores `isSuperAdmin: true` and `tenantId: null` on the user object. But the app's routing, sidebar, and data fetching all assume a `tenantId` exists. This causes:
-- 401 errors when tenant-scoped APIs are called without `tenantId`
-- Wrong sidebar items (admin nav instead of super admin nav)
-- School year selector tries to fetch school years with no tenant context
-- Dashboard tries to load tenant-scoped analytics
+Detection uses existing `TRUTHY_VALUES` array: `['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1, 'true', 'TRUE', 'True']`.
 
-**The fix: Separate super admin shell**
+Note: `'x'` and `'X'` are in `TRUTHY_VALUES` which is correct for Israeli Ministry convention where `X` means "yes/selected".
 
-The frontend needs a completely separate "shell" or layout for super admin users:
-- Different route prefix (e.g., `/platform/*` or detect from user type)
-- Different sidebar (the `superAdminNavigation` array already exists but routes to wrong pages)
-- No school year selector, no tenant context provider
-- Uses `superAdminService` API calls exclusively (all `/api/super-admin/*` endpoints)
-
-**Pages needed:**
-
-| Page | Description | Backend API |
-|------|-------------|-------------|
-| `/platform/dashboard` | Platform stats + tenant list (existing `SuperAdminDashboard.tsx` with fixes) | `GET /super-admin/analytics` + `GET /super-admin/tenants` |
-| `/platform/tenants` | Full tenant list with search, filter by status/plan, sort | `GET /super-admin/tenants` |
-| `/platform/tenants/:id` | Tenant detail: subscription, usage, ministry status, actions (edit, delete, impersonate) | `GET /super-admin/tenants/:id` (expanded) |
-| `/platform/tenants/new` | Create tenant form | `POST /super-admin/tenants` |
-| `/platform/tenants/:id/edit` | Edit tenant/subscription form | `PUT /super-admin/tenants/:id` + `PUT /super-admin/tenants/:id/subscription` |
-| `/platform/admins` | Super admin management (list, create, edit) | `GET/POST/PUT /super-admin/admins/*` |
-| `/platform/settings` | Platform-level settings (if any) | Future |
-
-**Complexity: HIGH** -- Requires significant frontend work: new layout component, new routing, new pages. Backend is mostly done (APIs exist).
+---
 
 ## Complexity Assessment
 
-| Complexity Level | Features | Timeline Estimate |
-|------------------|----------|-------------------|
-| **Low** (1-3 days each) | Subscription health monitoring, Super admin activity log, Visual impersonation indicator, Per-tenant subscription enforcement, Super admin dashboard bug fixes | 1-2 weeks total |
-| **Medium** (3-7 days each) | Tenant detail view, Deletion impact preview, Impersonation audit trail, Per-tenant usage dashboard, Ministry report status, Soft-delete with grace period | 2-3 weeks total |
-| **High** (7-14 days each) | Tenant cascade deletion (full purge), Super admin impersonation (JWT + middleware + frontend), Dedicated super admin frontend (new layout + pages) | 3-5 weeks total |
+| Feature | Complexity | Backend Changes | Frontend Changes |
+|---------|------------|----------------|-----------------|
+| `instrumentProgress[]` creation | Low-Medium | `executeStudentImport()`, `calculateStudentChanges()`, `constants.js` | `getStudentRowDetails()` display |
+| Teacher-student linking | Medium | `previewStudentImport()`, `executeStudentImport()`, `calculateStudentChanges()` | Preview teacher link display |
+| Bagrut flagging | Low | `STUDENT_COLUMN_MAP`, `validateStudentRow()`, `calculateStudentChanges()`, `executeStudentImport()` | Flag display in preview |
+| Enriched preview UX | Low-Medium | None (depends on steps 1-3) | `getStudentRowDetails()`, summary counts |
+| Fuzzy teacher name matching | Medium | New helper function | Warning display in preview |
+| Column detection report | Low | `previewStudentImport()` metadata | Summary panel in preview |
 
-**Total estimated effort: 6-10 weeks** depending on how much parallelism is possible between backend and frontend work.
+**Total estimated effort: 3-5 days backend + 1-2 days frontend.**
+
+---
 
 ## Sources
 
-### SaaS Platform Management Patterns
-- [SaaS Identity and Access Management Best Practices - LoginRadius](https://www.loginradius.com/blog/engineering/saas-identity-access-management)
-- [Best Practices for Multi-Tenant Authorization - Permit.io](https://www.permit.io/blog/best-practices-for-multi-tenant-authorization)
-- [The 2026 Guide: Best Practices for SaaS Management - BetterCloud](https://www.bettercloud.com/monitor/best-practices-for-saas-management/)
-- [SaaS Multitenancy: Components, Pros and Cons and 5 Best Practices - Frontegg](https://frontegg.com/blog/saas-multitenancy)
+All findings are HIGH confidence — derived from direct analysis of existing codebase:
 
-### Tenant Deletion & Data Lifecycle
-- [Cascading Deletes in MongoDB: 5 Proven Patterns - Medium](https://medium.com/@mail_99211/cascading-deletes-in-mongodb-5-proven-patterns-to-achieve-rdbms-style-integrity-c8c55ef7eea9)
-- [Data Retention, Deletion, and Destruction in Microsoft 365 - Microsoft](https://learn.microsoft.com/en-us/compliance/assurance/assurance-data-retention-deletion-and-destruction-overview)
-- [Deleting Personal Data - GDPR for SaaS](https://gdpr4saas.eu/deleting-personal-data)
-- [SaaS Agreements: Data Retention and Deletion - Bodle Law](https://www.bodlelaw.com/saas/saas-agreements-data-retention-and-deletion)
-
-### Impersonation & Security
-- [OWASP Multi-Tenant Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Multi_Tenant_Security_Cheat_Sheet.html)
-- [Implementing Impersonation with SSO and JWT - Medium/Kameleoon](https://medium.com/kameleoon/implementing-impersonation-with-sso-and-jwt-95ce2eb60419)
-- [RFC 8693: OAuth 2.0 Token Exchange (act claim)](https://www.rfc-editor.org/rfc/rfc8693.html)
-- [Impersonation Approaches with OAuth and OpenID Connect - Curity](https://curity.io/resources/learn/impersonation-flow-approaches/)
-- [Cross-Tenant Impersonation: Prevention and Detection - Okta](https://sec.okta.com/articles/2023/08/cross-tenant-impersonation-prevention-and-detection/)
-- [User Impersonation - Descope Documentation](https://docs.descope.com/user-impersonation)
-
-### Dashboard & Reporting Patterns
-- [How to Effectively Monitor Multi-Tenant Operational Health - AWS SaaS Lens](https://wa.aws.amazon.com/saas.question.OPS_1.en.html)
-- [Tenant Operations - SaaS Architecture](https://www.saas-architecture.com/dimensions/tenant-operations.html)
-- [SaaS Dashboard: Metrics, KPIs, and Examples - Klipfolio](https://www.klipfolio.com/resources/dashboard-examples/saas)
+- `api/import/import.service.js` — full service (1,950 lines), all existing logic
+- `api/student/student.service.js` — `instrumentProgress`, `teacherAssignments`, `setBagrutId` patterns
+- `api/student/student.validation.js` — Joi schemas: `instrumentProgressSchema`, `teacherAssignmentSchema`, `studentSchema`
+- `api/bagrut/bagrut.validation.js` — bagrut document structure
+- `api/bagrut/bagrut.service.js` — bagrut lifecycle
+- `api/export/ministry-mappers.js` — how `instrumentProgress` is consumed in export (`mapStudentFull()`)
+- `config/constants.js` — `MINISTRY_STAGE_LEVELS`, `VALID_STAGES`, `stageToMinistryLevel()`, `TRUTHY_VALUES`
+- `src/pages/ImportData.tsx` — frontend 3-step flow, `getTeacherRowDetails()` pattern to mirror

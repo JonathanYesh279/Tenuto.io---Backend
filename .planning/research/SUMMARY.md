@@ -1,295 +1,257 @@
 # Project Research Summary
 
-**Project:** Tenuto.io Backend — v1.1 Super Admin Platform Management
-**Domain:** Multi-tenant SaaS platform administration for conservatory management
-**Researched:** 2026-02-24
+**Project:** Tenuto.io v1.2 — Enhanced Student Import
+**Domain:** Ministry of Education Excel import for Israeli music conservatory student records
+**Researched:** 2026-02-26
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The v1.1 Super Admin Platform Management milestone extends the existing multi-tenant architecture with platform-level controls: tenant cascade deletion, super admin impersonation, enhanced cross-tenant reporting, and a dedicated super admin frontend dashboard. Research reveals a critical insight: **95% of requirements are already satisfied by the existing stack.** The Node.js + Express + MongoDB native driver foundation, combined with existing cascade deletion patterns, JWT authentication, Socket.io WebSocket infrastructure, and React 18 + TypeScript frontend, handles all core needs.
+This milestone enhances an existing, working student import pipeline — not a greenfield build. The system already parses Ministry of Education Excel files, detects Hebrew columns, matches students by name, and runs a preview/execute two-phase flow. Four critical gaps exist in the current implementation: the teacher name column (`המורה`) is parsed but never resolved to a teacher record; `instrumentProgress[]` is never populated for imported students even though all downstream features (export, stage tests, data integrity) require it; the Ministry stage level (א/ב/ג) is stored as a flat field rather than inside `instrumentProgress[]` where the rest of the codebase reads it; and the student preview UI shows raw field paths instead of the rich Hebrew-labeled detail that the teacher preview already provides.
 
-The recommended approach is to **extend existing patterns, not add new technologies.** Tenant cascade deletion follows the proven transaction-based pattern in `services/cascadeDeletion.service.js`. Super admin impersonation uses scoped JWT tokens that pass through the existing `authenticateToken` middleware without modification. Cross-tenant analytics use MongoDB aggregation pipelines without caching (3-10 tenants make real-time aggregation faster than cache complexity). The frontend separation requires no new libraries — just separate routing and localStorage namespaces.
+The recommended approach is a strict dependency-ordered build: fix the `detectInstrumentColumns` bug first (one line, prerequisite), then build `instrumentProgress[]` creation (highest downstream impact, fully self-contained), then teacher-student linking (requires teachers to be in DB first), then bagrut flagging (lowest complexity), and finally the frontend preview enhancement (depends on all backend enrichments). All four capabilities require zero new npm dependencies — every tool needed is already installed. The implementation is entirely additive changes to `api/import/import.service.js` (backend) and `src/pages/ImportData.tsx` (frontend), with no new endpoints, routes, or services.
 
-**Key risks are architectural, not technical:** (1) Missing collections during tenant cascade deletion — the student cascade touches 7 collections; tenant deletion must handle all 19. (2) Super admin token incompatibility — `authenticateToken` looks up teachers, not super admins, requiring an impersonation token strategy. (3) Two incompatible cascade deletion systems exist in the codebase — consolidation is mandatory before building tenant deletion. (4) Frontend auth storage collision between super admin and regular admin tokens. Mitigation for all risks is well-defined in research; execution discipline is critical.
+The defining risk of this milestone is the `teacherAssignment` Joi schema: it requires `day`, `time`, and `duration` which Ministry files do not provide. Attempting to create valid assignments through the service layer will fail schema validation. The recommended mitigation is to write import-shaped assignments directly via MongoDB (`$push`) bypassing Joi, storing `{ teacherId, isActive: true, notes: 'ייבוא ממשרד החינוך' }` without `day`/`time`. A second high-severity risk is that the current `executeStudentImport` bypasses `addStudent()`, which means school year enrollment and the `isPrimary` guard are never run for imported students — this must be addressed by routing through `addStudent()` with `isAdmin: true` or explicitly replicating those side effects.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack is sufficient. **Zero backend dependencies needed.** Frontend needs one optional addition: Tremor for dashboard UI components (reduces custom component development by ~60%) — but this is optional; the same UI can be built with existing Radix + Recharts + Tailwind.
+The stack requires zero new dependencies. ExcelJS (^4.4.0), multer memoryStorage (^1.4.5-lts.1), Joi (^17.13.3), and the MongoDB native driver (^6.13.0) already handle all parsing, validation, and persistence. On the frontend, `@phosphor-icons/react` (^2.1.10) and `react-hot-toast` (^2.6.0) cover all UI needs. Teacher name matching requires no fuzzy library — the conservatory imports its own staff (20-80 teachers per tenant) and exact case-insensitive match is both sufficient and safer than fuzzy matching that could produce false positives.
 
-**Core technologies (already present):**
-- **MongoDB native driver ^6.13.0:** Handles tenant cascade deletion via `withTransaction()`, cross-tenant aggregation via `$facet`/`$group`, and all data operations. Multi-document transactions work on MongoDB Atlas M0 free tier.
-- **jsonwebtoken ^9.0.2:** Generates impersonation tokens with dual-identity claims (`_id`: teacher being impersonated, `impersonatedBy`: super admin identity). No new library needed.
-- **socket.io ^4.8.1:** Real-time deletion progress notifications via existing `cascadeWebSocketService` admin socket infrastructure.
-- **pino ^10.3.0:** Audit logging for impersonation sessions and tenant deletions, integrating with existing `security_log` collection.
-- **Recharts ^2.15.0 (frontend):** Analytics dashboard charts. Already installed; no upgrade needed.
-- **@tanstack/react-query ^4.35.0 (frontend):** Data fetching with `staleTime: 5min` and `refetchInterval: 60s` for live dashboard data. Already installed.
-- **Zustand ^4.4.1 (frontend):** Super admin state management (impersonation status, selected tenant). Already used for cascade deletion state.
+**Core technologies (all existing, no changes):**
+- ExcelJS: Excel parsing with Hebrew multi-row header detection — already handles Ministry file format
+- MongoDB native driver: direct `$push`/`$set` operations during import — intentional bypass of service layer
+- Joi: schema awareness for correct document shape; bypassed during import writes (same pattern as teacher import)
+- multer memoryStorage: file never touches disk — locked
+- React 18 + TypeScript + Vite: UI framework — no changes
+- Pure JavaScript name-split matching: replaces need for `fuse.js` or `fast-fuzzy` — teacher pool is small and authoritative
 
-**What NOT to add:**
-- BullMQ/Agenda.js (background jobs) — tenant deletion completes in <5s via transaction; overkill.
-- Redis (caching) — MongoDB + React Query sufficient for 3-10 tenants; add only at 50+ tenants.
-- Mongoose (ORM) — project deliberately uses native driver; adding Mongoose creates competing patterns.
-- Elasticsearch (audit search) — MongoDB queries sufficient at current scale.
-- GraphQL — REST API well-established; GraphQL would be a rewrite.
+See `.planning/research/STACK.md` for full version verification and rejected additions.
 
 ### Expected Features
 
-**Must have (table stakes):**
-- **Tenant cascade deletion** — Legal (GDPR "right to erasure"), operational (stale data pollutes analytics), storage cost. Industry standard. Requires preview before confirm, grace period (30 days soft-delete), full audit trail.
-- **Super admin impersonation** — Support staff must see what tenant admin sees without sharing credentials. Every SaaS platform of scale has this. OWASP Multi-Tenant Security Cheat Sheet explicitly requires audit trail: who impersonated whom, when, what actions.
-- **Dedicated super admin frontend** — Current bug: super admin sees regular admin UI and gets 401 errors because `tenantId` is null. Separate layout mandatory (no tenant sidebar, no school year selector, super admin routes only).
-- **Per-tenant usage dashboard** — Platform operator needs teacher/student counts, last login dates, subscription utilization. Basic version exists (`getTenantsWithStats()`); needs expansion.
-- **Subscription health monitoring** — Expiring/over-limit subscriptions need visibility. Missed renewals = revenue loss. Schema already has `plan`, `endDate`, `maxTeachers`, `maxStudents` fields.
-- **Deletion impact preview** — Admin must see what will be destroyed BEFORE confirming. SaaS table stakes for destructive operations.
+The single highest-value gap is teacher-student linking: imported students are currently orphaned with no teacher assignment, which defeats the primary purpose of the annual re-enrollment import. The second most impactful gap is `instrumentProgress[]`: without it, imported students fail data integrity checks, export to Ministry format shows blank instrument columns, and stage test features do not apply to any imported student.
 
-**Should have (competitive differentiators):**
-- **Ministry report status per tenant** — Unique to this domain. Platform operator sees which tenants generated reports, completion percentage, when. Queries `ministry_report_snapshots` per tenant.
-- **Tenant data export for portability** — Builds trust ("your data is yours"), GDPR compliance. Export all tenant data to JSON/zip.
-- **Super admin activity log** — Who created tenants, who toggled what, full audit of super admin actions. Log to `security_log` with `actor: superAdminId`.
-- **Tenant onboarding wizard** — Guided flow: create tenant → set subscription → create admin teacher → seed school year. Currently manual 4-step process.
+**Must have (table stakes):**
+- `instrumentProgress[]` creation from `instrument`/`department` columns — all downstream features require it; currently absent for all imported students
+- Teacher-student linking from `המורה` column — primary use case for annual re-enrollment; currently parsed but never applied
+- `ministryStageLevel` stored in `instrumentProgress[]` — currently stored as a flat field; downstream code reads from the array
+- Enriched preview UX showing teacher match status, instrument, stage, and bagrut flag — admin must review before confirming
+
+**Should have (differentiators):**
+- Unresolved teacher name warnings with exact name shown — enables admin to investigate and re-import
+- Preview summary counts: teacher links found vs unresolved vs ambiguous
+- Column detection report in preview — shows which Excel columns were recognized
+- Duplicate row detection (same student listed twice with different instruments)
 
 **Defer (v2+):**
-- Self-service tenant signup — Only 3-10 Israeli conservatories exist; manual onboarding is fine.
-- Billing integration (Stripe) — Subscriptions managed manually between organizations; no payment processing needed.
-- White-labeling per tenant — All conservatories use same branding; no demand.
-- Multi-level admin hierarchy — Two levels (super admin → tenant admin) sufficient.
-- Real-time monitoring/alerting — Manual dashboard checks sufficient at 3-10 tenants.
-- Super admin 2FA/MFA — Important eventually; defer to security hardening milestone.
+- Fuzzy teacher name matching — exact match is sufficient; fuzzy risks false positives more than it helps
+- Full bagrut document creation during import — requires program data Ministry files do not contain; flag only
+- Orchestra/ensemble auto-assignment — out of scope per PROJECT.md
+- Full teacher assignment scheduling (day/time/location) — Ministry files do not contain lesson schedule data
+
+See `.planning/research/FEATURES.md` for behavioral specifications and the MVP build order.
 
 ### Architecture Approach
 
-The super admin subsystem operates as a **parallel auth path** alongside tenant-scoped auth. It does NOT go through `authenticateToken` → `buildContext` → `enforceTenant`. This design is correct and must be preserved. New features extend this parallel path.
+The enhancement is purely additive within the existing 1,900-line `import.service.js`. The fundamental pattern — preview stores all resolved state, execute just applies it — must be respected. All teacher name resolution happens at preview time, with resolved `teacherId` persisted in the `import_log` document. Execute reads from the log and never re-queries the teacher collection, eliminating any race condition between preview and execute. All import writes go directly to MongoDB collections, bypassing the `student.service.js` layer (consistent with how teacher import works).
 
-**Major components:**
+**Major integration points:**
+1. `previewStudentImport()` — add teacher collection load, `matchTeacherByName()` call, and `resolvedTeacherId` storage in each preview entry
+2. `calculateStudentChanges()` — extend to diff `teacherAssignment`, `instrumentProgress`, and `academicInfo.isMusicMajor`
+3. `executeStudentImport()` — handle three new change types (`$push` for teacher assignment and instrument progress, `$set` for isMusicMajor); rebuild new student construction to include `instrumentProgress[]`
+4. `ImportData.tsx` — add `getStudentRowDetails()` and `formatStudentChange()` to replace the bare-field-path student preview branch
 
-1. **Tenant Deletion Service** (`services/tenantDeletion.service.js`) — Follows the transaction-based pattern from `cascadeDeletion.service.js` (NOT the collection-based `cascadeDeletionService.js`). Pre-deletion snapshot stored in `tenant_deletion_snapshots` collection (platform-level, not tenant-scoped). Deletion order: leaf collections first (attendance, hours_summary, import_log), then cross-referenced (rehearsal, theory_lesson, bagrut, orchestra, student), then core (teacher, school_year), finally tenant record. Uses MongoDB session with `withTransaction()` for atomicity.
+**Patterns to follow:**
+- Extend column map, not the parser: add new Hebrew headers to `STUDENT_COLUMN_MAP`; the parser handles the rest automatically
+- Preview stores all resolved state; execute applies it without re-resolving
+- Direct MongoDB writes for import (bypass Joi) — import already does this intentionally
+- Mirror teacher preview quality for student preview: `getStudentRowDetails()` mirrors `getTeacherRowDetails()`
 
-2. **Impersonation Service** (`services/impersonation.service.js`) — Issues scoped JWT tokens with dual-identity claims. Token structure: `_id` (target tenant admin teacher ID), `tenantId` (target tenant), `impersonatedBy` (super admin identity), `impersonation: true`, short expiry (30 min, no refresh). Token passes through existing `authenticateToken` middleware unchanged because `_id` references a real teacher. Middleware detects `impersonatedBy` claim and sets `req.impersonatedBy` for audit logging. Read-only by default via new `impersonation.middleware.js` that blocks POST/PUT/DELETE.
+**Anti-patterns to avoid:**
+- Re-querying teacher collection on execute (race condition + redundant)
+- Using `$set` for `instrumentProgress` on matched students (destroys existing array)
+- Setting a real or placeholder `scheduleSlotId` (corrupts the relationship model)
+- Triggering `syncTeacherRecordsForStudentUpdate()` after import (creates phantom time-block records)
 
-3. **Platform Reports Service** (`services/platformReports.service.js`) — Cross-tenant aggregation pipelines using MongoDB `$group`, `$facet`, `$lookup`. No tenantId filter. Runs under `authenticateSuperAdmin` only. No caching layer (3-10 tenants = <1s query time). Reports: usage overview (counts per tenant), ministry status (join with `ministry_report_snapshots`), subscription health (expiring/over-limit flags), growth trends (time-series on `createdAt`), attendance rates.
-
-4. **Impersonation Middleware** (`middleware/impersonation.middleware.js`) — Two guards: `impersonationReadOnly` (blocks writes for impersonation tokens) and `blockImpersonation` (blocks sensitive ops entirely). Applied globally after `authenticateToken` on tenant-scoped routes.
+See `.planning/research/ARCHITECTURE.md` for exact line-level integration points with code snippets.
 
 ### Critical Pitfalls
 
-1. **Tenant cascade deletion will miss collections** — Student cascade touches 7 collections; tenant deletion must handle all 19 in `COLLECTIONS` constant plus audit trails. The codebase has TWO cascade deletion systems with incompatible interfaces (`cascadeDeletion.service.js` vs `cascadeDeletionService.js`). Prevention: Build deletion manifest from `COLLECTIONS` constant, consolidate to transaction-based system BEFORE building tenant deletion, add post-deletion verification step.
+Research identified 4 critical/high pitfalls and 9 moderate/minor ones. The top 5 that must be designed around before writing code:
 
-2. **Super admin token incompatible with tenant-scoped middleware** — `authenticateToken` looks up `teacher` collection; super admin tokens reference `super_admin` collection. Result: 401 `USER_NOT_FOUND`. Prevention: Use impersonation token strategy — issue JWT with teacher `_id` + `impersonatedBy` claim. Existing middleware works unchanged.
+1. **teacherAssignment schema requires day/time/duration that Ministry files cannot provide** — Avoid by writing import-shaped assignments directly via MongoDB `$push`, bypassing Joi. Store `{ teacherId, isActive: true, notes: 'ייבוא ממשרד החינוך' }` without schedule fields. Do NOT use placeholder day/time values — this creates garbage schedule data. (PITFALLS.md Pitfall 1)
 
-3. **Cross-tenant reports trigger tenant guard exceptions** — `requireTenantId()` and `buildScopedFilter()` throw errors when tenantId is null. Cross-tenant analytics intentionally omit tenantId. Prevention: Add `isSuperAdmin` flag to context, modify `buildScopedFilter()` to allow null tenantId when `isSuperAdmin === true`. Do NOT modify `requireTenantId()` (must stay strict).
+2. **executeStudentImport bypasses addStudent(), losing school year enrollment and isPrimary guard** — All imported students are currently invisible to school-year-scoped queries. Fix by routing through `addStudent(student, null, true, options)` with `isAdmin: true`, or explicitly replicating `schoolYearService.getCurrentSchoolYear()` enrollment and `isPrimary` enforcement. Option 1 (route through service) is strongly preferred. (PITFALLS.md Pitfall 2)
 
-4. **Two incompatible cascade deletion systems** — Different session creation, entry signatures, soft-delete fields, audit collections, attendance handling (archive vs hard-delete). Prevention: Consolidate to `cascadeDeletion.service.js` (transaction-based, uses `requireTenantId` guard, archives instead of hard-deleting, has restoration support).
+3. **detectInstrumentColumns missing headerColMap in student import path** — Existing one-line bug at `import.service.js` lines 1490-1491: `detectInstrumentColumns(headers)` is called without `headerColMap`. Teacher path passes both arguments correctly. This bug causes instrument column misdetection. Must fix before building `instrumentProgress` on top of instrument detection. (PITFALLS.md Pitfall 6)
 
-5. **Frontend auth storage collision** — Regular admin and super admin tokens stored in same localStorage keys. Super admin login overwrites regular session. Impersonation token replaces super admin token; when impersonation expires, super admin must re-login. Prevention: Separate localStorage namespaces (`tenuto_sa_*` for super admin, `tenuto_impersonation_*` for impersonation). Preserve super admin token during impersonation. Token-type-based routing.
+4. **Hebrew name ambiguity: wrong teacher silently linked to all students** — Exact match only; never silently take `matches[0]` when multiple teachers share a name. Surface ambiguous matches as preview warnings requiring manual review. Also try both name orderings (first+last and last+first) and strip RTL/LTR Unicode marks before comparing. (PITFALLS.md Pitfall 4)
+
+5. **Teacher match result not stored in import_log; execute may re-match differently** — `resolvedTeacherId` must be persisted in the `import_log` preview entry at preview time. Execute reads `entry.teacherMatch.teacherId` directly from the log — never re-runs matching. (PITFALLS.md Pitfall 7)
+
+See `.planning/research/PITFALLS.md` for the full 13-pitfall analysis with detection methods and integration risk matrix.
 
 ## Implications for Roadmap
 
-Based on research, suggested 4-phase structure:
+Based on the dependency graph in ARCHITECTURE.md and the pitfall severity matrix in PITFALLS.md, the build must proceed in strict dependency order. Each step is independently verifiable and does not break existing behavior.
 
-### Phase 1: Foundation Hardening & Impersonation
-**Rationale:** Fix what's broken first. The super admin frontend currently has 401 errors due to token/context incompatibility. Cannot build features on broken auth. Impersonation is the bridge between super admin auth path and tenant-scoped data access — every subsequent feature depends on this.
+### Phase 1: Bug Fix Prerequisites + Column Map Extensions
 
-**Delivers:**
-- Consolidated cascade deletion service (remove duplicate system)
-- Super admin impersonation (JWT generation, audit trail, frontend banner)
-- Impersonation middleware (read-only guard, sensitive ops block)
-- Frontend auth namespace separation (localStorage keys, token-type routing)
-- Super admin token refresh endpoint
+**Rationale:** Two pre-existing bugs and one missing column mapping must be fixed before any enhancement is built on top of them. Building `instrumentProgress` on an incorrect instrument detection foundation causes all subsequent work to fail at runtime. These fixes are low-risk (one-liner + additive column map entries) and produce no user-visible change on their own.
+
+**Delivers:** Correct instrument column detection for student import; `isMusicMajor` and abbreviated `מגמה` column recognized by the parser.
 
 **Addresses:**
-- Pitfall 2 (token incompatibility)
-- Pitfall 4 (two cascade systems)
-- Pitfall 5 (auth storage collision)
-- Pitfall 12 (missing refresh endpoint)
+- Fix `detectInstrumentColumns(headers)` to `detectInstrumentColumns(headers, headerColMap)` — existing one-line bug (Pitfall 6)
+- Add `'מגמת מוסיקה': 'isMusicMajor'` and `'מגמה': 'isMusicMajor'` to `STUDENT_COLUMN_MAP`
+- Add `isMusicMajor` boolean coercion in `validateStudentRow()` using existing `TRUTHY_VALUES` pattern
 
-**Uses:**
-- `jsonwebtoken` for dual-identity tokens
-- `pino` + `security_log` for impersonation audit
-- Existing `authenticateToken` middleware (no changes)
+**Avoids:** Pitfall 6 (instrument mis-detection corrupts all downstream instrumentProgress work)
 
-**Research flag:** SKIP — patterns are well-defined in research. Execution is straightforward.
+**Research flag:** None needed — well-defined bug fix with exact line numbers in codebase. Standard pattern.
 
 ---
 
-### Phase 2: Tenant Lifecycle Management
-**Rationale:** With impersonation working, super admin can now view tenant data. Next priority is tenant CRUD, especially deletion (complex, high-risk). Deletion must come before frontend dashboard because dashboard shows deletion actions.
+### Phase 2: instrumentProgress[] Creation + School Year Enrollment
 
-**Delivers:**
-- Tenant deletion service with full cascade (19 collections)
-- Deletion manifest (which collections, which strategy per collection)
-- Deletion impact preview (show counts before confirm)
-- Two-phase deletion (deactivate → grace period → purge)
-- Post-deletion verification step
-- `tenant.isActive` wired into `enforceTenant` middleware (gate data access)
-- Session invalidation on tenant deactivation
+**Rationale:** Highest downstream impact, fully self-contained (no external dependencies on teacher DB state). Every downstream system — export, data integrity, stage tests, Ministry report generation — reads from `instrumentProgress[]`. Fixing this for both new and matched students immediately unlocks all of those features for imported students. The school year enrollment side effect must be addressed in this same phase because it is a prerequisite for newly imported students to appear in any school-year-scoped query.
+
+**Delivers:** All imported students have a valid `instrumentProgress[]` with correct `instrumentName`, `isPrimary: true`, `currentStage` (derived from ministryStageLevel via `MINISTRY_LEVEL_TO_STAGE` constant), and `ministryStageLevel`. New students are enrolled in the current school year. Data integrity checks pass for imported students. Ministry export shows correct instrument columns.
 
 **Addresses:**
-- Pitfall 1 (missing collections)
-- Pitfall 6 (active sessions survive deactivation)
-- Pitfall 11 (toggleTenantActive doesn't gate access)
-- Pitfall 8 (hours_summary stale cache)
-- Pitfall 14 (orphaned file storage)
+- New `buildInstrumentProgressEntry(instrument, ministryStageLevel)` function
+- Named constant `MINISTRY_LEVEL_TO_STAGE = { 'א': 1, 'ב': 4, 'ג': 6 }` with business-rule comment
+- `calculateStudentChanges()` extended: diffs `instrumentProgress` (add vs updateStageLevel actions)
+- `executeStudentImport()` extended: `$push` for new instrument entries, positional `$set` for stage-level updates on matched students
+- New student construction rebuilt to include `instrumentProgress[]` (replacing flat `academicInfo.instrument`)
+- School year enrollment: route new students through `addStudent()` service with `isAdmin: true`, or explicitly replicate enrollment step
 
-**Uses:**
-- MongoDB `withTransaction()` for atomic deletion
-- Socket.io for real-time deletion progress
-- `tenant_deletion_snapshots` collection (new)
-- Pattern from `cascadeDeletion.service.js` (consolidated in Phase 1)
+**Avoids:** Pitfall 2 (missing school year enrollment), Pitfall 3 (schema requires instrumentProgress), Pitfall 10 (undocumented business rule mapping), Pitfall 12 (update vs create inconsistency)
 
-**Avoids:**
-- Hard delete without snapshot (anti-pattern 5 from PITFALLS.md)
-- Modifying `enforceTenant` to bypass tenant checks (anti-pattern 1)
-
-**Research flag:** SKIP — deletion pattern verified in existing code. Manifest is enumeration task, not research.
+**Research flag:** One decision point before coding — whether to route new student creation through `addStudent()` service (recommended) or replicate school year enrollment inline. This is a team decision, not a research question. Must be resolved before Phase 2 coding starts.
 
 ---
 
-### Phase 3: Cross-Tenant Analytics & Reporting
-**Rationale:** Tenant management (Phase 2) establishes platform control. Reporting provides visibility into platform health. Must come after Phase 1 (needs `isSuperAdmin` context flag) but before Phase 4 (dashboard UI consumes these APIs).
+### Phase 3: Teacher-Student Linking
 
-**Delivers:**
-- Platform reports service (6 report types)
-- Cross-tenant context factory (`buildCrossTenantContext()`)
-- Modified `buildScopedFilter()` to accept `isSuperAdmin` flag
-- Combined dashboard payload endpoint (`GET /api/super-admin/dashboard`)
-- Individual report endpoints (`GET /api/super-admin/reports/:type`)
-- Subscription health monitoring (expiring/over-limit flags)
-- Ministry report status per tenant
+**Rationale:** Second highest value (core re-enrollment use case). Depends on teacher records already being in the database (teacher import runs first — existing established flow). The architectural decisions about teacher assignment shape and import_log persistence must be locked before any teacher-linking code is written.
+
+**Delivers:** Students imported from Ministry files are linked to their teachers via `teacherAssignment` entries stored directly via MongoDB `$push`. Preview shows teacher match status (resolved/unresolved/ambiguous) for each student row. Unresolved teacher names surface as actionable warnings with the exact name. Frequency analysis groups multiple rows with the same unresolved name into a single actionable warning.
 
 **Addresses:**
-- Pitfall 3 (tenant guard exceptions)
-- Pitfall 9 (aggregation performance at scale — design cacheable from start)
+- New `matchTeacherByName(teacherName, teachers)` function (exact case-insensitive, both name orderings, Unicode mark stripping)
+- Teacher collection loaded in `previewStudentImport()` with `{ isActive: true, tenantId }` filter
+- `resolvedTeacherId` and `teacherMatch` metadata stored in each preview entry and persisted in `import_log`
+- `calculateStudentChanges()` extended: checks for existing active assignment before adding `teacherAssignment` change
+- `executeStudentImport()`: `$push teacherAssignments` with import-shaped object `{ teacherId, isActive: true, notes: 'ייבוא ממשרד החינוך' }` — no `day`/`time`, `scheduleSlotId: null`
+- Preview warnings for unresolved names and frequency grouping for repeated unresolved names
 
-**Uses:**
-- MongoDB `$facet`, `$group`, `$bucket` aggregation
-- No caching layer (3-10 tenants, <1s queries)
-- Existing `getPlatformAnalytics()` as base (extend, don't replace)
+**Avoids:** Pitfall 1 (schema validation failure for missing day/time), Pitfall 4 (wrong teacher silently linked), Pitfall 7 (teacher match not persisted in import_log), Pitfall 11 (duplicate unresolved name produces many individual warnings instead of one grouped warning)
 
-**Implements:**
-- Report types: usage overview, ministry status, subscription health, growth trends, attendance rates, active usage
-
-**Research flag:** SKIP — MongoDB aggregation patterns well-documented. Queries are domain-specific but technically standard.
+**Research flag:** None needed — all integration points and the teacherAssignment shape decision are documented in ARCHITECTURE.md with exact code snippets.
 
 ---
 
-### Phase 4: Super Admin Frontend Dashboard
-**Rationale:** All backend APIs are ready (impersonation, deletion, reporting). Final phase is frontend integration — separate layout, routing, dashboard UI, tenant management pages, impersonation controls.
+### Phase 4: Bagrut Flagging
 
-**Delivers:**
-- Separate super admin layout (no tenant sidebar, no school year selector)
-- Super admin routing (`/platform/*` prefix or token-type detection)
-- Dashboard page (platform stats + tenant list)
-- Tenant detail page (subscription, usage, ministry status, actions)
-- Tenant management UI (create, edit, delete with preview)
-- Impersonation UI (start impersonation, visual banner, exit)
-- Super admin nav items routing to correct pages
+**Rationale:** Lowest complexity of the four features. Independent of phases 2 and 3 (does not depend on teacher or instrument data). The column map entry for `מגמת מוסיקה` was already added in Phase 1; Phase 4 completes the feature by wiring it through `calculateStudentChanges()` and new student construction.
+
+**Delivers:** Students in the music bagrut track are flagged with `academicInfo.isMusicMajor: true` at import time. Admins then create the full bagrut document (with program pieces, teacher, accompanist) through the existing manual bagrut flow.
 
 **Addresses:**
-- Missing super admin frontend (table stakes)
-- Frontend routing collision (related to Pitfall 5)
-- 401 errors on super admin dashboard (root problem from executive summary)
+- `calculateStudentChanges()`: diff `academicInfo.isMusicMajor` for matched students
+- `executeStudentImport()`: existing `$set` loop already handles dot-notation paths; isMusicMajor handled automatically
+- New student construction: write `academicInfo.isMusicMajor` when truthy
+- Note: column map entry and boolean coercion already done in Phase 1
 
-**Uses:**
-- Recharts for dashboard charts
-- @tanstack/react-query with `staleTime: 5min`, `refetchInterval: 60s`
-- Zustand for super admin state (`isImpersonating`, `selectedTenant`)
-- @radix-ui for dialogs, tabs, dropdowns (deletion confirmation, report sections)
-- Optional: Tremor for dashboard cards/metrics (or build custom with existing Radix + Tailwind)
+**Avoids:** Pitfall 8 (bagrut requires two-document atomic write — prevented by using flag instead of full record)
 
-**Complexity:** HIGH — requires new layout component, new routing architecture, 5-6 new pages, impersonation state management, deletion confirmation flows.
+**Research flag:** None needed — explicit scope boundary (flag only, not full record) is clear from PROJECT.md. Pattern is identical to `extraHour` handling — ~15 lines total.
 
-**Research flag:** NEEDS RESEARCH — If Tremor is used, research component API and integration with existing Tailwind setup. If building custom, research dashboard layout patterns for multi-metric views.
+---
+
+### Phase 5: Enriched Preview UI
+
+**Rationale:** Purely dependent on phases 2-4. Once backend enrichments are in place and the preview response includes teacher match status, instrument progress changes, and bagrut flag, the frontend can render them. This phase has the lowest risk (additive display code, no existing logic removed) but the highest user-visible impact.
+
+**Delivers:** Student import preview shows the same quality of detail as teacher import preview: instrument detected, teacher linked/unresolved/ambiguous, stage level, music major flag, changes list with Hebrew labels. Summary counts show teacher links resolved vs unresolved. Column detection report shows which Excel columns were recognized.
+
+**Addresses:**
+- New `formatStudentChange(change)` helper (maps field paths to Hebrew labels, handles action types: add/updateStageLevel/teacherAssignment)
+- New `getStudentRowDetails(row)` helper (mirrors `getTeacherRowDetails()` — same component structure with `<div className="space-y-1 text-xs">`)
+- Replace bare-field-path student branch with `getStudentRowDetails(row)` call
+- Add summary stats panel above preview table: teacher links resolved/unresolved/ambiguous counts
+- Separate TypeScript interfaces for `TeacherPreviewRow` and `StudentPreviewRow` (prevents tab-switch data shape collision)
+- Address 50-row preview limit: add filter tabs (All / Teacher resolved / Unresolved / Ambiguous) for navigating 1,293-student imports
+
+**Avoids:** Pitfall 5 (teacher/student preview data shape collision), Pitfall 9 (50-row limit hides most teacher match results at 1,293 students)
+
+**Research flag:** None needed — `getTeacherRowDetails()` (lines 152-258 in `ImportData.tsx`) is the direct template to mirror.
 
 ---
 
 ### Phase Ordering Rationale
 
-1. **Foundation first (Phase 1):** Broken auth blocks everything. Impersonation is the auth bridge to tenant data. Consolidating cascade systems prevents building on wrong foundation.
-
-2. **Deletion second (Phase 2):** Highest risk feature. Must be battle-tested before frontend exposes it to super admins. Complex enough to warrant isolated development.
-
-3. **Reporting third (Phase 3):** Depends on `isSuperAdmin` context flag from Phase 1. Dashboard UI (Phase 4) consumes reporting APIs — must exist first.
-
-4. **Frontend last (Phase 4):** Consumes all backend APIs. Pure presentation layer. Can be developed in parallel with Phase 3 but not deployed until Phase 3 completes.
-
-**Dependency chain:**
-- Phase 2 depends on Phase 1 (consolidated cascade pattern)
-- Phase 3 depends on Phase 1 (`isSuperAdmin` context flag)
-- Phase 4 depends on Phases 1, 2, 3 (all backend APIs)
-
-**Integration risks addressed:**
-- Super admin impersonating then deleting that same tenant → Impersonation token references deleted tenant. Mitigation: Block deletion during active impersonation session (check `impersonation_sessions` before deletion).
-- Impersonation token has tenantId, but report queries need no tenantId → Two separate contexts. Impersonation uses regular tenant context. Reports use cross-tenant context. No collision.
-- "Exit impersonation" must restore super admin context without reload → Frontend clears `tenuto_impersonation_*` localStorage, reverts to `tenuto_sa_*` token, invalidates React Query cache for tenant-scoped data.
+- **Phase 1 before everything else:** The `detectInstrumentColumns` bug is a hard prerequisite. Building instrument progress on top of broken detection creates cascading failures that are difficult to debug. Column map additions in Phase 1 also unblock Phase 4 (bagrut).
+- **Phase 2 before Phase 3:** `instrumentProgress[]` is fully self-contained and does not depend on teacher DB state. Completing Phase 2 alone delivers a meaningful system improvement. Teacher linking (Phase 3) depends on teacher records being pre-populated via the teacher import flow.
+- **Phase 3 before Phase 4:** Teacher linking is the highest-value remaining feature after instrumentProgress. Bagrut flagging is trivially small (15 lines) and independent.
+- **Phase 5 last:** Purely a display layer. All backend changes must be in place before the frontend can meaningfully render the enriched preview data.
+- This ordering directly mirrors the FEATURES.md MVP build order and the ARCHITECTURE.md dependency graph.
 
 ### Research Flags
 
-**Phases needing research during planning:**
-- **Phase 4 (Frontend Dashboard):** If Tremor is used, research component API, bundle size impact (~200KB), integration with existing form components. If building custom dashboard cards, research layout patterns for KPI grids with Recharts + Tailwind.
+Phases with well-documented patterns (no additional research needed):
+- **Phase 1:** Bug fix + column map extension — single-line fix with exact location known; additive changes
+- **Phase 3:** Teacher matching — exact implementation with code snippets in ARCHITECTURE.md; precedent set by teacher import
+- **Phase 4:** Bagrut flagging — 15 lines total, mirrors existing `extraHour` pattern exactly
+- **Phase 5:** Frontend preview — direct mirror of existing `getTeacherRowDetails()` function
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Impersonation):** JWT patterns, middleware composition, localStorage namespacing — all well-documented. Execution is straightforward.
-- **Phase 2 (Deletion):** Transaction-based cascade deletion pattern proven in existing codebase. Manifest is enumeration, not research.
-- **Phase 3 (Reporting):** MongoDB aggregation framework mature and already used in codebase. Queries are domain-specific but technically standard.
+Phases requiring one pre-implementation decision before coding begins:
+- **Phase 2:** One architectural decision — route new student creation through `addStudent()` service layer (recommended) vs replicate school year enrollment inline. Not a research question; a team decision. Resolve before Phase 2 coding starts.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | **HIGH** | 95% of needs met by existing stack. No new backend dependencies. Optional frontend addition (Tremor) has clear alternative (build custom). |
-| Features | **HIGH** | Table stakes verified against SaaS platform management best practices (OWASP, LoginRadius, Frontegg, Permit.io). Differentiators unique to domain (ministry reports). Anti-features explicitly defined. |
-| Architecture | **HIGH** | Based on direct codebase analysis (11+ collections, existing cascade systems, 5-layer tenant isolation, super admin auth path). Patterns proven in production (transaction-based cascade, JWT auth, WebSocket notifications). |
-| Pitfalls | **HIGH** | Critical pitfalls identified through codebase analysis (two cascade deletion systems, token lookup in teacher collection, tenant guard strictness). CVE-2025-55241 validates impersonation token risks. |
+| Stack | HIGH | All packages verified from both `package.json` files; zero new dependencies confirmed by inspecting installed packages |
+| Features | HIGH | Based on direct codebase analysis; all gaps traced to specific line numbers in production code |
+| Architecture | HIGH | All integration points verified with exact line numbers and code snippets from production files |
+| Pitfalls | HIGH | All 13 pitfalls traced to specific code paths in production files; detection methods and line numbers included |
 
-**Overall confidence:** **HIGH**
+**Overall confidence: HIGH**
+
+All research is based on direct analysis of production code — not web research or community consensus. Every claim is traceable to a specific file and line number in the Tenuto.io codebase.
 
 ### Gaps to Address
 
-**Tremor vs custom dashboard components:**
-- Research shows Tremor accelerates dashboard development (~60% reduction in custom component code) but adds ~200KB to bundle.
-- Gap: No decision yet on whether bundle size is acceptable. Validation needed: measure current frontend bundle size, assess 200KB impact percentage.
-- How to handle: Phase 4 planning should include bundle analysis. If bundle impact >10%, defer Tremor and build custom components.
+- **School year enrollment decision (Phase 2):** Route new students through `addStudent()` service (recommended) vs inline replication. Validate that `addStudent()` with `isAdmin: true` does not conflict with the multi-tenant `buildContext` pattern during import. Import runs as admin — context is available. Recommend testing this path first before committing to inline replication.
 
-**Impersonation read-only enforcement granularity:**
-- Research recommends read-only by default with per-operation overrides for safe mutations (e.g., logout).
-- Gap: Which operations should be allowed during impersonation? Research didn't define allowlist.
-- How to handle: During Phase 1 planning, enumerate safe endpoints. Conservative start: read-only for all mutations except `POST /api/auth/logout`. Expand if support use cases require writes.
+- **`ministryStageLevel` to `currentStage` mapping values:** ARCHITECTURE.md uses `{ 'א': 1, 'ב': 4, 'ג': 6 }` and PITFALLS.md uses `{ 'א': 1, 'ב': 3, 'ג': 6 }` (different ב values: 4 vs 3). At implementation time, verify against `stageToMinistryLevel()` in `config/constants.js` line 163 and pick the value that is most defensible for the intermediate band. Document the mapping with a comment explaining the business rationale regardless of which value is chosen.
 
-**Cross-tenant report caching threshold:**
-- Research says no caching at 3-10 tenants (<1s queries). Add caching at 50+ tenants.
-- Gap: What if tenant count is 15-30? Gray area.
-- How to handle: Phase 3 should include performance benchmarks with 30 tenants (seed test data). If queries take >3s, add caching in same phase. Otherwise defer.
+- **50-row preview table limit (Phase 5):** PITFALLS.md flags this as a moderate issue at 1,293 students. The filter-tabs approach is recommended over increasing the raw limit. Implementation approach for filter tabs (client-side filtering of `allPreviewRows`) should be designed during Phase 5 to avoid state management complexity.
 
-**School year auto-creation during impersonation:**
-- Pitfall 7 identifies risk: `addSchoolYearToRequest` middleware creates school year for impersonated tenant if missing.
-- Gap: Should impersonation skip school year middleware entirely, or just skip auto-creation?
-- How to handle: Phase 1 planning should decide. Recommendation: skip auto-creation, not entire middleware (tenant might legitimately have school year configured).
+- **teacherAssignment shape consistency:** FEATURES.md recommends `{ teacherId, duration, isActive, notes }` without `day`/`time`. ARCHITECTURE.md recommends `{ teacherId, scheduleSlotId: null, startDate, endDate, isActive, notes }` without `day`/`time`. These are compatible — at implementation time use the more complete ARCHITECTURE.md shape. Both agree on the core principle: no `day`, no `time`, no real `scheduleSlotId`.
 
 ## Sources
 
-### Primary (HIGH confidence)
-- **Tenuto.io Backend codebase** — Direct analysis of 19 collections, existing `cascadeDeletion.service.js` and `cascadeDeletionService.js` patterns, `authenticateToken` / `buildContext` / `enforceTenant` middleware chain, `super-admin.service.js` + `super-admin.middleware.js`, `COLLECTIONS` constant, WebSocket infrastructure. PRIMARY source for all architectural decisions.
-- [MongoDB Node.js Driver Documentation — Transactions](https://www.mongodb.com/docs/drivers/node/current/fundamentals/transactions/) — `withTransaction()` usage, session handling, multi-document atomicity.
-- [MongoDB Aggregation Pipeline Manual](https://www.mongodb.com/docs/manual/core/aggregation-pipeline/) — `$facet`, `$group`, `$bucket` patterns.
-- [OWASP Multi-Tenant Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Multi_Tenant_Security_Cheat_Sheet.html) — Impersonation audit requirements, tenant isolation best practices.
+### Primary (HIGH confidence — direct codebase analysis)
 
-### Secondary (MEDIUM confidence)
-- [Cascading Deletes in MongoDB: 5 Proven Patterns](https://medium.com/@mail_99211/cascading-deletes-in-mongodb-5-proven-patterns-to-achieve-rdbms-style-integrity-c8c55ef7eea9) — Transaction-based vs queue-based cascade patterns. Verified against existing codebase.
-- [Implementing Impersonation with SSO and JWT](https://medium.com/kameleoon/implementing-impersonation-with-sso-and-jwt-95ce2eb60419) — Dual-identity token structure, `act` claim pattern (RFC 8693).
-- [SaaS Identity and Access Management Best Practices - LoginRadius](https://www.loginradius.com/blog/engineering/saas-identity-access-management) — Multi-tenant auth patterns.
-- [Best Practices for Multi-Tenant Authorization - Permit.io](https://www.permit.io/blog/best-practices-for-multi-tenant-authorization) — Cross-tenant query scoping.
-- [Tremor — Tailwind CSS Dashboard Components](https://www.tremor.so/) — Dashboard component library evaluation.
-- [Recharts Dashboard Best Practices](https://embeddable.com/blog/what-is-recharts) — Chart composition patterns.
-
-### Tertiary (LOW confidence)
-- [CVE-2025-55241: Actor Token Impersonation Vulnerability](https://dirkjanm.io/obtaining-global-admin-in-every-entra-id-tenant-with-actor-tokens/) — Real-world JWT impersonation attack. Validates security concerns for impersonation tokens.
-- [Cross-Subdomain JWT Account Takeover](https://deepstrike.io/blog/cross-subdomain-jwt-account-take-over) — Penetration test writeup. Relevant to localStorage namespace separation.
+- `api/import/import.service.js` (1,957 lines) — full import pipeline: both teacher and student flows, column maps, matching functions, preview/execute flow
+- `api/student/student.validation.js` (244 lines) — `instrumentProgressSchema`, `teacherAssignmentSchema`, `studentSchema`
+- `api/student/student-assignments.validation.js` — `validateTeacherAssignmentsWithDB` DB consistency validation
+- `api/student/student.service.js` — `addStudent()` side effects (school year enrollment, isPrimary guard, teacher sync, lines 110-260)
+- `api/bagrut/bagrut.service.js` — two-document write pattern; `addBagrut()` + `setBagrutId()` coupling
+- `api/export/ministry-mappers.js` — `mapStudentFull()` reads `instrumentProgress` for Ministry export
+- `api/export/sheets/students.sheet.js` — confirms `מגמת מוסיקה` column exists in export output
+- `config/constants.js` — `VALID_INSTRUMENTS`, `MINISTRY_STAGE_LEVELS`, `VALID_STAGES`, `stageToMinistryLevel()`, `TRUTHY_VALUES`
+- `src/pages/ImportData.tsx` (962 lines) — full preview UI, `getTeacherRowDetails()` template (lines 152-258), 50-row limit (line 823), tab switching
+- `src/services/apiService.js` — import service block (lines 5071-5160); no changes needed
+- `.planning/PROJECT.md` — scope boundaries and explicit out-of-scope items
+- Both `package.json` files (backend + frontend) — verified installed packages; zero new dependencies confirmed
 
 ---
-
-**Research completed:** 2026-02-24
-**Ready for roadmap:** Yes
-**Files synthesized:** STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md
+*Research completed: 2026-02-26*
+*Ready for roadmap: yes*
+*Files synthesized: STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md*

@@ -5,14 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.2 Student Import Enhancement
+**Current focus:** v1.2 Student Import Enhancement — Phase 15 (Bug Fix + Column Map Extensions)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-26 — Milestone v1.2 started
+Phase: 15 — first of 4 phases in v1.2 (Bug Fix + Column Map Extensions)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-02-27 — v1.2 roadmap created (4 phases, 13 requirements)
+
+Progress: [##############░░░░░░] 73% (38/TBD plans — v1.0: 25, v1.1: 13, v1.2: 0/TBD)
 
 ## Performance Metrics
 
@@ -29,27 +31,20 @@ Last activity: 2026-02-26 — Milestone v1.2 started
 - Requirements: 19/19 satisfied
 - Timeline: 3 days (2026-02-24 -> 2026-02-26)
 
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 10-01 | super-admin-refresh-token | 3min | 2 | 5 |
-| 10-02 | frontend-super-admin-layout | 2min | 2 | 4 |
-| 11-01 | tenant-isActive-gating-audit-trail | 2min | 2 | 4 |
-| 11-02 | cascade-deletion-consolidation | 5min | 2 | 5 |
-| 11-03 | tenant-lifecycle-api | 3min | 2 | 5 |
-| 12-01 | reporting-service-functions | 3min | 2 | 2 |
-| 12-02 | reporting-controller-routes-indexes | 2min | 2 | 3 |
-| 13-01 | impersonation-backend-endpoints | 5min | 2 | 8 |
-| 13-02 | frontend-impersonation-ui | 15min | 3 | 4 |
-| 14-01 | api-wrappers-types-routes-sidebar | 2min | 2 | 4 |
-| 14-02 | dashboard-enhancement-tenant-list | 17min | 2 | 2 |
-| 14-03 | tenant-detail-and-form | 13min | 2 | 2 |
-| 14-04 | super-admin-management-page | 20min | 2 | 1 |
+**v1.2 Milestone:**
+- Total plans completed: 0
+- Phases: 4 (15-18), none started
+- Requirements: 0/13 satisfied
 
 ## Accumulated Context
 
 ### Decisions
 
-All decisions archived in PROJECT.md Key Decisions table and milestones/v1.1-ROADMAP.md.
+All v1.0/v1.1 decisions archived in PROJECT.md Key Decisions table.
+
+Pending decision for v1.2:
+- Phase 16: Route new student creation through `addStudent()` service (recommended) vs replicate school year enrollment inline. Must resolve before Phase 16 coding.
+- Phase 16: `ministryStageLevel` to `currentStage` mapping for "ב" — verify against `stageToMinistryLevel()` in constants.js.
 
 ### Pending Todos
 
@@ -57,10 +52,11 @@ None.
 
 ### Blockers/Concerns
 
-None — between milestones.
+- `detectInstrumentColumns` bug (BUGF-01) blocks all instrument-related work — Phase 15 must complete first.
+- `teacherAssignment` Joi schema requires day/time that Ministry files lack — import must bypass Joi and write directly via MongoDB `$push`.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (v1.2 milestone started)
-Stopped at: Defining requirements
-Resume: Continue requirements definition → roadmap
+Last session: 2026-02-27 (v1.2 roadmap created)
+Stopped at: Roadmap created, ready to plan Phase 15
+Resume: `/gsd:plan-phase 15`

@@ -4,6 +4,7 @@
 
 - [x] **v1.0 Multi-Tenant Architecture Hardening** — Phases 1-9 (shipped 2026-02-24)
 - [x] **v1.1 Super Admin Platform Management** — Phases 10-14 (shipped 2026-02-26)
+- [ ] **v1.2 Student Import Enhancement** — Phases 15-18 (in progress)
 
 ## Phases
 
@@ -37,7 +38,80 @@ See: `.planning/milestones/v1.1-ROADMAP.md` for full details.
 
 </details>
 
+### v1.2 Student Import Enhancement (In Progress)
+
+**Milestone Goal:** Enhance student import from Ministry Excel files to support teacher linking, proper instrument progress with stage tracking, bagrut flagging, and polished frontend preview matching teacher import quality.
+
+- [ ] **Phase 15: Bug Fix + Column Map Extensions** — Fix instrument detection bug and extend column mappings for bagrut and schema additions
+- [ ] **Phase 16: Instrument Progress + Student Data Enrichment** — Build instrumentProgress[] entries, stage level mapping, expanded change detection, and bagrut flagging
+- [ ] **Phase 17: Teacher-Student Linking** — Match teacher names from Excel, persist resolved matches, create teacherAssignment entries
+- [ ] **Phase 18: Frontend Preview Enhancement** — Enriched student preview UI matching teacher import quality with detail cards, badges, and summary stats
+
+## Phase Details
+
+### Phase 15: Bug Fix + Column Map Extensions
+**Goal**: Student import correctly detects instrument columns and recognizes new data fields (bagrut, isBagrutCandidate) from Ministry Excel files
+**Depends on**: Nothing (first phase of v1.2; prerequisite for all subsequent phases)
+**Requirements**: BUGF-01, IQAL-04, BGRT-01
+**Success Criteria** (what must be TRUE):
+  1. Student import preview detects instrument columns with the same accuracy as teacher import (no misdetection from missing headerColMap)
+  2. Uploading a Ministry Excel file with a "מגמת מוסיקה" or "מגמה" column produces a preview that includes the bagrut flag value for each student row
+  3. Student schema accepts `academicInfo.isBagrutCandidate` boolean without breaking existing student documents
+**Plans**: TBD
+
+Plans:
+- [ ] 15-01: TBD
+- [ ] 15-02: TBD
+
+### Phase 16: Instrument Progress + Student Data Enrichment
+**Goal**: Imported students have proper instrumentProgress[] entries with stage tracking, and the import detects changes across all enriched fields
+**Depends on**: Phase 15 (correct instrument column detection and column map entries)
+**Requirements**: IQAL-01, IQAL-02, IQAL-03, BGRT-02
+**Success Criteria** (what must be TRUE):
+  1. Importing a new student creates an `instrumentProgress[]` entry with instrumentName, isPrimary, currentStage, and ministryStageLevel (not a flat academicInfo.instrument string)
+  2. Ministry stage level values (שלב א/ב/ג) in Excel are mapped to numeric currentStage values on the instrumentProgress entry
+  3. Re-importing an existing student who changed instrument, stage level, lesson duration, or teacher shows those changes in the preview diff (not just studyYears/extraHour/class)
+  4. Executing import on a student flagged with "מגמת מוסיקה" sets `academicInfo.isBagrutCandidate: true` on the student document
+  5. Newly imported students are enrolled in the current school year and appear in school-year-scoped queries
+**Plans**: TBD
+
+Plans:
+- [ ] 16-01: TBD
+- [ ] 16-02: TBD
+
+### Phase 17: Teacher-Student Linking
+**Goal**: Students imported from Ministry files are linked to their teachers via teacherAssignment entries, with match status visible in preview
+**Depends on**: Phase 16 (instrumentProgress and enriched change detection must exist before adding teacher linking)
+**Requirements**: TLNK-01, TLNK-02, TLNK-03
+**Success Criteria** (what must be TRUE):
+  1. Preview matches the "המורה" column value against existing teachers (case-insensitive, both name orderings) and shows resolved/unresolved/ambiguous status per row
+  2. Executing import creates a teacherAssignment entry on the student with the matched teacherId (without day/time schedule fields, marked as Ministry import)
+  3. When a teacher name from Excel is not found in the tenant's teacher list, the preview displays a clear warning with the exact unresolved name
+  4. Teacher match results are persisted in the import_log at preview time so execute never re-runs matching
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01: TBD
+- [ ] 17-02: TBD
+
+### Phase 18: Frontend Preview Enhancement
+**Goal**: Student import preview shows the same quality of detail as teacher import preview, with rich row details, teacher match badges, and summary statistics
+**Depends on**: Phase 17 (all backend enrichments must be in place for the frontend to display them)
+**Requirements**: FEPV-01, FEPV-02, FEPV-03
+**Success Criteria** (what must be TRUE):
+  1. Each student row in the preview table shows enriched detail (instrument, teacher match status, class, stage level, bagrut flag) via a `getStudentRowDetails()` function mirroring the teacher import pattern
+  2. Not-found (new) students show a rich detail card with all parsed import data instead of just a "תלמיד חדש" text label
+  3. Teacher match status is displayed as a visual badge (matched/not found/ambiguous) in the preview table for each student row
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01: TBD
+- [ ] 18-02: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -55,7 +129,11 @@ See: `.planning/milestones/v1.1-ROADMAP.md` for full details.
 | 12. Platform Reporting | v1.1 | 2/2 | Complete | 2026-02-25 |
 | 13. Impersonation | v1.1 | 2/2 | Complete | 2026-02-25 |
 | 14. Super Admin Frontend | v1.1 | 4/4 | Complete | 2026-02-26 |
+| 15. Bug Fix + Column Map Extensions | v1.2 | 0/TBD | Not started | - |
+| 16. Instrument Progress + Student Data Enrichment | v1.2 | 0/TBD | Not started | - |
+| 17. Teacher-Student Linking | v1.2 | 0/TBD | Not started | - |
+| 18. Frontend Preview Enhancement | v1.2 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-26 — v1.1 milestone archived*
+*Last updated: 2026-02-27 — v1.2 milestone roadmap created*
