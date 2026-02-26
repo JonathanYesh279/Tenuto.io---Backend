@@ -164,7 +164,7 @@ async function createTenant(req, res) {
     const tenant = await tenantService.createTenant(req.body);
 
     await auditTrailService.logAction(AUDIT_ACTIONS.TENANT_CREATED, req.superAdmin._id.toString(), {
-      targetId: tenant._id?.toString() || tenant.tenantId,
+      targetId: tenant._id.toString(),
       tenantName: tenant.name,
     });
 

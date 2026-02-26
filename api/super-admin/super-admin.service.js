@@ -287,7 +287,7 @@ async function getTenantsWithStats() {
 
   const tenants = await tenantCollection.find().sort({ name: 1 }).toArray();
 
-  const tenantIds = tenants.map((t) => t.tenantId || t._id.toString());
+  const tenantIds = tenants.map((t) => t._id.toString());
 
   const [teacherCounts, studentCounts] = await Promise.all([
     teacherCollection.aggregate([
@@ -304,7 +304,7 @@ async function getTenantsWithStats() {
   const studentMap = new Map(studentCounts.map((r) => [r._id, r.count]));
 
   return tenants.map((t) => {
-    const tid = t.tenantId || t._id.toString();
+    const tid = t._id.toString();
     return {
       ...t,
       stats: {
@@ -328,7 +328,7 @@ async function getTenantWithStats(tenantId) {
     throw new Error(`Tenant with id ${tenantId} not found`);
   }
 
-  const tid = tenant.tenantId || tenant._id.toString();
+  const tid = tenant._id.toString();
 
   const [teacherCount, studentCount] = await Promise.all([
     teacherCollection.countDocuments({ tenantId: tid, isActive: true }),
@@ -454,7 +454,7 @@ async function deletionPreview(tenantId) {
     throw new Error(`Tenant with id ${tenantId} not found`);
   }
 
-  const tenantIdString = tenant.tenantId || tenant._id.toString();
+  const tenantIdString = tenant._id.toString();
   const preview = await tenantPurgeService.previewDeletion(tenantIdString);
 
   return {
@@ -553,7 +553,7 @@ async function purgeTenant(tenantId, actorId) {
     throw new Error(`Cannot purge: tenant must be soft-deleted first (current status: '${tenant.deletionStatus || 'none'}')`);
   }
 
-  const tenantIdString = tenant.tenantId || tenant._id.toString();
+  const tenantIdString = tenant._id.toString();
 
   // Mark as purging
   await collection.updateOne(
@@ -669,7 +669,7 @@ async function getReportingTenantList() {
   const snapshotCollection = await getCollection(COLLECTIONS.MINISTRY_REPORT_SNAPSHOTS);
 
   const tenants = await tenantCollection.find().sort({ name: 1 }).toArray();
-  const tenantIds = tenants.map((t) => t.tenantId || t._id.toString());
+  const tenantIds = tenants.map((t) => t._id.toString());
 
   const [teacherCounts, studentCounts, orchestraCounts, adminLogins, snapshotStats] =
     await Promise.all([
@@ -731,7 +731,7 @@ async function getReportingTenantList() {
   const snapshotMap = new Map(snapshotStats.map((r) => [r._id, r]));
 
   return tenants.map((t) => {
-    const tid = t.tenantId || t._id.toString();
+    const tid = t._id.toString();
     const teacherCount = teacherMap.get(tid) || 0;
     const studentCount = studentMap.get(tid) || 0;
     const orchestraCount = orchestraMap.get(tid) || 0;
@@ -774,7 +774,7 @@ async function getReportingTenantDetail(tenantId) {
     throw new Error(`Tenant with id ${tenantId} not found`);
   }
 
-  const tid = tenant.tenantId || tenant._id.toString();
+  const tid = tenant._id.toString();
 
   const [teacherCount, studentCount, orchestraCount, adminLogins, snapshotStats] =
     await Promise.all([
@@ -842,7 +842,7 @@ async function getReportingMinistryStatus() {
     .find({}, { projection: { _id: 1, name: 1, slug: 1, tenantId: 1 } })
     .toArray();
 
-  const tenantIds = tenants.map((t) => t.tenantId || t._id.toString());
+  const tenantIds = tenants.map((t) => t._id.toString());
 
   const snapshotStats = await snapshotCollection
     .aggregate([
@@ -862,7 +862,7 @@ async function getReportingMinistryStatus() {
   const snapshotMap = new Map(snapshotStats.map((r) => [r._id, r]));
 
   return tenants.map((t) => {
-    const tid = t.tenantId || t._id.toString();
+    const tid = t._id.toString();
     const snap = snapshotMap.get(tid);
     return {
       tenantId: tid,
@@ -949,7 +949,7 @@ async function startImpersonation(tenantId, superAdminId) {
 
   // Find an active admin teacher for this tenant
   const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
-  const tid = tenant.tenantId || tenant._id.toString();
+  const tid = tenant._id.toString();
   const adminTeacher = await teacherCollection.findOne({
     tenantId: tid,
     roles: 'מנהל',

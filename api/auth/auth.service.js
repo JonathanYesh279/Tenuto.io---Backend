@@ -170,9 +170,9 @@ async function _getTenantsForTeachers(collection, email) {
   const tenantCollection = await getCollection('tenant')
   const tenantIds = [...new Set(teachers.map((t) => t.tenantId).filter(Boolean))]
   const tenants = tenantIds.length > 0
-    ? await tenantCollection.find({ tenantId: { $in: tenantIds } }).toArray()
+    ? await tenantCollection.find({ _id: { $in: tenantIds.map(id => ObjectId.createFromHexString(id)) } }).toArray()
     : []
-  const tenantMap = new Map(tenants.map((t) => [t.tenantId, t]))
+  const tenantMap = new Map(tenants.map((t) => [t._id.toString(), t]))
 
   return teachers.map((t) => ({
     tenantId: t.tenantId || null,
