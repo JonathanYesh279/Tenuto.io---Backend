@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-24)
+See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 14 (Super Admin Frontend) COMPLETE — all 4 plans done, v1.1 roadmap complete
+**Current focus:** v1.1 shipped — planning next milestone
 
 ## Current Position
 
-Phase: 14 of 14 (Super Admin Frontend) — COMPLETE
-Plan: 4/4 complete
-Status: Plan 14-04 complete (super admin management page, Phase 14 human-verified)
-Last activity: 2026-02-26 - Plan 14-04 executed (1 task, 1 file), human verification approved
+Phase: N/A — between milestones
+Plan: N/A
+Status: v1.1 milestone archived
+Last activity: 2026-02-26 - v1.1 milestone completed and archived
 
-Progress: [##############################] 100% (v1.0 complete, v1.1 phases 10-14 all done)
+Progress: [##############################] 100% (v1.0 + v1.1 complete)
 
 ## Performance Metrics
 
@@ -26,9 +26,10 @@ Progress: [##############################] 100% (v1.0 complete, v1.1 phases 10-1
 - Timeline: 11 days (2026-02-14 -> 2026-02-24)
 
 **v1.1 Milestone:**
-- Total plans completed: 12
-- Phases: 5 (10-14), 4 complete + phase 14 in progress (3/4 plans)
-- Requirements: 19
+- Total plans completed: 13
+- Phases: 5 (10-14), all complete
+- Requirements: 19/19 satisfied
+- Timeline: 3 days (2026-02-24 -> 2026-02-26)
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -50,87 +51,7 @@ Progress: [##############################] 100% (v1.0 complete, v1.1 phases 10-1
 
 ### Decisions
 
-All v1.0 decisions documented in PROJECT.md Key Decisions table.
-
-v1.1 roadmap decisions:
-- Bug fixes (Phase 10) before all other work — broken auth blocks everything
-- FIX-03 grouped with TLCM (Phase 11) — isActive gating is prerequisite for soft/hard delete
-- Impersonation (Phase 13) after reports/deletion — highest-risk feature, touches core auth
-- Two cascade deletion systems must be consolidated in Phase 11 before tenant deletion
-- Frontend (Phase 14) last — consumes all backend APIs from phases 10-13
-
-Phase 10-01 decisions:
-- Super admin refresh route is public (before auth middleware) since access token may be expired
-- Cookie settings match regular auth pattern (httpOnly, secure in prod, sameSite strict, 30d)
-- checkAuthStatus attempts refresh before clearing super admin session
-
-Phase 10-02 decisions:
-- Used user?.isSuperAdmin from React state (not localStorage) to avoid race conditions
-- SUPER_ADMIN_ALLOWED_PATHS = [/dashboard, /settings] -- minimal whitelist
-- useLocation hook moved to top of ProtectedRoute to comply with React Rules of Hooks
-- Sidebar.tsx not modified -- already handles super admin navigation correctly
-
-Phase 11-01 decisions:
-- Tenant check guarded by if (teacher.tenantId) to skip gracefully for legacy data without tenantId
-- Tenant check placed AFTER teacher.isActive and token version checks in auth middleware
-- Audit logAction is defensive (catches errors, logs them, never throws) — audit failures cannot break operations
-- TENANT_SCOPED_COLLECTIONS excludes tenant (deleted separately), super_admin (platform-level), platform_audit_log (must survive)
-
-Phase 11-02 decisions:
-- Re-export wrapper instead of updating all import paths -- safer, zero risk of missed imports
-- Test suites skipped (not deleted) -- preserves test code for future rewrite to System A API
-- Third cascade implementation (api/admin/cascade-deletion.service.js) left as-is with TODO -- different admin endpoint concern
-
-Phase 11-03 decisions:
-- Snapshot split per collection to avoid MongoDB 16MB BSON document limit
-- Cancelling soft-delete does NOT reactivate tenant -- super admin must explicitly toggle-active
-- Purge requires confirmTenantName safety check in controller (destructive action guard)
-- Audit logging for createTenant/updateTenant done in controller (tenantService is shared with non-super-admin flows)
-- Service methods accept optional actorId for backward compatibility
-- Purge failure rolls back deletionStatus to 'scheduled' for retry
-
-Phase 12-01 decisions:
-- New reporting functions are additive — existing getTenantsWithStats and getPlatformAnalytics untouched
-- getReportingDashboard computes overview from tenantHealth array (no duplicate DB queries)
-- computeUtilization returns null when max is falsy to distinguish "no limit" from "0% utilization"
-- deriveHealthAlerts uses 30-day lookahead for expiry with severity escalation at 7 days
-
-Phase 12-02 decisions:
-- Reporting routes placed after authenticateSuperAdmin router.use and before requirePermission admin routes
-- Index creation is fire-and-forget at module load with defensive error handling (never crashes)
-- Controller validates tenant ID param with Joi before calling service (returns 400 for invalid ObjectId)
-
-Phase 13-01 decisions:
-- Impersonation token mirrors generateAccessToken payload exactly plus 3 claims (isImpersonation, impersonatedBy, impersonationSessionId) -- authenticateToken accepts it unchanged
-- enrichImpersonationContext uses jwt.decode() (not verify) since authenticateToken already verified the signature
-- Audit logging for mutating requests is fire-and-forget (not awaited) to avoid adding latency
-- Middleware placed after authenticateToken and before buildContext in all 23 tenant-scoped route chains
-- GET requests during impersonation are NOT logged as audit entries (only debug log) to reduce noise
-- No refresh token issued for impersonation sessions -- forces re-impersonation after 1h expiry
-
-Phase 14-01 decisions:
-- Params passed directly to apiClient.get() matching existing codebase pattern (not axios { params } convention)
-- superAdminNavigation expanded to 4 items: dashboard, tenants, super-admins, settings
-- Routes added before catch-all to ensure correct matching order
-- Super admin pages lazy-loaded from pages/super-admin/ directory (consistent with createProtectedRoute pattern)
-
-Phase 14-02 decisions:
-- Dashboard uses single getReportingDashboard API call instead of separate getTenants + getAnalytics
-- Plan labels updated to match backend SUBSCRIPTION_PLANS enum: standard/premium (not professional/enterprise)
-- Impersonate button hidden for inactive tenants (backend rejects anyway, better UX to hide)
-- Delete button replaced with grayed-out indicator when deletionStatus=scheduled (prevents double-scheduling)
-
-Phase 14-03 decisions:
-- formatDate helper with try/catch fallback to handle invalid dates gracefully
-- Purge dialog uses Modal component (not ConfirmDeleteDialog) for custom name-confirmation input
-- Slug field uses dir=ltr since it's English-only; all other inputs use dir=rtl for Hebrew
-- maxTeachers/maxStudents typed as any for empty string default to work with Zod coerce number
-
-Phase 14-04 decisions:
-- Modal reuse for create/edit: editingAdmin=null means create mode, editingAdmin=<admin> means edit mode
-- Password omitted from edit payload when empty string — backend preserves existing password when field missing
-- Self-edit protection is client-side guard (current user row hides deactivation) — backend independently enforces
-- PERMISSION_OPTIONS constant defined outside component to avoid recreation on each render
+All decisions archived in PROJECT.md Key Decisions table and milestones/v1.1-ROADMAP.md.
 
 ### Pending Todos
 
@@ -138,21 +59,10 @@ None.
 
 ### Blockers/Concerns
 
-- RESOLVED: Two cascade deletion systems consolidated in 11-02 (re-export wrapper to canonical service)
-- RESOLVED: Impersonation token mirrors teacher JWT exactly with 3 extra claims -- authenticateToken unchanged (13-01)
-- RESOLVED: stop-impersonation JWT ordering bug -- super admin token now restored before API call (13-02 bug fix)
-- Frontend auth localStorage collision between super admin and regular admin tokens (Phase 10/13)
-- Settings page shows toast error when super admin visits /settings (tenantId null) -- Phase 14 fix
-
-Phase 13-02 decisions:
-- Token stashing uses sessionStorage (preImpersonation_authToken/loginType/superAdminUser) -- survives page refresh within tab, cleared on tab close
-- ImpersonationBanner reads from localStorage and listens for storage events to detect cross-tab changes
-- Impersonation token expiry triggers automatic exit via stopImpersonation in refreshToken callback
-- Banner uses fixed positioning with z-[100] to overlay above header -- intentional strong visual indicator
-- Super admin token restored BEFORE stop-impersonation API call (bug fix: route requires authenticateSuperAdmin)
+None — between milestones.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 14-04 completed — v1.1 roadmap complete)
-Stopped at: Completed 14-04-PLAN.md
-Resume: N/A — all phases complete
+Last session: 2026-02-26 (v1.1 milestone archived)
+Stopped at: Milestone completion
+Resume: `/gsd:new-milestone` for next milestone
