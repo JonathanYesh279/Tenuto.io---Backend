@@ -831,6 +831,27 @@ async function parseMinistryTeacherSheet(buffer) {
     }
   }
 
+  // Backfill personal columns from parent rows above the instrument header row.
+  // Ministry files have multi-row merged headers where "סיווג", "תואר", "חבר/ה"
+  // appear on a different row than the instrument abbreviations.
+  const mappedPersonalFields = new Set(personalCols.values());
+  for (let c = 0; c < headerTexts.length; c++) {
+    // Skip columns already mapped (instrument, teaching subject, or personal)
+    if (instrumentCols.has(c) || teachSubjectCols.has(c) || personalCols.has(c)) continue;
+    // Scan parent rows above the header for a known personal column name
+    for (let r = headerIdx - 1; r >= 0; r--) {
+      const parentTexts = rowEntries[r].texts;
+      const parentText = parentTexts[c];
+      if (!parentText) continue;
+      const mappedField = TEACHER_COLUMN_MAP[parentText];
+      if (mappedField && !mappedPersonalFields.has(mappedField)) {
+        personalCols.set(c, mappedField);
+        mappedPersonalFields.add(mappedField);
+        break;
+      }
+    }
+  }
+
   // Boolean check helper for cell values
   const isCellTrue = (cell) => {
     if (!cell) return false;
@@ -875,6 +896,11 @@ async function parseMinistryTeacherSheet(buffer) {
         if (text) mapped[field] = text;
       }
     }
+
+    // Coerce name fields to strings (Excel may parse them as numbers)
+    if (mapped.firstName != null) mapped.firstName = String(mapped.firstName);
+    if (mapped.lastName != null) mapped.lastName = String(mapped.lastName);
+    if (mapped.fullName != null) mapped.fullName = String(mapped.fullName);
 
     // Skip rows with no name data
     if (!mapped.firstName && !mapped.lastName && !mapped.fullName) continue;
@@ -1462,7 +1488,7 @@ async function previewStudentImport(buffer, options = {}) {
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
 
   const headers = Object.keys(rows[0]);
-  const instrumentColumns = detectInstrumentColumns(headers);
+  const instrumentColumns = detectInstrumentColumns(headers, headerColMap);
 
   const studentCollection = await getCollection('student');
   const filter = { isActive: true, tenantId };
@@ -1482,7 +1508,12 @@ async function previewStudentImport(buffer, options = {}) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const mapped = mapColumns(row, STUDENT_COLUMN_MAP);
+    const mapped = mapColumns(row, STUDENT_COLUMN_MAP, headerColMap);
+
+    // Coerce name fields to strings (Excel may parse them as numbers)
+    if (mapped.firstName != null) mapped.firstName = String(mapped.firstName);
+    if (mapped.lastName != null) mapped.lastName = String(mapped.lastName);
+    if (mapped.fullName != null) mapped.fullName = String(mapped.fullName);
 
     // Skip footer/summary rows that have no student name data at all
     if (!mapped.fullName && !mapped.firstName && !mapped.lastName) {
