@@ -5,16 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.1 shipped — planning next milestone
+**Current focus:** v1.2 Student Import Enhancement
 
 ## Current Position
 
-Phase: N/A — between milestones
-Plan: N/A
-Status: v1.1 milestone archived
-Last activity: 2026-02-26 - v1.1 milestone completed and archived
-
-Progress: [##############################] 100% (v1.0 + v1.1 complete)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-26 — Milestone v1.2 started
 
 ## Performance Metrics
 
@@ -63,6 +61,6 @@ None — between milestones.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (v1.1 milestone archived)
-Stopped at: Milestone completion
-Resume: `/gsd:new-milestone` for next milestone
+Last session: 2026-02-26 (v1.2 milestone started)
+Stopped at: Defining requirements
+Resume: Continue requirements definition → roadmap
