@@ -130,6 +130,8 @@ const STUDENT_COLUMN_MAP = {
   'המורה': 'teacherName',
   'זמן שעור': 'lessonDuration',
   'שלב': 'ministryStageLevel',
+  'מגמת מוסיקה': 'isBagrutCandidate',
+  'מגמה': 'isBagrutCandidate',
 };
 
 // Build reverse lookup: abbreviation/name → canonical instrument name
@@ -1069,6 +1071,13 @@ function validateStudentRow(mapped, rowIndex) {
     } else {
       mapped.age = age;
     }
+  }
+
+  // Convert isBagrutCandidate to boolean
+  if (mapped.isBagrutCandidate !== undefined && mapped.isBagrutCandidate !== '') {
+    mapped.isBagrutCandidate = TRUTHY_VALUES.includes(mapped.isBagrutCandidate);
+  } else {
+    mapped.isBagrutCandidate = null;
   }
 
   return { errors, warnings };

@@ -118,6 +118,7 @@ export const studentSchema = Joi.object({
     tests: Joi.object({
       bagrutId: Joi.string().allow(null).default(null),
     }).default({ bagrutId: null }),
+    isBagrutCandidate: Joi.boolean().allow(null).default(null),
   }).required(),
 
   enrollments: Joi.object({
@@ -201,6 +202,7 @@ export const studentUpdateSchema = Joi.object({
     tests: Joi.object({
       bagrutId: Joi.string().allow(null),
     }),
+    isBagrutCandidate: Joi.boolean().allow(null),
   }),
 
   enrollments: Joi.object({
