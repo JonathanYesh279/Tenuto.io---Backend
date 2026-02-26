@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-24)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 14 (Super Admin Frontend) in progress — plan 03 complete
+**Current focus:** Phase 14 (Super Admin Frontend) COMPLETE — all 4 plans done, v1.1 roadmap complete
 
 ## Current Position
 
-Phase: 14 of 14 (Super Admin Frontend)
-Plan: 3/4 complete
-Status: Plan 14-03 complete (tenant detail page, tenant create/edit form)
-Last activity: 2026-02-26 - Plan 14-03 executed (2 tasks, 2 files)
+Phase: 14 of 14 (Super Admin Frontend) — COMPLETE
+Plan: 4/4 complete
+Status: Plan 14-04 complete (super admin management page, Phase 14 human-verified)
+Last activity: 2026-02-26 - Plan 14-04 executed (1 task, 1 file), human verification approved
 
-Progress: [#############################.] 99% (v1.0 complete, v1.1 phases 10-13 done, phase 14 plan 3/4)
+Progress: [##############################] 100% (v1.0 complete, v1.1 phases 10-14 all done)
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Progress: [#############################.] 99% (v1.0 complete, v1.1 phases 10-13
 | 14-01 | api-wrappers-types-routes-sidebar | 2min | 2 | 4 |
 | 14-02 | dashboard-enhancement-tenant-list | 17min | 2 | 2 |
 | 14-03 | tenant-detail-and-form | 13min | 2 | 2 |
+| 14-04 | super-admin-management-page | 20min | 2 | 1 |
 
 ## Accumulated Context
 
@@ -125,6 +126,12 @@ Phase 14-03 decisions:
 - Slug field uses dir=ltr since it's English-only; all other inputs use dir=rtl for Hebrew
 - maxTeachers/maxStudents typed as any for empty string default to work with Zod coerce number
 
+Phase 14-04 decisions:
+- Modal reuse for create/edit: editingAdmin=null means create mode, editingAdmin=<admin> means edit mode
+- Password omitted from edit payload when empty string — backend preserves existing password when field missing
+- Self-edit protection is client-side guard (current user row hides deactivation) — backend independently enforces
+- PERMISSION_OPTIONS constant defined outside component to avoid recreation on each render
+
 ### Pending Todos
 
 None.
@@ -146,6 +153,6 @@ Phase 13-02 decisions:
 
 ## Session Continuity
 
-Last session: 2026-02-26 (Phase 14-03 completed)
-Stopped at: Completed 14-03-PLAN.md
-Resume: Execute 14-04-PLAN.md (SuperAdminManagementPage)
+Last session: 2026-02-26 (Phase 14-04 completed — v1.1 roadmap complete)
+Stopped at: Completed 14-04-PLAN.md
+Resume: N/A — all phases complete
