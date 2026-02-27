@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 
 ## Current Position
 
-Phase: 17 — third of 4 phases in v1.2
-Plan: 01 (complete)
-Status: Plan 17-01 complete, Plan 17-02 ready
-Last activity: 2026-02-27 — Phase 17-01 executed (teacher name matching in preview)
+Phase: 17 — third of 4 phases in v1.2 (COMPLETE)
+Plan: 02 (complete — last plan in phase)
+Status: Phase 17 complete, Phase 18 or next milestone ready
+Last activity: 2026-02-27 — Phase 17-02 executed (teacher assignment creation during execute)
 
-Progress: [#################░░░] 81% (42/TBD plans — v1.0: 25, v1.1: 13, v1.2: 4/TBD)
+Progress: [##################░░] 83% (43/TBD plans — v1.0: 25, v1.1: 13, v1.2: 5/TBD)
 
 ## Performance Metrics
 
@@ -32,8 +32,8 @@ Progress: [#################░░░] 81% (42/TBD plans — v1.0: 25, v1.1: 13,
 - Timeline: 3 days (2026-02-24 -> 2026-02-26)
 
 **v1.2 Milestone:**
-- Total plans completed: 4
-- Phases: 4 (15-18), Phase 15 complete, Phase 16 complete (01+02), Phase 17 in progress (01 done)
+- Total plans completed: 5
+- Phases: 4 (15-18), Phase 15 complete, Phase 16 complete (01+02), Phase 17 complete (01+02)
 - Requirements: 7/13 satisfied (BUGF-01, BGRT-01, BGRT-02, IQAL-01, IQAL-02, IQAL-03, IQAL-04)
 
 | Phase | Plan | Duration | Tasks | Files |
@@ -42,6 +42,7 @@ Progress: [#################░░░] 81% (42/TBD plans — v1.0: 25, v1.1: 13,
 | 16-01 | Preview enrichment | 3min | 2 | 2 |
 | 16-02 | Execute import enrichment | 12min | 2 | 1 |
 | 17-01 | Teacher name matching in preview | 3min | 2 | 1 |
+| 17-02 | Teacher assignment creation in execute | 3min | 2 | 1 |
 
 ## Accumulated Context
 
@@ -64,6 +65,9 @@ v1.2 decisions:
 - Phase 17-01: matchTeacherByName tries both firstName+lastName orderings (Hebrew names have no standard ordering)
 - Phase 17-01: Single-word names match against either firstName or lastName individually
 - Phase 17-01: teacherName removed from calculateStudentChanges -- teacher matching now via teacherMatch on preview entries
+- Phase 17-02: Separate updateOne for teacherAssignment $push -- avoids $push conflict with instrumentProgress, keeps filter-based duplicate check clean
+- Phase 17-02: Students with no field changes but resolved teacher match are processed (modified early-continue guard)
+- Phase 17-02: Dead teacherName skip code removed from execute loop (Plan 01 already removed teacherName from changes)
 
 ### Pending Todos
 
@@ -72,10 +76,10 @@ None.
 ### Blockers/Concerns
 
 - ~~`detectInstrumentColumns` bug (BUGF-01) blocks all instrument-related work~~ RESOLVED in Phase 15-01
-- `teacherAssignment` Joi schema requires day/time that Ministry files lack — import must bypass Joi and write directly via MongoDB `$push`. (Phase 17 concern)
+- ~~`teacherAssignment` Joi schema requires day/time that Ministry files lack — import must bypass Joi and write directly via MongoDB `$push`. (Phase 17 concern)~~ RESOLVED in Phase 17-02: assignments omit day/time/duration, written directly via $push
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 17-01 executed)
-Stopped at: Completed 17-01-PLAN.md (teacher name matching in preview)
-Resume: Execute 17-02-PLAN.md (teacher assignment creation during execute)
+Last session: 2026-02-27 (Phase 17-02 executed)
+Stopped at: Completed 17-02-PLAN.md (teacher assignment creation during execute)
+Resume: Phase 17 complete. Next: Phase 18 or next v1.2 milestone
