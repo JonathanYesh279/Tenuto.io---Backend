@@ -1912,19 +1912,27 @@ async function parseConservatoryExcel(buffer) {
   const worksheet = workbook.worksheets[0];
   if (!worksheet) throw new Error('הקובץ לא מכיל גליונות');
 
-  // Helper: extract resolved value from any cell type (formula, richText, date, plain)
+  // Helper: extract resolved value from any cell type (formula, richText, date, hyperlink, plain)
   function getCellValue(cellAddress) {
-    const val = worksheet.getCell(cellAddress).value;
+    const cell = worksheet.getCell(cellAddress);
+    const val = cell.value;
     if (val === null || val === undefined) return null;
     if (typeof val === 'object' && ('formula' in val || 'sharedFormula' in val)) {
       const result = val.result;
-      if (result === null || result === undefined) return null;
-      if (typeof result === 'object' && result.error) return null; // #NUM!, #REF!, etc.
-      return result;
+      if (result !== null && result !== undefined) {
+        if (typeof result === 'object' && result.error) return null; // #NUM!, #REF!, etc.
+        return result;
+      }
+      // Formula result is null — fall back to the cell's cached display text
+      const text = cell.text;
+      if (text && text.trim()) return text.trim();
+      return null;
     }
     if (typeof val === 'object' && val.richText) {
       return val.richText.map(r => r?.text ?? '').join('');
     }
+    // Hyperlink cells: { text: '...', hyperlink: '...' }
+    if (typeof val === 'object' && val.text) return val.text;
     if (val instanceof Date) return val.toISOString().slice(0, 10);
     return val;
   }
