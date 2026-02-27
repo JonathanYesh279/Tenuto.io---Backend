@@ -101,11 +101,10 @@ Plans:
   1. Each student row in the preview table shows enriched detail (instrument, teacher match status, class, stage level, bagrut flag) via a `getStudentRowDetails()` function mirroring the teacher import pattern
   2. Not-found (new) students show a rich detail card with all parsed import data instead of just a "תלמיד חדש" text label
   3. Teacher match status is displayed as a visual badge (matched/not found/ambiguous) in the preview table for each student row
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 18-01: TBD
-- [ ] 18-02: TBD
+- [ ] 18-01-PLAN.md -- Student preview helpers (formatStudentChange, getTeacherMatchBadge, getStudentRowDetails) + teacher match summary cards
 
 ## Progress
 
@@ -131,8 +130,8 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 15. Bug Fix + Column Map Extensions | v1.2 | 1/1 | Complete | 2026-02-27 |
 | 16. Instrument Progress + Student Data Enrichment | v1.2 | 2/2 | Complete | 2026-02-27 |
 | 17. Teacher-Student Linking | v1.2 | 2/2 | Complete | 2026-02-27 |
-| 18. Frontend Preview Enhancement | v1.2 | 0/TBD | Not started | - |
+| 18. Frontend Preview Enhancement | v1.2 | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-27 — Phase 17 complete (2/2 plans)*
+*Last updated: 2026-02-27 — Phase 18 planned (1 plan)*
