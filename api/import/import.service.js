@@ -1847,6 +1847,15 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
   const errors = [];
   const affectedDocIds = [];
 
+  // Fetch current school year once for enrolling new students
+  const { schoolYearService } = await import('../school-year/school-year.service.js');
+  let currentSchoolYear = null;
+  try {
+    currentSchoolYear = await schoolYearService.getCurrentSchoolYear({ context: { tenantId } });
+  } catch (err) {
+    console.warn('No current school year found for tenant, new students will not be enrolled:', err.message);
+  }
+
   for (const entry of matched) {
     if (entry.changes.length === 0) continue;
 
@@ -1891,6 +1900,9 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
     }
 
     try {
+      // Use pre-computed _instrumentProgressEntry from preview (Plan 01)
+      const instrumentEntry = mapped._instrumentProgressEntry || buildInstrumentProgressEntry(mapped);
+
       const newStudent = {
         tenantId,
         personalInfo: {
@@ -1898,25 +1910,36 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
           lastName: mapped.lastName || '',
         },
         academicInfo: {
+          instrumentProgress: instrumentEntry ? [instrumentEntry] : [],
           class: mapped.class || null,
           studyYears: mapped.studyYears ? parseInt(mapped.studyYears) || 1 : 1,
           extraHour: typeof mapped.extraHour === 'boolean' ? mapped.extraHour : false,
-          instrument: mapped.instrument || null,
-          age: mapped.age ? parseInt(mapped.age) || null : null,
+          isBagrutCandidate: mapped.isBagrutCandidate ?? null,
+          tests: { bagrutId: null },
         },
+        enrollments: {
+          orchestraIds: [],
+          ensembleIds: [],
+          theoryLessonIds: [],
+          schoolYears: currentSchoolYear ? [{
+            schoolYearId: currentSchoolYear._id.toString(),
+            isActive: true,
+          }] : [],
+        },
+        teacherAssignments: [],
         isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      // Add lessonDuration if converted from Ministry weekly hours (Plan 01 converts to minutes)
+      // Add lessonDuration if present (already converted to minutes by validateStudentRow)
       if (mapped.lessonDuration && typeof mapped.lessonDuration === 'number') {
         newStudent.academicInfo.lessonDuration = mapped.lessonDuration;
       }
 
-      // Add Ministry stage level if present
-      if (mapped.ministryStageLevel) {
-        newStudent.academicInfo.ministryStageLevel = mapped.ministryStageLevel;
+      // Add age if present
+      if (mapped.age) {
+        newStudent.personalInfo.age = mapped.age;
       }
 
       const result = await studentCollection.insertOne(newStudent);

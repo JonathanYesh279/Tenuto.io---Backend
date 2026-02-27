@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 16 — second of 4 phases in v1.2
-Plan: TBD
-Status: Research complete, plans created, ready for execution
-Last activity: 2026-02-27 — Phase 16 planned (2 plans in 2 waves)
+Plan: 02 (next)
+Status: Plan 01 complete, Plan 02 ready for execution
+Last activity: 2026-02-27 — Phase 16-01 executed (preview enrichment)
 
-Progress: [###############░░░░░] 75% (39/TBD plans — v1.0: 25, v1.1: 13, v1.2: 1/TBD)
+Progress: [################░░░░] 77% (40/TBD plans — v1.0: 25, v1.1: 13, v1.2: 2/TBD)
 
 ## Performance Metrics
 
@@ -32,13 +32,14 @@ Progress: [###############░░░░░] 75% (39/TBD plans — v1.0: 25, v1.1:
 - Timeline: 3 days (2026-02-24 -> 2026-02-26)
 
 **v1.2 Milestone:**
-- Total plans completed: 1
-- Phases: 4 (15-18), Phase 15 complete, Phase 16 planned
+- Total plans completed: 2
+- Phases: 4 (15-18), Phase 15 complete, Phase 16 in progress (01/02 done)
 - Requirements: 3/13 satisfied (BUGF-01, BGRT-01, IQAL-04)
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 15-01 | Bug fix + column map | 4min | 2 | 2 |
+| 16-01 | Preview enrichment | 3min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -52,6 +53,8 @@ v1.2 decisions:
 - Phase 16 (planning): Replicate addStudent() logic inline rather than routing through strict Joi schema — avoids fighting required class/instrumentProgress fields when import data is partial
 - Phase 16 (planning): ministryLevelToStage maps 'ב' to 4 (lowest in range 4-5) — safest default since stage progression is upward
 - Phase 16 (planning): Matched student instrument changes update primary only via $set on .0. index — do NOT replace entire instrumentProgress array (preserves test history)
+- Phase 16-01: Teacher name changes always push with oldValue: null — teacher matching deferred to Phase 17
+- Phase 16-01: instrumentProgress[0] field naming convention in change objects maps to MongoDB $set dot notation in Plan 02
 
 ### Pending Todos
 
@@ -64,6 +67,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 16 planned)
-Stopped at: Phase 16 plans created (16-01 and 16-02), ready for execution
-Resume: Execute `/gsd:execute-phase 16` or run plans sequentially (16-01 wave 1, then 16-02 wave 2)
+Last session: 2026-02-27 (Phase 16-01 executed)
+Stopped at: Completed 16-01-PLAN.md (preview enrichment)
+Resume: Execute 16-02-PLAN.md (wave 2 — execute import with instrumentProgress writes)
