@@ -2068,12 +2068,72 @@ async function executeImport(importLogId, userId, options = {}) {
       return await executeTeacherImport(log, importLogCollection, tenantId, userId);
     } else if (log.importType === 'students') {
       return await executeStudentImport(log, importLogCollection, tenantId, userId);
+    } else if (log.importType === 'conservatory') {
+      return await executeConservatoryImport(log, importLogCollection, tenantId, userId);
     } else {
       throw new Error(`סוג ייבוא לא מוכר: ${log.importType}`);
     }
   } catch (err) {
     await importLogCollection.updateOne(
       { _id: log._id, tenantId },
+      { $set: { status: 'failed', error: err.message, completedAt: new Date() } }
+    );
+    throw err;
+  }
+}
+
+/**
+ * Execute a conservatory import: apply parsed data to the tenant's conservatoryProfile
+ * and director fields. Merges with existing data (does NOT replace entire profile).
+ */
+async function executeConservatoryImport(log, importLogCollection, tenantId, userId) {
+  try {
+    const parsed = log.parsedData;
+
+    // Fetch current tenant and merge conservatoryProfile
+    const tenant = await tenantService.getTenantById(tenantId);
+    const mergedProfile = { ...(tenant.conservatoryProfile || {}) };
+
+    // Overlay all parsed fields that belong to conservatoryProfile
+    const CONSERVATORY_FIELDS = [
+      'code', 'ownershipName', 'status', 'businessNumber', 'managerName',
+      'officePhone', 'mobilePhone', 'email', 'address', 'socialCluster',
+      'supportUnit', 'stage', 'stageDescription', 'cityCode', 'sizeCategory',
+      'mainDepartment', 'supervisionStatus', 'district', 'mixedCityFactor',
+      'managerNotes',
+    ];
+
+    for (const field of CONSERVATORY_FIELDS) {
+      if (field in parsed) {
+        mergedProfile[field] = parsed[field];
+      }
+    }
+
+    // Build the update: conservatoryProfile + director.name
+    const updateData = { conservatoryProfile: mergedProfile };
+    updateData.director = { ...(tenant.director || {}), name: parsed.managerName };
+
+    // Optionally update tenant.name if parsed
+    if (parsed.name !== null) {
+      updateData.name = parsed.name;
+    }
+
+    await tenantService.updateTenant(tenantId, updateData);
+
+    // Mark import as completed
+    await importLogCollection.updateOne(
+      { _id: log._id },
+      { $set: { status: 'completed', completedAt: new Date(), uploadedBy: userId } }
+    );
+
+    return {
+      success: true,
+      updatedFields: Object.keys(parsed).filter(k => parsed[k] !== null).length,
+    };
+  } catch (err) {
+    // Mark import as failed on error
+    await importLogCollection.updateOne(
+      { _id: log._id },
       { $set: { status: 'failed', error: err.message, completedAt: new Date() } }
     );
     throw err;
