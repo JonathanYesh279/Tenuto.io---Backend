@@ -1913,6 +1913,8 @@ async function parseConservatoryExcel(buffer) {
   if (!worksheet) throw new Error('הקובץ לא מכיל גליונות');
 
   // Helper: extract resolved value from any cell type (formula, richText, date, hyperlink, plain)
+  // For formula cells whose result is a Date (common ExcelJS misinterpretation of VLOOKUP results),
+  // fall back to cell.text which holds the actual displayed value.
   function getCellValue(cellAddress) {
     const cell = worksheet.getCell(cellAddress);
     const val = cell.value;
@@ -1921,6 +1923,13 @@ async function parseConservatoryExcel(buffer) {
       const result = val.result;
       if (result !== null && result !== undefined) {
         if (typeof result === 'object' && result.error) return null; // #NUM!, #REF!, etc.
+        // Formula result is a Date — prefer the cell's display text (actual value shown in Excel)
+        if (result instanceof Date) {
+          const text = cell.text;
+          if (text && text.trim() && text.trim() !== 'Invalid Date') return text.trim();
+          if (!isNaN(result.getTime())) return result.toISOString().slice(0, 10);
+          return null;
+        }
         return result;
       }
       // Formula result is null — fall back to the cell's cached display text
@@ -1933,14 +1942,22 @@ async function parseConservatoryExcel(buffer) {
     }
     // Hyperlink cells: { text: '...', hyperlink: '...' }
     if (typeof val === 'object' && val.text) return val.text;
-    if (val instanceof Date) return val.toISOString().slice(0, 10);
+    if (val instanceof Date) {
+      if (isNaN(val.getTime())) return null;
+      return val.toISOString().slice(0, 10);
+    }
     return val;
   }
 
   // Coerce to trimmed string or null (for fields where Joi expects string but Excel has number)
   function toStr(val) {
     if (val === null || val === undefined) return null;
-    return String(val).trim() || null;
+    if (val instanceof Date) {
+      if (isNaN(val.getTime())) return null;
+      return val.toISOString().slice(0, 10);
+    }
+    const s = String(val).trim();
+    return (s && s !== 'Invalid Date') ? s : null;
   }
 
   const parsed = {
