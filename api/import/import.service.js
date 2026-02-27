@@ -11,6 +11,7 @@
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import ExcelJS from 'exceljs';
+import XLSX from 'xlsx';
 import {
   INSTRUMENT_MAP,
   TEACHER_CLASSIFICATIONS,
@@ -1906,58 +1907,28 @@ async function previewStudentImport(buffer, options = {}) {
  * @returns {Object} Flat key-value map of all 21 parsed fields (all string or null)
  */
 async function parseConservatoryExcel(buffer) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  // Use SheetJS (xlsx) instead of ExcelJS — ExcelJS misinterprets VLOOKUP formula
+  // results as invalid Date objects, losing the actual cached string values.
+  // SheetJS correctly reads the cached formula results as strings.
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) throw new Error('הקובץ לא מכיל גליונות');
+  const ws = workbook.Sheets[sheetName];
 
-  const worksheet = workbook.worksheets[0];
-  if (!worksheet) throw new Error('הקובץ לא מכיל גליונות');
-
-  // Helper: extract resolved value from any cell type (formula, richText, date, hyperlink, plain)
-  // For formula cells whose result is a Date (common ExcelJS misinterpretation of VLOOKUP results),
-  // fall back to cell.text which holds the actual displayed value.
+  // Helper: read cell value — SheetJS stores .v (raw value) and .w (formatted text)
   function getCellValue(cellAddress) {
-    const cell = worksheet.getCell(cellAddress);
-    const val = cell.value;
-    if (val === null || val === undefined) return null;
-    if (typeof val === 'object' && ('formula' in val || 'sharedFormula' in val)) {
-      const result = val.result;
-      if (result !== null && result !== undefined) {
-        if (typeof result === 'object' && result.error) return null; // #NUM!, #REF!, etc.
-        // Formula result is a Date — prefer the cell's display text (actual value shown in Excel)
-        if (result instanceof Date) {
-          const text = cell.text;
-          if (text && text.trim() && text.trim() !== 'Invalid Date') return text.trim();
-          if (!isNaN(result.getTime())) return result.toISOString().slice(0, 10);
-          return null;
-        }
-        return result;
-      }
-      // Formula result is null — fall back to the cell's cached display text
-      const text = cell.text;
-      if (text && text.trim()) return text.trim();
-      return null;
-    }
-    if (typeof val === 'object' && val.richText) {
-      return val.richText.map(r => r?.text ?? '').join('');
-    }
-    // Hyperlink cells: { text: '...', hyperlink: '...' }
-    if (typeof val === 'object' && val.text) return val.text;
-    if (val instanceof Date) {
-      if (isNaN(val.getTime())) return null;
-      return val.toISOString().slice(0, 10);
-    }
-    return val;
+    const cell = ws[cellAddress];
+    if (!cell) return null;
+    // Prefer .v (raw value), fall back to .w (formatted text)
+    if (cell.v !== null && cell.v !== undefined) return cell.v;
+    if (cell.w) return cell.w;
+    return null;
   }
 
-  // Coerce to trimmed string or null (for fields where Joi expects string but Excel has number)
+  // Coerce to trimmed string or null
   function toStr(val) {
     if (val === null || val === undefined) return null;
-    if (val instanceof Date) {
-      if (isNaN(val.getTime())) return null;
-      return val.toISOString().slice(0, 10);
-    }
-    const s = String(val).trim();
-    return (s && s !== 'Invalid Date') ? s : null;
+    return String(val).trim() || null;
   }
 
   const parsed = {
