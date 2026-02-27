@@ -25,6 +25,7 @@ const instrumentProgressSchema = Joi.object({
     .valid(...MINISTRY_STAGE_LEVELS)
     .allow(null)
     .default(null),
+  department: Joi.string().allow(null, '').default(null),
   tests: Joi.object({
     stageTest: Joi.object({
       status: Joi.string()

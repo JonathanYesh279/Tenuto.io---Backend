@@ -19,6 +19,7 @@ import {
   TEACHER_HOURS_COLUMNS,
   TEACHER_ROLES,
   MANAGEMENT_ROLES,
+  getInstrumentDepartment,
 } from '../../config/constants.js';
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
 import { authService } from '../auth/auth.service.js';
@@ -155,6 +156,32 @@ DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה'] = [
   ...(DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה-פליז'] || []),
 ];
 
+// Ministry section column names that map to our departments
+DEPARTMENT_TO_INSTRUMENTS['מחלקות כלים'] = [
+  ...(DEPARTMENT_TO_INSTRUMENTS['מקלדת'] || []),
+  ...(DEPARTMENT_TO_INSTRUMENTS['קולי'] || []),
+  'חלילית',
+];
+DEPARTMENT_TO_INSTRUMENTS['כלי הקשה'] = DEPARTMENT_TO_INSTRUMENTS['כלי הקשה'] || [];
+DEPARTMENT_TO_INSTRUMENTS['כלי פריטה'] = DEPARTMENT_TO_INSTRUMENTS['כלי פריטה'] || [];
+DEPARTMENT_TO_INSTRUMENTS['מחלקת כלים אתניים'] = DEPARTMENT_TO_INSTRUMENTS['כלים אתניים'] || [];
+DEPARTMENT_TO_INSTRUMENTS['מחלקת כלים עממיים'] = DEPARTMENT_TO_INSTRUMENTS['כלים עממיים'] || [];
+
+// Ministry Excel uses different instrument names than our canonical INSTRUMENT_MAP.
+// This alias map resolves Ministry text values to our standard names.
+const MINISTRY_INSTRUMENT_ALIAS = {
+  'קרן': 'קרן יער',
+  'טובה': 'טובה/בריטון',
+  'מחלקת פסנתר': 'פסנתר',
+  'מחלקה ווקאלית': 'שירה',
+  'מחלקת חליליות': 'חלילית',
+  'כלי הקשה קלאסי': 'כלי הקשה',
+  'כלי הקשה: קלאסי מתקדם': 'כלי הקשה',
+  "מערכת תופים ג'אז פופ רוק": 'תופים',
+  'גיטרה מסלול קלאסי': 'גיטרה',
+  "גיטרה ג'אז פופ רוק": 'גיטרה פופ',
+};
+
 const TRUTHY_VALUES = ['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1, 'true', 'TRUE', 'True'];
 
 /**
@@ -169,11 +196,15 @@ function buildInstrumentProgressEntry(mapped) {
   if (!mapped.instrument || !VALID_INSTRUMENTS.includes(mapped.instrument)) {
     return null;
   }
+  // Resolve department: use import-detected department, fall back to INSTRUMENT_MAP lookup
+  const department = mapped._instrumentDepartment
+    || getInstrumentDepartment(mapped.instrument);
   return {
     instrumentName: mapped.instrument,
     isPrimary: true,
     currentStage: 1,
     ministryStageLevel: mapped.ministryStageLevel || null,
+    department: department || null,
     tests: {},
   };
 }
@@ -693,16 +724,35 @@ function readInstrumentMatrix(row, instrumentColumns, cellRow, headerColMap) {
     const cell = colIndex !== undefined ? cellRow?.[colIndex] : null;
     const textValue = row[col.header];
 
-    // Detection: cell fill color first, text fallback second
-    const isSelected = (cell && isColoredCell(cell.fill)) ||
-                       (textValue && TRUTHY_VALUES.includes(textValue));
+    if (col.type === 'specific') {
+      // Specific instrument column: check for color/truthy as before
+      const isSelected = (cell && isColoredCell(cell.fill)) ||
+                         (textValue && TRUTHY_VALUES.includes(textValue));
+      if (isSelected) {
+        instruments.push({ instrumentName: col.instrument, department: col.header });
+      }
+    } else if (col.type === 'department') {
+      // Department column: check for TEXT instrument name first, then color/truthy fallback
+      const trimmedText = typeof textValue === 'string' ? textValue.trim() : null;
 
-    if (isSelected) {
-      if (col.type === 'specific') {
-        instruments.push(col.instrument);
-      } else if (col.type === 'department') {
-        // Department column — record as hint, don't assign specific instrument
-        departmentHint = col.header;
+      if (trimmedText && !TRUTHY_VALUES.includes(trimmedText)) {
+        // Cell has text that is NOT a truthy boolean — treat as instrument name
+        const resolvedName = MINISTRY_INSTRUMENT_ALIAS[trimmedText]
+          || (VALID_INSTRUMENTS.includes(trimmedText) ? trimmedText : null);
+
+        if (resolvedName) {
+          instruments.push({ instrumentName: resolvedName, department: col.header });
+        } else {
+          // Text in department column but not a recognized instrument
+          departmentHint = col.header;
+        }
+      } else {
+        // No text or truthy boolean — check color fill
+        const isSelected = (cell && isColoredCell(cell.fill)) ||
+                           (trimmedText && TRUTHY_VALUES.includes(trimmedText));
+        if (isSelected) {
+          departmentHint = col.header;
+        }
       }
     }
   }
@@ -1614,7 +1664,8 @@ async function previewTeacherImport(buffer, options = {}) {
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     const mapped = mapColumns(row, TEACHER_COLUMN_MAP, headerColMap);
-    const { instruments } = readInstrumentMatrix(row, instrumentColumns, cellRows[i], headerColMap);
+    const { instruments: rawInstruments } = readInstrumentMatrix(row, instrumentColumns, cellRows[i], headerColMap);
+    const instruments = rawInstruments.map(inst => inst.instrumentName);
     const roles = readRoleMatrix(row, roleColumns, cellRows[i], headerColMap);
     const teachingHours = parseTeachingHours(mapped);
     const excelRow = headerRowIndex + 2 + i;
@@ -1688,16 +1739,16 @@ async function previewStudentImport(buffer, options = {}) {
     if (instruments.length === 0 && departmentHint) {
       const deptInstruments = DEPARTMENT_TO_INSTRUMENTS[departmentHint];
       if (deptInstruments && deptInstruments.length === 1) {
-        // Department has exactly 1 instrument — auto-assign it
         mapped.instrument = deptInstruments[0];
+        mapped._instrumentDepartment = departmentHint;
         warnings.push({
           row: i + 2,
           field: 'instrument',
           message: `כלי נגינה הוקצה אוטומטית מעמודת מחלקה '${departmentHint}': ${deptInstruments[0]}`
         });
       } else {
-        // Department has multiple instruments — can't auto-assign, warn user
         mapped.instrument = null;
+        mapped._instrumentDepartment = departmentHint;
         warnings.push({
           row: i + 2,
           field: 'instrument',
@@ -1705,7 +1756,8 @@ async function previewStudentImport(buffer, options = {}) {
         });
       }
     } else if (instruments.length > 0) {
-      mapped.instrument = instruments[0]; // Take first matched specific instrument
+      mapped.instrument = instruments[0].instrumentName;
+      mapped._instrumentDepartment = instruments[0].department;
     }
 
     // Store departmentHint in mapped data for frontend display
