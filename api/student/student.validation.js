@@ -138,6 +138,8 @@ export const studentSchema = Joi.object({
 
   teacherAssignments: Joi.array().items(teacherAssignmentSchema).default([]),
 
+  startDate: Joi.date().allow(null).default(null),
+
   isActive: Joi.boolean().default(true),
   createdAt: Joi.date().default(new Date()),
   updatedAt: Joi.date().default(new Date()),
@@ -219,6 +221,8 @@ export const studentUpdateSchema = Joi.object({
   }),
 
   teacherAssignments: Joi.array().items(teacherAssignmentUpdateSchema),
+
+  startDate: Joi.date().allow(null).optional(),
 
   isActive: Joi.boolean(),
   updatedAt: Joi.date().default(new Date()),

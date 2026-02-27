@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.2 Student Import Enhancement — Phase 18 (Frontend Preview Enhancement)
+**Current focus:** Import Data Quality — Phase 19 (Stage validation, instrument alias, department tracking)
 
 ## Current Position
 
-Phase: 18 — fourth of 4 phases in v1.2 (COMPLETE)
-Plan: 01 (complete — last plan in phase)
-Status: Phase 18 complete, v1.2 milestone complete
-Last activity: 2026-02-27 — Phase 18-01 executed (frontend preview enhancement)
+Phase: 19 — Import Data Quality
+Plan: 01 (complete)
+Status: Plan 19-01 complete, plan 19-02 pending
+Last activity: 2026-02-27 — Phase 19-01 executed (stage validation, instrument alias, department tracking)
 
-Progress: [##################░░] 85% (44/TBD plans — v1.0: 25, v1.1: 13, v1.2: 6/TBD)
+Progress: [##################░░] 87% (45/TBD plans — v1.0: 25, v1.1: 13, v1.2: 6, v1.3: 1/TBD)
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Progress: [##################░░] 85% (44/TBD plans — v1.0: 25, v1.1: 13, v
 | 17-01 | Teacher name matching in preview | 3min | 2 | 1 |
 | 17-02 | Teacher assignment creation in execute | 3min | 2 | 1 |
 | 18-01 | Frontend preview enhancement | 10min | 2 | 1 |
+| 19-01 | Stage validation + instrument alias + department | 4min | 2 | 3 |
 
 ## Accumulated Context
 
@@ -73,6 +74,16 @@ v1.2 decisions:
 - Phase 18-01: Teacher match badge hidden for status 'none' — rows with no teacher name data show no badge
 - Phase 18-01: Student preview helpers follow same top-level function pattern as teacher helpers (formatStudentChange mirrors formatTeacherChange)
 
+v1.3 decisions:
+- Phase 19-01: Stage 0 added to VALID_STAGES (0-8) for students not yet assigned a stage level
+- Phase 19-01: ministryLevelToStage auto-conversion removed -- raw ministry level stored, teacher sets numeric stage manually
+- Phase 19-01: readInstrumentMatrix returns {instrumentName, department} objects -- teacher path maps back to strings for backward compat
+- Phase 19-01: Department on instrumentProgress resolved from import context first, INSTRUMENT_MAP fallback second
+
+### Roadmap Evolution
+
+- Phase 19 added: Import Data Quality — stage levels, instrument sections, start date calculation
+
 ### Pending Todos
 
 None.
@@ -84,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 18-01 executed)
-Stopped at: Completed 18-01-PLAN.md (frontend preview enhancement)
-Resume: Phase 18 complete. v1.2 milestone complete (13/13 requirements). Next milestone or phase ready.
+Last session: 2026-02-27 (Phase 19-01 executed)
+Stopped at: Completed 19-01-PLAN.md (stage validation, instrument alias, department tracking)
+Resume: Plan 19-01 complete. Plan 19-02 pending (start date calculation and additional data quality).
