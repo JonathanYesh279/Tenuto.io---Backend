@@ -19,6 +19,7 @@ import {
   TEACHER_HOURS_COLUMNS,
   TEACHER_ROLES,
   MANAGEMENT_ROLES,
+  ministryLevelToStage,
 } from '../../config/constants.js';
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
 import { authService } from '../auth/auth.service.js';
@@ -156,6 +157,27 @@ DEPARTMENT_TO_INSTRUMENTS['כלי נשיפה'] = [
 ];
 
 const TRUTHY_VALUES = ['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1, 'true', 'TRUE', 'True'];
+
+/**
+ * Build an instrumentProgress entry from mapped import data.
+ * Returns null if instrument is missing or not a valid instrument name.
+ * Used to attach computed instrumentProgress data to preview entries
+ * for Plan 02 to consume during execute.
+ * @param {object} mapped - mapped row data from Excel import
+ * @returns {object|null} instrumentProgress entry or null
+ */
+function buildInstrumentProgressEntry(mapped) {
+  if (!mapped.instrument || !VALID_INSTRUMENTS.includes(mapped.instrument)) {
+    return null;
+  }
+  return {
+    instrumentName: mapped.instrument,
+    isPrimary: true,
+    currentStage: mapped.ministryStageLevel ? ministryLevelToStage(mapped.ministryStageLevel) : 1,
+    ministryStageLevel: mapped.ministryStageLevel || null,
+    tests: {},
+  };
+}
 
 /**
  * Check if a cell has a non-white/non-transparent fill color.
@@ -1567,6 +1589,9 @@ async function previewStudentImport(buffer, options = {}) {
     if (departmentHint) {
       mapped.departmentHint = departmentHint;
     }
+
+    // Build instrumentProgress entry from import data (for Plan 02 to consume during execute)
+    mapped._instrumentProgressEntry = buildInstrumentProgressEntry(mapped);
 
     const match = matchStudent(mapped, students);
     if (match) {

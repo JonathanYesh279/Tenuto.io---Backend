@@ -167,6 +167,18 @@ export function stageToMinistryLevel(stage) {
   return null;
 }
 
+/**
+ * Convert Ministry level letter (א/ב/ג) to the lowest numeric stage in that range.
+ * Inverse of stageToMinistryLevel: א → 1 (range 1-3), ב → 4 (range 4-5), ג → 6 (range 6-8).
+ * Returns 1 as safe default for unknown/falsy values (stage progression is upward).
+ */
+export function ministryLevelToStage(level) {
+  if (level === 'א') return 1;
+  if (level === 'ב') return 4;
+  if (level === 'ג') return 6;
+  return 1;
+}
+
 // ─── Schedule / Time ───────────────────────────────────────────────────────────
 
 export const VALID_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
