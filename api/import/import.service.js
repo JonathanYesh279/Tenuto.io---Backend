@@ -185,6 +185,20 @@ const MINISTRY_INSTRUMENT_ALIAS = {
 const TRUTHY_VALUES = ['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1, 'true', 'TRUE', 'True'];
 
 /**
+ * Calculate student start date from study years.
+ * Formula: January 1st of (currentYear - studyYears + 1).
+ * Example: studyYears=3, currentYear=2026 → startDate = 2024-01-01
+ * The +1 accounts for the current year being counted as a study year.
+ * Returns null if studyYears is not a positive number.
+ */
+function calculateStartDate(studyYears) {
+  const years = parseInt(studyYears);
+  if (!years || years < 1) return null;
+  const currentYear = new Date().getFullYear();
+  return new Date(currentYear - years + 1, 0, 1); // January 1st
+}
+
+/**
  * Build an instrumentProgress entry from mapped import data.
  * Returns null if instrument is missing or not a valid instrument name.
  * Used to attach computed instrumentProgress data to preview entries
@@ -1464,6 +1478,24 @@ function calculateStudentChanges(student, mapped) {
     }
   }
 
+  // 1b. Start date comparison (derived from studyYears)
+  if (mapped.studyYears !== '' && mapped.studyYears !== null && mapped.studyYears !== undefined) {
+    const calculatedStartDate = calculateStartDate(mapped.studyYears);
+    if (calculatedStartDate) {
+      const currentStartDate = student.startDate;
+      // Compare by year only (avoid time-of-day mismatches)
+      const currentYear = currentStartDate ? new Date(currentStartDate).getFullYear() : null;
+      const newYear = calculatedStartDate.getFullYear();
+      if (currentYear !== newYear) {
+        changes.push({
+          field: 'startDate',
+          oldValue: currentStartDate || null,
+          newValue: calculatedStartDate,
+        });
+      }
+    }
+  }
+
   // 2-3. Instrument name and ministry stage level comparisons
   const progressArray = student.academicInfo?.instrumentProgress;
   const primaryProgress = Array.isArray(progressArray) && progressArray.length > 0
@@ -1768,6 +1800,9 @@ async function previewStudentImport(buffer, options = {}) {
     // Build instrumentProgress entry from import data (for Plan 02 to consume during execute)
     mapped._instrumentProgressEntry = buildInstrumentProgressEntry(mapped);
 
+    // Calculate startDate from studyYears for execute phase
+    mapped._calculatedStartDate = calculateStartDate(mapped.studyYears);
+
     const match = matchStudent(mapped, students);
     const teacherMatch = matchTeacherByName(mapped.teacherName, teachers);
     preview.teacherMatchSummary[teacherMatch.status]++;
@@ -2047,7 +2082,7 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
               teacherAssignments: {
                 teacherId: teacherMatch.teacherId,
                 scheduleSlotId: null,
-                startDate: new Date(),
+                startDate: entry.mapped?._calculatedStartDate || new Date(),
                 endDate: null,
                 isActive: true,
                 notes: null,
@@ -2120,7 +2155,7 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
         teacherAssignments: entry.teacherMatch?.status === 'resolved' ? [{
           teacherId: entry.teacherMatch.teacherId,
           scheduleSlotId: null,
-          startDate: new Date(),
+          startDate: mapped._calculatedStartDate || new Date(),
           endDate: null,
           isActive: true,
           notes: null,
@@ -2128,6 +2163,7 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
           createdAt: new Date(),
           updatedAt: new Date(),
         }] : [],
+        startDate: mapped._calculatedStartDate || new Date(),
         isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
