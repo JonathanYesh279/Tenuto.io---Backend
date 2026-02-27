@@ -19,7 +19,6 @@ import {
   TEACHER_HOURS_COLUMNS,
   TEACHER_ROLES,
   MANAGEMENT_ROLES,
-  ministryLevelToStage,
 } from '../../config/constants.js';
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
 import { authService } from '../auth/auth.service.js';
@@ -173,7 +172,7 @@ function buildInstrumentProgressEntry(mapped) {
   return {
     instrumentName: mapped.instrument,
     isPrimary: true,
-    currentStage: mapped.ministryStageLevel ? ministryLevelToStage(mapped.ministryStageLevel) : 1,
+    currentStage: 1,
     ministryStageLevel: mapped.ministryStageLevel || null,
     tests: {},
   };
@@ -1954,11 +1953,8 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
             const mongoField = change.field.replace('[0]', '.0');
             updateDoc[mongoField] = change.newValue;
 
-            // When ministryStageLevel changes, also update currentStage
-            if (change.field === 'academicInfo.instrumentProgress[0].ministryStageLevel') {
-              updateDoc['academicInfo.instrumentProgress.0.currentStage'] =
-                ministryLevelToStage(change.newValue);
-            }
+            // ministryStageLevel stored as-is; currentStage is NOT auto-derived
+            // (teacher sets numeric stage manually)
           } else {
             // Standard flat field (studyYears, extraHour, class, lessonDuration, isBagrutCandidate)
             updateDoc[change.field] = change.newValue;

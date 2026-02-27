@@ -19,7 +19,7 @@ const instrumentProgressSchema = Joi.object({
     .valid(...VALID_STAGES)
     .required()
     .messages({
-      'any.only': 'Current stage must be a number between 1 and 8',
+      'any.only': 'Current stage must be a number between 0 and 8',
     }),
   ministryStageLevel: Joi.string()
     .valid(...MINISTRY_STAGE_LEVELS)

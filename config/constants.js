@@ -152,7 +152,7 @@ export const VALID_CLASSES = [
   'אחר',
 ];
 
-export const VALID_STAGES = [1, 2, 3, 4, 5, 6, 7, 8];
+export const VALID_STAGES = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 export const MINISTRY_STAGE_LEVELS = ['א', 'ב', 'ג'];
 

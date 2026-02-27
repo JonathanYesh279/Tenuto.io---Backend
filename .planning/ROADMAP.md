@@ -4,7 +4,7 @@
 
 - [x] **v1.0 Multi-Tenant Architecture Hardening** — Phases 1-9 (shipped 2026-02-24)
 - [x] **v1.1 Super Admin Platform Management** — Phases 10-14 (shipped 2026-02-26)
-- [ ] **v1.2 Student Import Enhancement** — Phases 15-18 (in progress)
+- [ ] **v1.2 Student Import Enhancement** — Phases 15-19 (in progress)
 
 ## Phases
 
@@ -45,7 +45,8 @@ See: `.planning/milestones/v1.1-ROADMAP.md` for full details.
 - [x] **Phase 15: Bug Fix + Column Map Extensions** — Fix instrument detection bug and extend column mappings for bagrut and schema additions (completed 2026-02-27)
 - [x] **Phase 16: Instrument Progress + Student Data Enrichment** — Build instrumentProgress[] entries, stage level mapping, expanded change detection, and bagrut flagging (completed 2026-02-27)
 - [x] **Phase 17: Teacher-Student Linking** — Match teacher names from Excel, persist resolved matches, create teacherAssignment entries (completed 2026-02-27)
-- [ ] **Phase 18: Frontend Preview Enhancement** — Enriched student preview UI matching teacher import quality with detail cards, badges, and summary stats
+- [x] **Phase 18: Frontend Preview Enhancement** — Enriched student preview UI matching teacher import quality with detail cards, badges, and summary stats (completed 2026-02-27)
+- [ ] **Phase 19: Import Data Quality** — Fix stage level range, instrument section/department detection from Ministry columns, start date calculation from study years
 
 ## Phase Details
 
@@ -104,12 +105,26 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 18-01-PLAN.md -- Student preview helpers (formatStudentChange, getTeacherMatchBadge, getStudentRowDetails) + teacher match summary cards
+- [x] 18-01-PLAN.md -- Student preview helpers (formatStudentChange, getTeacherMatchBadge, getStudentRowDetails) + teacher match summary cards
+
+### Phase 19: Import Data Quality
+**Goal**: Student import correctly reads instrument names from Ministry section columns with department tracking, includes stage 0 in valid range, and calculates start date from study years
+**Depends on**: Phase 18 (all preview enrichments in place)
+**Requirements**: IDQL-01, IDQL-02, IDQL-03
+**Success Criteria** (what must be TRUE):
+  1. Stage 0 is valid in instrumentProgress schema; import does NOT map ministry א/ב/ג to numeric stages (raw ministryStageLevel stored, currentStage defaults to 1)
+  2. Ministry section columns (כלי קשת, כלי נשיפה, מחלקות כלים, etc.) with text instrument values are read as instrument names, resolved via alias map, and stored with `department` field on instrumentProgress
+  3. New and updated students have `startDate` calculated as January 1st of (currentYear - studyYears) instead of current date
+**Plans:** 2 plans
+
+Plans:
+- [ ] 19-01-PLAN.md -- Stage 0 validation + ministry instrument alias map + readInstrumentMatrix text reading + department field
+- [ ] 19-02-PLAN.md -- Root-level startDate schema field + calculation from studyYears in import preview and execute
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 -> 16 -> 17 -> 18
+Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -130,8 +145,9 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 15. Bug Fix + Column Map Extensions | v1.2 | 1/1 | Complete | 2026-02-27 |
 | 16. Instrument Progress + Student Data Enrichment | v1.2 | 2/2 | Complete | 2026-02-27 |
 | 17. Teacher-Student Linking | v1.2 | 2/2 | Complete | 2026-02-27 |
-| 18. Frontend Preview Enhancement | v1.2 | 0/1 | Not started | - |
+| 18. Frontend Preview Enhancement | v1.2 | 1/1 | Complete | 2026-02-27 |
+| 19. Import Data Quality | v1.2 | 0/2 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-27 — Phase 18 planned (1 plan)*
+*Last updated: 2026-02-27 — Phase 19 planned (2 plans: instrument quality + startDate)*
