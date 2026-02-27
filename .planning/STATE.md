@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Import Data Quality — Phase 19 (Stage validation, instrument alias, department tracking)
+**Current focus:** Import Data Quality — Phase 19 complete (stage validation, instrument alias, department tracking, start date calculation)
 
 ## Current Position
 
-Phase: 19 — Import Data Quality
-Plan: 01 (complete)
-Status: Plan 19-01 complete, plan 19-02 pending
-Last activity: 2026-02-27 — Phase 19-01 executed (stage validation, instrument alias, department tracking)
+Phase: 19 — Import Data Quality (COMPLETE)
+Plan: 02 (complete)
+Status: Phase 19 complete (all plans: 01 + 02)
+Last activity: 2026-02-27 — Phase 19-02 executed (start date calculation from studyYears)
 
-Progress: [##################░░] 87% (45/TBD plans — v1.0: 25, v1.1: 13, v1.2: 6, v1.3: 1/TBD)
+Progress: [##################░░] 88% (46/TBD plans — v1.0: 25, v1.1: 13, v1.2: 6, v1.3: 2/TBD)
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Progress: [##################░░] 87% (45/TBD plans — v1.0: 25, v1.1: 13, v
 | 17-02 | Teacher assignment creation in execute | 3min | 2 | 1 |
 | 18-01 | Frontend preview enhancement | 10min | 2 | 1 |
 | 19-01 | Stage validation + instrument alias + department | 4min | 2 | 3 |
+| 19-02 | Start date calculation from studyYears | 3min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -79,6 +80,10 @@ v1.3 decisions:
 - Phase 19-01: ministryLevelToStage auto-conversion removed -- raw ministry level stored, teacher sets numeric stage manually
 - Phase 19-01: readInstrumentMatrix returns {instrumentName, department} objects -- teacher path maps back to strings for backward compat
 - Phase 19-01: Department on instrumentProgress resolved from import context first, INSTRUMENT_MAP fallback second
+- Phase 19-02: startDate is root-level field on student document (not nested under academicInfo) -- represents conservatory start date
+- Phase 19-02: Schema default is null (not new Date()) -- only import populates from studyYears
+- Phase 19-02: Import fallback to new Date() only when studyYears missing or invalid
+- Phase 19-02: Year-only comparison for startDate changes avoids timezone mismatches
 
 ### Roadmap Evolution
 
@@ -95,6 +100,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 19-01 executed)
-Stopped at: Completed 19-01-PLAN.md (stage validation, instrument alias, department tracking)
-Resume: Plan 19-01 complete. Plan 19-02 pending (start date calculation and additional data quality).
+Last session: 2026-02-27 (Phase 19-02 executed)
+Stopped at: Completed 19-02-PLAN.md (start date calculation from studyYears)
+Resume: Phase 19 complete (both plans). Ready for next phase.
