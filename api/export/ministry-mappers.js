@@ -11,6 +11,7 @@
  *   4. mapMusicTheory — theory categories with counts
  */
 
+import { ObjectId } from 'mongodb';
 import { getCollection } from '../../services/mongoDB.service.js';
 import {
   INSTRUMENT_MAP,
@@ -67,7 +68,7 @@ async function loadExportData(tenantId, schoolYearId) {
       rehearsalCollection.find({ isActive: true, tenantId, ...syFilter }).toArray(),
       theoryCollection.find({ isActive: true, tenantId, ...syFilter }).toArray(),
       hoursSummaryCollection.find({ tenantId, ...(schoolYearId ? { schoolYearId } : {}) }).toArray(),
-      tenantCollection.findOne({ tenantId }),
+      tenantCollection.findOne({ _id: ObjectId.createFromHexString(tenantId) }),
     ]);
 
   // Build lookup maps
