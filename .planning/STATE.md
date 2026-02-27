@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.2 Student Import Enhancement — Phase 16 (Instrument Progress + Student Data Enrichment)
+**Current focus:** v1.2 Student Import Enhancement — Phase 17 (Teacher-Student Linking)
 
 ## Current Position
 
-Phase: 16 — second of 4 phases in v1.2
-Plan: 02 (complete)
-Status: Phase 16 complete (01 + 02 done), next phase ready
-Last activity: 2026-02-27 — Phase 16-02 executed (execute import with instrumentProgress)
+Phase: 17 — third of 4 phases in v1.2
+Plan: 01 (complete)
+Status: Plan 17-01 complete, Plan 17-02 ready
+Last activity: 2026-02-27 — Phase 17-01 executed (teacher name matching in preview)
 
-Progress: [################░░░░] 79% (41/TBD plans — v1.0: 25, v1.1: 13, v1.2: 3/TBD)
+Progress: [#################░░░] 81% (42/TBD plans — v1.0: 25, v1.1: 13, v1.2: 4/TBD)
 
 ## Performance Metrics
 
@@ -32,8 +32,8 @@ Progress: [################░░░░] 79% (41/TBD plans — v1.0: 25, v1.1: 1
 - Timeline: 3 days (2026-02-24 -> 2026-02-26)
 
 **v1.2 Milestone:**
-- Total plans completed: 3
-- Phases: 4 (15-18), Phase 15 complete, Phase 16 complete (01+02)
+- Total plans completed: 4
+- Phases: 4 (15-18), Phase 15 complete, Phase 16 complete (01+02), Phase 17 in progress (01 done)
 - Requirements: 7/13 satisfied (BUGF-01, BGRT-01, BGRT-02, IQAL-01, IQAL-02, IQAL-03, IQAL-04)
 
 | Phase | Plan | Duration | Tasks | Files |
@@ -41,6 +41,7 @@ Progress: [################░░░░] 79% (41/TBD plans — v1.0: 25, v1.1: 1
 | 15-01 | Bug fix + column map | 4min | 2 | 2 |
 | 16-01 | Preview enrichment | 3min | 2 | 2 |
 | 16-02 | Execute import enrichment | 12min | 2 | 1 |
+| 17-01 | Teacher name matching in preview | 3min | 2 | 1 |
 
 ## Accumulated Context
 
@@ -60,6 +61,9 @@ v1.2 decisions:
 - Phase 16-02: teacherName changes skipped in execute (display-only, Phase 17 handles linking)
 - Phase 16-02: Empty instrumentProgress[] acceptable for new students without valid instrument (bypasses Joi)
 - Phase 16-02: Age field placed on personalInfo (not academicInfo) for new students to match canonical schema
+- Phase 17-01: matchTeacherByName tries both firstName+lastName orderings (Hebrew names have no standard ordering)
+- Phase 17-01: Single-word names match against either firstName or lastName individually
+- Phase 17-01: teacherName removed from calculateStudentChanges -- teacher matching now via teacherMatch on preview entries
 
 ### Pending Todos
 
@@ -72,6 +76,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 16-02 executed)
-Stopped at: Completed 16-02-PLAN.md (execute import with instrumentProgress)
-Resume: Plan Phase 17 or next phase in v1.2 roadmap
+Last session: 2026-02-27 (Phase 17-01 executed)
+Stopped at: Completed 17-01-PLAN.md (teacher name matching in preview)
+Resume: Execute 17-02-PLAN.md (teacher assignment creation during execute)
