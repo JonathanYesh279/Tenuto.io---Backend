@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.2 Student Import Enhancement — Phase 17 (Teacher-Student Linking)
+**Current focus:** v1.2 Student Import Enhancement — Phase 18 (Frontend Preview Enhancement)
 
 ## Current Position
 
-Phase: 17 — third of 4 phases in v1.2 (COMPLETE)
-Plan: 02 (complete — last plan in phase)
-Status: Phase 17 complete, Phase 18 or next milestone ready
-Last activity: 2026-02-27 — Phase 17-02 executed (teacher assignment creation during execute)
+Phase: 18 — fourth of 4 phases in v1.2 (COMPLETE)
+Plan: 01 (complete — last plan in phase)
+Status: Phase 18 complete, v1.2 milestone complete
+Last activity: 2026-02-27 — Phase 18-01 executed (frontend preview enhancement)
 
-Progress: [##################░░] 83% (43/TBD plans — v1.0: 25, v1.1: 13, v1.2: 5/TBD)
+Progress: [##################░░] 85% (44/TBD plans — v1.0: 25, v1.1: 13, v1.2: 6/TBD)
 
 ## Performance Metrics
 
@@ -32,9 +32,9 @@ Progress: [##################░░] 83% (43/TBD plans — v1.0: 25, v1.1: 13, v
 - Timeline: 3 days (2026-02-24 -> 2026-02-26)
 
 **v1.2 Milestone:**
-- Total plans completed: 5
-- Phases: 4 (15-18), Phase 15 complete, Phase 16 complete (01+02), Phase 17 complete (01+02)
-- Requirements: 10/13 satisfied (BUGF-01, BGRT-01, BGRT-02, IQAL-01, IQAL-02, IQAL-03, IQAL-04, TLNK-01, TLNK-02, TLNK-03)
+- Total plans completed: 6
+- Phases: 4 (15-18), all complete — Phase 15 (01), Phase 16 (01+02), Phase 17 (01+02), Phase 18 (01)
+- Requirements: 13/13 satisfied (BUGF-01, BGRT-01, BGRT-02, IQAL-01, IQAL-02, IQAL-03, IQAL-04, TLNK-01, TLNK-02, TLNK-03, FEPV-01, FEPV-02, FEPV-03)
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -43,6 +43,7 @@ Progress: [##################░░] 83% (43/TBD plans — v1.0: 25, v1.1: 13, v
 | 16-02 | Execute import enrichment | 12min | 2 | 1 |
 | 17-01 | Teacher name matching in preview | 3min | 2 | 1 |
 | 17-02 | Teacher assignment creation in execute | 3min | 2 | 1 |
+| 18-01 | Frontend preview enhancement | 10min | 2 | 1 |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ v1.2 decisions:
 - Phase 17-02: Separate updateOne for teacherAssignment $push -- avoids $push conflict with instrumentProgress, keeps filter-based duplicate check clean
 - Phase 17-02: Students with no field changes but resolved teacher match are processed (modified early-continue guard)
 - Phase 17-02: Dead teacherName skip code removed from execute loop (Plan 01 already removed teacherName from changes)
+- Phase 18-01: Used (previewData.preview as any).teacherMatchSummary to avoid modifying PreviewData interface — consistent with existing any usage
+- Phase 18-01: Teacher match badge hidden for status 'none' — rows with no teacher name data show no badge
+- Phase 18-01: Student preview helpers follow same top-level function pattern as teacher helpers (formatStudentChange mirrors formatTeacherChange)
 
 ### Pending Todos
 
@@ -80,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 17-02 executed)
-Stopped at: Completed 17-02-PLAN.md (teacher assignment creation during execute)
-Resume: Phase 17 complete. Next: Phase 18 or next v1.2 milestone
+Last session: 2026-02-27 (Phase 18-01 executed)
+Stopped at: Completed 18-01-PLAN.md (frontend preview enhancement)
+Resume: Phase 18 complete. v1.2 milestone complete (13/13 requirements). Next milestone or phase ready.
