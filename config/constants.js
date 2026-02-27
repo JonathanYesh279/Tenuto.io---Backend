@@ -183,7 +183,7 @@ export function ministryLevelToStage(level) {
 
 export const VALID_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
 
-export const VALID_DURATIONS = [30, 45, 60];
+export const VALID_DURATIONS = [30, 45, 60, 90, 120];
 
 export const TEST_STATUSES = [
   'לא נבחן',
