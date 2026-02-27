@@ -34,7 +34,7 @@ Progress: [##################░░] 83% (43/TBD plans — v1.0: 25, v1.1: 13, v
 **v1.2 Milestone:**
 - Total plans completed: 5
 - Phases: 4 (15-18), Phase 15 complete, Phase 16 complete (01+02), Phase 17 complete (01+02)
-- Requirements: 7/13 satisfied (BUGF-01, BGRT-01, BGRT-02, IQAL-01, IQAL-02, IQAL-03, IQAL-04)
+- Requirements: 10/13 satisfied (BUGF-01, BGRT-01, BGRT-02, IQAL-01, IQAL-02, IQAL-03, IQAL-04, TLNK-01, TLNK-02, TLNK-03)
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|

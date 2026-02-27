@@ -44,7 +44,7 @@ See: `.planning/milestones/v1.1-ROADMAP.md` for full details.
 
 - [x] **Phase 15: Bug Fix + Column Map Extensions** — Fix instrument detection bug and extend column mappings for bagrut and schema additions (completed 2026-02-27)
 - [x] **Phase 16: Instrument Progress + Student Data Enrichment** — Build instrumentProgress[] entries, stage level mapping, expanded change detection, and bagrut flagging (completed 2026-02-27)
-- [ ] **Phase 17: Teacher-Student Linking** — Match teacher names from Excel, persist resolved matches, create teacherAssignment entries
+- [x] **Phase 17: Teacher-Student Linking** — Match teacher names from Excel, persist resolved matches, create teacherAssignment entries (completed 2026-02-27)
 - [ ] **Phase 18: Frontend Preview Enhancement** — Enriched student preview UI matching teacher import quality with detail cards, badges, and summary stats
 
 ## Phase Details
@@ -90,8 +90,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 17-01-PLAN.md -- Teacher name matching function + preview integration with match status and warnings
-- [ ] 17-02-PLAN.md -- Execute teacherAssignment creation for resolved matches with duplicate prevention
+- [x] 17-01-PLAN.md -- Teacher name matching function + preview integration with match status and warnings
+- [x] 17-02-PLAN.md -- Execute teacherAssignment creation for resolved matches with duplicate prevention
 
 ### Phase 18: Frontend Preview Enhancement
 **Goal**: Student import preview shows the same quality of detail as teacher import preview, with rich row details, teacher match badges, and summary statistics
@@ -130,9 +130,9 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 14. Super Admin Frontend | v1.1 | 4/4 | Complete | 2026-02-26 |
 | 15. Bug Fix + Column Map Extensions | v1.2 | 1/1 | Complete | 2026-02-27 |
 | 16. Instrument Progress + Student Data Enrichment | v1.2 | 2/2 | Complete | 2026-02-27 |
-| 17. Teacher-Student Linking | v1.2 | 0/2 | Not started | - |
+| 17. Teacher-Student Linking | v1.2 | 2/2 | Complete | 2026-02-27 |
 | 18. Frontend Preview Enhancement | v1.2 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-27 — Phase 17 planned (2 plans)*
+*Last updated: 2026-02-27 — Phase 17 complete (2/2 plans)*
