@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 ## Current Position
 
 Phase: 16 — second of 4 phases in v1.2
-Plan: 02 (next)
-Status: Plan 01 complete, Plan 02 ready for execution
-Last activity: 2026-02-27 — Phase 16-01 executed (preview enrichment)
+Plan: 02 (complete)
+Status: Phase 16 complete (01 + 02 done), next phase ready
+Last activity: 2026-02-27 — Phase 16-02 executed (execute import with instrumentProgress)
 
-Progress: [################░░░░] 77% (40/TBD plans — v1.0: 25, v1.1: 13, v1.2: 2/TBD)
+Progress: [################░░░░] 79% (41/TBD plans — v1.0: 25, v1.1: 13, v1.2: 3/TBD)
 
 ## Performance Metrics
 
@@ -32,14 +32,15 @@ Progress: [################░░░░] 77% (40/TBD plans — v1.0: 25, v1.1: 1
 - Timeline: 3 days (2026-02-24 -> 2026-02-26)
 
 **v1.2 Milestone:**
-- Total plans completed: 2
-- Phases: 4 (15-18), Phase 15 complete, Phase 16 in progress (01/02 done)
-- Requirements: 3/13 satisfied (BUGF-01, BGRT-01, IQAL-04)
+- Total plans completed: 3
+- Phases: 4 (15-18), Phase 15 complete, Phase 16 complete (01+02)
+- Requirements: 7/13 satisfied (BUGF-01, BGRT-01, BGRT-02, IQAL-01, IQAL-02, IQAL-03, IQAL-04)
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 15-01 | Bug fix + column map | 4min | 2 | 2 |
 | 16-01 | Preview enrichment | 3min | 2 | 2 |
+| 16-02 | Execute import enrichment | 12min | 2 | 1 |
 
 ## Accumulated Context
 
@@ -55,6 +56,10 @@ v1.2 decisions:
 - Phase 16 (planning): Matched student instrument changes update primary only via $set on .0. index — do NOT replace entire instrumentProgress array (preserves test history)
 - Phase 16-01: Teacher name changes always push with oldValue: null — teacher matching deferred to Phase 17
 - Phase 16-01: instrumentProgress[0] field naming convention in change objects maps to MongoDB $set dot notation in Plan 02
+- Phase 16-02: Dynamic import for schoolYearService matches existing addStudent() pattern
+- Phase 16-02: teacherName changes skipped in execute (display-only, Phase 17 handles linking)
+- Phase 16-02: Empty instrumentProgress[] acceptable for new students without valid instrument (bypasses Joi)
+- Phase 16-02: Age field placed on personalInfo (not academicInfo) for new students to match canonical schema
 
 ### Pending Todos
 
@@ -67,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-27 (Phase 16-01 executed)
-Stopped at: Completed 16-01-PLAN.md (preview enrichment)
-Resume: Execute 16-02-PLAN.md (wave 2 — execute import with instrumentProgress writes)
+Last session: 2026-02-27 (Phase 16-02 executed)
+Stopped at: Completed 16-02-PLAN.md (execute import with instrumentProgress)
+Resume: Plan Phase 17 or next phase in v1.2 roadmap

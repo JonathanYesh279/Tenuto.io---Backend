@@ -43,7 +43,7 @@ See: `.planning/milestones/v1.1-ROADMAP.md` for full details.
 **Milestone Goal:** Enhance student import from Ministry Excel files to support teacher linking, proper instrument progress with stage tracking, bagrut flagging, and polished frontend preview matching teacher import quality.
 
 - [x] **Phase 15: Bug Fix + Column Map Extensions** — Fix instrument detection bug and extend column mappings for bagrut and schema additions (completed 2026-02-27)
-- [ ] **Phase 16: Instrument Progress + Student Data Enrichment** — Build instrumentProgress[] entries, stage level mapping, expanded change detection, and bagrut flagging
+- [x] **Phase 16: Instrument Progress + Student Data Enrichment** — Build instrumentProgress[] entries, stage level mapping, expanded change detection, and bagrut flagging (completed 2026-02-27)
 - [ ] **Phase 17: Teacher-Student Linking** — Match teacher names from Excel, persist resolved matches, create teacherAssignment entries
 - [ ] **Phase 18: Frontend Preview Enhancement** — Enriched student preview UI matching teacher import quality with detail cards, badges, and summary stats
 
@@ -75,8 +75,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md -- Stage mapping + instrumentProgress builder + expanded change detection (preview enrichment)
-- [ ] 16-02-PLAN.md -- Refactor executeStudentImport for instrumentProgress, school year enrollment, and expanded updates
+- [x] 16-01-PLAN.md -- Stage mapping + instrumentProgress builder + expanded change detection (preview enrichment)
+- [x] 16-02-PLAN.md -- Refactor executeStudentImport for instrumentProgress, school year enrollment, and expanded updates
 
 ### Phase 17: Teacher-Student Linking
 **Goal**: Students imported from Ministry files are linked to their teachers via teacherAssignment entries, with match status visible in preview
@@ -129,10 +129,10 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 13. Impersonation | v1.1 | 2/2 | Complete | 2026-02-25 |
 | 14. Super Admin Frontend | v1.1 | 4/4 | Complete | 2026-02-26 |
 | 15. Bug Fix + Column Map Extensions | v1.2 | 1/1 | Complete | 2026-02-27 |
-| 16. Instrument Progress + Student Data Enrichment | v1.2 | 0/2 | Not started | - |
+| 16. Instrument Progress + Student Data Enrichment | v1.2 | 2/2 | Complete | 2026-02-27 |
 | 17. Teacher-Student Linking | v1.2 | 0/TBD | Not started | - |
 | 18. Frontend Preview Enhancement | v1.2 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-27 — Phase 16 planned (2 plans in 2 waves)*
+*Last updated: 2026-02-27 — Phase 16 complete (2/2 plans, verified)*
