@@ -25,10 +25,12 @@ import { requireTenantId } from '../../middleware/tenant.middleware.js';
 import { authService } from '../auth/auth.service.js';
 import { invitationConfig, DEFAULT_PASSWORD } from '../../services/invitationConfig.js';
 import { validateTeacherImport } from '../teacher/teacher.validation.js';
+import { tenantService } from '../tenant/tenant.service.js';
 
 export const importService = {
   previewTeacherImport,
   previewStudentImport,
+  previewConservatoryImport,
   executeImport,
   repairImportedTeachers,
 };
@@ -1887,6 +1889,157 @@ async function previewStudentImport(buffer, options = {}) {
     status: 'pending',
     createdAt: new Date(),
     preview,
+  };
+  const result = await importLogCollection.insertOne(logEntry);
+
+  return { importLogId: result.insertedId.toString(), preview };
+}
+
+// ─── Conservatory Excel Parser ───────────────────────────────────────────────
+
+/**
+ * Parse a Ministry conservatory form-style Excel file.
+ * Unlike teacher/student imports (row-based tables), this reads fixed cell addresses
+ * from a single-sheet form layout with label/value pairs.
+ *
+ * @param {Buffer} buffer - The uploaded .xlsx file buffer
+ * @returns {Object} Flat key-value map of all 21 parsed fields (all string or null)
+ */
+async function parseConservatoryExcel(buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) throw new Error('הקובץ לא מכיל גליונות');
+
+  // Helper: extract resolved value from any cell type (formula, richText, date, plain)
+  function getCellValue(cellAddress) {
+    const val = worksheet.getCell(cellAddress).value;
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'object' && ('formula' in val || 'sharedFormula' in val)) {
+      const result = val.result;
+      if (result === null || result === undefined) return null;
+      if (typeof result === 'object' && result.error) return null; // #NUM!, #REF!, etc.
+      return result;
+    }
+    if (typeof val === 'object' && val.richText) {
+      return val.richText.map(r => r?.text ?? '').join('');
+    }
+    if (val instanceof Date) return val.toISOString().slice(0, 10);
+    return val;
+  }
+
+  // Coerce to trimmed string or null (for fields where Joi expects string but Excel has number)
+  function toStr(val) {
+    if (val === null || val === undefined) return null;
+    return String(val).trim() || null;
+  }
+
+  const parsed = {
+    // Left column (label in C, value in E)
+    name: toStr(getCellValue('E5')),
+    ownershipName: toStr(getCellValue('E7')),
+    status: toStr(getCellValue('E9')),
+    businessNumber: toStr(getCellValue('E11')),
+    managerName: toStr(getCellValue('E14')),
+    officePhone: toStr(getCellValue('E16')),
+    mobilePhone: toStr(getCellValue('E18')),
+    email: toStr(getCellValue('E20')),
+    address: toStr(getCellValue('E22')),
+
+    // Right column (label in H, value in J)
+    code: toStr(getCellValue('J5')),
+    socialCluster: toStr(getCellValue('J9')),
+    supportUnit: toStr(getCellValue('J11')),
+    stage: toStr(getCellValue('I14')),            // Stage letter (e.g., "C")
+    stageDescription: toStr(getCellValue('J14')), // Full text (e.g., "שלב ג' ( מתקדם )")
+    cityCode: toStr(getCellValue('J16')),
+    sizeCategory: toStr(getCellValue('J18')),
+    mainDepartment: toStr(getCellValue('J20')),
+    supervisionStatus: toStr(getCellValue('J22')),
+    district: toStr(getCellValue('J24')),
+
+    // Mixed city factor (separate row — try I12 first, fallback to E12)
+    mixedCityFactor: toStr(getCellValue('I12')) || toStr(getCellValue('E12')),
+
+    // Manager notes (merged cells C28:J31, value in top-left corner)
+    managerNotes: toStr(getCellValue('C28')),
+  };
+
+  return parsed;
+}
+
+/**
+ * Preview a conservatory import: parse the Excel, diff against current tenant data,
+ * and store in import_log for later execution.
+ *
+ * @param {Buffer} buffer - The uploaded .xlsx file buffer
+ * @param {Object} options - { context: { tenantId } }
+ * @returns {{ importLogId: string, preview: Object }}
+ */
+async function previewConservatoryImport(buffer, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
+  // Parse Excel
+  const parsed = await parseConservatoryExcel(buffer);
+
+  // Fetch current tenant data for diff comparison
+  const tenant = await tenantService.getTenantById(tenantId);
+
+  // Field mapping: parsed key -> { path on tenant, Hebrew label }
+  // managerName maps to BOTH conservatoryProfile.managerName AND director.name
+  // name maps to tenant.name (top-level)
+  const FIELD_MAP = [
+    { key: 'code', path: 'conservatoryProfile.code', label: 'קוד קונסרבטוריון' },
+    { key: 'name', path: 'name', label: 'שם קונסרבטוריון' },
+    { key: 'ownershipName', path: 'conservatoryProfile.ownershipName', label: 'שם בעלות / רשות' },
+    { key: 'status', path: 'conservatoryProfile.status', label: 'סטטוס' },
+    { key: 'businessNumber', path: 'conservatoryProfile.businessNumber', label: 'מספר עוסק (ח.פ.)' },
+    { key: 'managerName', path: 'conservatoryProfile.managerName', label: 'מנהל/ת הקונסרבטוריון' },
+    { key: 'managerName', path: 'director.name', label: 'שם מנהל/ת (director)' },
+    { key: 'officePhone', path: 'conservatoryProfile.officePhone', label: 'טלפון משרד' },
+    { key: 'mobilePhone', path: 'conservatoryProfile.mobilePhone', label: 'טלפון נייד' },
+    { key: 'email', path: 'conservatoryProfile.email', label: 'דוא"ל' },
+    { key: 'address', path: 'conservatoryProfile.address', label: 'כתובת' },
+    { key: 'socialCluster', path: 'conservatoryProfile.socialCluster', label: 'אשכול חברתי' },
+    { key: 'supportUnit', path: 'conservatoryProfile.supportUnit', label: 'יחידה מקדמת' },
+    { key: 'stage', path: 'conservatoryProfile.stage', label: 'שלב (קוד)' },
+    { key: 'stageDescription', path: 'conservatoryProfile.stageDescription', label: 'שלב (תיאור)' },
+    { key: 'cityCode', path: 'conservatoryProfile.cityCode', label: 'סמל ישוב' },
+    { key: 'sizeCategory', path: 'conservatoryProfile.sizeCategory', label: 'רשות גדולה / קטנה' },
+    { key: 'mainDepartment', path: 'conservatoryProfile.mainDepartment', label: 'מחלקה עיקרית' },
+    { key: 'supervisionStatus', path: 'conservatoryProfile.supervisionStatus', label: 'סטטוס פיקוח' },
+    { key: 'district', path: 'conservatoryProfile.district', label: 'מחוז' },
+    { key: 'mixedCityFactor', path: 'conservatoryProfile.mixedCityFactor', label: 'מקדם עיר מעורבת' },
+    { key: 'managerNotes', path: 'conservatoryProfile.managerNotes', label: 'הערות מנהל/ת' },
+  ];
+
+  // Build diff: compare current tenant values with imported values
+  const fields = FIELD_MAP.map(({ key, path, label }) => {
+    const currentValue = path.split('.').reduce((obj, k) => obj?.[k], tenant) ?? null;
+    const importedValue = parsed[key] ?? null;
+    return {
+      field: path,
+      label,
+      currentValue: currentValue !== null ? String(currentValue) : null,
+      importedValue: importedValue !== null ? String(importedValue) : null,
+      changed: String(currentValue ?? '') !== String(importedValue ?? ''),
+    };
+  });
+
+  const changedCount = fields.filter(f => f.changed).length;
+  const unchangedCount = fields.length - changedCount;
+
+  // Save to import_log for later execution
+  const preview = { fields, changedCount, unchangedCount, warnings: [] };
+  const importLogCollection = await getCollection('import_log');
+  const logEntry = {
+    importType: 'conservatory',
+    tenantId,
+    status: 'pending',
+    createdAt: new Date(),
+    preview,
+    parsedData: parsed,
   };
   const result = await importLogCollection.insertOne(logEntry);
 

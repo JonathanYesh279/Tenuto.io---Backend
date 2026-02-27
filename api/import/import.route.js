@@ -34,6 +34,14 @@ router.post(
   importController.previewStudentImport
 );
 
+// Conservatory profile preview (form-style Excel, not tabular)
+router.post(
+  '/conservatory/preview',
+  requireAuth(['מנהל']),
+  importUpload.single('file'),
+  importController.previewConservatoryImport
+);
+
 // Execute — apply the previewed import by importLogId
 router.post(
   '/execute/:importLogId',
