@@ -166,6 +166,9 @@ DEPARTMENT_TO_INSTRUMENTS['כלי הקשה'] = DEPARTMENT_TO_INSTRUMENTS['כלי
 DEPARTMENT_TO_INSTRUMENTS['כלי פריטה'] = DEPARTMENT_TO_INSTRUMENTS['כלי פריטה'] || [];
 DEPARTMENT_TO_INSTRUMENTS['מחלקת כלים אתניים'] = DEPARTMENT_TO_INSTRUMENTS['כלים אתניים'] || [];
 DEPARTMENT_TO_INSTRUMENTS['מחלקת כלים עממיים'] = DEPARTMENT_TO_INSTRUMENTS['כלים עממיים'] || [];
+// Ministry Excel abbreviated forms
+DEPARTMENT_TO_INSTRUMENTS["מח' כלים אתניים"] = DEPARTMENT_TO_INSTRUMENTS['כלים אתניים'] || [];
+DEPARTMENT_TO_INSTRUMENTS["מח' כלים עממיים"] = DEPARTMENT_TO_INSTRUMENTS['כלים עממיים'] || [];
 
 // Ministry Excel uses different instrument names than our canonical INSTRUMENT_MAP.
 // This alias map resolves Ministry text values to our standard names.
@@ -185,17 +188,29 @@ const MINISTRY_INSTRUMENT_ALIAS = {
 const TRUTHY_VALUES = ['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1, 'true', 'TRUE', 'True'];
 
 /**
+ * Normalize instrument text from Ministry Excel for alias lookup.
+ * Strips colons, replaces hyphens with spaces, and collapses whitespace.
+ * E.g. "מערכת תופים : ג'אז-פופ-רוק" → "מערכת תופים ג'אז פופ רוק"
+ */
+function normalizeInstrumentText(text) {
+  return text
+    .replace(/:/g, '')      // strip colons
+    .replace(/-/g, ' ')     // hyphens → spaces
+    .replace(/\s+/g, ' ')   // collapse multiple spaces
+    .trim();
+}
+
+/**
  * Calculate student start date from study years.
- * Formula: January 1st of (currentYear - studyYears + 1).
- * Example: studyYears=3, currentYear=2026 → startDate = 2024-01-01
- * The +1 accounts for the current year being counted as a study year.
+ * Formula: January 1st of (currentYear - studyYears).
+ * Example: studyYears=7, currentYear=2026 → startDate = 2019-01-01
  * Returns null if studyYears is not a positive number.
  */
 function calculateStartDate(studyYears) {
   const years = parseInt(studyYears);
   if (!years || years < 1) return null;
   const currentYear = new Date().getFullYear();
-  return new Date(currentYear - years + 1, 0, 1); // January 1st
+  return new Date(currentYear - years, 0, 1); // January 1st
 }
 
 /**
@@ -220,6 +235,7 @@ function buildInstrumentProgressEntry(mapped) {
     ministryStageLevel: mapped.ministryStageLevel || null,
     department: department || null,
     tests: {},
+    startDate: mapped._calculatedStartDate || null,
   };
 }
 
@@ -712,17 +728,21 @@ function detectInstrumentColumns(headers, headerColMap) {
     // Only consider columns at or after the instrument section start
     if (colIndex !== undefined && colIndex < instrumentSectionStart) continue;
 
-    if (ABBREVIATION_TO_INSTRUMENT[trimmed]) {
-      instrumentColumns.push({
-        header: trimmed,
-        instrument: ABBREVIATION_TO_INSTRUMENT[trimmed],
-        type: 'specific',
-      });
-    } else if (DEPARTMENT_TO_INSTRUMENTS[trimmed]) {
+    // Prefer department type over specific when a header matches both
+    // (e.g., "כלי הקשה" is both an instrument name and a department name).
+    // Department columns contain text instrument names that need alias resolution,
+    // while specific columns only check for color/truthy markers.
+    if (DEPARTMENT_TO_INSTRUMENTS[trimmed]) {
       instrumentColumns.push({
         header: trimmed,
         instruments: DEPARTMENT_TO_INSTRUMENTS[trimmed],
         type: 'department',
+      });
+    } else if (ABBREVIATION_TO_INSTRUMENT[trimmed]) {
+      instrumentColumns.push({
+        header: trimmed,
+        instrument: ABBREVIATION_TO_INSTRUMENT[trimmed],
+        type: 'specific',
       });
     }
   }
@@ -751,8 +771,12 @@ function readInstrumentMatrix(row, instrumentColumns, cellRow, headerColMap) {
 
       if (trimmedText && !TRUTHY_VALUES.includes(trimmedText)) {
         // Cell has text that is NOT a truthy boolean — treat as instrument name
+        // Try exact match first, then normalized match (handles colons/hyphens from Ministry files)
+        const normalized = normalizeInstrumentText(trimmedText);
         const resolvedName = MINISTRY_INSTRUMENT_ALIAS[trimmedText]
-          || (VALID_INSTRUMENTS.includes(trimmedText) ? trimmedText : null);
+          || MINISTRY_INSTRUMENT_ALIAS[normalized]
+          || (VALID_INSTRUMENTS.includes(trimmedText) ? trimmedText : null)
+          || (VALID_INSTRUMENTS.includes(normalized) ? normalized : null);
 
         if (resolvedName) {
           instruments.push({ instrumentName: resolvedName, department: col.header });
@@ -1797,11 +1821,11 @@ async function previewStudentImport(buffer, options = {}) {
       mapped.departmentHint = departmentHint;
     }
 
+    // Calculate startDate from studyYears for execute phase (must be before buildInstrumentProgressEntry)
+    mapped._calculatedStartDate = calculateStartDate(mapped.studyYears);
+
     // Build instrumentProgress entry from import data (for Plan 02 to consume during execute)
     mapped._instrumentProgressEntry = buildInstrumentProgressEntry(mapped);
-
-    // Calculate startDate from studyYears for execute phase
-    mapped._calculatedStartDate = calculateStartDate(mapped.studyYears);
 
     const match = matchStudent(mapped, students);
     const teacherMatch = matchTeacherByName(mapped.teacherName, teachers);
@@ -2045,6 +2069,10 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
           } else {
             // Standard flat field (studyYears, extraHour, class, lessonDuration, isBagrutCandidate)
             updateDoc[change.field] = change.newValue;
+            // When startDate changes at root, also update it on instrumentProgress[0]
+            if (change.field === 'startDate') {
+              updateDoc['academicInfo.instrumentProgress.0.startDate'] = change.newValue;
+            }
           }
         }
 

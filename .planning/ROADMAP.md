@@ -4,7 +4,7 @@
 
 - [x] **v1.0 Multi-Tenant Architecture Hardening** — Phases 1-9 (shipped 2026-02-24)
 - [x] **v1.1 Super Admin Platform Management** — Phases 10-14 (shipped 2026-02-26)
-- [ ] **v1.2 Student Import Enhancement** — Phases 15-19 (in progress)
+- [x] **v1.2 Student Import Enhancement** — Phases 15-19 (shipped 2026-02-27)
 
 ## Phases
 
@@ -38,7 +38,7 @@ See: `.planning/milestones/v1.1-ROADMAP.md` for full details.
 
 </details>
 
-### v1.2 Student Import Enhancement (In Progress)
+### v1.2 Student Import Enhancement (Complete)
 
 **Milestone Goal:** Enhance student import from Ministry Excel files to support teacher linking, proper instrument progress with stage tracking, bagrut flagging, and polished frontend preview matching teacher import quality.
 
@@ -46,7 +46,7 @@ See: `.planning/milestones/v1.1-ROADMAP.md` for full details.
 - [x] **Phase 16: Instrument Progress + Student Data Enrichment** — Build instrumentProgress[] entries, stage level mapping, expanded change detection, and bagrut flagging (completed 2026-02-27)
 - [x] **Phase 17: Teacher-Student Linking** — Match teacher names from Excel, persist resolved matches, create teacherAssignment entries (completed 2026-02-27)
 - [x] **Phase 18: Frontend Preview Enhancement** — Enriched student preview UI matching teacher import quality with detail cards, badges, and summary stats (completed 2026-02-27)
-- [ ] **Phase 19: Import Data Quality** — Fix stage level range, instrument section/department detection from Ministry columns, start date calculation from study years
+- [x] **Phase 19: Import Data Quality** — Fix stage level range, instrument section/department detection from Ministry columns, start date calculation from study years (completed 2026-02-27)
 
 ## Phase Details
 
@@ -118,8 +118,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 19-01-PLAN.md -- Stage 0 validation + ministry instrument alias map + readInstrumentMatrix text reading + department field
-- [ ] 19-02-PLAN.md -- Root-level startDate schema field + calculation from studyYears in import preview and execute
+- [x] 19-01-PLAN.md -- Stage 0 validation + ministry instrument alias map + readInstrumentMatrix text reading + department field
+- [x] 19-02-PLAN.md -- Root-level startDate schema field + calculation from studyYears in import preview and execute
 
 ## Progress
 
@@ -146,8 +146,8 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19
 | 16. Instrument Progress + Student Data Enrichment | v1.2 | 2/2 | Complete | 2026-02-27 |
 | 17. Teacher-Student Linking | v1.2 | 2/2 | Complete | 2026-02-27 |
 | 18. Frontend Preview Enhancement | v1.2 | 1/1 | Complete | 2026-02-27 |
-| 19. Import Data Quality | v1.2 | 0/2 | Not started | - |
+| 19. Import Data Quality | v1.2 | 2/2 | Complete | 2026-02-27 |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-27 — Phase 19 planned (2 plans: instrument quality + startDate)*
+*Last updated: 2026-02-27 — Phase 19 complete, v1.2 milestone shipped*
