@@ -38,93 +38,20 @@ See: `.planning/milestones/v1.1-ROADMAP.md` for full details.
 
 </details>
 
-### v1.2 Student Import Enhancement (Complete)
+<details>
+<summary>v1.2 Student Import Enhancement (Phases 15-19) — SHIPPED 2026-02-27</summary>
 
-**Milestone Goal:** Enhance student import from Ministry Excel files to support teacher linking, proper instrument progress with stage tracking, bagrut flagging, and polished frontend preview matching teacher import quality.
+- [x] Phase 15: Bug Fix + Column Map Extensions (1/1 plan) — completed 2026-02-27
+- [x] Phase 16: Instrument Progress + Student Data Enrichment (2/2 plans) — completed 2026-02-27
+- [x] Phase 17: Teacher-Student Linking (2/2 plans) — completed 2026-02-27
+- [x] Phase 18: Frontend Preview Enhancement (1/1 plan) — completed 2026-02-27
+- [x] Phase 19: Import Data Quality (2/2 plans) — completed 2026-02-27
 
-- [x] **Phase 15: Bug Fix + Column Map Extensions** — Fix instrument detection bug and extend column mappings for bagrut and schema additions (completed 2026-02-27)
-- [x] **Phase 16: Instrument Progress + Student Data Enrichment** — Build instrumentProgress[] entries, stage level mapping, expanded change detection, and bagrut flagging (completed 2026-02-27)
-- [x] **Phase 17: Teacher-Student Linking** — Match teacher names from Excel, persist resolved matches, create teacherAssignment entries (completed 2026-02-27)
-- [x] **Phase 18: Frontend Preview Enhancement** — Enriched student preview UI matching teacher import quality with detail cards, badges, and summary stats (completed 2026-02-27)
-- [x] **Phase 19: Import Data Quality** — Fix stage level range, instrument section/department detection from Ministry columns, start date calculation from study years (completed 2026-02-27)
+See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
-## Phase Details
-
-### Phase 15: Bug Fix + Column Map Extensions
-**Goal**: Student import correctly detects instrument columns and recognizes new data fields (bagrut, isBagrutCandidate) from Ministry Excel files
-**Depends on**: Nothing (first phase of v1.2; prerequisite for all subsequent phases)
-**Requirements**: BUGF-01, IQAL-04, BGRT-01
-**Success Criteria** (what must be TRUE):
-  1. Student import preview detects instrument columns with the same accuracy as teacher import (no misdetection from missing headerColMap)
-  2. Uploading a Ministry Excel file with a "מגמת מוסיקה" or "מגמה" column produces a preview that includes the bagrut flag value for each student row
-  3. Student schema accepts `academicInfo.isBagrutCandidate` boolean without breaking existing student documents
-**Plans:** 1 plan
-
-Plans:
-- [x] 15-01-PLAN.md -- Fix headerColMap passthrough bug + add bagrut column mapping and schema field
-
-### Phase 16: Instrument Progress + Student Data Enrichment
-**Goal**: Imported students have proper instrumentProgress[] entries with stage tracking, and the import detects changes across all enriched fields
-**Depends on**: Phase 15 (correct instrument column detection and column map entries)
-**Requirements**: IQAL-01, IQAL-02, IQAL-03, BGRT-02
-**Success Criteria** (what must be TRUE):
-  1. Importing a new student creates an `instrumentProgress[]` entry with instrumentName, isPrimary, currentStage, and ministryStageLevel (not a flat academicInfo.instrument string)
-  2. Ministry stage level values (שלב א/ב/ג) in Excel are mapped to numeric currentStage values on the instrumentProgress entry
-  3. Re-importing an existing student who changed instrument, stage level, lesson duration, or teacher shows those changes in the preview diff (not just studyYears/extraHour/class)
-  4. Executing import on a student flagged with "מגמת מוסיקה" sets `academicInfo.isBagrutCandidate: true` on the student document
-  5. Newly imported students are enrolled in the current school year and appear in school-year-scoped queries
-**Plans:** 2 plans
-
-Plans:
-- [x] 16-01-PLAN.md -- Stage mapping + instrumentProgress builder + expanded change detection (preview enrichment)
-- [x] 16-02-PLAN.md -- Refactor executeStudentImport for instrumentProgress, school year enrollment, and expanded updates
-
-### Phase 17: Teacher-Student Linking
-**Goal**: Students imported from Ministry files are linked to their teachers via teacherAssignment entries, with match status visible in preview
-**Depends on**: Phase 16 (instrumentProgress and enriched change detection must exist before adding teacher linking)
-**Requirements**: TLNK-01, TLNK-02, TLNK-03
-**Success Criteria** (what must be TRUE):
-  1. Preview matches the "המורה" column value against existing teachers (case-insensitive, both name orderings) and shows resolved/unresolved/ambiguous status per row
-  2. Executing import creates a teacherAssignment entry on the student with the matched teacherId (without day/time schedule fields, marked as Ministry import)
-  3. When a teacher name from Excel is not found in the tenant's teacher list, the preview displays a clear warning with the exact unresolved name
-  4. Teacher match results are persisted in the import_log at preview time so execute never re-runs matching
-**Plans:** 2 plans
-
-Plans:
-- [x] 17-01-PLAN.md -- Teacher name matching function + preview integration with match status and warnings
-- [x] 17-02-PLAN.md -- Execute teacherAssignment creation for resolved matches with duplicate prevention
-
-### Phase 18: Frontend Preview Enhancement
-**Goal**: Student import preview shows the same quality of detail as teacher import preview, with rich row details, teacher match badges, and summary statistics
-**Depends on**: Phase 17 (all backend enrichments must be in place for the frontend to display them)
-**Requirements**: FEPV-01, FEPV-02, FEPV-03
-**Success Criteria** (what must be TRUE):
-  1. Each student row in the preview table shows enriched detail (instrument, teacher match status, class, stage level, bagrut flag) via a `getStudentRowDetails()` function mirroring the teacher import pattern
-  2. Not-found (new) students show a rich detail card with all parsed import data instead of just a "תלמיד חדש" text label
-  3. Teacher match status is displayed as a visual badge (matched/not found/ambiguous) in the preview table for each student row
-**Plans:** 1 plan
-
-Plans:
-- [x] 18-01-PLAN.md -- Student preview helpers (formatStudentChange, getTeacherMatchBadge, getStudentRowDetails) + teacher match summary cards
-
-### Phase 19: Import Data Quality
-**Goal**: Student import correctly reads instrument names from Ministry section columns with department tracking, includes stage 0 in valid range, and calculates start date from study years
-**Depends on**: Phase 18 (all preview enrichments in place)
-**Requirements**: IDQL-01, IDQL-02, IDQL-03
-**Success Criteria** (what must be TRUE):
-  1. Stage 0 is valid in instrumentProgress schema; import does NOT map ministry א/ב/ג to numeric stages (raw ministryStageLevel stored, currentStage defaults to 1)
-  2. Ministry section columns (כלי קשת, כלי נשיפה, מחלקות כלים, etc.) with text instrument values are read as instrument names, resolved via alias map, and stored with `department` field on instrumentProgress
-  3. New and updated students have `startDate` calculated as January 1st of (currentYear - studyYears) instead of current date
-**Plans:** 2 plans
-
-Plans:
-- [x] 19-01-PLAN.md -- Stage 0 validation + ministry instrument alias map + readInstrumentMatrix text reading + department field
-- [x] 19-02-PLAN.md -- Root-level startDate schema field + calculation from studyYears in import preview and execute
+</details>
 
 ## Progress
-
-**Execution Order:**
-Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -150,4 +77,4 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-27 — Phase 19 complete, v1.2 milestone shipped*
+*Last updated: 2026-02-27 — v1.2 milestone archived*

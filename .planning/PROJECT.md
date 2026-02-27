@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A multi-tenant SaaS platform for Israeli music conservatories (Node.js + Express + MongoDB backend, React + TypeScript frontend). Manages teachers, students, lessons, orchestras, theory classes, bagrut programs, schedules, and Ministry of Education reporting. Features 5-layer tenant isolation, a super admin platform for tenant CRUD/reporting/impersonation, and a dedicated super admin frontend dashboard.
+A multi-tenant SaaS platform for Israeli music conservatories (Node.js + Express + MongoDB backend, React + TypeScript frontend). Manages teachers, students, lessons, orchestras, theory classes, bagrut programs, schedules, and Ministry of Education reporting. Features 5-layer tenant isolation, a super admin platform for tenant CRUD/reporting/impersonation, and enriched import from Ministry Excel files for both teachers and students.
 
 ## Core Value
 
@@ -35,20 +35,17 @@ Reliable multi-tenant music school management where every teacher sees only thei
 - ✓ Platform reporting (per-tenant usage, Ministry status, subscription health, combined dashboard) — v1.1
 - ✓ Tenant impersonation (scoped JWT, audit-logged, frontend banner with Exit) — v1.1
 - ✓ Super admin frontend (dashboard, tenant list/detail/form, SA management page) — v1.1
+- ✓ Student import instrument detection parity with teacher import (headerColMap fix) — v1.2
+- ✓ instrumentProgress[] with stage tracking, ministryStageLevel, department field — v1.2
+- ✓ Teacher-student linking from Ministry import (matchTeacherByName, teacherAssignment creation) — v1.2
+- ✓ Bagrut candidacy flag from Ministry Excel (isBagrutCandidate) — v1.2
+- ✓ Enriched student import preview (Hebrew labels, teacher match badges, summary cards) — v1.2
+- ✓ Ministry instrument alias resolution with department tracking — v1.2
+- ✓ Start date calculation from studyYears — v1.2
 
 ### Active
 
-#### Current Milestone: v1.2 — Student Import Enhancement
-
-**Goal:** Enhance the existing student import from Ministry Excel files to support teacher linking, proper instrument progress, ministry stage levels, bagrut flags, and polished frontend preview.
-
-**Target features:**
-- Teacher-student linking from "המורה" column (match to existing teachers, create teacherAssignment)
-- Proper instrumentProgress entries with stage tracking (not flat instrument field)
-- Ministry stage level (שלב א/ב/ג) stored on instrumentProgress
-- Bagrut program flag for מגמת מוסיקה students
-- Enhanced frontend preview matching teacher import quality
-- Improved change detection and field display for student imports
+No active requirements. Next milestone not yet defined.
 
 ### Out of Scope
 
@@ -67,7 +64,7 @@ Reliable multi-tenant music school management where every teacher sees only thei
 
 ## Context
 
-**Current state:** v1.1 shipped. Backend has 90,546 LOC JavaScript. Frontend has React 18 + TypeScript + Vite + Tailwind. Super admin has a complete platform management dashboard with tenant CRUD, reporting, impersonation, and admin management. Basic student import exists (name, class, studyYears, instrument, age) but lacks teacher linking, instrumentProgress, and enriched preview.
+**Current state:** v1.2 shipped. Backend has ~93,000 LOC JavaScript. Frontend has React 18 + TypeScript + Vite + Tailwind. Super admin has a complete platform management dashboard. Student import from Ministry Excel now matches teacher import quality with instrument detection, teacher linking, stage tracking, department tracking, bagrut flagging, start date calculation, and enriched frontend preview.
 
 **Tech stack:** Node.js + Express + MongoDB native driver (no Mongoose). React 18 + TypeScript + Vite + Tailwind CSS. Vitest + MongoDB Memory Server for testing. GitHub Actions CI pipeline.
 
@@ -78,6 +75,9 @@ Reliable multi-tenant music school management where every teacher sees only thei
 - Backward compat shims in getCurrentSchoolYear and getTeacherByRole
 - `/api/super-admin/seed` has no rate-limit or environment guard
 - `time_block`, `privateAttendance`, `privateLessons` collections not in TENANT_SCOPED_COLLECTIONS (use teacherId/studentId FK)
+- `previewStudentImport` uses `Object.keys(rows[0])` for instrument headers instead of `parsedHeaders` (may miss columns empty in first row)
+- `startDate` missing Hebrew label in `formatStudentChange` fieldLabels map
+- `ministryLevelToStage()` exported but unused (intentional orphan after Phase 19 design change)
 
 **Tenant count:** Zero production tenants (pre-launch).
 
@@ -104,6 +104,12 @@ Reliable multi-tenant music school management where every teacher sees only thei
 | Snapshot split per collection for purge | Avoids 16MB BSON limit on large tenants | ✓ Good — future-proof for growing data |
 | Single reporting dashboard API endpoint | One network request instead of 3+ | ✓ Good — snappy dashboard load |
 | Token stashing in sessionStorage | Survives page refresh, cleared on tab close | ✓ Good — impersonation state isolated per tab |
+| instrumentProgress[] replaces flat instrument string | Supports stage tracking, tests, department | ✓ Good — rich instrument data per student |
+| Department-first detection in import | Department columns checked before abbreviation | ✓ Good — fixes כלי הקשה being both instrument and department |
+| Import bypasses Joi for teacherAssignment writes | Ministry files lack day/time fields; direct MongoDB $push | ✓ Good — avoids fighting strict Joi schema |
+| startDate as root-level field (not nested) | Represents conservatory start date, not instrument-specific | ✓ Good — simple access, calculated from studyYears |
+| matchTeacherByName tries both name orderings | Hebrew names have no standard first/last ordering | ✓ Good — handles אבי כהן and כהן אבי equally |
+| isBagrutCandidate defaults to null (not false) | Null = unknown/not imported; false = explicitly not a candidate | ✓ Good — no false negatives for existing students |
 
 ---
-*Last updated: 2026-02-26 after v1.2 milestone started*
+*Last updated: 2026-02-27 after v1.2 milestone completed*
