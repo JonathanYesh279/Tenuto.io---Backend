@@ -1645,6 +1645,9 @@ async function previewStudentImport(buffer, options = {}) {
   const filter = { isActive: true, tenantId };
   const students = await studentCollection.find(filter).toArray();
 
+  const teacherCollection = await getCollection('teacher');
+  const teachers = await teacherCollection.find({ isActive: true, tenantId }).toArray();
+
   const preview = {
     totalRows: rows.length,
     matched: [],
@@ -1653,6 +1656,7 @@ async function previewStudentImport(buffer, options = {}) {
     warnings: [],
     headerRowIndex,
     matchedColumns,
+    teacherMatchSummary: { resolved: 0, unresolved: 0, ambiguous: 0, none: 0 },
   };
 
   let skippedEmpty = 0;
@@ -1714,6 +1718,24 @@ async function previewStudentImport(buffer, options = {}) {
     mapped._instrumentProgressEntry = buildInstrumentProgressEntry(mapped);
 
     const match = matchStudent(mapped, students);
+    const teacherMatch = matchTeacherByName(mapped.teacherName, teachers);
+    preview.teacherMatchSummary[teacherMatch.status]++;
+
+    if (teacherMatch.status === 'unresolved') {
+      preview.warnings.push({
+        row: i + 2,
+        field: 'teacherName',
+        message: `המורה "${teacherMatch.importedName}" לא נמצא ברשימת המורים`,
+      });
+    }
+    if (teacherMatch.status === 'ambiguous') {
+      preview.warnings.push({
+        row: i + 2,
+        field: 'teacherName',
+        message: `נמצאו ${teacherMatch.candidateCount} מורים עם שם דומה ל-"${teacherMatch.importedName}"`,
+      });
+    }
+
     if (match) {
       const changes = calculateStudentChanges(match.student, mapped);
       const entry = {
@@ -1724,6 +1746,7 @@ async function previewStudentImport(buffer, options = {}) {
         importedName: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim(),
         changes,
         mapped,
+        teacherMatch,
       };
       if (match.matchType === 'name_duplicate') {
         entry.duplicateCount = match.duplicateCount;
@@ -1739,6 +1762,7 @@ async function previewStudentImport(buffer, options = {}) {
         row: i + 2,
         importedName: `${mapped.firstName || ''} ${mapped.lastName || ''}`.trim(),
         mapped,
+        teacherMatch,
       });
     }
   }
