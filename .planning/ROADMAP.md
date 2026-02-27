@@ -87,11 +87,11 @@ Plans:
   2. Executing import creates a teacherAssignment entry on the student with the matched teacherId (without day/time schedule fields, marked as Ministry import)
   3. When a teacher name from Excel is not found in the tenant's teacher list, the preview displays a clear warning with the exact unresolved name
   4. Teacher match results are persisted in the import_log at preview time so execute never re-runs matching
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 17-01: TBD
-- [ ] 17-02: TBD
+- [ ] 17-01-PLAN.md -- Teacher name matching function + preview integration with match status and warnings
+- [ ] 17-02-PLAN.md -- Execute teacherAssignment creation for resolved matches with duplicate prevention
 
 ### Phase 18: Frontend Preview Enhancement
 **Goal**: Student import preview shows the same quality of detail as teacher import preview, with rich row details, teacher match badges, and summary statistics
@@ -130,9 +130,9 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18
 | 14. Super Admin Frontend | v1.1 | 4/4 | Complete | 2026-02-26 |
 | 15. Bug Fix + Column Map Extensions | v1.2 | 1/1 | Complete | 2026-02-27 |
 | 16. Instrument Progress + Student Data Enrichment | v1.2 | 2/2 | Complete | 2026-02-27 |
-| 17. Teacher-Student Linking | v1.2 | 0/TBD | Not started | - |
+| 17. Teacher-Student Linking | v1.2 | 0/2 | Not started | - |
 | 18. Frontend Preview Enhancement | v1.2 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-27 — Phase 16 complete (2/2 plans, verified)*
+*Last updated: 2026-02-27 — Phase 17 planned (2 plans)*

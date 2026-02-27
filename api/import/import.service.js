@@ -1159,6 +1159,64 @@ function matchStudent(mapped, students) {
   return null;
 }
 
+/**
+ * Match a teacher name string (from "המורה" column) against the tenant's teacher list.
+ * Handles both "firstName lastName" and "lastName firstName" orderings.
+ * Returns: { status: 'resolved'|'unresolved'|'ambiguous'|'none', teacherId?, teacherName?, ... }
+ */
+function matchTeacherByName(nameString, teachers) {
+  if (!nameString || !String(nameString).trim()) {
+    return { status: 'none' };
+  }
+
+  const name = String(nameString).trim();
+  const parts = name.split(/\s+/);
+
+  if (parts.length < 2) {
+    // Single word name -- try against both firstName and lastName
+    const word = parts[0].toLowerCase();
+    const matches = teachers.filter(t =>
+      (t.personalInfo?.firstName || '').trim().toLowerCase() === word ||
+      (t.personalInfo?.lastName || '').trim().toLowerCase() === word
+    );
+    if (matches.length === 1) {
+      return {
+        status: 'resolved',
+        teacherId: matches[0]._id.toString(),
+        teacherName: `${matches[0].personalInfo?.firstName || ''} ${matches[0].personalInfo?.lastName || ''}`.trim(),
+        matchType: 'single_word',
+      };
+    }
+    if (matches.length > 1) {
+      return { status: 'ambiguous', candidateCount: matches.length, importedName: name };
+    }
+    return { status: 'unresolved', importedName: name };
+  }
+
+  // Two+ words: try both orderings
+  const part1 = parts[0].toLowerCase();
+  const part2 = parts.slice(1).join(' ').toLowerCase();
+
+  const matches = teachers.filter(t => {
+    const fn = (t.personalInfo?.firstName || '').trim().toLowerCase();
+    const ln = (t.personalInfo?.lastName || '').trim().toLowerCase();
+    return (fn === part1 && ln === part2) || (fn === part2 && ln === part1);
+  });
+
+  if (matches.length === 1) {
+    return {
+      status: 'resolved',
+      teacherId: matches[0]._id.toString(),
+      teacherName: `${matches[0].personalInfo?.firstName || ''} ${matches[0].personalInfo?.lastName || ''}`.trim(),
+      matchType: 'name',
+    };
+  }
+  if (matches.length > 1) {
+    return { status: 'ambiguous', candidateCount: matches.length, importedName: name };
+  }
+  return { status: 'unresolved', importedName: name };
+}
+
 // ─── Diff Calculation ────────────────────────────────────────────────────────
 
 const TEACHER_FIELD_PATHS = {
@@ -1416,15 +1474,6 @@ function calculateStudentChanges(student, mapped) {
         newValue: mapped.isBagrutCandidate,
       });
     }
-  }
-
-  // 6. Teacher name (display only — cannot match teachers yet, Phase 17)
-  if (mapped.teacherName && String(mapped.teacherName).trim()) {
-    changes.push({
-      field: 'teacherName',
-      oldValue: null,
-      newValue: mapped.teacherName,
-    });
   }
 
   return changes;
