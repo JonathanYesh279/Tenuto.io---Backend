@@ -1342,6 +1342,7 @@ function buildImportTeacherDocument(data, tenantId, hashedPassword, adminId) {
 function calculateStudentChanges(student, mapped) {
   const changes = [];
 
+  // 1. Existing flat field comparisons (studyYears, extraHour, class)
   const fields = [
     { key: 'studyYears', path: 'academicInfo.studyYears' },
     { key: 'extraHour', path: 'academicInfo.extraHour' },
@@ -1354,6 +1355,76 @@ function calculateStudentChanges(student, mapped) {
     if (String(current ?? '') !== String(mapped[key])) {
       changes.push({ field: path, oldValue: current ?? null, newValue: mapped[key] });
     }
+  }
+
+  // 2-3. Instrument name and ministry stage level comparisons
+  const progressArray = student.academicInfo?.instrumentProgress;
+  const primaryProgress = Array.isArray(progressArray) && progressArray.length > 0
+    ? (progressArray.find(e => e.isPrimary) || progressArray[0])
+    : null;
+
+  if (mapped.instrument && VALID_INSTRUMENTS.includes(mapped.instrument)) {
+    if (primaryProgress) {
+      // Compare against existing primary instrument
+      if (primaryProgress.instrumentName && primaryProgress.instrumentName !== mapped.instrument) {
+        changes.push({
+          field: 'academicInfo.instrumentProgress[0].instrumentName',
+          oldValue: primaryProgress.instrumentName,
+          newValue: mapped.instrument,
+        });
+      }
+    } else {
+      // No existing instrumentProgress — new instrument data will be created
+      changes.push({
+        field: 'academicInfo.instrumentProgress',
+        oldValue: null,
+        newValue: mapped.instrument,
+      });
+    }
+  }
+
+  // Ministry stage level comparison (only against existing primary)
+  if (mapped.ministryStageLevel && primaryProgress) {
+    if (primaryProgress.ministryStageLevel !== mapped.ministryStageLevel) {
+      changes.push({
+        field: 'academicInfo.instrumentProgress[0].ministryStageLevel',
+        oldValue: primaryProgress.ministryStageLevel ?? null,
+        newValue: mapped.ministryStageLevel,
+      });
+    }
+  }
+
+  // 4. Lesson duration comparison
+  if (mapped.lessonDuration !== null && mapped.lessonDuration !== undefined) {
+    const currentDuration = student.academicInfo?.lessonDuration;
+    if (currentDuration !== null && currentDuration !== undefined && currentDuration !== mapped.lessonDuration) {
+      changes.push({
+        field: 'academicInfo.lessonDuration',
+        oldValue: currentDuration,
+        newValue: mapped.lessonDuration,
+      });
+    }
+  }
+
+  // 5. isBagrutCandidate comparison (strict boolean equality)
+  if (mapped.isBagrutCandidate !== null && mapped.isBagrutCandidate !== undefined) {
+    const currentBagrut = student.academicInfo?.isBagrutCandidate ?? null;
+    if (currentBagrut !== mapped.isBagrutCandidate) {
+      changes.push({
+        field: 'academicInfo.isBagrutCandidate',
+        oldValue: currentBagrut,
+        newValue: mapped.isBagrutCandidate,
+      });
+    }
+  }
+
+  // 6. Teacher name (display only — cannot match teachers yet, Phase 17)
+  if (mapped.teacherName && String(mapped.teacherName).trim()) {
+    changes.push({
+      field: 'teacherName',
+      oldValue: null,
+      newValue: mapped.teacherName,
+    });
   }
 
   return changes;
