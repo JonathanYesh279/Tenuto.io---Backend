@@ -1930,61 +1930,89 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
   }
 
   for (const entry of matched) {
-    if (entry.changes.length === 0) continue;
+    if (entry.changes.length === 0 && entry.teacherMatch?.status !== 'resolved') continue;
 
     try {
-      const updateDoc = {};
-      let needsInstrumentProgressPush = false;
-      let instrumentPushEntry = null;
+      // Process field changes if any exist
+      if (entry.changes.length > 0) {
+        const updateDoc = {};
+        let needsInstrumentProgressPush = false;
+        let instrumentPushEntry = null;
 
-      for (const change of entry.changes) {
-        if (change.field === 'teacherName') {
-          // Display-only field from Phase 16 -- do NOT write to DB
-          // Phase 17 handles teacher assignment creation
-          continue;
-        }
-
-        if (change.field === 'academicInfo.instrumentProgress') {
-          // Special case: student has NO existing instrumentProgress
-          // Need to $push a new entry rather than $set on index 0
-          needsInstrumentProgressPush = true;
-          const mapped = entry.mapped || {};
-          instrumentPushEntry = buildInstrumentProgressEntry(mapped);
-          continue;
-        }
-
-        if (change.field.startsWith('academicInfo.instrumentProgress[0].')) {
-          // Convert [0] bracket notation to MongoDB .0. dot notation
-          const mongoField = change.field.replace('[0]', '.0');
-          updateDoc[mongoField] = change.newValue;
-
-          // When ministryStageLevel changes, also update currentStage
-          if (change.field === 'academicInfo.instrumentProgress[0].ministryStageLevel') {
-            updateDoc['academicInfo.instrumentProgress.0.currentStage'] =
-              ministryLevelToStage(change.newValue);
+        for (const change of entry.changes) {
+          if (change.field === 'academicInfo.instrumentProgress') {
+            // Special case: student has NO existing instrumentProgress
+            // Need to $push a new entry rather than $set on index 0
+            needsInstrumentProgressPush = true;
+            const mapped = entry.mapped || {};
+            instrumentPushEntry = buildInstrumentProgressEntry(mapped);
+            continue;
           }
-        } else {
-          // Standard flat field (studyYears, extraHour, class, lessonDuration, isBagrutCandidate)
-          updateDoc[change.field] = change.newValue;
+
+          if (change.field.startsWith('academicInfo.instrumentProgress[0].')) {
+            // Convert [0] bracket notation to MongoDB .0. dot notation
+            const mongoField = change.field.replace('[0]', '.0');
+            updateDoc[mongoField] = change.newValue;
+
+            // When ministryStageLevel changes, also update currentStage
+            if (change.field === 'academicInfo.instrumentProgress[0].ministryStageLevel') {
+              updateDoc['academicInfo.instrumentProgress.0.currentStage'] =
+                ministryLevelToStage(change.newValue);
+            }
+          } else {
+            // Standard flat field (studyYears, extraHour, class, lessonDuration, isBagrutCandidate)
+            updateDoc[change.field] = change.newValue;
+          }
         }
+
+        updateDoc.updatedAt = new Date();
+
+        // Apply standard field updates via $set
+        const updateOps = { $set: updateDoc };
+
+        // If student had no instrumentProgress, push a new entry
+        if (needsInstrumentProgressPush && instrumentPushEntry) {
+          updateOps.$push = {
+            'academicInfo.instrumentProgress': instrumentPushEntry
+          };
+        }
+
+        await studentCollection.updateOne(
+          { _id: ObjectId.createFromHexString(entry.studentId), tenantId },
+          updateOps
+        );
       }
 
-      updateDoc.updatedAt = new Date();
-
-      // Apply standard field updates via $set
-      const updateOps = { $set: updateDoc };
-
-      // If student had no instrumentProgress, push a new entry
-      if (needsInstrumentProgressPush && instrumentPushEntry) {
-        updateOps.$push = {
-          'academicInfo.instrumentProgress': instrumentPushEntry
-        };
+      // Create teacherAssignment if teacher was resolved during preview
+      const teacherMatch = entry.teacherMatch;
+      if (teacherMatch?.status === 'resolved') {
+        // Use filter-based duplicate prevention: $push only if teacher not already linked
+        // This avoids an extra findOne round-trip
+        await studentCollection.updateOne(
+          {
+            _id: ObjectId.createFromHexString(entry.studentId),
+            tenantId,
+            'teacherAssignments.teacherId': { $ne: teacherMatch.teacherId },
+          },
+          {
+            $push: {
+              teacherAssignments: {
+                teacherId: teacherMatch.teacherId,
+                scheduleSlotId: null,
+                startDate: new Date(),
+                endDate: null,
+                isActive: true,
+                notes: null,
+                source: 'ministry_import',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              },
+            },
+            $set: { updatedAt: new Date() },
+          }
+        );
       }
 
-      await studentCollection.updateOne(
-        { _id: ObjectId.createFromHexString(entry.studentId), tenantId },
-        updateOps
-      );
       successCount++;
       affectedDocIds.push(entry.studentId);
     } catch (err) {
