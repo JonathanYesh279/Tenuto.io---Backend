@@ -68,15 +68,8 @@ export function buildProfileSheet({ workbook, data, metadata }) {
   applyStyle(sheet.getCell('C11'), { font: { bold: true } });
   sheet.getCell('E11').value = cp.businessNumber || '';
 
-  // ─── Row 12: Mixed city factor (red font note) ─────────────────────────
-  sheet.getCell('C12').value = 'מקדם עיר מעורבת';
-  applyStyle(sheet.getCell('C12'), { font: { bold: true } });
-  sheet.getCell('E12').value = cp.mixedCityFactor || '';
-  applyStyle(sheet.getCell('J12'), STYLES.redFormula);
-  sheet.getCell('J12').value = 'ערך זה מחושב אוטומטית';
-
   // ─── Row 14: Manager + Stage ────────────────────────────────────────────
-  sheet.getCell('C14').value = 'מנהל/ת';
+  sheet.getCell('C14').value = 'מנהל\\ת הקונסרבטוריון - שם ומשפחה';
   applyStyle(sheet.getCell('C14'), { font: { bold: true } });
   sheet.getCell('E14').value = cp.managerName || director.name || '';
 
@@ -88,11 +81,11 @@ export function buildProfileSheet({ workbook, data, metadata }) {
   }
 
   // ─── Row 16: Support unit + Size category ──────────────────────────────
-  sheet.getCell('C16').value = 'יחידת תמיכה';
+  sheet.getCell('C16').value = 'יחידה מקדמת לצורך תמיכה';
   applyStyle(sheet.getCell('C16'), { font: { bold: true } });
   sheet.getCell('E16').value = cp.supportUnit || '';
 
-  sheet.getCell('J16').value = 'קטגוריית גודל';
+  sheet.getCell('J16').value = 'רשות גדולה\\קטנה';
   applyStyle(sheet.getCell('J16'), { font: { bold: true } });
   sheet.getCell('L16').value = cp.sizeCategory || '';
 
