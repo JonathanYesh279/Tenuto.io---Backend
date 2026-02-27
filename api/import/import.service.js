@@ -1861,14 +1861,56 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
 
     try {
       const updateDoc = {};
+      let needsInstrumentProgressPush = false;
+      let instrumentPushEntry = null;
+
       for (const change of entry.changes) {
-        updateDoc[change.field] = change.newValue;
+        if (change.field === 'teacherName') {
+          // Display-only field from Phase 16 -- do NOT write to DB
+          // Phase 17 handles teacher assignment creation
+          continue;
+        }
+
+        if (change.field === 'academicInfo.instrumentProgress') {
+          // Special case: student has NO existing instrumentProgress
+          // Need to $push a new entry rather than $set on index 0
+          needsInstrumentProgressPush = true;
+          const mapped = entry.mapped || {};
+          instrumentPushEntry = buildInstrumentProgressEntry(mapped);
+          continue;
+        }
+
+        if (change.field.startsWith('academicInfo.instrumentProgress[0].')) {
+          // Convert [0] bracket notation to MongoDB .0. dot notation
+          const mongoField = change.field.replace('[0]', '.0');
+          updateDoc[mongoField] = change.newValue;
+
+          // When ministryStageLevel changes, also update currentStage
+          if (change.field === 'academicInfo.instrumentProgress[0].ministryStageLevel') {
+            updateDoc['academicInfo.instrumentProgress.0.currentStage'] =
+              ministryLevelToStage(change.newValue);
+          }
+        } else {
+          // Standard flat field (studyYears, extraHour, class, lessonDuration, isBagrutCandidate)
+          updateDoc[change.field] = change.newValue;
+        }
       }
+
       updateDoc.updatedAt = new Date();
+
+      // Apply standard field updates via $set
+      const updateOps = { $set: updateDoc };
+
+      // If student had no instrumentProgress, push a new entry
+      if (needsInstrumentProgressPush && instrumentPushEntry) {
+        updateOps.$push = {
+          'academicInfo.instrumentProgress': instrumentPushEntry
+        };
+      }
 
       await studentCollection.updateOne(
         { _id: ObjectId.createFromHexString(entry.studentId), tenantId },
-        { $set: updateDoc }
+        updateOps
       );
       successCount++;
       affectedDocIds.push(entry.studentId);
