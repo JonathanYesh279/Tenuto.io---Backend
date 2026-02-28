@@ -219,7 +219,7 @@ async function getTeacherLessons(teacherId, options = {}) {
       if (dayComparison !== 0) return dayComparison;
       
       // Sort by time within the same day
-      return a.time.localeCompare(b.time);
+      return (a.time || '').localeCompare(b.time || '');
     });
 
     return lessons;
@@ -263,7 +263,7 @@ async function getTeacherWeeklySchedule(teacherId, options = {}) {
 
     // Sort lessons within each day by time
     Object.keys(weeklySchedule).forEach(day => {
-      weeklySchedule[day].sort((a, b) => a.time.localeCompare(b.time));
+      weeklySchedule[day].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
     });
 
     const totalLessons = lessons.length;
@@ -545,7 +545,7 @@ async function getTeacherStudentsWithLessons(teacherId, options = {}) {
       student.lessons.sort((a, b) => {
         const dayComparison = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
         if (dayComparison !== 0) return dayComparison;
-        return a.time.localeCompare(b.time);
+        return (a.time || '').localeCompare(b.time || '');
       });
     });
 
