@@ -273,6 +273,152 @@ function isColoredCell(fill) {
   return !NO_COLOR.includes(argb);
 }
 
+// --- Ensemble Import Helpers ---
+
+/**
+ * Convert Excel time values to "HH:MM" strings.
+ * Handles three cases:
+ *   - String already in "HH:MM" format
+ *   - Date object (ExcelJS may return Date for time cells)
+ *   - Numeric serial (0-1 range: 0.375 = 09:00, 0.75 = 18:00)
+ * @param {*} value - Excel cell value (string, Date, number, or null)
+ * @returns {string|null} "HH:MM" or null
+ */
+function excelTimeToHHMM(value) {
+  if (value == null) return null;
+  // Already a formatted string
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d{1,2}):(\d{2})/);
+    if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
+    return null;
+  }
+  // Date object (ExcelJS may return this for time cells)
+  if (value instanceof Date) {
+    const h = value.getUTCHours().toString().padStart(2, '0');
+    const m = value.getUTCMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
+  }
+  // Numeric serial (fraction of day: 0.375 = 09:00, 0.75 = 18:00)
+  if (typeof value === 'number' && value >= 0 && value <= 1) {
+    const totalMinutes = Math.round(value * 24 * 60);
+    const h = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
+    const m = (totalMinutes % 60).toString().padStart(2, '0');
+    return `${h}:${m}`;
+  }
+  return null;
+}
+
+/**
+ * Maps Hebrew day names and abbreviations to dayOfWeek numbers (0=Sunday through 6=Saturday).
+ */
+const HEBREW_DAY_MAP = {
+  'ראשון': 0,    'יום ראשון': 0,    "א'": 0,
+  'שני': 1,      'יום שני': 1,      "ב'": 1,
+  'שלישי': 2,    'יום שלישי': 2,    "ג'": 2,
+  'רביעי': 3,    'יום רביעי': 3,    "ד'": 3,
+  'חמישי': 4,    'יום חמישי': 4,    "ה'": 4,
+  'שישי': 5,     'יום שישי': 5,     "ו'": 5,
+  'שבת': 6,      'יום שבת': 6,
+};
+
+/**
+ * Convert Hebrew day text to a dayOfWeek number.
+ * @param {string} dayText - Hebrew day name or abbreviation
+ * @returns {number|null} 0-6 or null if not recognized
+ */
+function hebrewDayToNumber(dayText) {
+  if (!dayText || typeof dayText !== 'string') return null;
+  const trimmed = dayText.trim();
+  return HEBREW_DAY_MAP[trimmed] !== undefined ? HEBREW_DAY_MAP[trimmed] : null;
+}
+
+/**
+ * Ordered list of subType keywords for matching within ensemble names.
+ * Longest/most specific keywords first to avoid partial matches.
+ */
+const SUBTYPE_KEYWORDS = [
+  { keyword: 'קאמרי קלאסי', subType: 'קאמרי קלאסי' },
+  { keyword: 'כלי נשיפה', subType: 'כלי נשיפה' },
+  { keyword: 'כלי קשת', subType: 'כלי קשת' },
+  { keyword: 'סימפונית', subType: 'סימפונית' },
+  { keyword: 'ביג-בנד', subType: 'ביג-בנד' },
+  { keyword: "ג'אז", subType: "ג'אז-פופ-רוק" },
+  { keyword: 'פופ', subType: "ג'אז-פופ-רוק" },
+  { keyword: 'רוק', subType: "ג'אז-פופ-רוק" },
+  { keyword: 'עממית', subType: 'עממית' },
+  { keyword: 'מקהלה', subType: 'מקהלה' },
+  { keyword: 'קולי', subType: 'קולי' },
+  { keyword: 'קאמרי', subType: 'קאמרי קלאסי' },  // Abbreviated form — MUST come after 'קאמרי קלאסי'
+];
+
+/**
+ * Decompose a Hebrew ensemble name into structured type/subType fields.
+ * Stores rawName verbatim (per locked decision). Detects type from prefix
+ * with participant count fallback. Detects subType from keyword matching.
+ *
+ * @param {string} rawName - Verbatim ensemble name from Excel
+ * @param {number} participantCount - Number of participants (for type fallback)
+ * @returns {{ name: string, type: string, subType: string|null, warning: string|null }}
+ */
+function decomposeEnsembleName(rawName, participantCount) {
+  const name = rawName.trim();
+
+  // Detect type from prefix (handle abbreviations: תז', תז`, תז׳)
+  let type = null;
+  if (/^תז[׳'`']/.test(name) || name.startsWith('תזמורת')) {
+    type = 'תזמורת';
+  } else if (name.startsWith('הרכב')) {
+    type = 'הרכב';
+  } else if (name.startsWith('מקהלה')) {
+    type = 'הרכב'; // Choirs are ensemble type (הרכב); subType will be מקהלה
+  }
+
+  // Fallback: classify by participant count
+  if (!type) {
+    type = participantCount > 12 ? 'תזמורת' : 'הרכב';
+  }
+
+  // Detect subType from keywords (first match wins)
+  let subType = null;
+  for (const { keyword, subType: st } of SUBTYPE_KEYWORDS) {
+    if (name.includes(keyword)) {
+      subType = st;
+      break;
+    }
+  }
+
+  return {
+    name,
+    type,
+    subType,
+    warning: subType === null ? 'לא ניתן לזהות סוג משנה מהשם' : null,
+  };
+}
+
+/**
+ * Detect performance level from cell background colors.
+ * Ministry files mark exactly one of three cells (התחלתי/ביניים/ייצוגי) with a colored background.
+ *
+ * @param {Array} cells - Array of ExcelJS cell objects for the row
+ * @param {{ beginnerCol: number, intermediateCol: number, representativeCol: number }} perfLevelCols
+ * @returns {string|null} 'התחלתי' | 'ביניים' | 'ייצוגי' | null
+ */
+function detectPerformanceLevel(cells, perfLevelCols) {
+  if (!perfLevelCols) return null;
+  const levels = [
+    { col: perfLevelCols.beginnerCol, level: 'התחלתי' },
+    { col: perfLevelCols.intermediateCol, level: 'ביניים' },
+    { col: perfLevelCols.representativeCol, level: 'ייצוגי' },
+  ];
+
+  for (const { col, level } of levels) {
+    if (col != null && cells[col] && isColoredCell(cells[col].fill)) {
+      return level;
+    }
+  }
+  return null;
+}
+
 // Role column names (Ministry boolean column names → TEACHER_ROLES)
 // Note: 'הוראה' is NOT a role column — it's a numeric teaching-hours SUMIF column in Ministry files
 const ROLE_COLUMN_NAMES = {

@@ -201,7 +201,7 @@ export const SUPER_ADMIN_PERMISSIONS = ['manage_tenants', 'view_analytics', 'bil
 
 export const IMPORT_STATUSES = ['processing', 'completed', 'failed', 'partial'];
 
-export const IMPORT_TYPES = ['teachers', 'students'];
+export const IMPORT_TYPES = ['teachers', 'students', 'ensembles'];
 
 // ─── Weekly Hours (ש"ש) Conversion ────────────────────────────────────────────
 
