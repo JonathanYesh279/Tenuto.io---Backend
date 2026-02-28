@@ -2,55 +2,41 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-27)
+See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.3 Conservatory Information Import — Phase 20 (Conservatory Excel Parser + API)
+**Current focus:** v1.4 Ensemble Import — Phase 23 (Ensemble Parser and Preview)
 
 ## Current Position
 
-Phase: 20 of 22 (Conservatory Excel Parser + API)
-Plan: 1 of 1 in current phase (COMPLETE)
-Status: Phase 20 complete — ready for Phase 21
-Last activity: 2026-02-27 — Phase 20 Plan 01 executed (2 tasks, 4 min)
+Phase: 23 of 25 (Ensemble Parser and Preview)
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-02-28 — Completed 23-01 (Ensemble Sheet Parser)
 
-Progress: [###░░░░░░░] 33% (v1.3) — 1 of 3 phases complete
+Progress: [██████████████████████░░░░░░░░] 73% (22/25 phases across all milestones; 0/3 in v1.4)
 
 ## Performance Metrics
 
 **v1.0 Milestone:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1 Milestone:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2 Milestone:** 8 plans, 5 phases, 1 day (2026-02-27)
-**v1.3 Milestone:** 1 plan completed, 3 phases planned
-
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 20-01 | Conservatory Excel Parser + API | 4min | 2 | 3 |
+**v1.3 Milestone:** 3 plans, 3 phases, 2 days (2026-02-27 -> 2026-02-28)
 
 ## Accumulated Context
 
 ### Decisions
 
-All v1.0-v1.2 decisions archived in PROJECT.md Key Decisions table.
+All decisions archived in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
 
-v1.3 decisions:
-- Preview uses side-by-side diff (current value vs imported value) — user preference
-- All Ministry fields added to settings page (expand conservatoryProfile display) — user preference
-- Director info stored directly on settings, no teacher matching — user preference
-- Import data is global (not year-scoped) — institutional facts don't change per school year
-- Form-style Excel parsing uses fixed cell addresses (not header detection) — form has no column headers
-- All cell values coerced to strings for Joi schema compatibility
-- Execute merges with existing conservatoryProfile (preserves manually-entered fields)
-- managerName maps to both conservatoryProfile.managerName and director.name
-- Reuses existing /execute/:importLogId dispatcher with new conservatory case
-
-### Key Infrastructure (already exists)
-- `conservatoryProfile` schema with 19 fields in `tenant.validation.js`
-- `PUT /api/tenant/:id` accepts conservatoryProfile updates
-- Import page has established 3-step flow (upload -> preview -> results)
-- Import service at `api/import/import.service.js` handles teacher/student/conservatory imports
-- `POST /api/import/conservatory/preview` — parses form-style Excel, returns diff preview
-- `POST /api/import/execute/:importLogId` — executes conservatory import (dispatcher pattern)
+- v1.4: Type classification by participant count (>12 = orchestra, <=12 = ensemble) — SCHM-03
+- v1.4: Defer rehearsal auto-creation; store scheduleSlots[] on orchestra instead
+- v1.4: Skip orchestras with unresolved conductors (partialResults.skipped[]) rather than storing null conductorId
+- v1.4: Fixed cell-address parsing (not header detection) for duplicate Activity I/II column names
+- 23-01: SUBTYPE_KEYWORDS ordered longest-first to prevent partial matches in name decomposition
+- 23-01: Analytics boundary detected by keyword match + two consecutive empty rows
+- 23-01: Performance level from cell background color via isColoredCell(), not text
 
 ### Pending Todos
 
@@ -62,6 +48,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-02-27
-Stopped at: Completed 20-01-PLAN.md (Phase 20 complete)
-Resume: Plan Phase 21 (`/gsd:plan-phase 21`) or execute next phase
+Last session: 2026-02-28
+Stopped at: Completed 23-01-PLAN.md (Ensemble Sheet Parser)
+Resume: Execute 23-02-PLAN.md (Ensemble Preview Endpoint)
