@@ -2942,20 +2942,10 @@ async function executeEnsembleImport(log, importLogCollection, tenantId, userId)
   }
 
   // ─── Build results ────────────────────────────────────────────────────
-  // Count successfully inserted (validDocs minus any write errors)
-  const writeErrorIndices = new Set();
-  if (errors.length > 0 && insertResult) {
-    // writeErrors already pushed to errors array above; count from validDocs
-  }
-  const failedInsertCount = errors.filter(e =>
-    toCreate.some(row => row.row === e.row && row.name === e.name)
-  ).length;
-  const createdCount = validDocs.length - (failedInsertCount > errors.length ? 0 : failedInsertCount - (errors.length - failedInsertCount > 0 ? errors.length - failedInsertCount : 0));
-
-  // Simpler: count inserted IDs
-  let actualCreatedCount = 0;
+  // Count successfully inserted docs from insertResult.insertedIds
+  let createdCount = 0;
   if (insertResult?.insertedIds) {
-    actualCreatedCount = Object.keys(insertResult.insertedIds).length;
+    createdCount = Object.keys(insertResult.insertedIds).length;
   }
 
   // Build affectedDocIds
@@ -2971,7 +2961,7 @@ async function executeEnsembleImport(log, importLogCollection, tenantId, userId)
 
   const results = {
     totalRows: rows.length,
-    createdCount: actualCreatedCount,
+    createdCount,
     updatedCount: toUpdate.length,
     skippedCount: skipped.length + noChangeCount,
     noChangeCount,
@@ -2982,7 +2972,7 @@ async function executeEnsembleImport(log, importLogCollection, tenantId, userId)
   };
 
   // ─── Update import_log ────────────────────────────────────────────────
-  const totalSuccess = actualCreatedCount + toUpdate.length;
+  const totalSuccess = createdCount + toUpdate.length;
   const status = errors.length > 0 && totalSuccess > 0 ? 'partial' : errors.length > 0 ? 'failed' : 'completed';
   await importLogCollection.updateOne(
     { _id: log._id, tenantId },
