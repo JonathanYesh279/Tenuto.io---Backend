@@ -141,52 +141,58 @@ async function getTeacherLessons(teacherId, options = {}) {
         $addFields: {
           instrumentName: '$instrument.instrumentName',
           currentStage: '$instrument.currentStage',
-          // Calculate end time
+          // Calculate end time (guard against null/empty time from imported data)
           endTime: {
-            $concat: [
-              {
-                $toString: {
-                  $floor: {
-                    $divide: [
-                      {
-                        $add: [
-                          { $multiply: [{ $toInt: { $substr: ['$time', 0, 2] } }, 60] },
-                          { $toInt: { $substr: ['$time', 3, 2] } },
-                          '$duration'
+            $cond: {
+              if: { $and: [{ $ne: ['$time', null] }, { $ne: ['$time', ''] }, { $gte: [{ $strLenCP: { $ifNull: ['$time', ''] } }, 5] }] },
+              then: {
+                $concat: [
+                  {
+                    $toString: {
+                      $floor: {
+                        $divide: [
+                          {
+                            $add: [
+                              { $multiply: [{ $toInt: { $substr: ['$time', 0, 2] } }, 60] },
+                              { $toInt: { $substr: ['$time', 3, 2] } },
+                              { $ifNull: ['$duration', 0] }
+                            ]
+                          },
+                          60
                         ]
-                      },
-                      60
-                    ]
-                  }
-                }
-              },
-              ':',
-              {
-                $let: {
-                  vars: {
-                    minutes: {
-                      $mod: [
-                        {
-                          $add: [
-                            { $multiply: [{ $toInt: { $substr: ['$time', 0, 2] } }, 60] },
-                            { $toInt: { $substr: ['$time', 3, 2] } },
-                            '$duration'
-                          ]
-                        },
-                        60
-                      ]
+                      }
                     }
                   },
-                  in: {
-                    $cond: [
-                      { $lt: ['$$minutes', 10] },
-                      { $concat: ['0', { $toString: '$$minutes' }] },
-                      { $toString: '$$minutes' }
-                    ]
+                  ':',
+                  {
+                    $let: {
+                      vars: {
+                        minutes: {
+                          $mod: [
+                            {
+                              $add: [
+                                { $multiply: [{ $toInt: { $substr: ['$time', 0, 2] } }, 60] },
+                                { $toInt: { $substr: ['$time', 3, 2] } },
+                                { $ifNull: ['$duration', 0] }
+                              ]
+                            },
+                            60
+                          ]
+                        }
+                      },
+                      in: {
+                        $cond: [
+                          { $lt: ['$$minutes', 10] },
+                          { $concat: ['0', { $toString: '$$minutes' }] },
+                          { $toString: '$$minutes' }
+                        ]
+                      }
+                    }
                   }
-                }
-              }
-            ]
+                ]
+              },
+              else: null
+            }
           }
         }
       }
