@@ -42,14 +42,22 @@ const VALID_LOCATIONS = [
   'חדר תאוריה ב',
 ];
 
+const scheduleSlotSchema = Joi.object({
+  dayOfWeek: Joi.number().integer().min(0).max(6).required(),
+  startTime: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
+  endTime: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
+});
+
 const ministryDataSchema = Joi.object({
   coordinationHours: Joi.number().min(0).max(50).allow(null).default(null),
   totalReportingHours: Joi.number().min(0).max(100).allow(null).default(null),
   ministryUseCode: Joi.number().allow(null).default(null),
+  importedParticipantCount: Joi.number().integer().min(0).allow(null).default(null),
 }).default({
   coordinationHours: null,
   totalReportingHours: null,
   ministryUseCode: null,
+  importedParticipantCount: null,
 });
 
 export const orchestraSchema = Joi.object({
@@ -69,6 +77,7 @@ export const orchestraSchema = Joi.object({
   conductorId: Joi.string().required(),
   memberIds: Joi.array().items(Joi.string()).default([]),
   rehearsalIds: Joi.array().items(Joi.string()).default([]),
+  scheduleSlots: Joi.array().items(scheduleSlotSchema).default([]),
   schoolYearId: Joi.string().required(),
   location: Joi.string()
     .valid(...VALID_LOCATIONS)
@@ -94,6 +103,7 @@ export const orchestraUpdateSchema = Joi.object({
   conductorId: Joi.string().optional(),
   memberIds: Joi.array().items(Joi.string()).optional(),
   rehearsalIds: Joi.array().items(Joi.string()).optional(),
+  scheduleSlots: Joi.array().items(scheduleSlotSchema).optional(),
   schoolYearId: Joi.string().optional(),
   location: Joi.string()
     .valid(...VALID_LOCATIONS)
@@ -102,6 +112,7 @@ export const orchestraUpdateSchema = Joi.object({
     coordinationHours: Joi.number().min(0).max(50).allow(null),
     totalReportingHours: Joi.number().min(0).max(100).allow(null),
     ministryUseCode: Joi.number().allow(null),
+    importedParticipantCount: Joi.number().integer().min(0).allow(null),
   }).optional(),
   isActive: Joi.boolean().optional(),
 });

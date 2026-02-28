@@ -4,6 +4,7 @@ export const importController = {
   previewTeacherImport,
   previewStudentImport,
   previewConservatoryImport,
+  previewEnsembleImport,
   executeImport,
   repairImportedTeachers,
 };
@@ -38,6 +39,18 @@ async function previewConservatoryImport(req, res, next) {
       return res.status(400).json({ error: 'לא הועלה קובץ' });
     }
     const result = await importService.previewConservatoryImport(req.file.buffer, { context: req.context });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function previewEnsembleImport(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'לא הועלה קובץ' });
+    }
+    const result = await importService.previewEnsembleImport(req.file.buffer, { context: req.context });
     res.json(result);
   } catch (err) {
     next(err);

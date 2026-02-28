@@ -42,6 +42,14 @@ router.post(
   importController.previewConservatoryImport
 );
 
+// Ensemble preview (tabular sheet with cell color detection)
+router.post(
+  '/ensembles/preview',
+  requireAuth(['מנהל']),
+  importUpload.single('file'),
+  importController.previewEnsembleImport
+);
+
 // Execute — apply the previewed import by importLogId
 router.post(
   '/execute/:importLogId',
