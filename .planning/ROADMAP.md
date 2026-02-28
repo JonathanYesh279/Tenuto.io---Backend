@@ -6,7 +6,7 @@
 - [x] **v1.1 Super Admin Platform Management** — Phases 10-14 (shipped 2026-02-26)
 - [x] **v1.2 Student Import Enhancement** — Phases 15-19 (shipped 2026-02-27)
 - [x] **v1.3 Conservatory Information Import** — Phases 20-22 (shipped 2026-02-28)
-- [ ] **v1.4 Ensemble Import** — Phases 23-25 (in progress)
+- [ ] **v1.4 Ensemble Import** — Phases 23-26 (in progress)
 
 ## Phases
 
@@ -70,7 +70,8 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 - [x] **Phase 23: Ensemble Parser and Preview** - Parse Ministry ensemble Excel, decompose Hebrew names, match conductors and existing orchestras, deliver preview endpoint — completed 2026-02-28
 - [x] **Phase 24: Ensemble Execute and Schema** - Bulk-safe orchestra creation/update, conductor linking, ministry data storage, schema extensions — completed 2026-02-28
-- [ ] **Phase 25: Ensemble Import Frontend** - 4th import tab with upload, preview, conductor/name warnings, and results flow
+- [x] **Phase 25: Ensemble Import Frontend** - 4th import tab with upload, preview, conductor/name warnings, and results flow — completed 2026-02-28
+- [ ] **Phase 26: Student-Orchestra Linking from Import** - Parse ensemble columns from student Excel, match to existing orchestras, enroll students via $addToSet
 
 ## Phase Details
 
@@ -112,12 +113,12 @@ Plans:
   3. Preview displays conductor match warnings (amber/red badges for ambiguous/unresolved conductors) and warnings for unrecognized ensemble names that could not be decomposed
 **Plans:** 1 plan
 Plans:
-- [ ] 25-01-PLAN.md — Add ensemble import tab with preview, conductor badges, and results
+- [x] 25-01-PLAN.md — Add ensemble import tab with preview, conductor badges, and results
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 23 -> 24 -> 25
+Phases execute in numeric order: 23 -> 24 -> 25 -> 26
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -145,8 +146,24 @@ Phases execute in numeric order: 23 -> 24 -> 25
 | 22. Settings Page Expansion | v1.3 | 1/1 | Complete | 2026-02-28 |
 | 23. Ensemble Parser and Preview | v1.4 | 2/2 | Complete | 2026-02-28 |
 | 24. Ensemble Execute and Schema | v1.4 | 1/1 | Complete | 2026-02-28 |
-| 25. Ensemble Import Frontend | v1.4 | 0/1 | Not started | - |
+| 25. Ensemble Import Frontend | v1.4 | 1/1 | Complete | 2026-02-28 |
+| 26. Student-Orchestra Linking from Import | v1.4 | 0/2 | Not started | - |
+
+### Phase 26: Student-Orchestra Linking from Import
+**Goal**: Students imported from Ministry Excel are automatically linked to their orchestras based on the הרכבי ביצוע columns (9 ensemble columns containing specific orchestra names).
+**Depends on**: Phase 24 (orchestras must exist in DB before student import can link to them)
+**Requirements**: LINK-01, LINK-02, LINK-03, LINK-04, LINK-05
+**Success Criteria** (what must be TRUE):
+  1. Student import preview parses the 9 ensemble columns and shows per-student orchestra matches with green badges for matched and amber warnings for unmatched names
+  2. Student import execute enrolls matched students in orchestras via $addToSet on both orchestra.memberIds and student.enrollments.orchestraIds
+  3. Unmatched orchestra names are shown as warnings without blocking the import
+  4. Re-importing the same file is idempotent (no duplicate memberships)
+**Plans:** 2 plans
+
+Plans:
+- [ ] 26-01-PLAN.md — Backend: extend previewStudentImport with ensemble column detection and orchestra name matching, extend executeStudentImport with bulk $addToSet enrollment
+- [ ] 26-02-PLAN.md — Frontend: orchestra match summary cards, per-student orchestra badges, and link count in results
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-28 — Phase 25 planned (1 plan)*
+*Last updated: 2026-02-28 — Phase 26 planned (2 plans in 2 waves)*
