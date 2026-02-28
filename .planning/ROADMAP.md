@@ -68,7 +68,7 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 **Milestone Goal:** Import orchestra/ensemble data from Ministry Excel files using the established preview-then-execute pattern, including Hebrew name decomposition, conductor matching, bulk-safe writes, and a 4th frontend import tab.
 
-- [ ] **Phase 23: Ensemble Parser and Preview** - Parse Ministry ensemble Excel, decompose Hebrew names, match conductors and existing orchestras, deliver preview endpoint
+- [x] **Phase 23: Ensemble Parser and Preview** - Parse Ministry ensemble Excel, decompose Hebrew names, match conductors and existing orchestras, deliver preview endpoint — completed 2026-02-28
 - [ ] **Phase 24: Ensemble Execute and Schema** - Bulk-safe orchestra creation/update, conductor linking, ministry data storage, schema extensions
 - [ ] **Phase 25: Ensemble Import Frontend** - 4th import tab with upload, preview, conductor/name warnings, and results flow
 
@@ -86,8 +86,8 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
   5. Preview differentiates matched existing orchestras (with change diff highlighting) from new orchestras that will be created
 **Plans:** 2 plans
 Plans:
-- [ ] 23-01-PLAN.md — Ensemble sheet parser with helpers (name decomposition, time conversion, performance level detection, analytics mini-table)
-- [ ] 23-02-PLAN.md — Preview endpoint with conductor matching, orchestra matching, route/controller wiring, and schema extensions
+- [x] 23-01-PLAN.md — Ensemble sheet parser with helpers (name decomposition, time conversion, performance level detection, analytics mini-table)
+- [x] 23-02-PLAN.md — Preview endpoint with conductor matching, orchestra matching, route/controller wiring, and schema extensions
 
 ### Phase 24: Ensemble Execute and Schema
 **Goal**: Admin can execute the previewed ensemble import, creating new orchestras and updating existing ones with bulk-safe writes, proper conductor linking, and ministry data storage — all scoped by tenant and school year.
@@ -98,7 +98,9 @@ Plans:
   2. Conductors are linked to their orchestras via teacher.conducting.orchestraIds using a single bulkWrite operation, not individual updates
   3. Import results report created count, updated count, and any skipped entries with reasons (e.g., unresolved conductor, validation failure)
   4. All created/updated orchestras are scoped to the correct tenantId and schoolYearId; coordinationHours and totalReportingHours are stored in orchestra.ministryData
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 24-01-PLAN.md — Implement executeEnsembleImport with bulk insertMany/bulkWrite operations, conductor linking, and results reporting
 
 ### Phase 25: Ensemble Import Frontend
 **Goal**: Admin can import ensembles from the existing import page using a new 4th tab that follows the same upload-preview-results flow as teachers, students, and conservatory imports.
@@ -139,10 +141,10 @@ Phases execute in numeric order: 23 -> 24 -> 25
 | 20. Conservatory Excel Parser + API | v1.3 | 1/1 | Complete | 2026-02-27 |
 | 21. Conservatory Import Frontend | v1.3 | 1/1 | Complete | 2026-02-28 |
 | 22. Settings Page Expansion | v1.3 | 1/1 | Complete | 2026-02-28 |
-| 23. Ensemble Parser and Preview | v1.4 | 0/2 | Not started | - |
-| 24. Ensemble Execute and Schema | v1.4 | 0/TBD | Not started | - |
+| 23. Ensemble Parser and Preview | v1.4 | 2/2 | Complete | 2026-02-28 |
+| 24. Ensemble Execute and Schema | v1.4 | 0/1 | Not started | - |
 | 25. Ensemble Import Frontend | v1.4 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-28 — Phase 23 planned (2 plans)*
+*Last updated: 2026-02-28 — Phase 24 planned (1 plan)*

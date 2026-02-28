@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.4 Ensemble Import — Phase 23 (Ensemble Parser and Preview)
+**Current focus:** v1.4 Ensemble Import — Phase 23 complete, ready for Phase 24
 
 ## Current Position
 
-Phase: 23 of 25 (Ensemble Parser and Preview)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-02-28 — Completed 23-01 (Ensemble Sheet Parser)
+Phase: 23 of 25 (Ensemble Parser and Preview) -- COMPLETE
+Plan: 2 of 2 in current phase (all done)
+Status: Phase complete
+Last activity: 2026-02-28 — Completed 23-02 (Ensemble Preview Endpoint)
 
-Progress: [██████████████████████░░░░░░░░] 73% (22/25 phases across all milestones; 0/3 in v1.4)
+Progress: [████████████████████████░░░░░░] 77% (23/25 phases across all milestones; 1/3 in v1.4)
 
 ## Performance Metrics
 
@@ -37,6 +37,9 @@ Recent decisions affecting current work:
 - 23-01: SUBTYPE_KEYWORDS ordered longest-first to prevent partial matches in name decomposition
 - 23-01: Analytics boundary detected by keyword match + two consecutive empty rows
 - 23-01: Performance level from cell background color via isColoredCell(), not text
+- 23-02: Conductor cache uses Map keyed by trimmed name string for O(1) repeat lookups
+- 23-02: Orchestra matching requires both exact name AND exact conductorId
+- 23-02: Schedule comparison is positional (activity index = slot index)
 
 ### Pending Todos
 
@@ -49,5 +52,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 23-01-PLAN.md (Ensemble Sheet Parser)
-Resume: Execute 23-02-PLAN.md (Ensemble Preview Endpoint)
+Stopped at: Completed 23-02-PLAN.md (Ensemble Preview Endpoint) -- Phase 23 complete
+Resume: Plan Phase 24 (Ensemble Execute) or execute if plan exists
