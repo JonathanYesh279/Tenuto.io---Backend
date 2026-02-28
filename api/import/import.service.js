@@ -26,6 +26,7 @@ import { requireTenantId } from '../../middleware/tenant.middleware.js';
 import { authService } from '../auth/auth.service.js';
 import { invitationConfig, DEFAULT_PASSWORD } from '../../services/invitationConfig.js';
 import { validateTeacherImport } from '../teacher/teacher.validation.js';
+import { validateOrchestra } from '../orchestra/orchestra.validation.js';
 import { tenantService } from '../tenant/tenant.service.js';
 
 export const importService = {
@@ -2330,7 +2331,7 @@ async function executeImport(importLogId, userId, options = {}) {
     } else if (log.importType === 'conservatory') {
       return await executeConservatoryImport(log, importLogCollection, tenantId, userId);
     } else if (log.importType === 'ensembles') {
-      throw new Error('ייבוא הרכבים יתמך בגרסה הבאה');
+      return await executeEnsembleImport(log, importLogCollection, tenantId, userId);
     } else {
       throw new Error(`סוג ייבוא לא מוכר: ${log.importType}`);
     }
@@ -2704,6 +2705,285 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
 
   const totalSuccess = successCount + createdCount;
   const status = errorCount > 0 && totalSuccess > 0 ? 'partial' : errorCount > 0 ? 'failed' : 'completed';
+  await importLogCollection.updateOne(
+    { _id: log._id, tenantId },
+    { $set: { status, results, affectedDocIds, completedAt: new Date() } }
+  );
+
+  return results;
+}
+
+// ─── Ensemble Execute ────────────────────────────────────────────────────────
+
+/**
+ * Convert a schedule object (with optional activity1/activity2) to an array of
+ * schedule slot objects matching the scheduleSlotSchema from orchestra.validation.js.
+ *
+ * @param {object} schedule - { activity1?: { dayOfWeek, startTime, endTime }, activity2?: { ... } }
+ * @returns {Array<{ dayOfWeek: number, startTime: string, endTime: string }>}
+ */
+function buildScheduleSlots(schedule) {
+  const slots = [];
+  if (schedule?.activity1?.dayOfWeek != null) {
+    slots.push({
+      dayOfWeek: schedule.activity1.dayOfWeek,
+      startTime: schedule.activity1.startTime || '00:00',
+      endTime: schedule.activity1.endTime || '00:00',
+    });
+  }
+  if (schedule?.activity2?.dayOfWeek != null) {
+    slots.push({
+      dayOfWeek: schedule.activity2.dayOfWeek,
+      startTime: schedule.activity2.startTime || '00:00',
+      endTime: schedule.activity2.endTime || '00:00',
+    });
+  }
+  return slots;
+}
+
+/**
+ * Execute an ensemble import: create new orchestras, update existing ones,
+ * and link conductors -- all via bulk MongoDB operations.
+ *
+ * @param {object} log - The import_log document (with parsedData.rows, schoolYearId, etc.)
+ * @param {Collection} importLogCollection - The import_log collection handle
+ * @param {string} tenantId - Tenant ID for scoping
+ * @param {string} userId - The admin user executing the import
+ * @returns {object} Results with createdCount, updatedCount, skippedCount, etc.
+ */
+async function executeEnsembleImport(log, importLogCollection, tenantId, userId) {
+  const orchestraCollection = await getCollection('orchestra');
+  const teacherCollection = await getCollection('teacher');
+
+  const rows = log.parsedData?.rows || [];
+
+  // Resolve schoolYearId: use saved value from preview, fallback to current
+  let resolvedSchoolYearId = log.schoolYearId;
+  if (!resolvedSchoolYearId) {
+    const { schoolYearService } = await import('../school-year/school-year.service.js');
+    const current = await schoolYearService.getCurrentSchoolYear({ context: { tenantId } });
+    if (!current) {
+      throw new Error('לא נמצאה שנת לימודים - לא ניתן לבצע ייבוא');
+    }
+    resolvedSchoolYearId = current._id.toString();
+  }
+
+  // ─── Categorize rows ──────────────────────────────────────────────────
+  const toCreate = [];
+  const toUpdate = [];
+  const skipped = [];
+  const errors = [];
+  let noChangeCount = 0;
+
+  for (const row of rows) {
+    const conductorStatus = row.conductorMatch?.status;
+    const matchStatus = row.orchestraMatch?.status;
+
+    if (conductorStatus !== 'resolved') {
+      const importedName = row.conductorMatch?.importedName || row.conductorName || '';
+      skipped.push({
+        row: row.row,
+        name: row.name,
+        reason: conductorStatus === 'ambiguous'
+          ? `מנצח "${importedName}" - התאמה לא חד-משמעית`
+          : `מנצח "${importedName}" - לא נמצא`,
+      });
+      continue;
+    }
+
+    if (matchStatus === 'new') {
+      toCreate.push(row);
+    } else if (matchStatus === 'existing-updated') {
+      toUpdate.push(row);
+    } else {
+      // existing-no-change
+      noChangeCount++;
+    }
+  }
+
+  // ─── Bulk insert new orchestras ───────────────────────────────────────
+  let insertResult = null;
+  const validDocs = [];
+  const validDocIndices = []; // maps validDocs index -> toCreate index
+
+  if (toCreate.length > 0) {
+    for (let i = 0; i < toCreate.length; i++) {
+      const row = toCreate[i];
+
+      // Build document WITHOUT tenantId (Joi strips it), validate, then add tenantId after
+      const rawDoc = {
+        name: row.name,
+        type: row.type,
+        subType: row.subType || null,
+        performanceLevel: row.performanceLevel || null,
+        conductorId: row.conductorMatch.teacherId,
+        memberIds: [],
+        rehearsalIds: [],
+        scheduleSlots: buildScheduleSlots(row.schedule),
+        schoolYearId: resolvedSchoolYearId,
+        location: 'חדר 1',
+        ministryData: {
+          coordinationHours: row.hours?.coordinationHours ?? null,
+          totalReportingHours: row.hours?.totalReporting ?? null,
+          ministryUseCode: row.ministryUseCode ?? null,
+          importedParticipantCount: row.participantCount ?? null,
+        },
+        isActive: true,
+      };
+
+      const { error: validationError, value: validatedDoc } = validateOrchestra(rawDoc);
+      if (validationError) {
+        errors.push({ row: row.row, name: row.name, error: validationError.message });
+        continue;
+      }
+
+      // Add fields that Joi strips or doesn't handle
+      validatedDoc.tenantId = tenantId;
+      validatedDoc.createdAt = new Date();
+      validatedDoc.updatedAt = new Date();
+
+      validDocs.push(validatedDoc);
+      validDocIndices.push(i);
+    }
+
+    if (validDocs.length > 0) {
+      try {
+        insertResult = await orchestraCollection.insertMany(validDocs, { ordered: false });
+      } catch (err) {
+        // BulkWriteError: extract individual write errors
+        if (err.writeErrors && Array.isArray(err.writeErrors)) {
+          // Mark failed rows in errors; successfully inserted docs are still inserted
+          for (const writeError of err.writeErrors) {
+            const docIdx = writeError.index;
+            const createIdx = validDocIndices[docIdx];
+            const row = toCreate[createIdx];
+            errors.push({ row: row.row, name: row.name, error: writeError.errmsg || writeError.message });
+          }
+          // insertMany with ordered:false still returns insertedIds for successful docs
+          insertResult = err.result || err;
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  // ─── Bulk update existing orchestras ──────────────────────────────────
+  if (toUpdate.length > 0) {
+    const updateOps = toUpdate.map(row => ({
+      updateOne: {
+        filter: {
+          _id: ObjectId.createFromHexString(row.orchestraMatch.orchestraId),
+          tenantId,
+        },
+        update: {
+          $set: {
+            type: row.type,
+            subType: row.subType || null,
+            performanceLevel: row.performanceLevel || null,
+            conductorId: row.conductorMatch.teacherId,
+            scheduleSlots: buildScheduleSlots(row.schedule),
+            'ministryData.coordinationHours': row.hours?.coordinationHours ?? null,
+            'ministryData.totalReportingHours': row.hours?.totalReporting ?? null,
+            'ministryData.importedParticipantCount': row.participantCount ?? null,
+            'ministryData.ministryUseCode': row.ministryUseCode ?? null,
+            updatedAt: new Date(),
+          },
+          // memberIds and rehearsalIds are NOT touched -- preserved
+        },
+      },
+    }));
+
+    await orchestraCollection.bulkWrite(updateOps, { ordered: false });
+  }
+
+  // ─── Conductor linking via bulkWrite ──────────────────────────────────
+  const conductorMap = new Map(); // conductorId -> Set<orchestraId>
+
+  // Link conductors for newly created orchestras
+  if (insertResult?.insertedIds) {
+    const insertedIds = insertResult.insertedIds;
+    for (let i = 0; i < validDocs.length; i++) {
+      const createIdx = validDocIndices[i];
+      const row = toCreate[createIdx];
+      const cId = row.conductorMatch.teacherId;
+      // insertedIds is an object keyed by string index for insertMany
+      const oId = insertedIds[i]?.toString();
+      if (oId) {
+        if (!conductorMap.has(cId)) conductorMap.set(cId, new Set());
+        conductorMap.get(cId).add(oId);
+      }
+    }
+  }
+
+  // Link conductors for updated orchestras
+  for (const row of toUpdate) {
+    const cId = row.conductorMatch.teacherId;
+    const oId = row.orchestraMatch.orchestraId;
+    if (!conductorMap.has(cId)) conductorMap.set(cId, new Set());
+    conductorMap.get(cId).add(oId);
+  }
+
+  if (conductorMap.size > 0) {
+    const conductorOps = [];
+    for (const [conductorId, orchestraIdSet] of conductorMap) {
+      conductorOps.push({
+        updateOne: {
+          filter: { _id: ObjectId.createFromHexString(conductorId), tenantId },
+          update: {
+            $addToSet: {
+              'conducting.orchestraIds': { $each: [...orchestraIdSet] },
+            },
+          },
+        },
+      });
+    }
+    await teacherCollection.bulkWrite(conductorOps, { ordered: false });
+  }
+
+  // ─── Build results ────────────────────────────────────────────────────
+  // Count successfully inserted (validDocs minus any write errors)
+  const writeErrorIndices = new Set();
+  if (errors.length > 0 && insertResult) {
+    // writeErrors already pushed to errors array above; count from validDocs
+  }
+  const failedInsertCount = errors.filter(e =>
+    toCreate.some(row => row.row === e.row && row.name === e.name)
+  ).length;
+  const createdCount = validDocs.length - (failedInsertCount > errors.length ? 0 : failedInsertCount - (errors.length - failedInsertCount > 0 ? errors.length - failedInsertCount : 0));
+
+  // Simpler: count inserted IDs
+  let actualCreatedCount = 0;
+  if (insertResult?.insertedIds) {
+    actualCreatedCount = Object.keys(insertResult.insertedIds).length;
+  }
+
+  // Build affectedDocIds
+  const affectedDocIds = [];
+  if (insertResult?.insertedIds) {
+    for (const key of Object.keys(insertResult.insertedIds)) {
+      affectedDocIds.push(insertResult.insertedIds[key].toString());
+    }
+  }
+  for (const row of toUpdate) {
+    affectedDocIds.push(row.orchestraMatch.orchestraId);
+  }
+
+  const results = {
+    totalRows: rows.length,
+    createdCount: actualCreatedCount,
+    updatedCount: toUpdate.length,
+    skippedCount: skipped.length + noChangeCount,
+    noChangeCount,
+    errorCount: errors.length,
+    skipped,
+    errors,
+    affectedDocIds,
+  };
+
+  // ─── Update import_log ────────────────────────────────────────────────
+  const totalSuccess = actualCreatedCount + toUpdate.length;
+  const status = errors.length > 0 && totalSuccess > 0 ? 'partial' : errors.length > 0 ? 'failed' : 'completed';
   await importLogCollection.updateOne(
     { _id: log._id, tenantId },
     { $set: { status, results, affectedDocIds, completedAt: new Date() } }
