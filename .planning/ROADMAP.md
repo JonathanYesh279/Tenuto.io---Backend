@@ -69,7 +69,7 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 **Milestone Goal:** Import orchestra/ensemble data from Ministry Excel files using the established preview-then-execute pattern, including Hebrew name decomposition, conductor matching, bulk-safe writes, and a 4th frontend import tab.
 
 - [x] **Phase 23: Ensemble Parser and Preview** - Parse Ministry ensemble Excel, decompose Hebrew names, match conductors and existing orchestras, deliver preview endpoint — completed 2026-02-28
-- [ ] **Phase 24: Ensemble Execute and Schema** - Bulk-safe orchestra creation/update, conductor linking, ministry data storage, schema extensions
+- [x] **Phase 24: Ensemble Execute and Schema** - Bulk-safe orchestra creation/update, conductor linking, ministry data storage, schema extensions — completed 2026-02-28
 - [ ] **Phase 25: Ensemble Import Frontend** - 4th import tab with upload, preview, conductor/name warnings, and results flow
 
 ## Phase Details
@@ -100,7 +100,7 @@ Plans:
   4. All created/updated orchestras are scoped to the correct tenantId and schoolYearId; coordinationHours and totalReportingHours are stored in orchestra.ministryData
 **Plans:** 1 plan
 Plans:
-- [ ] 24-01-PLAN.md — Implement executeEnsembleImport with bulk insertMany/bulkWrite operations, conductor linking, and results reporting
+- [x] 24-01-PLAN.md — Implement executeEnsembleImport with bulk insertMany/bulkWrite operations, conductor linking, and results reporting
 
 ### Phase 25: Ensemble Import Frontend
 **Goal**: Admin can import ensembles from the existing import page using a new 4th tab that follows the same upload-preview-results flow as teachers, students, and conservatory imports.
@@ -110,7 +110,9 @@ Plans:
   1. Import page shows a 4th tab labeled "הרכבים" alongside the existing teacher, student, and conservatory tabs
   2. Ensemble tab supports the full upload-then-preview-then-execute flow: file upload triggers preview display, user confirms to execute, results are shown
   3. Preview displays conductor match warnings (amber/red badges for ambiguous/unresolved conductors) and warnings for unrecognized ensemble names that could not be decomposed
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 25-01-PLAN.md — Add ensemble import tab with preview, conductor badges, and results
 
 ## Progress
 
@@ -142,9 +144,9 @@ Phases execute in numeric order: 23 -> 24 -> 25
 | 21. Conservatory Import Frontend | v1.3 | 1/1 | Complete | 2026-02-28 |
 | 22. Settings Page Expansion | v1.3 | 1/1 | Complete | 2026-02-28 |
 | 23. Ensemble Parser and Preview | v1.4 | 2/2 | Complete | 2026-02-28 |
-| 24. Ensemble Execute and Schema | v1.4 | 0/1 | Not started | - |
-| 25. Ensemble Import Frontend | v1.4 | 0/TBD | Not started | - |
+| 24. Ensemble Execute and Schema | v1.4 | 1/1 | Complete | 2026-02-28 |
+| 25. Ensemble Import Frontend | v1.4 | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-28 — Phase 24 planned (1 plan)*
+*Last updated: 2026-02-28 — Phase 25 planned (1 plan)*

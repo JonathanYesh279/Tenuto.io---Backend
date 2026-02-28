@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.4 Ensemble Import — Phase 23 complete, ready for Phase 24
+**Current focus:** v1.4 Ensemble Import — Phase 24 complete, ready for Phase 25
 
 ## Current Position
 
-Phase: 23 of 25 (Ensemble Parser and Preview) -- COMPLETE
-Plan: 2 of 2 in current phase (all done)
+Phase: 24 of 25 (Ensemble Execute and Schema) -- COMPLETE
+Plan: 1 of 1 in current phase (all done)
 Status: Phase complete
-Last activity: 2026-02-28 — Completed 23-02 (Ensemble Preview Endpoint)
+Last activity: 2026-02-28 — Completed 24-01 (Ensemble Execute with Bulk Operations)
 
-Progress: [████████████████████████░░░░░░] 77% (23/25 phases across all milestones; 1/3 in v1.4)
+Progress: [██████████████████████████░░░░] 80% (24/25 phases across all milestones; 2/3 in v1.4)
 
 ## Performance Metrics
 
@@ -40,6 +40,10 @@ Recent decisions affecting current work:
 - 23-02: Conductor cache uses Map keyed by trimmed name string for O(1) repeat lookups
 - 23-02: Orchestra matching requires both exact name AND exact conductorId
 - 23-02: Schedule comparison is positional (activity index = slot index)
+- 24-01: tenantId added AFTER Joi validation since orchestraSchema strips it
+- 24-01: insertResult.insertedIds is object keyed by string index (not array)
+- 24-01: Conductor linking includes both created AND updated orchestras
+- 24-01: Use ?? null (not || null) for numeric fields where 0 is valid
 
 ### Pending Todos
 
@@ -52,5 +56,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 23-02-PLAN.md (Ensemble Preview Endpoint) -- Phase 23 complete
-Resume: Plan Phase 24 (Ensemble Execute) or execute if plan exists
+Stopped at: Completed 24-01-PLAN.md (Ensemble Execute with Bulk Operations) -- Phase 24 complete
+Resume: Plan Phase 25 (Ensemble Import Frontend) or execute if plan exists
