@@ -32,6 +32,7 @@ export const importService = {
   previewTeacherImport,
   previewStudentImport,
   previewConservatoryImport,
+  previewEnsembleImport,
   parseEnsembleSheet,
   executeImport,
   repairImportedTeachers,
@@ -1454,6 +1455,121 @@ function matchTeacherByName(nameString, teachers) {
   return { status: 'unresolved', importedName: name };
 }
 
+/**
+ * Build a cached conductor matcher. Returns a function that resolves conductor
+ * names using matchTeacherByName but caches results so repeated names (common
+ * when one conductor leads multiple ensembles) don't trigger redundant matching.
+ *
+ * @param {Array} teachers - Teacher documents with personalInfo.firstName/lastName
+ * @returns {Function} matchConductor(nameString) → { status, teacherId?, teacherName?, ... }
+ */
+function buildConductorCache(teachers) {
+  const cache = new Map();
+
+  return function matchConductor(nameString) {
+    if (!nameString || !String(nameString).trim()) {
+      return { status: 'none' };
+    }
+
+    const key = String(nameString).trim();
+    if (cache.has(key)) {
+      return cache.get(key);
+    }
+
+    const result = matchTeacherByName(key, teachers);
+    cache.set(key, result);
+    return result;
+  };
+}
+
+/**
+ * Match parsed ensemble rows against existing orchestras.
+ * Criteria: exact name AND exact conductorId (both must match).
+ *
+ * For matched orchestras, determines if there are field changes to report
+ * (type, subType, performanceLevel, schedule, hours).
+ *
+ * @param {Array} parsedRows - Parsed rows with conductorMatch attached
+ * @param {Array} existingOrchestras - Orchestra documents from DB
+ * @returns {Map<number, { status, orchestraId?, orchestraName? }>} keyed by row index
+ */
+function matchExistingOrchestras(parsedRows, existingOrchestras) {
+  const matchMap = new Map();
+
+  for (let i = 0; i < parsedRows.length; i++) {
+    const row = parsedRows[i];
+
+    // Only match rows with a resolved conductor
+    if (!row.conductorMatch || row.conductorMatch.status !== 'resolved') {
+      matchMap.set(i, { status: 'new' });
+      continue;
+    }
+
+    const conductorId = row.conductorMatch.teacherId;
+    const match = existingOrchestras.find(
+      o => o.name === row.name && o.conductorId === conductorId
+    );
+
+    if (!match) {
+      matchMap.set(i, { status: 'new' });
+      continue;
+    }
+
+    // Determine if any fields differ
+    const hasChanges =
+      (row.type && row.type !== match.type) ||
+      (row.subType !== undefined && row.subType !== (match.subType || null)) ||
+      (row.performanceLevel !== undefined && row.performanceLevel !== (match.performanceLevel || null)) ||
+      (row.hours?.coordinationHours != null && row.hours.coordinationHours !== (match.ministryData?.coordinationHours || null)) ||
+      (row.hours?.totalReporting != null && row.hours.totalReporting !== (match.ministryData?.totalReportingHours || null)) ||
+      (row.participantCount > 0 && row.participantCount !== (match.ministryData?.importedParticipantCount || null)) ||
+      (row.schedule?.activity1?.dayOfWeek != null && !scheduleMatchesExisting(row.schedule, match.scheduleSlots || []));
+
+    matchMap.set(i, {
+      status: hasChanges ? 'existing-updated' : 'existing-no-change',
+      orchestraId: match._id.toString(),
+      orchestraName: match.name,
+    });
+  }
+
+  return matchMap;
+}
+
+/**
+ * Compare parsed schedule (activity1/activity2) with existing scheduleSlots array.
+ * Returns true if they are equivalent.
+ */
+function scheduleMatchesExisting(parsedSchedule, existingSlots) {
+  // Build expected slots from parsed schedule
+  const expectedSlots = [];
+  if (parsedSchedule.activity1?.dayOfWeek != null) {
+    expectedSlots.push({
+      dayOfWeek: parsedSchedule.activity1.dayOfWeek,
+      startTime: parsedSchedule.activity1.startTime,
+      endTime: parsedSchedule.activity1.endTime,
+    });
+  }
+  if (parsedSchedule.activity2?.dayOfWeek != null) {
+    expectedSlots.push({
+      dayOfWeek: parsedSchedule.activity2.dayOfWeek,
+      startTime: parsedSchedule.activity2.startTime,
+      endTime: parsedSchedule.activity2.endTime,
+    });
+  }
+
+  if (expectedSlots.length !== existingSlots.length) return false;
+
+  for (let s = 0; s < expectedSlots.length; s++) {
+    const exp = expectedSlots[s];
+    const ext = existingSlots[s];
+    if (!ext || exp.dayOfWeek !== ext.dayOfWeek || exp.startTime !== ext.startTime || exp.endTime !== ext.endTime) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // ─── Diff Calculation ────────────────────────────────────────────────────────
 
 const TEACHER_FIELD_PATHS = {
@@ -2213,6 +2329,8 @@ async function executeImport(importLogId, userId, options = {}) {
       return await executeStudentImport(log, importLogCollection, tenantId, userId);
     } else if (log.importType === 'conservatory') {
       return await executeConservatoryImport(log, importLogCollection, tenantId, userId);
+    } else if (log.importType === 'ensembles') {
+      throw new Error('ייבוא הרכבים יתמך בגרסה הבאה');
     } else {
       throw new Error(`סוג ייבוא לא מוכר: ${log.importType}`);
     }
@@ -2592,6 +2710,127 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
   );
 
   return results;
+}
+
+// ─── Ensemble Preview ───────────────────────────────────────────────────────
+
+/**
+ * Preview an ensemble import from a Ministry Excel file.
+ * Parses the ensemble sheet, matches conductors to existing teachers (with caching),
+ * matches against existing orchestras (exact name + conductorId), and returns
+ * a preview with summary statistics. Saves to import_log with status 'pending'.
+ *
+ * @param {Buffer} buffer - Excel file buffer
+ * @param {object} options - { context: { tenantId, schoolYearId } }
+ * @returns {{ importLogId: string, preview: object }}
+ */
+async function previewEnsembleImport(buffer, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+  const schoolYearId = options.context?.schoolYearId || null;
+
+  // Step 1: Parse ensemble sheet
+  const parsedResult = await parseEnsembleSheet(buffer);
+
+  if (!parsedResult) {
+    throw new Error('גליון "הרכבי ביצוע" לא נמצא בקובץ');
+  }
+  if (parsedResult.error === 'missing_columns') {
+    throw new Error(`עמודות חסרות בגיליון הרכבי ביצוע: ${parsedResult.details.join(', ')}`);
+  }
+
+  // Step 2: Fetch all active teachers for conductor matching
+  const teacherCollection = await getCollection('teacher');
+  const teachers = await teacherCollection.find(
+    { tenantId, isActive: { $ne: false } },
+    { projection: { 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 } }
+  ).toArray();
+
+  // Step 3: Match conductors with caching
+  const matchConductor = buildConductorCache(teachers);
+  for (const row of parsedResult.parsedRows) {
+    row.conductorMatch = matchConductor(row.conductorName);
+  }
+
+  // Step 4: Fetch existing orchestras for this tenant + school year
+  const orchestraCollection = await getCollection('orchestra');
+  const orchestraFilter = { tenantId, isActive: { $ne: false } };
+  if (schoolYearId) {
+    orchestraFilter.schoolYearId = schoolYearId;
+  }
+  const existingOrchestras = await orchestraCollection.find(
+    orchestraFilter,
+    { projection: { name: 1, conductorId: 1, type: 1, subType: 1, performanceLevel: 1, scheduleSlots: 1, ministryData: 1, memberIds: 1 } }
+  ).toArray();
+
+  // Step 5: Match existing orchestras
+  const orchestraMatchMap = matchExistingOrchestras(parsedResult.parsedRows, existingOrchestras);
+  for (let i = 0; i < parsedResult.parsedRows.length; i++) {
+    parsedResult.parsedRows[i].orchestraMatch = orchestraMatchMap.get(i) || { status: 'new' };
+  }
+
+  // Step 6: Build summary statistics
+  const conductorSummary = { resolved: 0, unresolved: 0, ambiguous: 0, none: 0 };
+  const orchestraMatchSummary = { new: 0, existingUpdated: 0, existingNoChange: 0 };
+
+  for (const row of parsedResult.parsedRows) {
+    // Conductor summary
+    const cs = row.conductorMatch?.status || 'none';
+    if (cs === 'resolved') conductorSummary.resolved++;
+    else if (cs === 'unresolved') conductorSummary.unresolved++;
+    else if (cs === 'ambiguous') conductorSummary.ambiguous++;
+    else conductorSummary.none++;
+
+    // Orchestra match summary
+    const os = row.orchestraMatch?.status || 'new';
+    if (os === 'new') orchestraMatchSummary.new++;
+    else if (os === 'existing-updated') orchestraMatchSummary.existingUpdated++;
+    else if (os === 'existing-no-change') orchestraMatchSummary.existingNoChange++;
+  }
+
+  // Step 7: Assemble ensemble entries for preview
+  const ensembles = parsedResult.parsedRows.map(row => ({
+    row: row.row,
+    rawName: row.rawName,
+    name: row.name,
+    type: row.type,
+    subType: row.subType,
+    performanceLevel: row.performanceLevel,
+    participantCount: row.participantCount,
+    conductorMatch: row.conductorMatch,
+    schedule: row.schedule,
+    hours: row.hours,
+    ministryUseCode: row.ministryUseCode,
+    orchestraMatch: row.orchestraMatch,
+  }));
+
+  // Step 8: Build preview object
+  const preview = {
+    totalRows: parsedResult.parsedRows.length,
+    ensembles,
+    conductorSummary,
+    orchestraMatchSummary,
+    analytics: parsedResult.analytics,
+    warnings: parsedResult.warnings,
+    errors: [],
+  };
+
+  // Step 9: Save to import_log
+  const importLogCollection = await getCollection('import_log');
+  const logEntry = {
+    importType: 'ensembles',
+    tenantId,
+    schoolYearId,
+    status: 'pending',
+    createdAt: new Date(),
+    preview,
+    parsedData: {
+      rows: parsedResult.parsedRows,
+      analytics: parsedResult.analytics,
+    },
+  };
+  const result = await importLogCollection.insertOne(logEntry);
+
+  return { importLogId: result.insertedId.toString(), preview };
 }
 
 // ─── Ensemble Sheet Parser ──────────────────────────────────────────────────
