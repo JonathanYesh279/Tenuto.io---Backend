@@ -32,6 +32,7 @@ export const importService = {
   previewTeacherImport,
   previewStudentImport,
   previewConservatoryImport,
+  parseEnsembleSheet,
   executeImport,
   repairImportedTeachers,
 };
@@ -2591,6 +2592,456 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
   );
 
   return results;
+}
+
+// ─── Ensemble Sheet Parser ──────────────────────────────────────────────────
+
+const ENSEMBLE_SHEET_NAME = 'הרכבי ביצוע';
+
+/**
+ * Parse the analytics mini-table at the bottom of the ensemble sheet.
+ * Looks for known category names and extracts ensemble counts and participant totals.
+ * Best-effort: returns null if the format is unrecognizable.
+ *
+ * @param {Array} rowEntries - All row entries from the sheet
+ * @param {number} startIdx - Index in rowEntries where analytics section begins
+ * @returns {object|null} Analytics object or null
+ */
+function parseAnalyticsMiniTable(rowEntries, startIdx) {
+  if (startIdx >= rowEntries.length) return null;
+
+  const ANALYTICS_CATEGORIES = [
+    'תזמורות כלי נשיפה',
+    'תזמורות סימפוניות',
+    'תזמורות כלי קשת',
+    'תזמורות עממיות',
+    'הרכבי ביג-בנד',
+    'מקהלות',
+    'הרכב קולי',
+    'הרכבים קאמריים',
+    "הרכבי ג'אז",
+    'תזמורות מעורבות',
+  ];
+
+  const byType = [];
+  let totalEnsembles = null;
+  let totalParticipants = null;
+  const performanceLevelBreakdown = { beginner: null, intermediate: null, representative: null };
+  let foundAny = false;
+
+  for (let i = startIdx; i < rowEntries.length; i++) {
+    const { texts } = rowEntries[i];
+    if (!texts || texts.length === 0) continue;
+
+    // Find the first non-empty text (category name)
+    const joinedText = texts.filter(t => t).join(' ');
+
+    // Check for category rows
+    for (const cat of ANALYTICS_CATEGORIES) {
+      if (joinedText.includes(cat)) {
+        foundAny = true;
+        // Extract numeric values from subsequent cells
+        const nums = texts.filter(t => t).map(t => parseFloat(t)).filter(n => !isNaN(n));
+        byType.push({
+          category: cat,
+          ensembleCount: nums[0] || 0,
+          participantCount: nums[1] || 0,
+        });
+        break;
+      }
+    }
+
+    // Check for total rows
+    if (joinedText.includes('סך גופי') || joinedText.includes('סה"כ גופי')) {
+      const nums = texts.filter(t => t).map(t => parseFloat(t)).filter(n => !isNaN(n));
+      if (nums.length > 0) totalEnsembles = nums[0];
+      if (nums.length > 1) totalParticipants = nums[1];
+      foundAny = true;
+    }
+    if (joinedText.includes('סך משתתפים') || joinedText.includes('סה"כ משתתפים')) {
+      const nums = texts.filter(t => t).map(t => parseFloat(t)).filter(n => !isNaN(n));
+      if (nums.length > 0) totalParticipants = nums[0];
+      foundAny = true;
+    }
+
+    // Check for performance level breakdown
+    if (joinedText.includes('התחלתי') && (joinedText.includes('ביניים') || joinedText.includes('ייצוגי'))) {
+      // Row likely contains performance level headers; skip, values may be in next row
+      continue;
+    }
+    if (joinedText.includes('התחלתי')) {
+      const nums = texts.filter(t => t).map(t => parseFloat(t)).filter(n => !isNaN(n));
+      if (nums.length > 0) performanceLevelBreakdown.beginner = nums[0];
+    }
+    if (joinedText.includes('ביניים')) {
+      const nums = texts.filter(t => t).map(t => parseFloat(t)).filter(n => !isNaN(n));
+      if (nums.length > 0) performanceLevelBreakdown.intermediate = nums[0];
+    }
+    if (joinedText.includes('ייצוגי')) {
+      const nums = texts.filter(t => t).map(t => parseFloat(t)).filter(n => !isNaN(n));
+      if (nums.length > 0) performanceLevelBreakdown.representative = nums[0];
+    }
+  }
+
+  if (!foundAny) return null;
+
+  return {
+    byType,
+    totalEnsembles,
+    totalParticipants,
+    performanceLevelBreakdown,
+  };
+}
+
+/**
+ * Parse the Ministry "הרכבי ביצוע" (ensemble performance) sheet from an Excel buffer.
+ * Uses ExcelJS for cell style/fill detection (performance level columns use background color).
+ * Uses FIXED-POSITION column parsing (not header detection) to handle duplicate Activity I/II column names.
+ *
+ * @param {Buffer} buffer - Excel file buffer
+ * @returns {object|null} { parsedRows, analytics, warnings } or null if sheet not found
+ */
+async function parseEnsembleSheet(buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+
+  const worksheet = workbook.worksheets.find(ws => ws.name === ENSEMBLE_SHEET_NAME);
+  if (!worksheet) return null;
+
+  // --- Collect all rows with cell objects and text values ---
+  // (Same pattern as parseMinistryTeacherSheet)
+  const rowEntries = []; // { rowNumber, cells: Cell[], texts: string[] }
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    const cells = [];
+    const texts = [];
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      while (cells.length < colNumber - 1) {
+        cells.push(null);
+        texts.push('');
+      }
+      cells.push(cell);
+      const val = cell.value;
+      let text = '';
+      if (val == null) text = '';
+      else if (typeof val === 'boolean') text = '';
+      else if (typeof val === 'object' && val.richText) {
+        text = val.richText.map(r => (r?.text ?? '')).join('');
+      } else if (typeof val === 'object' && ('formula' in val || 'sharedFormula' in val)) {
+        const result = val.result;
+        if (result == null || typeof result === 'boolean') text = '';
+        else if (typeof result === 'object' && result.richText) text = result.richText.map(r => (r?.text ?? '')).join('');
+        else text = String(result);
+      } else if (val instanceof Date) text = '';
+      else text = String(val).trim();
+      texts.push(text.replace(/[\u200F\u200E\uFEFF\u200B]/g, ''));
+    });
+    rowEntries.push({ rowNumber, cells, texts });
+  });
+
+  if (rowEntries.length === 0) return null;
+
+  // --- Header detection ---
+  // Scan first 10 rows for the header row using a scoring approach
+  const HEADER_FRAGMENTS = ['מנצח', 'מדריך', 'משתתפים', 'נגנים', 'ביום', 'משעה', 'עד שעה', 'שעות בפועל'];
+  const maxScan = Math.min(10, rowEntries.length);
+  let headerIdx = -1;
+  let headerScore = 0;
+
+  for (let i = 0; i < maxScan; i++) {
+    let score = 0;
+    const joined = rowEntries[i].texts.join(' ');
+    for (const frag of HEADER_FRAGMENTS) {
+      if (joined.includes(frag)) score++;
+    }
+    if (score > headerScore) {
+      headerScore = score;
+      headerIdx = i;
+    }
+  }
+
+  if (headerScore < 3 || headerIdx === -1) {
+    return { parsedRows: [], analytics: null, warnings: [{ row: null, field: 'header', message: 'לא נמצאה שורת כותרת בגיליון הרכבי ביצוע' }] };
+  }
+
+  // --- Fixed-position column mapping ---
+  const headerTexts = rowEntries[headerIdx].texts;
+
+  // Utility: find column index where text includes a pattern
+  const findCol = (pattern) => {
+    for (let c = 0; c < headerTexts.length; c++) {
+      if (headerTexts[c] && headerTexts[c].includes(pattern)) return c;
+    }
+    return null;
+  };
+
+  // Conductor column
+  let conductorCol = null;
+  for (let c = 0; c < headerTexts.length; c++) {
+    if (headerTexts[c] && (headerTexts[c].includes('מנצח') || headerTexts[c].includes('מדריך'))) {
+      conductorCol = c;
+      break;
+    }
+  }
+
+  // Ensemble name column: text containing 'תזמורת' and one of ('הרכב', 'כלי', 'קולי')
+  let nameCol = null;
+  for (let c = 0; c < headerTexts.length; c++) {
+    if (headerTexts[c] && headerTexts[c].includes('תזמורת') &&
+        (headerTexts[c].includes('הרכב') || headerTexts[c].includes('כלי') || headerTexts[c].includes('קולי'))) {
+      nameCol = c;
+      break;
+    }
+  }
+
+  // Participant count column
+  let participantCol = null;
+  for (let c = 0; c < headerTexts.length; c++) {
+    if (headerTexts[c] && (headerTexts[c].includes('משתתפים') || headerTexts[c].includes('נגנים') || headerTexts[c].includes('זמרים'))) {
+      participantCol = c;
+      break;
+    }
+  }
+
+  // Activity 1 sub-columns: find FIRST occurrence of 'ביום'
+  let act1DayCol = null, act1StartCol = null, act1EndCol = null, act1HoursCol = null;
+  let act2DayCol = null, act2StartCol = null, act2EndCol = null, act2HoursCol = null;
+  let firstDayColFound = false;
+  for (let c = 0; c < headerTexts.length; c++) {
+    if (headerTexts[c] && headerTexts[c].includes('ביום')) {
+      if (!firstDayColFound) {
+        // Activity 1
+        act1DayCol = c;
+        act1StartCol = c + 1;
+        act1EndCol = c + 2;
+        act1HoursCol = c + 3;
+        firstDayColFound = true;
+      } else {
+        // Activity 2
+        act2DayCol = c;
+        act2StartCol = c + 1;
+        act2EndCol = c + 2;
+        act2HoursCol = c + 3;
+        break;
+      }
+    }
+  }
+
+  // Total weekly hours: text matching 'ש"ש' AND ('הרכב' or 'ביצוע' or 'בפועל')
+  let totalWeeklyHoursCol = null;
+  for (let c = 0; c < headerTexts.length; c++) {
+    const t = headerTexts[c];
+    if (t && (t.includes('ש"ש') || t.includes("ש''ש")) &&
+        (t.includes('הרכב') || t.includes('ביצוע') || t.includes('בפועל'))) {
+      totalWeeklyHoursCol = c;
+      break;
+    }
+  }
+
+  // Coordination/preparation hours: text containing 'הכנה' or 'ריכוז'
+  let coordHoursCol = null;
+  for (let c = 0; c < headerTexts.length; c++) {
+    if (headerTexts[c] && (headerTexts[c].includes('הכנה') || headerTexts[c].includes('ריכוז'))) {
+      coordHoursCol = c;
+      break;
+    }
+  }
+
+  // Total reporting hours: text containing 'דיווח' or 'ימ"ש'
+  let totalReportingCol = null;
+  for (let c = 0; c < headerTexts.length; c++) {
+    const t = headerTexts[c];
+    if (t && (t.includes('דיווח') || t.includes('ימ"ש') || t.includes("ימ''ש"))) {
+      totalReportingCol = c;
+      break;
+    }
+  }
+
+  // Performance level columns: find 3 columns for 'התחלתי', 'ביניים', 'ייצוגי'
+  // Check both the header row AND parent rows above (multi-row merged headers)
+  let perfBeginnerCol = null, perfIntermediateCol = null, perfRepresentativeCol = null;
+
+  // First, scan the header row itself
+  for (let c = 0; c < headerTexts.length; c++) {
+    if (headerTexts[c]) {
+      if (headerTexts[c].includes('התחלתי')) perfBeginnerCol = c;
+      else if (headerTexts[c].includes('ביניים')) perfIntermediateCol = c;
+      else if (headerTexts[c].includes('ייצוגי')) perfRepresentativeCol = c;
+    }
+  }
+
+  // If not all found, scan parent rows above header (up to 3 rows above)
+  if (perfBeginnerCol === null || perfIntermediateCol === null || perfRepresentativeCol === null) {
+    for (let r = headerIdx - 1; r >= Math.max(0, headerIdx - 3); r--) {
+      const parentTexts = rowEntries[r].texts;
+      for (let c = 0; c < parentTexts.length; c++) {
+        if (parentTexts[c]) {
+          if (parentTexts[c].includes('התחלתי') && perfBeginnerCol === null) perfBeginnerCol = c;
+          else if (parentTexts[c].includes('ביניים') && perfIntermediateCol === null) perfIntermediateCol = c;
+          else if (parentTexts[c].includes('ייצוגי') && perfRepresentativeCol === null) perfRepresentativeCol = c;
+        }
+      }
+    }
+  }
+
+  const perfLevelCols = (perfBeginnerCol != null || perfIntermediateCol != null || perfRepresentativeCol != null)
+    ? { beginnerCol: perfBeginnerCol, intermediateCol: perfIntermediateCol, representativeCol: perfRepresentativeCol }
+    : null;
+
+  // Ministry use column: text containing 'לשימוש המשרד' or 'לשימוש'
+  let ministryUseCol = null;
+  for (let c = 0; c < headerTexts.length; c++) {
+    if (headerTexts[c] && (headerTexts[c].includes('לשימוש המשרד') || headerTexts[c].includes('לשימוש'))) {
+      ministryUseCol = c;
+      break;
+    }
+  }
+
+  // Validate critical columns
+  const missingCols = [];
+  if (conductorCol === null) missingCols.push('שם המנצח/מדריך');
+  if (nameCol === null) missingCols.push('תזמורת/הרכב');
+  if (participantCol === null) missingCols.push('מספר משתתפים');
+
+  if (missingCols.length > 0) {
+    return { error: 'missing_columns', details: missingCols };
+  }
+
+  // --- Data row parsing ---
+  const ANALYTICS_KEYWORDS = ['סיכום', 'סך גופי', 'תזמורות כלי', 'סך משתתפים'];
+  const parsedRows = [];
+  const warnings = [];
+  let analyticsStartIdx = null;
+
+  for (let i = headerIdx + 1; i < rowEntries.length; i++) {
+    const { rowNumber, cells, texts } = rowEntries[i];
+
+    // Check for analytics section boundary in first 3 columns
+    let isAnalyticsBoundary = false;
+    for (let c = 0; c < Math.min(3, texts.length); c++) {
+      if (texts[c]) {
+        for (const kw of ANALYTICS_KEYWORDS) {
+          if (texts[c].includes(kw)) {
+            isAnalyticsBoundary = true;
+            break;
+          }
+        }
+      }
+      if (isAnalyticsBoundary) break;
+    }
+
+    if (isAnalyticsBoundary) {
+      analyticsStartIdx = i;
+      break;
+    }
+
+    // Extract conductor and ensemble name
+    const conductorText = (conductorCol != null && texts[conductorCol]) ? texts[conductorCol].trim() : '';
+    const ensembleName = (nameCol != null && texts[nameCol]) ? texts[nameCol].trim() : '';
+
+    // Boundary detection: both conductor and name empty
+    if (!conductorText && !ensembleName) {
+      // Check if the next row also has empty conductor+name (two consecutive = end of data)
+      const nextEntry = rowEntries[i + 1];
+      if (!nextEntry) {
+        // Last row and both empty — end of data
+        analyticsStartIdx = i;
+        break;
+      }
+      const nextConductor = (conductorCol != null && nextEntry.texts[conductorCol]) ? nextEntry.texts[conductorCol].trim() : '';
+      const nextName = (nameCol != null && nextEntry.texts[nameCol]) ? nextEntry.texts[nameCol].trim() : '';
+      if (!nextConductor && !nextName) {
+        // Two consecutive empty rows — end of data
+        analyticsStartIdx = i;
+        break;
+      }
+      // Single empty row — gap, skip it
+      continue;
+    }
+
+    // Skip rows that have only conductor name but no ensemble name (possible sub-header)
+    if (!ensembleName && conductorText) continue;
+
+    // Extract participant count
+    const participantRaw = participantCol != null ? texts[participantCol] : '';
+    const participantCount = parseInt(participantRaw) || 0;
+
+    // Decompose ensemble name
+    const decomposition = decomposeEnsembleName(ensembleName, participantCount);
+
+    // Detect performance level from cell background color
+    const performanceLevel = detectPerformanceLevel(cells, perfLevelCols);
+
+    // Build Activity 1 schedule
+    const activity1 = {
+      day: (act1DayCol != null && texts[act1DayCol]) ? texts[act1DayCol] : null,
+      dayOfWeek: act1DayCol != null ? hebrewDayToNumber(texts[act1DayCol]) : null,
+      startTime: act1StartCol != null && cells[act1StartCol] ? excelTimeToHHMM(cells[act1StartCol].value) : null,
+      endTime: act1EndCol != null && cells[act1EndCol] ? excelTimeToHHMM(cells[act1EndCol].value) : null,
+      actualHours: act1HoursCol != null ? (parseFloat(texts[act1HoursCol]) || null) : null,
+    };
+
+    // Build Activity 2 schedule (only if act2 columns exist and have data)
+    let activity2 = null;
+    if (act2DayCol != null) {
+      const day2 = texts[act2DayCol] ? texts[act2DayCol] : null;
+      const dayOfWeek2 = hebrewDayToNumber(texts[act2DayCol]);
+      const startTime2 = act2StartCol != null && cells[act2StartCol] ? excelTimeToHHMM(cells[act2StartCol].value) : null;
+      const endTime2 = act2EndCol != null && cells[act2EndCol] ? excelTimeToHHMM(cells[act2EndCol].value) : null;
+      const actualHours2 = act2HoursCol != null ? (parseFloat(texts[act2HoursCol]) || null) : null;
+      // Only include Activity 2 if it has any data
+      if (day2 || startTime2 || endTime2 || actualHours2) {
+        activity2 = { day: day2, dayOfWeek: dayOfWeek2, startTime: startTime2, endTime: endTime2, actualHours: actualHours2 };
+      }
+    }
+
+    // Extract hours
+    const totalActual = totalWeeklyHoursCol != null ? (parseFloat(texts[totalWeeklyHoursCol]) || null) : null;
+    const coordinationHours = coordHoursCol != null ? (parseFloat(texts[coordHoursCol]) || null) : null;
+    const totalReporting = totalReportingCol != null ? (parseFloat(texts[totalReportingCol]) || null) : null;
+
+    // Extract ministry use code
+    const ministryUseCode = ministryUseCol != null ? (parseInt(texts[ministryUseCol]) || null) : null;
+
+    // Build parsed row
+    const row = {
+      row: rowNumber,
+      rawName: ensembleName,
+      ...decomposition,          // { name, type, subType, warning }
+      performanceLevel,
+      participantCount,
+      conductorName: conductorText,
+      schedule: { activity1, activity2 },
+      hours: { totalActual, coordinationHours, totalReporting },
+      ministryUseCode,
+    };
+
+    parsedRows.push(row);
+
+    // Generate warnings
+    if (decomposition.warning) {
+      warnings.push({ row: rowNumber, field: 'name', message: decomposition.warning });
+    }
+    if (performanceLevel === null) {
+      warnings.push({ row: rowNumber, field: 'performanceLevel', message: 'לא זוהתה רמת ביצוע (אין צבע רקע)' });
+    }
+    if (participantCount === 0) {
+      warnings.push({ row: rowNumber, field: 'participantCount', message: 'מספר משתתפים חסר' });
+    }
+    if (!conductorText) {
+      warnings.push({ row: rowNumber, field: 'conductor', message: 'שם מנצח/מדריך חסר' });
+    }
+  }
+
+  // --- Analytics mini-table parsing ---
+  const analytics = analyticsStartIdx != null
+    ? parseAnalyticsMiniTable(rowEntries, analyticsStartIdx)
+    : null;
+
+  return {
+    parsedRows,
+    analytics,
+    warnings,
+  };
 }
 
 // ─── Repair Utility ──────────────────────────────────────────────────────────
