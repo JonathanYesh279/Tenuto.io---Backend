@@ -2682,6 +2682,7 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
   let errorCount = 0;
   const errors = [];
   const affectedDocIds = [];
+  const orchestraStudentLinks = []; // { orchestraId, studentId }
 
   // Fetch current school year once for enrolling new students
   const { schoolYearService } = await import('../school-year/school-year.service.js');
@@ -2693,7 +2694,8 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
   }
 
   for (const entry of matched) {
-    if (entry.changes.length === 0 && entry.teacherMatch?.status !== 'resolved') continue;
+    const hasOrchestraLinks = (entry.mapped?._orchestraMatches || []).some(m => m.status === 'resolved');
+    if (entry.changes.length === 0 && entry.teacherMatch?.status !== 'resolved' && !hasOrchestraLinks) continue;
 
     try {
       // Process field changes if any exist
@@ -2777,6 +2779,16 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
         );
       }
 
+      // Collect orchestra links from preview
+      for (const match of entry.mapped?._orchestraMatches || []) {
+        if (match.status === 'resolved' && match.orchestraId) {
+          orchestraStudentLinks.push({
+            orchestraId: match.orchestraId,
+            studentId: entry.studentId,
+          });
+        }
+      }
+
       successCount++;
       affectedDocIds.push(entry.studentId);
     } catch (err) {
@@ -2810,6 +2822,11 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
       // Use pre-computed _instrumentProgressEntry from preview (Plan 01)
       const instrumentEntry = mapped._instrumentProgressEntry || buildInstrumentProgressEntry(mapped);
 
+      // Resolve orchestra IDs from preview matches for new student creation
+      const resolvedOrchestraIds = (mapped._orchestraMatches || [])
+        .filter(m => m.status === 'resolved' && m.orchestraId)
+        .map(m => m.orchestraId);
+
       const newStudent = {
         tenantId,
         personalInfo: {
@@ -2825,7 +2842,7 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
           tests: { bagrutId: null },
         },
         enrollments: {
-          orchestraIds: [],
+          orchestraIds: resolvedOrchestraIds,
           ensembleIds: [],
           theoryLessonIds: [],
           schoolYears: currentSchoolYear ? [{
@@ -2862,10 +2879,51 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
 
       const result = await studentCollection.insertOne(newStudent);
       createdCount++;
-      affectedDocIds.push(result.insertedId.toString());
+      const newStudentId = result.insertedId.toString();
+      affectedDocIds.push(newStudentId);
+
+      // Collect orchestra links for newly created student (for bulk orchestra.memberIds update)
+      for (const oid of resolvedOrchestraIds) {
+        orchestraStudentLinks.push({
+          orchestraId: oid,
+          studentId: newStudentId,
+        });
+      }
     } catch (err) {
       errorCount++;
       errors.push({ row: entry.row, studentName: entry.importedName, error: err.message });
+    }
+  }
+
+  // Bulk enroll students in orchestras (dual $addToSet for idempotency)
+  let orchestraLinkCount = 0;
+  if (orchestraStudentLinks.length > 0) {
+    try {
+      const orchestraCollection = await getCollection('orchestra');
+
+      // Bulk update orchestra.memberIds
+      const orchestraBulkOps = orchestraStudentLinks.map(({ orchestraId, studentId }) => ({
+        updateOne: {
+          filter: { _id: ObjectId.createFromHexString(orchestraId), tenantId },
+          update: { $addToSet: { memberIds: studentId } },
+        },
+      }));
+      await orchestraCollection.bulkWrite(orchestraBulkOps, { ordered: false });
+
+      // Bulk update student.enrollments.orchestraIds
+      const studentBulkOps = orchestraStudentLinks.map(({ orchestraId, studentId }) => ({
+        updateOne: {
+          filter: { _id: ObjectId.createFromHexString(studentId), tenantId },
+          update: { $addToSet: { 'enrollments.orchestraIds': orchestraId } },
+        },
+      }));
+      await studentCollection.bulkWrite(studentBulkOps, { ordered: false });
+
+      orchestraLinkCount = orchestraStudentLinks.length;
+    } catch (err) {
+      console.error('Orchestra enrollment bulk write failed:', err.message);
+      // Non-fatal: student import succeeded, orchestra linking failed
+      errors.push({ error: `שגיאה בשיוך תלמידים להרכבים: ${err.message}` });
     }
   }
 
@@ -2875,8 +2933,12 @@ async function executeStudentImport(log, importLogCollection, tenantId, adminId)
     successCount,          // existing: count of successful updates
     createdCount,          // NEW: count of created students
     errorCount,
-    skippedCount: matched.filter((e) => e.changes.length === 0).length,
+    skippedCount: matched.filter((e) => {
+      const hasOrchLinks = (e.mapped?._orchestraMatches || []).some(m => m.status === 'resolved');
+      return e.changes.length === 0 && e.teacherMatch?.status !== 'resolved' && !hasOrchLinks;
+    }).length,
     notFoundCount: notFound.length,   // total unmatched rows (includes created + creation errors)
+    orchestraLinkCount,    // number of student-orchestra links created
     errors,
     affectedDocIds,
   };
