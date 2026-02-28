@@ -2644,6 +2644,9 @@ async function executeTeacherImport(log, importLogCollection, tenantId, adminId)
         continue;
       }
 
+      // Re-add tenantId after Joi validation (teacherImportSchema strips it)
+      newTeacher.tenantId = tenantId;
+
       const result = await teacherCollection.insertOne(newTeacher);
       createdCount++;
       affectedDocIds.push(result.insertedId.toString());
