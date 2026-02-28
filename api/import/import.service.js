@@ -406,7 +406,7 @@ function decomposeEnsembleName(rawName, participantCount) {
  * @param {{ beginnerCol: number, intermediateCol: number, representativeCol: number }} perfLevelCols
  * @returns {string|null} 'התחלתי' | 'ביניים' | 'ייצוגי' | null
  */
-function detectPerformanceLevel(cells, perfLevelCols) {
+function detectPerformanceLevel(cells, perfLevelCols, texts) {
   if (!perfLevelCols) return null;
   const levels = [
     { col: perfLevelCols.beginnerCol, level: 'התחלתי' },
@@ -415,7 +415,13 @@ function detectPerformanceLevel(cells, perfLevelCols) {
   ];
 
   for (const { col, level } of levels) {
-    if (col != null && cells[col] && isColoredCell(cells[col].fill)) {
+    if (col == null) continue;
+    // Check for "X" mark in the column text
+    if (texts && texts[col] && texts[col].trim().toUpperCase() === 'X') {
+      return level;
+    }
+    // Fallback: check for cell background color
+    if (cells[col] && isColoredCell(cells[col].fill)) {
       return level;
     }
   }
@@ -2726,16 +2732,20 @@ function buildScheduleSlots(schedule) {
   const slots = [];
   if (schedule?.activity1?.dayOfWeek != null) {
     slots.push({
+      day: schedule.activity1.day || null,
       dayOfWeek: schedule.activity1.dayOfWeek,
       startTime: schedule.activity1.startTime || '00:00',
       endTime: schedule.activity1.endTime || '00:00',
+      actualHours: schedule.activity1.actualHours ?? null,
     });
   }
   if (schedule?.activity2?.dayOfWeek != null) {
     slots.push({
+      day: schedule.activity2.day || null,
       dayOfWeek: schedule.activity2.dayOfWeek,
       startTime: schedule.activity2.startTime || '00:00',
       endTime: schedule.activity2.endTime || '00:00',
+      actualHours: schedule.activity2.actualHours ?? null,
     });
   }
   return slots;
@@ -3335,10 +3345,23 @@ async function parseEnsembleSheet(buffer) {
     }
   }
 
-  // Total weekly hours: text matching 'ש"ש' AND ('הרכב' or 'ביצוע' or 'בפועל')
+  // Build combined header text per column (merge text from header row and parent rows above)
+  // This handles multi-row merged headers where e.g. "ש"ש" is in row 9 and "בפועל" is in row 12
+  const combinedHeaderTexts = [...headerTexts];
+  for (let r = headerIdx - 1; r >= Math.max(0, headerIdx - 4); r--) {
+    const parentTexts = rowEntries[r].texts;
+    for (let c = 0; c < parentTexts.length; c++) {
+      if (parentTexts[c]) {
+        if (!combinedHeaderTexts[c]) combinedHeaderTexts[c] = parentTexts[c];
+        else combinedHeaderTexts[c] = parentTexts[c] + ' ' + combinedHeaderTexts[c];
+      }
+    }
+  }
+
+  // Total weekly hours: combined text matching 'ש"ש' or 'בפועל' (in hours section, col > activity cols)
   let totalWeeklyHoursCol = null;
-  for (let c = 0; c < headerTexts.length; c++) {
-    const t = headerTexts[c];
+  for (let c = 0; c < combinedHeaderTexts.length; c++) {
+    const t = combinedHeaderTexts[c];
     if (t && (t.includes('ש"ש') || t.includes("ש''ש")) &&
         (t.includes('הרכב') || t.includes('ביצוע') || t.includes('בפועל'))) {
       totalWeeklyHoursCol = c;
@@ -3346,19 +3369,20 @@ async function parseEnsembleSheet(buffer) {
     }
   }
 
-  // Coordination/preparation hours: text containing 'הכנה' or 'ריכוז'
+  // Coordination/preparation hours: combined text containing 'הכנה' or 'ריכוז'
   let coordHoursCol = null;
-  for (let c = 0; c < headerTexts.length; c++) {
-    if (headerTexts[c] && (headerTexts[c].includes('הכנה') || headerTexts[c].includes('ריכוז'))) {
+  for (let c = 0; c < combinedHeaderTexts.length; c++) {
+    const t = combinedHeaderTexts[c];
+    if (t && (t.includes('הכנה') || t.includes('ריכוז'))) {
       coordHoursCol = c;
       break;
     }
   }
 
-  // Total reporting hours: text containing 'דיווח' or 'ימ"ש'
+  // Total reporting hours: combined text containing 'דיווח' or 'ימ"ש'
   let totalReportingCol = null;
-  for (let c = 0; c < headerTexts.length; c++) {
-    const t = headerTexts[c];
+  for (let c = 0; c < combinedHeaderTexts.length; c++) {
+    const t = combinedHeaderTexts[c];
     if (t && (t.includes('דיווח') || t.includes('ימ"ש') || t.includes("ימ''ש"))) {
       totalReportingCol = c;
       break;
@@ -3416,7 +3440,7 @@ async function parseEnsembleSheet(buffer) {
   }
 
   // --- Data row parsing ---
-  const ANALYTICS_KEYWORDS = ['סיכום', 'סך גופי', 'תזמורות כלי', 'סך משתתפים'];
+  const ANALYTICS_KEYWORDS = ['סיכום', 'סך גופי', 'תזמורות כלי', 'סך משתתפים', 'סה"כ'];
   const parsedRows = [];
   const warnings = [];
   let analyticsStartIdx = null;
@@ -3478,7 +3502,7 @@ async function parseEnsembleSheet(buffer) {
     const decomposition = decomposeEnsembleName(ensembleName, participantCount);
 
     // Detect performance level from cell background color
-    const performanceLevel = detectPerformanceLevel(cells, perfLevelCols);
+    const performanceLevel = detectPerformanceLevel(cells, perfLevelCols, texts);
 
     // Build Activity 1 schedule
     const activity1 = {

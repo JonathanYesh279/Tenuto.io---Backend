@@ -304,6 +304,16 @@ async function updateOrchestra(orchestraId, orchestraToUpdate, teacherId, isAdmi
     updateValue.rehearsalIds = existingOrchestra.rehearsalIds || []
     updateValue.tenantId = tenantId
 
+    // Merge ministryData — don't let partial updates wipe imported fields
+    if (updateValue.ministryData && existingOrchestra.ministryData) {
+      updateValue.ministryData = { ...existingOrchestra.ministryData, ...updateValue.ministryData }
+    }
+
+    // Preserve scheduleSlots if not explicitly sent in the update
+    if (!updateValue.scheduleSlots && existingOrchestra.scheduleSlots) {
+      updateValue.scheduleSlots = existingOrchestra.scheduleSlots
+    }
+
     // Add lastModified timestamp
     updateValue.lastModified = new Date()
 

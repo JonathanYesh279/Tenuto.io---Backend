@@ -43,9 +43,11 @@ const VALID_LOCATIONS = [
 ];
 
 const scheduleSlotSchema = Joi.object({
+  day: Joi.string().allow(null).default(null),
   dayOfWeek: Joi.number().integer().min(0).max(6).required(),
   startTime: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
   endTime: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),
+  actualHours: Joi.number().min(0).allow(null).default(null),
 });
 
 const ministryDataSchema = Joi.object({
