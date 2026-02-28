@@ -2011,14 +2011,146 @@ async function previewTeacherImport(buffer, options = {}) {
   });
 }
 
+// ─── Ensemble Column Detection & Orchestra Matching Helpers ──────────────────
+
+/**
+ * Maps known ensemble column header texts (from the Ministry export) to their
+ * expected orchestra subType. Used by detectEnsembleColumns to identify which
+ * columns in the Excel contain orchestra names.
+ */
+const ENSEMBLE_COLUMN_HEADERS = {
+  'תזמורת כלי נשיפה': 'כלי נשיפה',
+  'סימפונית ומעורבת': 'סימפונית',
+  'תזמורת כלי קשת': 'כלי קשת',
+  'תזמורת עממית': 'עממית',
+  'ביג-בנד BigBand': 'ביג-בנד',
+  'ביג-בנד': 'ביג-בנד',
+  'מקהלות': 'מקהלה',
+  'הרכב קולי': 'קולי',
+  'הרכבים קאמריים קלאסיים': 'קאמרי קלאסי',
+  'הרכבים קאמריים': 'קאמרי קלאסי',
+  "הרכבי ג'אז-פופ-רוק": "ג'אז-פופ-רוק",
+  "ג'אז-פופ-רוק": "ג'אז-פופ-רוק",
+};
+
+/**
+ * Scan the headers array for known ensemble column header texts.
+ * Returns an array of { index, header, subType } for each detected ensemble column.
+ * Similar pattern to detectInstrumentColumns but matches by header text against ENSEMBLE_COLUMN_HEADERS.
+ */
+function detectEnsembleColumns(headers) {
+  const ensembleColumns = [];
+  for (let i = 0; i < headers.length; i++) {
+    const header = headers[i]?.trim().replace(/[\u200F\u200E\uFEFF\u200B]/g, '');
+    if (header && ENSEMBLE_COLUMN_HEADERS[header]) {
+      ensembleColumns.push({
+        index: i,
+        header,
+        subType: ENSEMBLE_COLUMN_HEADERS[header],
+      });
+    }
+  }
+  return ensembleColumns;
+}
+
+/**
+ * Normalize an orchestra name for matching: trim whitespace, normalize geresh
+ * variants (Hebrew geresh ׳, backtick `, right single quote ', apostrophe ')
+ * to a single apostrophe, and collapse multiple spaces.
+ */
+function normalizeOrchestraName(name) {
+  return name
+    .trim()
+    .replace(/[׳'`\u2019]/g, "'")  // Normalize geresh variants to ASCII apostrophe
+    .replace(/\s+/g, ' ');           // Collapse whitespace
+}
+
+/**
+ * Build a Map from normalized orchestra name to array of orchestra documents.
+ * Multiple orchestras may share a name (disambiguated by subType).
+ */
+function buildOrchestraNameIndex(orchestras) {
+  const nameIndex = new Map();
+  for (const orch of orchestras) {
+    const normalized = normalizeOrchestraName(orch.name);
+    if (!nameIndex.has(normalized)) {
+      nameIndex.set(normalized, []);
+    }
+    nameIndex.get(normalized).push(orch);
+  }
+  return nameIndex;
+}
+
+/**
+ * Read ensemble names from a student row for each detected ensemble column.
+ * Splits comma-separated names (the export concatenates multiple orchestra names
+ * with ", " when a student belongs to multiple orchestras of the same subType).
+ * Returns array of { name, columnHeader, expectedSubType }.
+ */
+function readEnsembleNames(row, ensembleColumns) {
+  const names = [];
+  for (const col of ensembleColumns) {
+    const rawValue = row[col.header];
+    if (!rawValue || typeof rawValue !== 'string' || !rawValue.trim()) continue;
+
+    // Split comma-separated names (export uses ", " separator)
+    const cellNames = rawValue.split(',').map(n => n.trim()).filter(Boolean);
+    for (const name of cellNames) {
+      names.push({
+        name,
+        columnHeader: col.header,
+        expectedSubType: col.subType,
+      });
+    }
+  }
+  return names;
+}
+
+/**
+ * Match an imported orchestra name against the name index.
+ * Returns { status: 'resolved', orchestraId, orchestraName } or { status: 'unresolved', importedName }.
+ * Uses expectedSubType to disambiguate when multiple orchestras share the same normalized name.
+ */
+function matchOrchestraByName(importedName, nameIndex, expectedSubType) {
+  const normalized = normalizeOrchestraName(importedName);
+  const candidates = nameIndex.get(normalized) || [];
+
+  if (candidates.length === 0) {
+    return { status: 'unresolved', importedName };
+  }
+  if (candidates.length === 1) {
+    return {
+      status: 'resolved',
+      orchestraId: candidates[0]._id.toString(),
+      orchestraName: candidates[0].name,
+    };
+  }
+  // Multiple candidates: use subType to disambiguate
+  const subTypeMatch = candidates.find(c => c.subType === expectedSubType);
+  if (subTypeMatch) {
+    return {
+      status: 'resolved',
+      orchestraId: subTypeMatch._id.toString(),
+      orchestraName: subTypeMatch.name,
+    };
+  }
+  // Can't disambiguate — take first match
+  return {
+    status: 'resolved',
+    orchestraId: candidates[0]._id.toString(),
+    orchestraName: candidates[0].name,
+  };
+}
+
 async function previewStudentImport(buffer, options = {}) {
   const tenantId = requireTenantId(options.context?.tenantId);
 
-  const { rows, cellRows, headerColMap, headerRowIndex, matchedColumns } = await parseExcelBufferWithHeaderDetection(buffer, STUDENT_COLUMN_MAP);
+  const { rows, cellRows, headerColMap, headerRowIndex, matchedColumns, headers: parsedHeaders } = await parseExcelBufferWithHeaderDetection(buffer, STUDENT_COLUMN_MAP);
   if (rows.length === 0) throw new Error('הקובץ ריק או לא מכיל נתונים');
 
   const headers = Object.keys(rows[0]);
   const instrumentColumns = detectInstrumentColumns(headers, headerColMap);
+  const ensembleColumns = detectEnsembleColumns(parsedHeaders);
 
   const studentCollection = await getCollection('student');
   const filter = { isActive: true, tenantId };
@@ -2026,6 +2158,14 @@ async function previewStudentImport(buffer, options = {}) {
 
   const teacherCollection = await getCollection('teacher');
   const teachers = await teacherCollection.find({ isActive: true, tenantId }).toArray();
+
+  // Fetch orchestras for ensemble column matching (one DB query, outside student loop)
+  let orchestraNameIndex = null;
+  if (ensembleColumns.length > 0) {
+    const orchestraCollection = await getCollection('orchestra');
+    const orchestras = await orchestraCollection.find({ tenantId, isActive: true }).toArray();
+    orchestraNameIndex = buildOrchestraNameIndex(orchestras);
+  }
 
   const preview = {
     totalRows: rows.length,
@@ -2036,7 +2176,11 @@ async function previewStudentImport(buffer, options = {}) {
     headerRowIndex,
     matchedColumns,
     teacherMatchSummary: { resolved: 0, unresolved: 0, ambiguous: 0, none: 0 },
+    orchestraMatchSummary: { resolved: 0, unresolved: 0, totalLinks: 0 },
+    unmatchedOrchestraNames: [],
   };
+
+  const unmatchedNamesSet = new Set();
 
   let skippedEmpty = 0;
 
@@ -2119,6 +2263,28 @@ async function previewStudentImport(buffer, options = {}) {
       });
     }
 
+    // Orchestra matching from ensemble columns
+    const orchestraMatches = [];
+    if (ensembleColumns.length > 0 && orchestraNameIndex) {
+      const ensembleNames = readEnsembleNames(row, ensembleColumns);
+      for (const { name, columnHeader, expectedSubType } of ensembleNames) {
+        const result = matchOrchestraByName(name, orchestraNameIndex, expectedSubType);
+        orchestraMatches.push({
+          column: columnHeader,
+          importedName: name,
+          ...result,
+        });
+        if (result.status === 'resolved') {
+          preview.orchestraMatchSummary.resolved++;
+          preview.orchestraMatchSummary.totalLinks++;
+        } else {
+          preview.orchestraMatchSummary.unresolved++;
+          unmatchedNamesSet.add(name);
+        }
+      }
+    }
+    mapped._orchestraMatches = orchestraMatches;
+
     if (match) {
       const changes = calculateStudentChanges(match.student, mapped);
       const entry = {
@@ -2148,6 +2314,12 @@ async function previewStudentImport(buffer, options = {}) {
         teacherMatch,
       });
     }
+  }
+
+  // Assign deduplicated unmatched orchestra names and push to warnings for frontend display
+  preview.unmatchedOrchestraNames = [...unmatchedNamesSet];
+  for (const name of unmatchedNamesSet) {
+    preview.warnings.push(`שם הרכב לא נמצא במערכת: "${name}"`);
   }
 
   // Adjust totalRows to exclude skipped empty/footer rows
