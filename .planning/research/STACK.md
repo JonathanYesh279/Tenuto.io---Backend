@@ -1,8 +1,14 @@
-# Technology Stack — Student Import Enhancement
+# Technology Stack -- Ensemble Import from Ministry Excel
 
-**Project:** Tenuto.io v1.2 — Enhanced Student Import
-**Researched:** 2026-02-26
-**Scope:** Stack ADDITIONS and CHANGES ONLY — existing backend/frontend stack is validated and unchanged.
+**Project:** Tenuto.io v1.4 -- Ensemble Import
+**Researched:** 2026-02-28
+**Scope:** Stack ADDITIONS and CHANGES ONLY for ensemble/orchestra import from Ministry Excel
+
+---
+
+## Key Finding: No New Dependencies Required
+
+The existing stack handles every requirement for ensemble import. This is a feature addition, not a technology addition. The project already has SheetJS for cell-addressed Excel parsing, Joi for validation, MongoDB native driver for upserts, and the full import preview/execute infrastructure.
 
 ---
 
@@ -10,192 +16,248 @@
 
 | Technology | Version | Status |
 |------------|---------|--------|
-| Node.js + Express | existing | LOCKED — no changes |
-| MongoDB native driver | ^6.13.0 | LOCKED — no changes |
-| ExcelJS | ^4.4.0 | LOCKED — already in use for teacher import |
-| multer (memoryStorage) | ^1.4.5-lts.1 | LOCKED — already handles file upload |
-| Joi | ^17.13.3 | LOCKED — student validation schema complete |
-| React 18 + TypeScript + Vite + Tailwind | existing | LOCKED — no changes |
-| @phosphor-icons/react | ^2.1.10 | LOCKED — all icons available |
-| react-hot-toast | ^2.6.0 | LOCKED — toast notifications in use |
+| Node.js + Express | existing | LOCKED |
+| MongoDB native driver | ^6.13.0 | LOCKED |
+| SheetJS (`xlsx`) | ^0.18.5 | LOCKED -- already used for conservatory import |
+| ExcelJS | ^4.4.0 | LOCKED -- used for teacher/student import (NOT needed here) |
+| multer (memoryStorage) | ^1.4.5-lts.1 | LOCKED -- handles file upload |
+| Joi | ^17.13.3 | LOCKED -- orchestra validation schema exists |
+| React 18 + TypeScript + Vite + Tailwind | existing | LOCKED |
+| @phosphor-icons/react | existing | LOCKED |
+| react-hot-toast | existing | LOCKED |
+| Vitest + MongoDB Memory Server | existing | LOCKED |
 
 ---
 
-## Stack Decisions for New Capabilities
+## Stack Decisions for Ensemble Import
 
-### 1. Teacher-Name Fuzzy Matching
+### 1. Excel Parsing Library: SheetJS (Already Installed)
 
-**Decision: Use native JavaScript — NO new library.**
+**Decision: Use SheetJS (`xlsx` ^0.18.5) for ensemble import. Do NOT use ExcelJS.**
 
-The existing teacher import already performs exact name matching (`matchTeacher` at line 1079 of `import.service.js`) using first+last name lowercased comparison. The `"המורה"` column is already parsed into `mapped.teacherName` via `STUDENT_COLUMN_MAP` (line 130). The only missing piece is a `matchTeacherByName` helper that splits the `teacherName` string and runs the same exact match used by `matchTeacher`.
+Rationale:
+1. The ensemble sheet has a **fixed structure** (headers rows 9-12, data rows 13-45) with known cell addresses -- this is the exact pattern where SheetJS excels (direct cell access via `ws['B13']`).
+2. SheetJS correctly reads **cached formula results** as raw values (`.v` property), critical for time columns containing `HOUR(G-F)+MINUTE(G-F)/60` formulas.
+3. SheetJS handles **merged cells** natively via `ws['!merges']` array -- merged group headers (E9:H10 = "Activity I", I9:L10 = "Activity II", P9:R10 = "Performance Level") store values in the top-left cell.
+4. The conservatory import already established the SheetJS pattern (`parseConservatoryExcel` at import.service.js:1909), so the ensemble parser follows the same approach.
+5. ExcelJS is needed only when **row iteration with style/color detection** is required (teacher/student imports use `isColoredCell`). Ensemble import reads values from known positions -- no style detection needed.
 
-Rationale for no fuzzy library:
-- Ministry Excel files have authoritative teacher names — the conservatory imports their own staff, so names match precisely or not at all.
-- Fuzzy matching would introduce false positives across a small teacher pool (typical: 20-80 teachers per tenant).
-- `fast-fuzzy`, `fuse.js`, and `string-similarity` were verified to be absent from both package.json files. Adding any of them for this use case is over-engineering.
-- The existing `matchTeacher` already handles the name-match case (priority 3). A parallel `matchTeacherForStudent(teacherNameString, teachers)` function using the same lowercased first+last comparison is sufficient.
+**Confidence: HIGH** -- Verified via existing `parseConservatoryExcel` function using identical cell-access pattern. Verified via SheetJS docs that merged cells store value in top-left cell (https://docs.sheetjs.com/docs/csf/features/merges/).
 
-**Implementation:** Pure JS in `import.service.js` — split `teacherName` on first space, compare lowercased first and last name. Return `{ teacher, matchType: 'name' } | null`.
+### 2. Time Value Conversion: Plain Arithmetic (No Library)
 
-Confidence: HIGH (code analysis — no library needed)
+**Decision: Implement 5-line utility function in-house.**
 
----
-
-### 2. instrumentProgress Document Building
-
-**Decision: Build inline in `executeStudentImport` — NO new library.**
-
-The existing `studentSchema` (Joi, `student.validation.js` line 12-46) defines `instrumentProgress` as an array of objects with:
-- `instrumentName` (string, VALID_INSTRUMENTS)
-- `isPrimary` (boolean, default false)
-- `currentStage` (number 1-8)
-- `ministryStageLevel` (string א/ב/ג, nullable)
-- `tests.stageTest` / `tests.technicalTest` (default objects)
-
-The current `executeStudentImport` writes a flat `instrument` field (line 1799) that does NOT match the schema. This is the core gap.
-
-The fix is to build an `instrumentProgress` array entry from the already-parsed `mapped.instrument` and `mapped.ministryStageLevel` during the execute phase. No validation library beyond the existing Joi schema is needed — the student service's `validateStudent()` already validates this shape.
-
-Stage mapping: `ministryStageLevel` (א/ב/ג) maps to `currentStage` using the inverse of the existing `stageToMinistryLevel` function (already in `constants.js` at line 163):
-- א → stage 1 (lowest in the א range, safe default)
-- ב → stage 4 (lowest in the ב range)
-- ג → stage 6 (lowest in the ג range)
-
-Confidence: HIGH (schema is defined, constants exist, implementation is pure assembly)
-
----
-
-### 3. Bagrut Flag
-
-**Decision: Add boolean field to student document — NO new collection interaction during import.**
-
-The PROJECT.md explicitly scopes this as: "only flag enrollment, manual setup for program details" (line 66). The existing `bagrut` collection and `setBagrutId` service exist for full bagrut record management.
-
-For import, the approach is:
-- Add `'בגרות': 'isBagrutCandidate'` and `'מגמת מוסיקה': 'isBagrutCandidate'` entries to `STUDENT_COLUMN_MAP`.
-- Store `academicInfo.isBagrutCandidate: true/false` on the student document during execute.
-- No bagrut collection record created — that requires program data that Ministry import does not contain.
-
-This field is NOT in the current `studentSchema` — it needs to be added to the Joi schema as `Joi.boolean().default(false)`. This is a backward-compatible addition (existing documents without the field treat it as falsy).
-
-Confidence: HIGH (codebase analysis confirms field does not exist, scope is clear from PROJECT.md)
-
----
-
-### 4. teacherAssignment Creation
-
-**Decision: Build minimal teacherAssignment entry WITHOUT schedule slot — NO new service dependency.**
-
-The `teacherAssignmentSchema` (Joi, `student.validation.js` line 49-86) requires `day`, `time`, and `duration` fields which the Ministry Excel file does not contain. However, schedule data is not available at import time.
-
-**Recommended approach:** Write a minimal import-shaped assignment object directly to the student document, bypassing the full `teacherAssignmentSchema` Joi validation. This is consistent with how `executeTeacherImport` writes `$set` patches directly without Joi re-validation:
+Excel stores time as day fractions (0.7083 = 17:00). The conversion is trivial:
 
 ```javascript
-{
-  teacherId: matchedTeacher._id.toString(),
-  instrumentName: mapped.instrument || null,
-  scheduleSlotId: null,
-  day: null,        // populated later via schedule UI
-  time: null,       // populated later via schedule UI
-  duration: mapped.lessonDuration || null,
-  isActive: true,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-  importedFrom: 'excel',  // import origin marker
+function excelTimeToHHMM(serial) {
+  if (serial == null || typeof serial !== 'number') return null;
+  const totalMinutes = Math.round(serial * 24 * 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
+// 0.7083 -> 1020 minutes -> 17:00
+// 0.7917 -> 1140 minutes -> 19:00
 ```
 
-**Teacher record sync:** After writing each student assignment, issue a direct `$push` to the teacher collection to add the student reference. The existing `syncTeacherRecordsForStudentUpdate` in `student.service.js` can be imported, OR a lightweight direct write suffices since import runs as admin.
+Why no library:
+- **dayjs** (already installed): Cannot convert Excel serial numbers -- it has no concept of Excel date serials. Only parses time strings like "17:00".
+- **SheetJS `XLSX.SSF.parse_date_code()`**: Could work but is underdocumented for time-only values and returns a complex object `{D, T, y, m, d, H, M, S, q, u}`. Plain arithmetic is simpler.
+- The output format `"HH:MM"` matches exactly what the rehearsal schema expects (pattern: `/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/` in rehearsal.validation.js:24).
 
-Confidence: MEDIUM — Joi schema relaxation for import writes is a judgment call, but consistent with the established teacher import pattern.
+**Confidence: HIGH** -- Verified via SheetJS docs: "the fractional part of the date code serves as the time marker. Excel assumes each day has exactly 86400 seconds." (https://docs.sheetjs.com/docs/csf/features/dates/)
 
----
+### 3. Conductor Name Matching: Exact Match Against Teacher DB (No Library)
 
-### 5. Frontend Preview Enhancement
+**Decision: Use exact firstName+lastName matching against existing teachers. No fuzzy matching library.**
 
-**Decision: Extend `ImportData.tsx` types inline — NO new UI library.**
+The parsing flow:
+1. Parse conductor name string from cell B (column 2) of each data row.
+2. Split on first space: `"יוסי כהן"` -> firstName: `"יוסי"`, lastName: `"כהן"`.
+3. Query teacher collection with case-insensitive exact match on `personalInfo.firstName` + `personalInfo.lastName` within the tenant.
+4. Return matched teacher `_id` or mark as `not_found` in preview.
 
-The existing `ImportData.tsx` already has the full preview UI structure. Needed changes:
+Why no fuzzy matching:
+- Ministry Excel files contain the **same teacher names** that the conservatory entered -- these are their own staff.
+- Hebrew name fuzzy matching has high false-positive risk with short, common names (e.g., "דן" vs "דני").
+- The teacher pool is small (20-80 per tenant) -- manual resolution in preview UI is fast.
+- Existing teacher import uses exact matching (priority 3 in `matchTeacher` at import.service.js:7).
 
-- Add `teacherName?: string` and `teacherMatchType?: 'name' | 'not_found'` to the preview row interface.
-- Add `instrumentProgress?: Array<{instrumentName: string, currentStage: number, ministryStageLevel: string}>` to preview row interface.
-- Add `isBagrutCandidate?: boolean` to preview row interface.
-- Extend the student branch of the preview table (currently lines 832-845) to show these new fields — similar to how `getTeacherRowDetails` renders teacher data.
+**Confidence: HIGH** -- Codebase analysis confirms exact name matching is established pattern.
 
-The preview table currently renders only "תלמיד חדש - ייווצר ברשומה חדשה" for new students and bare `row.changes.map(c => c.field).join(', ')` for matched students. This needs to be replaced with a richer summary showing instrument, stage level, teacher match, class, and bagrut flag.
+### 4. Orchestra Validation: Existing Joi Schema (No Changes)
 
-All icons needed are already available in `@phosphor-icons/react` (^2.1.10, installed).
+**Decision: Reuse `orchestraSchema` from `orchestra.validation.js` for validation during execute phase.**
 
-Confidence: HIGH (existing UI pattern is clear, all dependencies available)
+The existing schema already validates:
+- `name` (required string)
+- `type` (enum: 'הרכב' | 'תזמורת')
+- `subType` (enum: 9 values including 'כלי נשיפה', 'סימפונית', etc.)
+- `performanceLevel` (enum: 'התחלתי' | 'ביניים' | 'ייצוגי')
+- `conductorId` (required string)
+- `memberIds` (array of strings, default [])
+- `ministryData.coordinationHours` (number, 0-50)
+- `ministryData.totalReportingHours` (number, 0-100)
+
+The only field NOT in the import is `location` (defaults to 'חדר 1') and `schoolYearId` (auto-populated from current school year, same as `addOrchestra`).
+
+**Confidence: HIGH** -- Direct code analysis of orchestra.validation.js.
+
+### 5. Hebrew Day Name Resolution: Constant Map (No Library)
+
+**Decision: Add reverse day-name map to constants or inline in parser.**
+
+The ensemble sheet has Hebrew day names ("ראשון", "שני", etc.) in the Activity I/II day columns. The rehearsal schema requires `dayOfWeek` as integer (0-6). The export mapper already has this array at ministry-mappers.js:269:
+
+```javascript
+const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+```
+
+The import parser needs the reverse:
+```javascript
+const DAY_NAME_TO_NUMBER = {
+  'ראשון': 0, 'שני': 1, 'שלישי': 2, 'רביעי': 3, 'חמישי': 4, 'שישי': 5, 'שבת': 6
+};
+```
+
+**Confidence: HIGH** -- Direct correspondence with existing export code.
 
 ---
 
 ## What NOT to Add
 
-| Rejected Addition | Why Not |
-|-------------------|---------|
-| `fuse.js` / `fast-fuzzy` for teacher matching | Small, authoritative teacher pool — exact match is sufficient and safer |
-| `natural` / `compromise` NLP library | Zero Hebrew NLP support; overkill for name splitting |
-| `bull` / `bullmq` job queue | Not needed — imports are small (under 300 rows), complete synchronously in < 2 seconds |
-| MongoDB transactions in `executeStudentImport` | Teacher import does not use transactions; scale does not require them |
-| New API endpoints | Existing `/import/students/preview` and `/import/execute/:id` are reused |
-| React Query mutation for import | Frontend already uses raw `fetch` with FormData; consistency favored |
-| New collection for import state | `import_log` collection already exists and stores preview data by `importLogId` |
-| Full bagrut record creation during import | Out of scope per PROJECT.md — only flag, not full bagrut record |
-| Orchestra/ensemble auto-assignment | Out of scope per PROJECT.md |
-| Theory class enrollment from import | Requires matching to existing theory lesson documents — out of scope |
+| Rejected Library | Why Tempting | Why NOT to Add |
+|-----------------|-------------|----------------|
+| `xlsx-populate` | Better merged cell API | SheetJS already handles merges via `ws['!merges']`; adding a second xlsx lib is wasteful |
+| `fuse.js` / `fast-fuzzy` | Fuzzy conductor matching | Small teacher pool + Hebrew names = high false-positive risk; exact match sufficient |
+| `date-fns` / `moment` | Time parsing | 5 lines of arithmetic; no library warranted |
+| `lodash` | Utility functions | Not used anywhere in codebase; not needed |
+| `bull` / `bullmq` | Job queue for import | Ensembles are max 33 rows; synchronous processing completes in milliseconds |
+| New validation library | Schema for parsed rows | Joi already installed and orchestra schema exists |
 
 ---
 
 ## Integration Points
 
-### Backend: Files to Modify
+### Backend Files to Modify
 
-| File | Change Type | What Changes |
-|------|------------|--------------|
-| `api/import/import.service.js` | Enhance | `STUDENT_COLUMN_MAP` adds bagrut columns; `previewStudentImport` fetches teachers and runs `matchTeacherForStudent`; new `matchTeacherForStudent` helper; `calculateStudentChanges` adds instrumentProgress + teacher + bagrut diff fields; `executeStudentImport` builds `academicInfo.instrumentProgress` array and writes `teacherAssignments` entry |
-| `config/constants.js` | Enhance | Add `MINISTRY_STAGE_TO_STAGE` inverse map (א→1, ב→4, ג→6) for import use |
-| `api/student/student.validation.js` | Enhance | Add `isBagrutCandidate: Joi.boolean().default(false)` to `academicInfo` in both `studentSchema` and `studentUpdateSchema` |
+| File | Change | Rationale |
+|------|--------|-----------|
+| `api/import/import.service.js` | Add `parseEnsembleExcel(buffer)`, `previewEnsembleImport(buffer, options)`, `executeEnsembleImport(log, ...)` | Core parsing logic following conservatory import pattern |
+| `api/import/import.service.js` (line ~2069) | Add `else if (log.importType === 'ensembles')` branch in `executeImport()` | Extend import type routing |
+| `api/import/import.service.js` (exports, line ~31) | Add `previewEnsembleImport` to `importService` exports | Expose new function |
+| `api/import/import.controller.js` | Add `previewEnsembleImport` handler function | Route handler following existing pattern |
+| `api/import/import.route.js` | Add `POST /ensembles/preview` route with `requireAuth(['מנהל'])` | New endpoint, same multer + auth |
 
-### Frontend: Files to Modify
+### Backend Files to Reuse (No Modification Needed)
 
-| File | Change Type | What Changes |
-|------|------------|--------------|
-| `src/pages/ImportData.tsx` | Enhance | Update TypeScript interfaces; replace plain "תלמיד חדש" string with rich preview card showing teacher match status, instrument + stage level, class, and bagrut flag; add teacher match status badge for matched students |
-| `src/services/apiService.js` | No change | Existing `previewStudentImport` and `executeImport` already call correct endpoints |
+| File | What to Reuse |
+|------|---------------|
+| `api/orchestra/orchestra.service.js` | `addOrchestra()`, `updateOrchestra()`, `getOrchestras()` for matching/creating |
+| `api/orchestra/orchestra.validation.js` | `ORCHESTRA_TYPES`, `ORCHESTRA_SUB_TYPES`, `PERFORMANCE_LEVELS`, `validateOrchestra()` |
+| `api/rehearsal/rehearsal.service.js` | `bulkCreateRehearsals()` for creating rehearsal records from parsed time slots |
+| `api/export/sheets/_shared.js` | `composeName()` for conductor name formatting during comparison |
+| `config/constants.js` | `ORCHESTRA_TYPES`, `ORCHESTRA_SUB_TYPES`, `PERFORMANCE_LEVELS` |
 
-### No New Files Required
+### Frontend Files to Modify
 
-All logic fits in existing files. The enhancement is purely additive — no new modules, controllers, or routes needed.
+| File | Change | Rationale |
+|------|--------|-----------|
+| `src/pages/ImportData.tsx` | Add `'ensembles'` to `ImportTab` union type; add 4th tab button; add ensemble preview/results UI sections | New import tab, consistent with existing tab pattern |
+| `src/services/apiService.js` | Add `previewEnsembleImport(file)` method to `importService` object | API call for new endpoint |
+
+### Frontend Files to Reuse (No Modification Needed)
+
+| File | What to Reuse |
+|------|---------------|
+| `src/components/feedback/ProgressIndicators.tsx` | `StepProgress` for upload/preview/results flow |
+
+---
+
+## Column-to-Cell Mapping (Ministry Excel Structure)
+
+Based on analysis of the export sheet builder at `api/export/sheets/ensembles.sheet.js`, the Ministry Excel has this fixed structure:
+
+| Col# | Letter | Content | Cell Value Type |
+|------|--------|---------|-----------------|
+| 1 | A | Active marker | String ("X" or empty) |
+| 2 | B | Conductor name | String (Hebrew full name) |
+| 3 | C | Ensemble/orchestra name | String |
+| 4 | D | Participant count | Number |
+| 5 | E | Activity I - Day | String (Hebrew day name) |
+| 6 | F | Activity I - Start time | Excel time serial (e.g., 0.7083 = 17:00) |
+| 7 | G | Activity I - End time | Excel time serial |
+| 8 | H | Activity I - Hours | Number (formula cached result) |
+| 9 | I | Activity II - Day | String (Hebrew day name) |
+| 10 | J | Activity II - Start time | Excel time serial |
+| 11 | K | Activity II - End time | Excel time serial |
+| 12 | L | Activity II - Hours | Number (formula cached result) |
+| 13 | M | Total hours | Number (formula cached result) |
+| 14 | N | Coordination hours | Number |
+| 15 | O | Total reporting hours | Number (formula cached result) |
+| 16 | P | Performance: beginner (התחלתי) | String ("X" or empty) |
+| 17 | Q | Performance: intermediate (ביניים) | String ("X" or empty) |
+| 18 | R | Performance: representative (ייצוגי) | String ("X" or empty) |
+
+**Data rows:** 13-45 (33 ensemble slots), starting after header rows 9-12.
+
+**Confidence: HIGH** -- Directly verified from export sheet builder code (ensembles.sheet.js lines 56-76 for headers, lines 90-168 for data).
+
+---
+
+## Parsing Strategy Comparison
+
+| Aspect | Teacher/Student (ExcelJS) | Conservatory (SheetJS) | Ensemble (SheetJS) |
+|--------|--------------------------|----------------------|-------------------|
+| Structure | Variable tabular rows | Fixed cell addresses | Fixed cell grid |
+| Header detection | Dynamic scan first 10 rows | Not needed (known cells) | Not needed (rows 9-12 are fixed) |
+| Data start | After detected header | N/A (form layout) | Always row 13 |
+| Cell access | Row iteration + column map | Direct `ws['E5']` | Direct `ws['B13']` through `ws['R45']` |
+| Style needed? | Yes (colored cells) | No | No (X markers, not colors) |
+| Library | ExcelJS | SheetJS | **SheetJS** (same pattern as conservatory) |
+
+---
+
+## Installation
+
+```bash
+# No new packages required.
+# All dependencies already in package.json.
+```
 
 ---
 
 ## Version Verification
 
-| Package | Current Version | Upgrade Needed |
-|---------|----------------|----------------|
-| exceljs | ^4.4.0 | No — handles all parsing needed |
-| joi | ^17.13.3 | No — schema additions are backward compatible |
-| mongodb | ^6.13.0 | No — direct document writes are unchanged |
-| typescript | ^5.9.3 | No — type additions are purely additive |
+| Package | Current Version | Upgrade Needed? |
+|---------|----------------|-----------------|
+| xlsx (SheetJS) | ^0.18.5 | No -- cell access, merged cells, formula results all supported |
+| joi | ^17.13.3 | No -- orchestra schema exists |
+| mongodb | ^6.13.0 | No -- standard CRUD operations |
+| multer | ^1.4.5-lts.1 | No -- same upload config |
+| express | ^4.21.2 | No -- standard routing |
 
-Confidence: HIGH — all packages verified from both `package.json` files.
+**Confidence: HIGH** -- All versions verified from `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Backend/package.json`.
 
 ---
 
 ## Summary: Zero New Dependencies
 
-This milestone requires **zero new npm packages** on either backend or frontend. Every capability needed — Excel parsing, name matching, document validation, UI rendering, toast notifications, icons — is already present in the installed stack. The work is purely configuration and logic enhancement within existing files.
+This milestone requires **zero new npm packages** on either backend or frontend. Every capability needed -- Excel parsing with cell addressing, merged cell handling, time serial conversion, conductor name matching, orchestra validation, UI tabs -- is already present in the installed stack. The work is purely logic implementation within existing files, following the conservatory import pattern for parsing and the teacher/student import pattern for preview/execute flow.
 
 ---
 
 ## Sources
 
-- `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Backend/api/import/import.service.js` (1957 lines — full code analysis, teacher and student import flows)
-- `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Backend/api/student/student.validation.js` (244 lines — full read, instrumentProgress and teacherAssignment schemas)
-- `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Backend/api/student/student.service.js` (addStudent and updateStudent flows, lines 110-260)
-- `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Backend/config/constants.js` (full read — stageToMinistryLevel at line 163, COLLECTIONS at line 214)
-- `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Backend/.planning/PROJECT.md` (scope and out-of-scope constraints)
-- `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Frontend/src/pages/ImportData.tsx` (preview UI structure — ImportData.tsx analyzed lines 1-950)
-- `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Frontend/src/services/apiService.js` (importService block, lines 5071-5160)
-- Both `package.json` files verified for installed packages (backend and frontend)
+- SheetJS merged cells: https://docs.sheetjs.com/docs/csf/features/merges/
+- SheetJS dates/times: https://docs.sheetjs.com/docs/csf/features/dates/
+- SheetJS cell objects: https://docs.sheetjs.com/docs/csf/cell/
+- SheetJS sheet objects: https://docs.sheetjs.com/docs/csf/sheet/
+- Existing codebase: `api/import/import.service.js` (parseConservatoryExcel at line 1909)
+- Existing codebase: `api/export/sheets/ensembles.sheet.js` (column structure, lines 56-168)
+- Existing codebase: `api/orchestra/orchestra.validation.js` (orchestra schema)
+- Existing codebase: `api/rehearsal/rehearsal.validation.js` (time format HH:MM, dayOfWeek 0-6)
+- Existing codebase: `api/export/ministry-mappers.js` (mapEnsembleSchedule at line 266, day name array)
+- Existing codebase: `package.json` (all dependency versions)

@@ -1,288 +1,261 @@
-# Feature Landscape: Enhanced Student Import
+# Feature Landscape: Ensemble Import from Ministry Excel
 
-**Domain:** Ministry of Education Excel import for Israeli music conservatory student records
-**Researched:** 2026-02-26
-**Overall Confidence:** HIGH (based on direct codebase analysis — no web research needed for well-understood domain)
+**Domain:** Ministry of Education Excel import for ensemble/orchestra data in Israeli music conservatories
+**Researched:** 2026-02-28
+**Overall Confidence:** HIGH (based on direct codebase analysis of existing export sheet, orchestra model, import patterns, and Ministry Excel structure)
 
 ---
 
 ## What Already Exists (Do Not Rebuild)
 
-Understanding the baseline prevents re-implementing finished work and clarifies exactly what "enhancement" means.
+Understanding the baseline prevents re-implementing finished work and clarifies exactly what "ensemble import" needs to add.
 
 ### Already Built and Working
 
 | Feature | Location | Notes |
 |---------|----------|-------|
-| Excel upload + multer memoryStorage | `import.service.js` | `previewStudentImport()` + `executeStudentImport()` |
-| Header row auto-detection (scores up to 10 rows) | `parseExcelBufferWithHeaderDetection()` | Handles multi-row merged Ministry headers |
-| Multi-row merged header backfill | `parseExcelBufferWithHeaderDetection()` | Parent-row climbing for sub-labels |
-| Hebrew column mapping (STUDENT_COLUMN_MAP) | `import.service.js` lines 113-133 | Maps שם, כיתה, שנות לימוד, שלב, המורה, זמן שעור |
-| `fullName` → `firstName` + `lastName` split | `validateStudentRow()` | Space-split on `\s+` |
-| Lesson duration conversion (weekly hours → minutes) | `validateStudentRow()` | 0.75 sh"sh → 45 minutes, handles 2x/3x lesson weeks |
-| Ministry stage level (שלב א/ב/ג) parsing + validation | `validateStudentRow()` + `MINISTRY_STAGE_LEVELS` | Validated against `['א', 'ב', 'ג']` |
-| Age validation | `validateStudentRow()` | Range 3-99 |
-| Study years parsing | `validateStudentRow()` | `parseInt` with null fallback |
-| Instrument column detection (colored cells + boolean) | `detectInstrumentColumns()` + `readInstrumentMatrix()` | Checks cell fill color first, text fallback |
-| Department → instrument auto-assign (single-instrument dept) | `previewStudentImport()` lines 1533-1555 | Auto-assigns when dept has exactly 1 instrument |
-| Student name matching (firstName + lastName exact) | `matchStudent()` | Returns `name_duplicate` when multiple match |
-| Duplicate name warning | `previewStudentImport()` | Warns when 2+ students share a name |
-| Preview dry-run with import_log persistence | `previewStudentImport()` | Saves to `import_log` with `status: 'pending'` |
-| Execute from importLogId | `executeStudentImport()` | Reads pending log, updates/creates students |
-| Basic student creation (new students) | `executeStudentImport()` lines 1788-1819 | Creates minimal document without `instrumentProgress[]` |
-| Updates: class, studyYears, extraHour | `calculateStudentChanges()` | Only these 3 fields diffed |
-| Ministry stage level stored on new students | `executeStudentImport()` line 1812-1815 | `newStudent.academicInfo.ministryStageLevel` (flat field, NOT in instrumentProgress) |
-| 3-step frontend flow | `ImportData.tsx` | upload → preview → results |
-| Teacher/student tab switching | `ImportData.tsx` | Resets state on tab change |
-| Import results summary | `ImportData.tsx` | Shows created/updated/error counts |
+| Excel upload + multer memoryStorage | `import.route.js` | 10MB limit, .xlsx/.xls filter |
+| Preview/execute flow with import_log | `import.service.js` | `previewX() -> executeImport(importLogId)` pattern |
+| SheetJS (XLSX) parser for form-style files | `parseConservatoryExcel()` | Fixed cell address parsing, handles formula results |
+| ExcelJS parser for tabular files | `parseExcelBufferWithHeaderDetection()` | Multi-row merged header detection, backfill from parent rows |
+| Orchestra CRUD | `orchestra.service.js` | Full `addOrchestra()`, `updateOrchestra()`, member mgmt, conductor linking |
+| Orchestra validation schema | `orchestra.validation.js` | Joi with `ORCHESTRA_TYPES`, `ORCHESTRA_SUB_TYPES`, `PERFORMANCE_LEVELS`, `conductorId` required |
+| Orchestra model fields | `orchestra.validation.js` | `name`, `type`, `subType`, `performanceLevel`, `conductorId`, `memberIds[]`, `rehearsalIds[]`, `schoolYearId`, `location`, `ministryData`, `isActive` |
+| Rehearsal CRUD + bulk create | `rehearsal.service.js` | `addRehearsal()`, `bulkCreateRehearsals()` with dayOfWeek/startTime/endTime |
+| Ensemble export sheet | `ensembles.sheet.js` | Rows: active marker, conductor name, ensemble name, member count, Activity I (day/start/end/hours), Activity II, totals, coordination hours, performance level columns |
+| Ensemble export mapper | `ministry-mappers.js` `mapEnsembleSchedule()` | Maps orchestras + rehearsals to export rows |
+| Ensemble subType column mapping | `_shared.js` `ENSEMBLE_TO_COLUMN` | 10 subTypes mapped to columns Q-Y |
+| Constants: types/subTypes/levels | `config/constants.js` | `ORCHESTRA_TYPES`, `ORCHESTRA_SUB_TYPES`, `PERFORMANCE_LEVELS` |
+| Conductor lookup in export | `ministry-mappers.js` | `teacherMap.get(orch.conductorId)` with `composeName()` |
+| Teacher matching by name | `import.service.js` `matchTeacherByName()` | Fuzzy name matching already exists for student import |
+| Frontend import page with tabs | `ImportData.tsx` | 3 tabs: teachers/students/conservatory |
+| Frontend apiService import methods | `apiService.js` | `previewTeacherImport()`, `previewStudentImport()`, `previewConservatoryImport()`, `executeImport()` |
 
-### What the Column `המורה` Currently Does
+### What the Export Sheet Reveals About Ministry Format
 
-The `המורה` column is parsed into `mapped.teacherName` (a string) and stored in `mapped` — but **nothing in `executeStudentImport()` uses `mapped.teacherName`**. It is visible in the preview `mapped` object but never matched to a teacher record and never written to `teacherAssignments[]`. This is the primary gap.
+The export sheet (`ensembles.sheet.js`) is the inverse of what we need to parse. The Ministry Excel ensemble sheet has:
 
-### What `instrumentProgress[]` Currently Gets From Import
+**Sheet name:** `'הרכבי ביצוע'`
+**Header rows:** 9-12 (group headers in rows 9-10, sub-headers in row 12)
+**Data starts:** Row 13
 
-Currently: **nothing**. New students created via import get `academicInfo.instrument` (a flat string field, legacy) and `academicInfo.ministryStageLevel` (a flat string), but `academicInfo.instrumentProgress[]` — the authoritative array schema — is never populated. This means imported students fail the `instrumentProgress.min(1).required()` Joi validation and therefore bypass it (the import bypasses Joi and writes directly with `insertOne`).
+**Columns (from export builder):**
+
+| Col | Header | Content |
+|-----|--------|---------|
+| A (1) | X | Active marker |
+| B (2) | שם המנצח | Conductor full name |
+| C (3) | תזמורת/הרכב | Ensemble name string (e.g., "תז' כלי נשיפה ייצוגית") |
+| D (4) | מספר משתתפים | Participant count (number) |
+| E-H (5-8) | פעילות I: ביום / משעה / עד שעה / שעות בפועל | Activity I schedule |
+| I-L (9-12) | פעילות II: ביום / משעה / עד שעה / שעות בפועל | Activity II schedule |
+| M (13) | סך ש"ש | Total weekly hours (formula: H+L) |
+| N (14) | שעות ריכוז | Coordination hours |
+| O (15) | סה"כ לדיווח | Total reporting hours (formula: M+N) |
+| P-R (16-18) | רמת ביצוע: התחלתי / ביניים / ייצוגי | Performance level (X in one column) |
+| T (20) | בדיקה | Validation formula |
+
+### Key Insight: Ensemble Name IS the Structured Data
+
+The Ministry Excel does NOT have separate columns for type, subType, and performanceLevel. Instead, the ensemble name string in column C encodes all three:
+
+- `"תז' כלי נשיפה ייצוגית"` = type: תזמורת, subType: כלי נשיפה, level: ייצוגי
+- `"הרכב קאמרי קלאסי 1"` = type: הרכב, subType: קאמרי קלאסי, instance: 1
+- `"מקהלה ייצוגית"` = type: הרכב, subType: מקהלה, level: ייצוגי
+- `"ג'אז/פופ/רוק 3"` = type: הרכב, subType: ג'אז-פופ-רוק, instance: 3
+
+The performance level columns (P-R) provide a secondary source for level classification.
 
 ---
 
 ## Table Stakes
 
-Features users (conservatory administrators) expect from this import flow. Missing = import is not useful for annual re-enrollment.
+Features that conservatory administrators expect from ensemble import. Missing = import is not useful for annual ensemble setup.
 
 | Feature | Why Expected | Complexity | Depends On |
 |---------|--------------|------------|------------|
-| **Teacher-student linking from Excel `המורה` column** | The primary use case for the import — set who teaches whom from the Ministry roster. Without it, imported students are orphaned (no teacher) and the import fails its core purpose. | Medium | `matchTeacher()` already exists and works for teacher import. Must apply it during student import: fuzzy name → `teacherId` → create `teacherAssignment` entry. Teacher DB must be pre-populated (teacher import runs first). |
-| **`instrumentProgress[]` creation from instrument/department columns** | Student schema requires `instrumentProgress[]` for all downstream features (stage tests, bagrut eligibility, export). Without it, imported students appear invalid in the system. | Medium | `detectInstrumentColumns()` + `readInstrumentMatrix()` already detect instruments. Gap is only in `executeStudentImport()`: detected instrument must become an `instrumentProgress` entry `{ instrumentName, isPrimary: true, currentStage: 1, ministryStageLevel, tests: {} }`. |
-| **`ministryStageLevel` stored in `instrumentProgress[]`** | The שלב column is already parsed (א/ב/ג). It needs to land in `instrumentProgress[0].ministryStageLevel` (not `academicInfo.ministryStageLevel`), because all downstream code (export mapper, student service, UI) reads it from the progress array. | Low | `stageToMinistryLevel()` helper exists in constants. Inverse mapping also exists. |
-| **Bagrut program flagging from `מגמת מוסיקה` column** | Conservatory must tag which students are in the music bagrut track at import time — re-enrollment requires this data. | Low | New column map entry needed: `'מגמת מוסיקה': 'isBagrutTrack'`. Detection is boolean/checkmark in Excel. Stored as `academicInfo.isBagrutTrack: true`. Does NOT create a `bagrut` document — just flags the student. |
-| **Preview shows enriched student data** | Admin must see teacher-to-student links, instrument assignments, and bagrut flags BEFORE confirming import — not just name + class. Current preview only shows 3 change fields. | Medium | Frontend `ImportData.tsx` needs new `getStudentRowDetails()` helper (mirrors `getTeacherRowDetails()` which already exists). Backend `calculateStudentChanges()` must include the new fields. |
-| **Preview summary counts by category** | Admin needs to know: X students matched, Y new, Z with teacher links found, W with unknown teacher names. | Low | Extend the existing preview object to include `teacherLinksFound`, `teacherLinksUnresolved`, `instrumentsDetected` counts. |
+| **Parse ensemble rows from Ministry Excel sheet** | The core function -- read row-by-row tabular data from the "הרכבי ביצוע" sheet. Without it, no import. Must handle the specific sheet by name (not first sheet) since the Ministry file is a multi-sheet workbook. | Medium | SheetJS can target sheets by name. Row parsing is well-understood from existing parsers. Key difference from teacher/student import: must locate the correct sheet in a multi-sheet workbook. |
+| **Ensemble name string parsing (type/subType/level extraction)** | The ensemble name in column C is a composite string that must be decomposed into the app's structured fields (`type`, `subType`, `performanceLevel`). This is the hardest parsing challenge and the most error-prone. | High | Requires a deterministic parser/mapping table covering all known Ministry naming patterns. See "Name Parsing Rules" section below. |
+| **Conductor name matching** | Column B has the conductor's full name. Must resolve to a `teacherId` in the database. Conductors MUST exist before ensemble import (teacher import runs first). | Medium | `matchTeacherByName()` already exists and handles fuzzy name matching. The same function used for student import teacher linking works here. Single-match = assign. Multiple-match = warn. No-match = warn but still allow import (conductor can be assigned manually later). |
+| **Schedule data parsing (Activity I + II)** | Columns E-L contain weekly rehearsal day/time data. Must extract `dayOfWeek`, `startTime`, `endTime` for up to 2 weekly rehearsal slots per ensemble. | Medium | Day names are Hebrew (ראשון through שבת) -- need reverse mapping from `VALID_DAYS` to dayOfWeek index (0-6). Time values may be Excel time serial numbers (fractional day values like 0.625 = 15:00) or strings. SheetJS handles time conversion. |
+| **Performance level extraction** | Columns P-R use "X" markers in one of three columns (התחלתי / ביניים / ייצוגי). Must read which column has the X. Also extract from name string as secondary source. | Low | Simple column-check logic. Performance level columns P/Q/R (16/17/18) -- check for truthy value. |
+| **Participant count capture** | Column D has the number of participants. This is metadata for the Ministry report (NOT a member list). Must store as `ministryData.participantCount` or similar -- NOT as actual memberIds. | Low | Direct numeric read. Important: member count from import is a declared number, not a list of student IDs. The app's `memberIds[]` array is populated separately through the student enrollment UI. |
+| **Preview with diff against existing orchestras** | Admin must see what will be created vs. updated before confirming. Must match imported ensembles to existing orchestras by name (primary) or by type+subType combination. | Medium | Matching logic: exact name match first, then fuzzy match (normalized name). Preview must show: matched (with changes highlighted), new (to create), unmatched existing (not in import -- leave alone, DO NOT delete). |
+| **Execute: create/update orchestras** | Apply the previewed changes. Create new orchestra documents, update existing ones with schedule/conductor/level changes. | Medium | Uses existing `orchestraService.addOrchestra()` for new, direct collection updates for existing (bypassing validation for bulk efficiency). Must set `tenantId`, `schoolYearId`, and link conductor via `conducting.orchestraIds`. |
+| **Ministry data fields** | Store `coordinationHours` (column N) and `totalReportingHours` (column O) in `ministryData` on the orchestra document. These are Ministry-specific reporting fields, not operational data. | Low | Already in orchestra schema: `ministryData: { coordinationHours, totalReportingHours, ministryUseCode }`. Direct write. |
+| **Frontend: 4th tab on import page** | Add "הרכבים" tab alongside teachers/students/conservatory on the import page. Must follow the same upload -> preview -> results flow. | Medium | Pattern established by 3 existing tabs. Need new tab icon, state management, and preview/results rendering specific to ensemble data shape. |
+
+---
+
+## Name Parsing Rules (Critical Feature Detail)
+
+The ensemble name string in column C of the Ministry Excel is the primary data source. Parsing it into structured fields is the highest-complexity feature.
+
+### Known Ministry Naming Patterns
+
+Based on the project context provided:
+
+| Ministry Name Pattern | Type | SubType | Level | Instance |
+|----------------------|------|---------|-------|----------|
+| `תז' כלי נשיפה ייצוגית` | תזמורת | כלי נשיפה | ייצוגי | - |
+| `תז' כלי נשיפה עתודה` | תזמורת | כלי נשיפה | ביניים | - |
+| `תז' כלי נשיפה צעירה` | תזמורת | כלי נשיפה | התחלתי | - |
+| `תז' כלי קשת עתודה` | תזמורת | כלי קשת | ביניים | - |
+| `תז' סימפונית ייצוגית` | תזמורת | סימפונית | ייצוגי | - |
+| `הרכב קאמרי קלאסי 1` ... `14` | הרכב | קאמרי קלאסי | - | 1-14 |
+| `הרכב קולי 1` ... `3` | הרכב | קולי | - | 1-3 |
+| `מקהלה ייצוגית` | הרכב | מקהלה | ייצוגי | - |
+| `מקהלה צעירה` | הרכב | מקהלה | התחלתי | - |
+| `ג'אז/פופ/רוק 1` ... `9` | הרכב | ג'אז-פופ-רוק | - | 1-9 |
+
+### Level Keyword Mapping
+
+Ministry Hebrew keywords to app performance levels:
+
+| Keyword in Name | Maps To |
+|----------------|---------|
+| `ייצוגית` / `ייצוגי` | ייצוגי |
+| `עתודה` | ביניים |
+| `צעירה` / `צעיר` | התחלתי |
+
+**Note:** `עתודה` (literally "reserve/cadets") is the Ministry's term for intermediate-level ensembles. This is a domain-specific mapping that must be hardcoded.
+
+### Type Detection Rules
+
+1. Name starts with `תז'` or `תזמורת` => type = `תזמורת`
+2. Name starts with `הרכב` => type = `הרכב`
+3. Name starts with `מקהלה` => type = `הרכב`, subType = `מקהלה`
+4. Name starts with `ג'אז` or `ג'ז` => type = `הרכב`, subType = `ג'אז-פופ-רוק`
+5. Fallback: type = `הרכב` (safer default -- most ensembles are הרכב)
+
+### SubType Detection Rules
+
+After stripping type prefix and level suffix:
+
+| Remaining Text | SubType |
+|---------------|---------|
+| `כלי נשיפה` | כלי נשיפה |
+| `סימפונית` | סימפונית |
+| `כלי קשת` | כלי קשת |
+| `קאמרי קלאסי` | קאמרי קלאסי |
+| `קולי` | קולי |
+| `מקהלה` | מקהלה |
+| `ביג-בנד` / `ביג בנד` | ביג-בנד |
+| `ג'אז` / `פופ` / `רוק` | ג'אז-פופ-רוק |
+| `עממית` | עממית |
+
+### Implementation Recommendation
+
+Build a `parseEnsembleName(nameString)` function that returns `{ type, subType, performanceLevel, instanceNumber, originalName }`. Use an ordered array of regex/keyword rules, not a flat lookup table, because:
+
+1. Order matters (check `תז'` before falling to default)
+2. Level keywords can appear in different positions
+3. Instance numbers need stripping before subType matching
+4. Ministry files may have slight spelling variations
+
+---
 
 ## Differentiators
 
-Features that set this import apart from a basic CSV dump. Not expected at first glance, but immediately valuable when discovered.
+Features that set the import apart from basic bulk creation. Not expected, but valued.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Fuzzy teacher name matching with confidence score** | Ministry Excel teacher names are often abbreviated or have spelling variations. `"דני לוי"` vs `"דניאל לוי"` both exist. A fuzzy match with low-confidence warning is better than silent failure. | Medium | Add Levenshtein distance or normalized name comparison after exact-match fails. Mark `matchType: 'name_fuzzy'` with a warning in preview. Do NOT auto-link fuzzy matches — show as warning requiring manual review. |
-| **Warn on unresolved teacher names** | When `המורה` column has a value but no teacher was found in DB, show a warning with the exact unresolved name so admin can investigate. | Low | Simple: after teacher match attempt, if `matchType === null`, push to `preview.warnings` with `{ field: 'teacherName', message: 'לא נמצא מורה: [name]' }`. |
-| **Detect and skip duplicate Excel rows** | Ministry files sometimes have the same student listed twice (two instruments, two teachers). Current code takes first match — should detect and warn. | Low | Check if student was already matched in this import run (Set of matched studentIds). Second occurrence = warning. |
-| **Import creates `currentStage` from `ministryStageLevel`** | Reverse-map שלב → `currentStage`: `א` → stage 1, `ב` → stage 4, `ג` → stage 6. These are defensible default entry points when no other stage data exists. | Low | `stageToMinistryLevel()` exists. Inverse: `ministryLevelToDefaultStage()` — add to constants. |
-| **Column detection report in preview** | Show admin which Excel columns were recognized: "detected: שלב, המורה, זמן שעור, כינור (colored), מגמת מוסיקה". Reduces confusion when import silently ignores columns. | Low | Backend already computes `headerMappingReport` for teacher import. Add same for student import. |
+| **Rehearsal schedule auto-creation** | When Activity I/II data includes day+time, automatically create weekly rehearsal documents linked to the imported orchestra. Saves admin from manually setting up rehearsal schedules after import. | High | Must interact with `rehearsalService.bulkCreateRehearsals()` which needs `orchestraId`, `startDate`, `endDate`, `dayOfWeek`, `startTime`, `endTime`, `location`, `schoolYearId`. The start/end dates come from the school year, not the Excel. Creates individual rehearsal instances for each week. This is a secondary action after orchestra creation. |
+| **Smart matching for existing orchestras** | Beyond exact name match, match by `type + subType + performanceLevel` combination, or by conductor + subType. Handles cases where the admin renamed an orchestra but the Ministry file uses the standard name. | Medium | Useful for re-imports (start of new school year, same ensembles with updated schedules). Without this, every re-import creates duplicates. |
+| **Ensemble name normalization** | Normalize imported names to consistent format (`instanceNumber` appended as ` #N`, Hebrew quotation marks standardized, whitespace normalized). Prevents duplicates from slight formatting differences. | Low | String normalization before matching. |
+| **Cross-validation with teacher import data** | After import, verify that conductors referenced in ensemble import have `ensembleHours > 0` in their teacher import data. Flag mismatches as warnings. | Low | Read-only check against existing teacher data. Pure validation, no side effects. |
+| **Batch import summary with hours reconciliation** | After import, show total ensemble hours vs. total teacher ensemble hours and flag discrepancies. This is the same cross-validation the export does (`runCrossValidation` in `export.service.js`). | Low | Re-use existing cross-validation logic from export service. |
+| **Dry-run conductor assignment** | In preview, show which conductors were matched and which are unresolved. Allow admin to manually assign unresolved conductors from a dropdown before executing. | High | Requires frontend dropdown with teacher list per unresolved row. The existing teacher matching returns candidates. Frontend must allow selection. This is a "nice to have" but significantly improves UX for first-time imports where conductor names in Excel may differ from database names. |
+
+---
 
 ## Anti-Features
 
-Features to explicitly NOT build in this milestone.
+Features to explicitly NOT build.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| **Creating a full `bagrut` document on import** | Bagrut documents require `studentId`, `teacherId`, program pieces, accompanist, etc. Import cannot reliably populate these from a roster file. | Set `academicInfo.isBagrutTrack = true` flag only. Bagrut document creation remains a manual flow in the bagrut module. |
-| **Full teacher assignment scheduling (day/time/location)** | Ministry file has `זמן שעור` (lesson duration) but NOT day of week or time. `teacherAssignment` schema requires `day`, `time`, `duration` (all mandatory). Cannot create a valid assignment without day/time. | Store `lessonDuration` in `academicInfo.lessonDuration`. Create `teacherAssignment` with `duration` only, using placeholder `day: 'ראשון'` and `time: '08:00'`, marked with `notes: 'ייובא - יש להגדיר זמן'` — OR simply store the teacher link as a looser reference until scheduling is done manually. See Pitfalls. |
-| **Automatic bagrut creation from import** | Bagrut program has complex state (presentations, pieces, accompanists, director evaluation) that cannot come from a ministry file. | Flag only. Admin creates bagrut document separately. |
-| **Updating existing `instrumentProgress[]` entries** | If a student already has `instrumentProgress[]` from prior manual entry (stage 5, test results, etc.), the import must NOT overwrite it with stage 1 default from the Excel file. | Only create `instrumentProgress[]` if the array is currently empty. If non-empty, update `ministryStageLevel` only on the primary instrument. Never touch `currentStage`, `tests`, or `isPrimary` on existing entries. |
-| **Cross-year import merging** | Importing two years of data at once — the Ministry file is always one school year. | Single year per import. Multiple imports = safe (idempotent match logic). |
-| **Importing parent/contact info** | Ministry files do not contain parent phone/email. These are collected separately. | Do not add parent fields to STUDENT_COLUMN_MAP — they will never appear in Ministry files. |
+| **Auto-assign students to imported orchestras** | Ministry Excel only has participant COUNT (column D), not a student list. Attempting to auto-match students to orchestras would be unreliable and destructive (could remove existing manual assignments). | Store `ministryData.declaredParticipantCount` as metadata. Student-orchestra membership is managed through the existing enrollment UI, not import. |
+| **Delete orchestras not in import file** | Absence from the import file does NOT mean the orchestra should be removed. Conservatories may have ensembles not reported to the Ministry. Deletion is a destructive action that should never be automated. | Import only creates or updates. Existing orchestras not in the import are left untouched. |
+| **Import from multiple sheets simultaneously** | The Ministry workbook has many sheets, but each should be imported independently (teacher sheet, student sheet, ensemble sheet, conservatory profile). Combining them in one action creates a confusing preview and unclear error attribution. | Keep separate import tabs. The user imports ensembles from the ensemble sheet only. |
+| **Automatic rehearsal attendance import** | Even if the Ministry file had attendance data (it does not), automatically overwriting attendance records would destroy manually-tracked data. | Rehearsal attendance is managed through the existing attendance UI. |
+| **Override existing orchestra members on import** | The import has no student list, only a count. Overwriting `memberIds[]` would destroy all existing enrollment data. | Preserve `memberIds[]` on existing orchestras during import update. Only update metadata fields (schedule, conductor, level, coordination hours). |
+| **Parse ensemble data from the student sheet** | The student sheet has ensemble columns (Q-Y) showing which students belong to which ensemble. Trying to reverse-engineer orchestra membership from this would be fragile and duplicative. | Ensemble-to-student membership comes from the orchestra management UI, not import. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Teacher-student linking
-  |-- Requires: teacher records already in DB (teacher import runs first)
-  |-- Requires: matchTeacher() applied to mapped.teacherName during student preview
-  |-- Requires: teacherAssignment shape decision (with or without day/time)
+Parse ensemble sheet from multi-sheet workbook
   |
-  `-- Preview warning: unresolved teacher names
-       |-- Show exact unresolved name in warnings
-       `-- Admin action: run teacher import first, then retry student import
-
-instrumentProgress[] creation
-  |-- Requires: instrument detected from colored cell OR instrument column
-  |-- Requires: ministryStageLevel from שלב column
-  |-- Requires: inverse stageLevel → currentStage mapping (new helper)
+  v
+Ensemble name parser (type/subType/level extraction)
   |
-  `-- Guard: only create if instrumentProgress[] is currently empty
-
-ministryStageLevel in instrumentProgress[]
-  |-- Depends on: instrumentProgress[] creation (above)
-  |-- Stored at: instrumentProgress[0].ministryStageLevel
-  |-- Remove from: academicInfo.ministryStageLevel (flat field — was a stopgap)
-
-Bagrut flagging (isBagrutTrack)
-  |-- Requires: new column map entry for 'מגמת מוסיקה'
-  |-- Stored at: academicInfo.isBagrutTrack (new boolean field)
-  |-- Independent of instrumentProgress[] and teacherAssignment
-
-Enriched preview UX
-  |-- Depends on: all backend enrichments (teacher linking, instrumentProgress)
-  |-- calculateStudentChanges() must include new fields
-  |-- Frontend getStudentRowDetails() mirrors getTeacherRowDetails() pattern
+  v
+Conductor name matching (uses existing matchTeacherByName)
+  |
+  v
+Schedule data parsing (Activity I + II)
+  |
+  v
+Preview with diff against existing orchestras
+  |                                  |
+  v                                  v
+Execute: create/update          Frontend: 4th tab
+  |
+  v
+[Optional] Rehearsal schedule auto-creation
 ```
+
+**Critical path:** Parse sheet -> Parse names -> Match conductors -> Preview -> Execute
+
+**Independent of critical path:**
+- Frontend tab can be built in parallel with backend parsing
+- Performance level extraction is a sub-task of name parsing
+- Ministry data fields are a sub-task of execute
 
 ---
 
 ## MVP Recommendation
 
-Build in this order — each step produces working functionality without breaking existing behavior.
+### Phase 1: Core Parsing + Preview (Must Have)
 
-### Step 1: instrumentProgress[] Creation (highest value, no external dependencies)
+1. **Sheet selection** -- locate "הרכבי ביצוע" sheet in the multi-sheet workbook using SheetJS
+2. **Row parsing** -- extract columns A-R, T from data rows (starting row 13, skip header rows 9-12)
+3. **Name parser** -- `parseEnsembleName()` decomposing Ministry strings into type/subType/performanceLevel
+4. **Conductor matching** -- reuse `matchTeacherByName()` for column B
+5. **Schedule extraction** -- parse Activity I + II day/time values
+6. **Performance level** -- read X markers from columns P-R (secondary to name parsing)
+7. **Coordination hours** -- read column N
+8. **Preview** -- match against existing orchestras, show create/update/unchanged counts
+9. **Import log** -- save to `import_log` with `importType: 'ensembles'`
 
-**Why first:** Unblocks the rest. Currently imported students have no `instrumentProgress[]`, which breaks stage tests, export, and UI display. This is also fully self-contained — does not depend on teacher DB state.
+### Phase 2: Execute + Frontend
 
-**What to build:**
-1. In `executeStudentImport()` for new students: build `instrumentProgress[]` with one entry from the detected instrument + ministryStageLevel + default stage.
-2. For existing students being updated: if `instrumentProgress[]` is empty, create it; if non-empty, update only `ministryStageLevel` on primary instrument.
-3. Add `currentStage` to the student change diff (`calculateStudentChanges()`).
-4. Add `ministryLevelToDefaultStage()` helper to `constants.js`.
+1. **Execute** -- create new orchestras, update existing ones (schedule, conductor, level, ministry data)
+2. **Conductor linking** -- update teacher's `conducting.orchestraIds` for new assignments
+3. **Frontend tab** -- 4th "הרכבים" tab on import page with upload/preview/results flow
+4. **Constants update** -- add `'ensembles'` to `IMPORT_TYPES` in `config/constants.js`
 
-**Complexity:** Low-Medium. ~80 lines of new code in `executeStudentImport()` + `calculateStudentChanges()`. No new API endpoints.
+### Defer
 
-### Step 2: Teacher-Student Linking
-
-**Why second:** High value for the annual re-enrollment use case. Depends on teacher records being present (teacher import runs first — existing flow).
-
-**What to build:**
-1. In `previewStudentImport()`: for each row with `mapped.teacherName`, attempt `matchTeacher()`. Store resolved `teacherId` and `matchType` in the preview entry.
-2. In `calculateStudentChanges()`: if teacher is resolved and student has no active assignment for that teacher, add a change `{ field: 'teacherAssignment', newValue: { teacherId, duration } }`.
-3. In `executeStudentImport()`: for teacher link changes, push to `student.teacherAssignments[]` using `associateStudentWithTeacher()` pattern or direct `$push`.
-4. `teacherAssignment` shape decision: store `{ teacherId, duration: mapped.lessonDuration, isActive: true, notes: 'ייובא ממשרד החינוך - יש להגדיר זמן שיעור', day: null, time: null }` — use `null` for day/time since they are unknown. The Joi schema allows `null` for optional fields.
-
-**Complexity:** Medium. Teacher name fuzzy matching is the only hard part — start with exact match only (mirrors `matchTeacher()` priority 3 logic). Fuzzy match can be added later as an enhancement.
-
-**Warning generation:**
-- Unresolved teacher name → `preview.warnings.push({ field: 'teacherName', message: 'לא נמצא מורה: ${mapped.teacherName}' })`
-- Add preview summary counts: `teacherLinksFound`, `teacherLinksUnresolved`.
-
-### Step 3: Bagrut Flagging
-
-**Why third:** Lowest complexity, self-contained, high administrative value.
-
-**What to build:**
-1. Add `'מגמת מוסיקה': 'isBagrutTrack'` to `STUDENT_COLUMN_MAP`.
-2. In `validateStudentRow()`: parse as boolean using `TRUTHY_VALUES` (same pattern as `extraHour`).
-3. In `calculateStudentChanges()`: add diff for `academicInfo.isBagrutTrack`.
-4. In `executeStudentImport()`: write `academicInfo.isBagrutTrack` to new and updated students.
-
-**Complexity:** Low. ~15 lines of code total. Pattern is identical to `extraHour` handling.
-
-**Note:** Check if the student collection already uses this field or if it needs to be added to the student Joi schema with `Joi.boolean().default(false)`.
-
-### Step 4: Enriched Preview UX
-
-**Why last:** Depends on steps 1-3. Once backend enrichments are in place, expose them in the frontend.
-
-**What to build:**
-1. `calculateStudentChanges()` already returns a diff — extend it to include `instrumentProgress`, `teacherAssignment`, `isBagrutTrack` diffs (steps 1-3 do this).
-2. In `ImportData.tsx`: add `getStudentRowDetails()` helper mirroring `getTeacherRowDetails()` (already exists for teachers, lines 152-258 in `ImportData.tsx`). Render: instrument detected, teacher linked/unresolved, stage level, bagrut flag, changes list.
-3. Add column detection report to preview: `instrumentColumnsDetected`, `teacherColumnDetected`, `bagrutColumnDetected`.
-4. Preview summary row counts: matched/new/skipped with breakdown of teacher links found vs unresolved.
-
-**Complexity:** Low-Medium. Mostly frontend work. Backend changes are already in steps 1-3.
-
----
-
-## Detailed Behavioral Specifications
-
-### teacherAssignment Shape Decision
-
-The student `teacherAssignment` Joi schema (in `student.validation.js`) requires `day` and `time` as mandatory fields. However, Ministry files do not contain lesson schedule data.
-
-**Decision:** Store teacher link with placeholder day/time that signals "schedule not yet set":
-
-```js
-{
-  teacherId: resolvedTeacherId,
-  duration: mapped.lessonDuration || 45, // from זמן שעור column
-  day: 'ראשון',                          // placeholder — not real
-  time: '00:00',                          // placeholder — not real
-  isActive: true,
-  notes: 'ייובא ממשרד החינוך - יש לקבוע זמן שיעור',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-}
-```
-
-Alternative: Bypass validation and store `{ teacherId, duration, isActive: true }` with `day` and `time` omitted. This requires either loosening the Joi schema (risky — affects UI-created assignments) or writing directly to MongoDB without Joi validation (acceptable for import, which already does this).
-
-**Recommended approach:** Import bypasses Joi (already does this), writes `{ teacherId, duration, isActive: true, notes: '...' }` without `day`/`time`. Add `day` and `time` as `Joi.optional()` in `teacherAssignmentSchema` to allow this shape. UI-created assignments remain required to have day/time via UI-level validation.
-
-### instrumentProgress[] Creation Logic
-
-```
-For NEW students:
-  if (mapped.instrument):
-    instrumentProgress = [{
-      instrumentName: mapped.instrument,
-      isPrimary: true,
-      currentStage: ministryLevelToDefaultStage(mapped.ministryStageLevel) || 1,
-      ministryStageLevel: mapped.ministryStageLevel || null,
-      tests: {}
-    }]
-  else:
-    instrumentProgress = []  // Cannot create entry without instrument name
-
-For UPDATED students:
-  if (student.academicInfo.instrumentProgress.length === 0 && mapped.instrument):
-    → Same as new student above (populate from import)
-  elif (student.academicInfo.instrumentProgress.length > 0):
-    → Update ministryStageLevel ONLY on primaryInstrument (or first)
-    → DO NOT change currentStage, tests, or isPrimary
-    → DO NOT add new instruments from import
-```
-
-### ministryLevelToDefaultStage() Mapping
-
-```js
-export function ministryLevelToDefaultStage(level) {
-  // Conservative: use lowest stage in each band
-  // א (beginner): stage 1
-  // ב (intermediate): stage 4
-  // ג (advanced): stage 6
-  if (level === 'א') return 1;
-  if (level === 'ב') return 4;
-  if (level === 'ג') return 6;
-  return 1; // safe default when level unknown
-}
-```
-
-This is conservative — always uses the bottom of each ministry band. Admin can adjust individual students afterward.
-
-### isBagrutTrack Detection
-
-The `מגמת מוסיקה` column in Ministry Excel files typically contains a checkmark character (✓ or V), `כן`, or `1` for students in the bagrut music track. Empty cells or `לא` = not in track.
-
-Detection uses existing `TRUTHY_VALUES` array: `['✓', 'V', 'v', 'x', 'X', '1', 'כן', true, 1, 'true', 'TRUE', 'True']`.
-
-Note: `'x'` and `'X'` are in `TRUTHY_VALUES` which is correct for Israeli Ministry convention where `X` means "yes/selected".
-
----
-
-## Complexity Assessment
-
-| Feature | Complexity | Backend Changes | Frontend Changes |
-|---------|------------|----------------|-----------------|
-| `instrumentProgress[]` creation | Low-Medium | `executeStudentImport()`, `calculateStudentChanges()`, `constants.js` | `getStudentRowDetails()` display |
-| Teacher-student linking | Medium | `previewStudentImport()`, `executeStudentImport()`, `calculateStudentChanges()` | Preview teacher link display |
-| Bagrut flagging | Low | `STUDENT_COLUMN_MAP`, `validateStudentRow()`, `calculateStudentChanges()`, `executeStudentImport()` | Flag display in preview |
-| Enriched preview UX | Low-Medium | None (depends on steps 1-3) | `getStudentRowDetails()`, summary counts |
-| Fuzzy teacher name matching | Medium | New helper function | Warning display in preview |
-| Column detection report | Low | `previewStudentImport()` metadata | Summary panel in preview |
-
-**Total estimated effort: 3-5 days backend + 1-2 days frontend.**
+- **Rehearsal auto-creation**: Complex interaction with school year dates and bulk rehearsal creation. Better as a separate follow-up after core import is proven stable. Creates many documents (one per week per ensemble) with significant rollback complexity.
+- **Manual conductor assignment in preview**: Requires significant frontend work (dropdowns per row) for an edge case. Admin can edit conductor in the orchestra management UI after import.
+- **Cross-validation with teacher hours**: Read-only check that adds informational value but does not affect the core import flow.
 
 ---
 
 ## Sources
 
-All findings are HIGH confidence — derived from direct analysis of existing codebase:
-
-- `api/import/import.service.js` — full service (1,950 lines), all existing logic
-- `api/student/student.service.js` — `instrumentProgress`, `teacherAssignments`, `setBagrutId` patterns
-- `api/student/student.validation.js` — Joi schemas: `instrumentProgressSchema`, `teacherAssignmentSchema`, `studentSchema`
-- `api/bagrut/bagrut.validation.js` — bagrut document structure
-- `api/bagrut/bagrut.service.js` — bagrut lifecycle
-- `api/export/ministry-mappers.js` — how `instrumentProgress` is consumed in export (`mapStudentFull()`)
-- `config/constants.js` — `MINISTRY_STAGE_LEVELS`, `VALID_STAGES`, `stageToMinistryLevel()`, `TRUTHY_VALUES`
-- `src/pages/ImportData.tsx` — frontend 3-step flow, `getTeacherRowDetails()` pattern to mirror
+- Direct codebase analysis (HIGH confidence):
+  - `api/export/sheets/ensembles.sheet.js` -- Ministry Excel ensemble sheet structure (columns, headers, data start row)
+  - `api/export/ministry-mappers.js` `mapEnsembleSchedule()` -- how ensemble data maps to/from the sheet
+  - `api/export/sheets/_shared.js` -- `ENSEMBLE_TO_COLUMN` mapping, `SHEET_NAMES`
+  - `api/orchestra/orchestra.validation.js` -- orchestra schema with all valid types/subTypes/levels
+  - `api/orchestra/orchestra.service.js` -- `addOrchestra()`, `updateOrchestra()` with conductor linking
+  - `api/rehearsal/rehearsal.validation.js` -- rehearsal schema with dayOfWeek/startTime/endTime
+  - `api/import/import.service.js` -- existing import patterns (preview/execute flow, teacher matching)
+  - `config/constants.js` -- `ORCHESTRA_TYPES`, `ORCHESTRA_SUB_TYPES`, `PERFORMANCE_LEVELS`
+  - Project context (ensemble name patterns from actual Ministry files)

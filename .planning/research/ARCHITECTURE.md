@@ -1,742 +1,457 @@
-# Architecture Patterns: Enhanced Student Import
+# Architecture Patterns: Ensemble Import Integration
 
-**Domain:** Ministry of Education Excel import for music school student data
-**Researched:** 2026-02-26
-**Milestone:** Enhanced student import (teacher matching, instrumentProgress, bagrut flag, frontend preview parity)
-**Confidence:** HIGH (direct codebase analysis — all integration points verified from source)
+**Domain:** Ensemble/Orchestra Import from Ministry Excel
+**Researched:** 2026-02-28
+**Confidence:** HIGH (based on direct codebase analysis, no external sources needed)
 
----
+## Executive Summary
 
-## System Context: What Already Exists
+The ensemble import feature must integrate with an established import system that follows a clear preview-then-execute pattern. The existing codebase has three import types (teachers, students, conservatory) that share a common controller/route infrastructure and a unified `executeImport` dispatcher. The ensemble import is most similar to the **student import** (tabular Excel, entity matching, conductor matching) but creates/updates **orchestra** documents rather than student documents. This document specifies exactly which files change, which are new, and how data flows through the system.
 
-The student import pipeline is fully operational. The changes are **targeted enhancements to an existing 1900-line service**, not a new system.
+## Recommended Architecture
 
-### Existing Flow (Do Not Break)
+### Pattern: Extend Import Service (Do NOT Create Separate Parser File)
+
+The conservatory import was form-based (fixed cell addresses) and could have justified a separate parser. But ensemble import is **tabular** -- same parsing pattern as teacher/student import. Add it directly to `import.service.js` as `previewEnsembleImport` and the corresponding execute function.
+
+**Rationale:**
+- Teacher and student imports both live in `import.service.js` (the tabular pattern home)
+- The conservatory import also lives in `import.service.js` despite being form-based
+- Creating a separate `ensemble-import.service.js` would break the established single-file pattern
+- All imports share the same column-mapping, header-detection, and SheetJS/ExcelJS infrastructure
+- The unified `executeImport` dispatcher already routes by `importType` string
+
+### Component Boundaries
+
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| `import.service.js` | New: `previewEnsembleImport`, `executeEnsembleImport` + column map + matching logic | orchestra collection, teacher collection, rehearsal collection, import_log collection |
+| `import.controller.js` | New: `previewEnsembleImport` handler (same pattern as existing 3) | import.service.js |
+| `import.route.js` | New: `POST /ensembles/preview` route | import.controller.js |
+| `orchestra.service.js` | Existing: `addOrchestra`, `updateOrchestra` (called during execute) | orchestra collection, teacher collection |
+| `rehearsal.service.js` | Existing: `addRehearsal` or `bulkCreateRehearsals` (called during execute for schedule) | rehearsal collection |
+| `apiService.js` (frontend) | New: `previewEnsembleImport(file)` method | backend /api/import/ensembles/preview |
+| `ImportData.tsx` (frontend) | New: 4th tab `'ensembles'` with ensemble-specific preview rendering | apiService.importService |
+
+### Data Flow
 
 ```
-POST /import/students/preview
-  |
-  v
-multer.memoryStorage() — file never touches disk
-  |
-  v
-importService.previewStudentImport(buffer, { context })
-  |
-  +---> parseExcelBufferWithHeaderDetection(buffer, STUDENT_COLUMN_MAP)
-  |       |
-  |       +---> Multi-row Hebrew header detection
-  |       +---> Returns: { rows, cellRows, headerColMap, headerRowIndex, matchedColumns }
-  |
-  +---> detectInstrumentColumns(headers)
-  +---> mapColumns(row, STUDENT_COLUMN_MAP)  — maps Hebrew headers to internal keys
-  +---> validateStudentRow(mapped, rowIndex)  — validates, coerces types, splits fullName
-  +---> matchStudent(mapped, students)        — name-only match (firstName + lastName)
-  +---> calculateStudentChanges(student, mapped) — diff: class, studyYears, extraHour only
-  |
-  +---> importLogCollection.insertOne({ importType: 'students', preview, status: 'pending' })
-  |
-  v
-{ importLogId, preview: { matched, notFound, errors, warnings, headerRowIndex, matchedColumns } }
+[Excel Upload] --> multer memoryStorage --> req.file.buffer
+  --> previewEnsembleImport(buffer, { context })
+    --> parseExcelBufferWithHeaderDetection(buffer, ENSEMBLE_COLUMN_MAP)
+    --> matchOrchestra(parsed, existingOrchestras)
+    --> matchTeacherByName(conductorName, teachers)
+    --> calculateChanges(existing, imported)
+    --> save to import_log { importType: 'ensembles', status: 'pending', preview, parsedData }
+    --> return { importLogId, preview }
 
-POST /import/execute/:importLogId
-  |
-  v
-importService.executeImport(importLogId, userId, { context })
-  |
-  v
-executeStudentImport(log, ...)
-  |
-  +---> For matched entries: $set flat fields (class, studyYears, extraHour) via change.field paths
-  +---> For notFound entries: insertOne minimal student document
-  |       (personalInfo, academicInfo: { class, studyYears, extraHour, instrument, age })
-  v
-{ totalRows, matchedCount, successCount, createdCount, errorCount, skippedCount, errors }
+[Execute] --> POST /import/execute/:importLogId
+  --> executeImport(importLogId)
+    --> importType === 'ensembles' --> executeEnsembleImport(log, ...)
+      --> for each matched: updateOrchestra fields + update/create rehearsals
+      --> for each notFound: addOrchestra + create rehearsals
+      --> update import_log status
 ```
 
-### Current STUDENT_COLUMN_MAP (confirmed from source)
+## Integration Points: New vs Modified
 
+### New Code (create from scratch)
+
+| What | Where | Description |
+|------|-------|-------------|
+| `ENSEMBLE_COLUMN_MAP` | `import.service.js` (constant) | Hebrew header to internal key mapping for ensemble sheet columns |
+| `previewEnsembleImport()` | `import.service.js` (function) | Parse Excel, match orchestras, match conductors, build preview |
+| `executeEnsembleImport()` | `import.service.js` (function) | Apply previewed changes to orchestra and rehearsal collections |
+| `matchOrchestra()` | `import.service.js` (function) | Match imported row to existing orchestra by name within tenant |
+| `calculateEnsembleChanges()` | `import.service.js` (function) | Diff imported data against existing orchestra fields |
+| `previewEnsembleImport` handler | `import.controller.js` (function) | Controller wrapper, same pattern as existing 3 |
+| `previewEnsembleImport` method | `apiService.js` (frontend) | API client method for ensemble import |
+| Ensemble preview rendering | `ImportData.tsx` (frontend) | 4th tab + ensemble-specific preview table |
+
+### Modified Code (add to existing)
+
+| What | Where | Change |
+|------|-------|--------|
+| `importService` export | `import.service.js` line 31-37 | Add `previewEnsembleImport` to exported object |
+| `executeImport` dispatcher | `import.service.js` line 2062-2071 | Add `else if (log.importType === 'ensembles')` branch |
+| `importController` export | `import.controller.js` line 3-8 | Add `previewEnsembleImport` to exported object |
+| Route registration | `import.route.js` | Add `POST /ensembles/preview` route (4 lines) |
+| `ImportTab` type | `ImportData.tsx` line 20 | Change to `'teachers' \| 'students' \| 'conservatory' \| 'ensembles'` |
+| Tab buttons | `ImportData.tsx` ~line 807-838 | Add 4th tab button for ensembles |
+| `handleUpload` | `ImportData.tsx` ~line 681-699 | Add `activeTab === 'ensembles'` branch |
+| `importService` object | `apiService.js` ~line 5071 | Add `previewEnsembleImport` method |
+
+### Unchanged Code (reuse as-is)
+
+| What | Why Unchanged |
+|------|---------------|
+| `parseExcelBufferWithHeaderDetection()` | Generic tabular parser, works with any column map |
+| `matchTeacherByName()` | Already handles conductor matching (used in student import) |
+| `executeImport()` | Only needs new `else if` branch, dispatcher logic unchanged |
+| `orchestra.validation.js` | Validate during execute via existing `validateOrchestra()` |
+| `rehearsal.validation.js` | Validate rehearsals via existing `validateRehearsal()` |
+| multer config | Same `importUpload` instance, same file size/type limits |
+| `import_log` collection | Same collection, new `importType: 'ensembles'` |
+
+## Key Design Decisions
+
+### 1. Orchestra Matching Strategy: Name-Based (Primary) + Type Disambiguation
+
+**Decision:** Match by `name` (case-insensitive, trimmed) within the tenant. If multiple orchestras share the same name, disambiguate by `type` (ensemble/orchestra) and `subType`.
+
+**Rationale:**
+- Orchestra names are unique within a conservatory in practice (no one names two ensembles identically)
+- The Ministry Excel has the name in column C ("ensemble/orchestra name")
+- Unlike teachers (email, ID number, name), orchestras have no persistent identifier across systems
+- conductorId is NOT a reliable match key: conductors change between years, and the same conductor may lead multiple ensembles
+- Name + type + subType provides sufficient disambiguation for the rare edge case
+
+**Match algorithm:**
 ```javascript
-'המורה': 'teacherName',        // EXISTS — parsed but UNUSED in matching/storage
-'שלב': 'ministryStageLevel',   // EXISTS — validated but stored as flat field, not in instrumentProgress
-'כלי': 'instrument',           // EXISTS — flat single instrument, not instrumentProgress array
-'כלי נגינה': 'instrument',     // EXISTS
-```
+function matchOrchestra(parsed, orchestras) {
+  const name = parsed.name?.trim().toLowerCase();
+  if (!name) return null;
 
-The `teacherName` key is already extracted from the "המורה" column but never used beyond being stored in the import log. `ministryStageLevel` is validated but written to `academicInfo.ministryStageLevel` (flat), not into `instrumentProgress[].ministryStageLevel`.
-
----
-
-## Integration Point 1: Teacher Matching ("המורה" Column)
-
-### Current State
-
-`mapped.teacherName` is populated in `previewStudentImport` via `STUDENT_COLUMN_MAP['המורה'] = 'teacherName'`, but the existing `calculateStudentChanges()` and `executeStudentImport()` ignore it entirely. The teacher collection is not queried during student import.
-
-### Target State
-
-When `mapped.teacherName` exists, resolve it to a `teacherId` from the `teacher` collection using name-matching. On execute, create a `teacherAssignment` object on the student document via `$push`.
-
-### Exact Integration Points
-
-**File:** `api/import/import.service.js`
-
-**1. New function `matchTeacherByName(teacherName, teachers)` (NEW — ~20 lines)**
-
-Location: alongside existing `matchTeacher()` and `matchStudent()` functions (~line 1079).
-
-```javascript
-// Strategy: split "שם מלא" string → firstName + lastName, then case-insensitive match.
-// Same split logic as validateStudentRow fullName split (space-delimited, first word = firstName).
-function matchTeacherByName(teacherName, teachers) {
-  if (!teacherName) return null;
-  const parts = teacherName.trim().split(/\s+/);
-  if (parts.length < 2) return null;           // Cannot match without both name parts
-  const fn = parts[0].toLowerCase();
-  const ln = parts.slice(1).join(' ').toLowerCase();
-  const match = teachers.find(
-    (t) =>
-      (t.personalInfo?.firstName || '').trim().toLowerCase() === fn &&
-      (t.personalInfo?.lastName || '').trim().toLowerCase() === ln
+  const matches = orchestras.filter(o =>
+    (o.name || '').trim().toLowerCase() === name
   );
-  return match ? { teacher: match, matchType: 'name' } : null;
-}
-```
 
-**2. Load teacher collection in `previewStudentImport()` (MODIFY — ~3 lines)**
-
-Currently only loads students:
-```javascript
-const students = await studentCollection.find(filter).toArray();
-```
-
-Add after that line:
-```javascript
-const teacherCollection = await getCollection('teacher');
-const teachers = await teacherCollection.find({ isActive: true, tenantId }).toArray();
-```
-
-**3. Call `matchTeacherByName()` in the preview loop (MODIFY — ~15 lines)**
-
-Inside the per-row loop in `previewStudentImport()`, after `mapColumns()`:
-```javascript
-let matchedTeacher = null;
-if (mapped.teacherName) {
-  const teacherMatch = matchTeacherByName(mapped.teacherName, teachers);
-  if (teacherMatch) {
-    mapped.resolvedTeacherId = teacherMatch.teacher._id.toString();
-    matchedTeacher = teacherMatch.teacher;
-  } else {
-    preview.warnings.push({
-      row: i + 2,
-      field: 'teacherName',
-      message: `מורה לא נמצא: "${mapped.teacherName}"`,
-    });
-  }
-}
-```
-
-Store `resolvedTeacherId` in the `matched` / `notFound` preview entries so execute has it.
-
-**4. `calculateStudentChanges()` — add teacher assignment diff (MODIFY — ~15 lines)**
-
-Currently only diffs: `studyYears`, `extraHour`, `class`. Add:
-```javascript
-// Teacher assignment diff
-if (mapped.resolvedTeacherId) {
-  const hasExistingAssignment = (student.teacherAssignments || []).some(
-    (a) => a.teacherId === mapped.resolvedTeacherId && a.isActive
-  );
-  if (!hasExistingAssignment) {
-    changes.push({
-      field: 'teacherAssignment',
-      newValue: mapped.resolvedTeacherId,
-      action: 'add',
-    });
-  }
-}
-```
-
-**5. `executeStudentImport()` — write teacherAssignment (MODIFY — ~25 lines)**
-
-**For matched students** (inside the existing `for (const entry of matched)` loop):
-```javascript
-const teacherAssignmentChange = (entry.changes || []).find(
-  (c) => c.field === 'teacherAssignment' && c.action === 'add'
-);
-if (teacherAssignmentChange) {
-  const newAssignment = {
-    teacherId: teacherAssignmentChange.newValue,
-    scheduleSlotId: null,
-    startDate: new Date(),
-    endDate: null,
-    isActive: true,
-    notes: 'ייבוא ממשרד החינוך',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
-  await studentCollection.updateOne(
-    { _id: ObjectId.createFromHexString(entry.studentId), tenantId },
-    { $push: { teacherAssignments: newAssignment } }
-  );
-}
-```
-
-**For new students** (inside the existing `for (const entry of notFound)` loop), during `insertOne`:
-```javascript
-// Add to newStudent construction:
-if (mapped.resolvedTeacherId) {
-  newStudent.teacherAssignments = [{
-    teacherId: mapped.resolvedTeacherId,
-    scheduleSlotId: null,
-    startDate: new Date(),
-    endDate: null,
-    isActive: true,
-    notes: 'ייבוא ממשרד החינוך',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }];
-} else {
-  newStudent.teacherAssignments = [];
-}
-```
-
-### Data Flow: Teacher Matching
-
-```
-Excel row: "המורה" = "יונה אברהם"
-  |
-  v
-STUDENT_COLUMN_MAP['המורה'] = 'teacherName'  (already exists)
-mapped.teacherName = "יונה אברהם"
-  |
-  v
-matchTeacherByName("יונה אברהם", teachers)
-  → split → firstName="יונה", lastName="אברהם"
-  → case-insensitive find in teacher collection
-  → returns { teacher: { _id: ObjectId("..."), ... }, matchType: 'name' }
-  |
-  v
-mapped.resolvedTeacherId = teacher._id.toString()
-(stored in preview entry)
-  |
-  v  [on execute]
-$push teacherAssignments: { teacherId: resolvedTeacherId, isActive: true, ... }
-```
-
-### Constraint: teacherAssignment Validation Schema
-
-The full `teacherAssignmentSchema` in `student.validation.js` requires `day`, `time`, `duration` — these are NOT present in Excel import data. The import bypasses Joi validation and writes directly to MongoDB via `updateOne`/`insertOne`. The assignment shape used by `student.service.js` in `addStudentTeacherAssociation()` (lines 743-753) omits `day/time/duration` when creating from the service layer, which sets a precedent for partial assignment creation. Import should follow the same minimal shape.
-
----
-
-## Integration Point 2: InstrumentProgress Array
-
-### Current State
-
-`mapped.instrument` (single string) is stored as `academicInfo.instrument` on new students. `mapped.ministryStageLevel` (Ministry level: 'א'/'ב'/'ג') is stored as `academicInfo.ministryStageLevel` (flat). Neither populates `academicInfo.instrumentProgress[]`.
-
-### Target State
-
-When `mapped.instrument` exists for a new student, build an `instrumentProgress` entry. When `mapped.ministryStageLevel` exists, include it in that entry. For matched (existing) students, update the existing `instrumentProgress` entry for that instrument if found, or push a new one.
-
-### Exact Integration Points
-
-**File:** `api/import/import.service.js`
-
-**1. New function `buildInstrumentProgressEntry(instrument, ministryStageLevel)` (NEW — ~20 lines)**
-
-Location: alongside `calculateStudentChanges()` (~line 1311).
-
-```javascript
-// Map Ministry stage level (א/ב/ג) → numeric stage range midpoint
-// א = stages 1-3 → use 1 (beginning), ב = stages 4-5 → use 4, ג = stages 6-8 → use 6
-const MINISTRY_LEVEL_TO_STAGE = { 'א': 1, 'ב': 4, 'ג': 6 };
-
-function buildInstrumentProgressEntry(instrument, ministryStageLevel) {
-  return {
-    instrumentName: instrument,
-    isPrimary: true,
-    currentStage: MINISTRY_LEVEL_TO_STAGE[ministryStageLevel] || 1,
-    ministryStageLevel: ministryStageLevel || null,
-    tests: {
-      stageTest: { status: 'לא נבחן' },
-      technicalTest: { status: 'לא נבחן' },
-    },
-  };
-}
-```
-
-**2. `calculateStudentChanges()` — add instrumentProgress diff (MODIFY — ~25 lines)**
-
-```javascript
-// InstrumentProgress diff
-if (mapped.instrument && VALID_INSTRUMENTS.includes(mapped.instrument)) {
-  const existingEntry = (student.academicInfo?.instrumentProgress || []).find(
-    (p) => p.instrumentName === mapped.instrument
-  );
-  if (!existingEntry) {
-    // Instrument not in student's progress — add it
-    changes.push({
-      field: 'instrumentProgress',
-      action: 'add',
-      instrument: mapped.instrument,
-      ministryStageLevel: mapped.ministryStageLevel || null,
-    });
-  } else if (mapped.ministryStageLevel && existingEntry.ministryStageLevel !== mapped.ministryStageLevel) {
-    // Update ministry stage level on existing entry
-    changes.push({
-      field: 'instrumentProgress',
-      action: 'updateStageLevel',
-      instrument: mapped.instrument,
-      ministryStageLevel: mapped.ministryStageLevel,
-    });
-  }
-}
-```
-
-**3. `executeStudentImport()` — write instrumentProgress (MODIFY — ~30 lines)**
-
-**For matched students:**
-```javascript
-for (const change of entry.changes) {
-  if (change.field === 'instrumentProgress' && change.action === 'add') {
-    const newEntry = buildInstrumentProgressEntry(change.instrument, change.ministryStageLevel);
-    await studentCollection.updateOne(
-      { _id: ObjectId.createFromHexString(entry.studentId), tenantId },
-      { $push: { 'academicInfo.instrumentProgress': newEntry } }
-    );
-  } else if (change.field === 'instrumentProgress' && change.action === 'updateStageLevel') {
-    await studentCollection.updateOne(
-      {
-        _id: ObjectId.createFromHexString(entry.studentId),
-        tenantId,
-        'academicInfo.instrumentProgress.instrumentName': change.instrument,
-      },
-      {
-        $set: {
-          'academicInfo.instrumentProgress.$.ministryStageLevel': change.ministryStageLevel,
-          updatedAt: new Date(),
-        }
-      }
-    );
-  }
-}
-```
-
-**For new students** — replace the existing flat `academicInfo.instrument` with the array:
-```javascript
-// Replace existing:
-//   academicInfo: { instrument: mapped.instrument || null, ... }
-// With:
-academicInfo: {
-  class: mapped.class || null,
-  studyYears: mapped.studyYears ? parseInt(mapped.studyYears) || 1 : 1,
-  extraHour: typeof mapped.extraHour === 'boolean' ? mapped.extraHour : false,
-  instrumentProgress: mapped.instrument && VALID_INSTRUMENTS.includes(mapped.instrument)
-    ? [buildInstrumentProgressEntry(mapped.instrument, mapped.ministryStageLevel)]
-    : [],
-  age: mapped.age ? parseInt(mapped.age) || null : null,
-  lessonDuration: (mapped.lessonDuration && typeof mapped.lessonDuration === 'number')
-    ? mapped.lessonDuration : undefined,
-  tests: { bagrutId: null },
-},
-```
-
-### Constraint: `instrumentProgress.currentStage` is a required field validated by `instrumentProgressSchema`
-
-The Joi schema (`student.validation.js` line 18-19) requires `currentStage` to be one of `VALID_STAGES = [1, 2, 3, 4, 5, 6, 7, 8]`. The import bypasses Joi but must still write a valid integer. The `MINISTRY_LEVEL_TO_STAGE` map above ensures a valid stage is always set. Do NOT write `null` or `undefined` for `currentStage`.
-
----
-
-## Integration Point 3: Bagrut Flag ("מגמת מוסיקה" Column)
-
-### Current State
-
-The "מגמת מוסיקה" column exists in the Ministry export (column AA in `students.sheet.js`) but is NOT in `STUDENT_COLUMN_MAP`. The student schema has `academicInfo.tests.bagrutId` (a reference to a bagrut document), not a simple boolean flag. There is no `isMusicMajor` or equivalent boolean field currently on the student document.
-
-### Target State
-
-A "מגמת מוסיקה" column in student import Excel should set a boolean flag `academicInfo.isMusicMajor: true` on the student document. This is a new field — the existing `academicInfo.tests.bagrutId` is a foreign key reference (linking to a bagrut exam document) and is separate from the "is this student in the music track" flag.
-
-### Exact Integration Points
-
-**File:** `api/import/import.service.js`
-
-**1. Add to `STUDENT_COLUMN_MAP` (MODIFY — 1 line)**
-
-```javascript
-'מגמת מוסיקה': 'isMusicMajor',
-'מגמה': 'isMusicMajor',         // Abbreviated form
-```
-
-**2. `validateStudentRow()` — coerce to boolean (MODIFY — ~5 lines)**
-
-```javascript
-if (mapped.isMusicMajor !== undefined && mapped.isMusicMajor !== '') {
-  mapped.isMusicMajor = TRUTHY_VALUES.includes(mapped.isMusicMajor) ||
-    mapped.isMusicMajor === true;
-}
-```
-
-**3. `calculateStudentChanges()` — add isMusicMajor diff (MODIFY — ~8 lines)**
-
-```javascript
-if (mapped.isMusicMajor !== undefined) {
-  const current = student.academicInfo?.isMusicMajor ?? false;
-  if (Boolean(current) !== Boolean(mapped.isMusicMajor)) {
-    changes.push({
-      field: 'academicInfo.isMusicMajor',
-      oldValue: current,
-      newValue: mapped.isMusicMajor,
-    });
-  }
-}
-```
-
-The existing `for (const change of entry.changes)` loop in `executeStudentImport()` already handles `updateDoc[change.field] = change.newValue`. Because `academicInfo.isMusicMajor` is a dot-notation MongoDB path, this will write correctly via `$set` with no additional changes to the execute function.
-
-**4. For new students** — add to `newStudent` construction (MODIFY — ~3 lines):
-
-```javascript
-if (typeof mapped.isMusicMajor === 'boolean') {
-  newStudent.academicInfo.isMusicMajor = mapped.isMusicMajor;
-}
-```
-
-### Decision: Separate from `bagrutId`
-
-The existing `academicInfo.tests.bagrutId` is a document reference (ObjectId string) to a `bagrut` collection record. "מגמת מוסיקה" is a simpler flag meaning "this student participates in the music track." These are related but distinct concepts. Keeping them separate avoids the complexity of auto-creating bagrut documents during import.
-
----
-
-## Integration Point 4: Frontend Preview Parity
-
-### Current State
-
-The preview table in `ImportData.tsx` has a **tab-conditional branch** (line 829-848):
-
-```tsx
-{activeTab === 'teachers' ? (
-  getTeacherRowDetails(row)   // Rich: instruments, roles, hours, changes with Hebrew labels
-) : (
-  <>
-    {row.changes && row.changes.length > 0 && (
-      <span>{row.changes.map((c: any) => c.field || c).join(', ')}</span>  // Raw field paths
-    )}
-    {row.status === 'not_found' && (
-      <span className="text-blue-600">תלמיד חדש - ייווצר ברשומה חדשה</span>  // No details
-    )}
-  </>
-)}
-```
-
-The student branch shows raw field paths (`academicInfo.class`, `academicInfo.studyYears`) and no detail for new students.
-
-### Target State
-
-Add `getStudentRowDetails(row)` helper function mirroring `getTeacherRowDetails(row)`. Display Hebrew labels for all student fields including the three new fields (teacher, instrumentProgress, isMusicMajor).
-
-### Exact Integration Points
-
-**File:** `src/pages/ImportData.tsx`
-
-**1. New helper `formatStudentChange(change)` (NEW — ~50 lines)**
-
-Location: after `formatTeacherChange()` (~line 150).
-
-```tsx
-function formatStudentChange(change: any): string {
-  const field = change.field || change.path || ''
-  const newValue = change.newValue
-
-  const studentFieldLabels: Record<string, string> = {
-    'academicInfo.class': 'כיתה',
-    'academicInfo.studyYears': 'שנות לימוד',
-    'academicInfo.extraHour': 'שעה נוספת',
-    'academicInfo.isMusicMajor': 'מגמת מוסיקה',
-  }
-
-  if (studentFieldLabels[field]) {
-    const label = studentFieldLabels[field]
-    if (field === 'academicInfo.extraHour' || field === 'academicInfo.isMusicMajor') {
-      return `${label}: ${newValue ? 'כן' : 'לא'}`
+  if (matches.length === 1) return { orchestra: matches[0], matchType: 'name' };
+  if (matches.length > 1) {
+    // Disambiguate by subType if available
+    if (parsed.subType) {
+      const subMatch = matches.find(o => o.subType === parsed.subType);
+      if (subMatch) return { orchestra: subMatch, matchType: 'name_subtype' };
     }
-    return `${label}: ${newValue}`
+    return { orchestra: matches[0], matchType: 'name_ambiguous', duplicateCount: matches.length };
   }
-
-  if (field === 'teacherAssignment' && change.action === 'add') {
-    return `מורה: הוספת שיוך מורה`
-  }
-
-  if (field === 'instrumentProgress') {
-    if (change.action === 'add') {
-      const stageLabel = change.ministryStageLevel ? ` (שלב ${change.ministryStageLevel})` : ''
-      return `כלי נגינה: הוספת ${change.instrument}${stageLabel}`
-    }
-    if (change.action === 'updateStageLevel') {
-      return `שלב: עדכון ל-${change.ministryStageLevel} (${change.instrument})`
-    }
-  }
-
-  return `${field}: ${newValue}`
+  return null; // Not found -- will create new
 }
 ```
 
-**2. New helper `getStudentRowDetails(row)` (NEW — ~80 lines)**
+### 2. Schedule Storage: Store as `scheduleSlots` on Orchestra During Import, Create Rehearsals on Execute
 
-Location: after `getTeacherRowDetails()` (~line 260).
+**Decision:** During **preview**, parse schedule data (day, startTime, endTime) and store in `parsedData` on the import log. During **execute**, store a lightweight `scheduleSlots` array directly on the orchestra document AND optionally create rehearsal documents.
 
-Structure mirrors `getTeacherRowDetails()`. For `not_found` rows, display:
-- Instrument (from `mapped.instrument`)
-- Teacher name (from `mapped.teacherName`) with resolved/unresolved indicator
-- Ministry stage level (from `mapped.ministryStageLevel`)
-- Music major flag (from `mapped.isMusicMajor`)
-- Class, study years
+**Rationale:**
+- The Ministry Excel contains **weekly schedule templates** (Activity I: day+time, Activity II: day+time), not individual rehearsal instances
+- Creating individual rehearsal documents requires a date range (school year start/end) and generates many documents (30-40 per slot per year)
+- The export mapper `mapEnsembleSchedule()` already reads rehearsal documents to reconstruct the schedule -- this is the round-trip contract
+- For import, we need BOTH:
+  - (a) Quick schedule storage on the orchestra doc for immediate display (`scheduleSlots` field)
+  - (b) Rehearsal documents for the export round-trip and attendance tracking
 
-For `matched` rows, display formatted changes using `formatStudentChange()`.
-
-**3. Replace student branch in preview table (MODIFY — ~10 lines)**
-
-Replace the raw field-path span block with:
-```tsx
-{activeTab === 'teachers' ? (
-  getTeacherRowDetails(row)
-) : (
-  getStudentRowDetails(row)
-)}
+**Orchestra document addition:**
+```javascript
+// New field on orchestra document (alongside existing fields)
+scheduleSlots: [
+  { dayOfWeek: 1, startTime: '14:00', endTime: '16:00', label: 'Activity I' },
+  { dayOfWeek: 3, startTime: '15:00', endTime: '17:00', label: 'Activity II' },
+]
 ```
 
-**4. Update `PreviewRow` interface (MODIFY — ~3 lines)**
+**Execute strategy:**
+1. Save `scheduleSlots` on the orchestra document (fast, always)
+2. Use `rehearsalService.bulkCreateRehearsals()` to generate actual rehearsal instances for the current school year (generates weekly occurrences from school year start to end)
+3. Link rehearsal IDs back to `orchestra.rehearsalIds`
 
-The existing `changes?: string[]` type is too narrow. Teacher import already uses `changes: any[]`. Student changes now include objects with `field`, `action`, `instrument`, etc. The interface already accommodates this via the `any[]` type used in the teacher branch — no type change needed if already `any[]`.
+**Important:** The `orchestraSchema` in `orchestra.validation.js` will need a new optional `scheduleSlots` field. This is a minor schema addition, not a rewrite.
 
----
+### 3. Conductor Matching: Reuse `matchTeacherByName()` Directly
 
-## Component Boundaries
+**Decision:** Reuse the existing `matchTeacherByName()` function from import.service.js (line 1257) for conductor matching.
 
-### Files Modified (Backend)
+**Rationale:**
+- The Ministry Excel ensemble sheet has a "conductor name" column (column B: "conductor name")
+- `matchTeacherByName()` already handles:
+  - Both name orderings (firstName lastName, lastName firstName)
+  - Single-word names
+  - Ambiguous matches (multiple teachers with same name)
+  - Returns structured result: `{ status, teacherId, teacherName, matchType }`
+- This is the same function used for teacher matching in the student import (line 1834)
+- No modifications needed -- it works with the full teacher list loaded once per preview
 
-| File | Type | Change | Risk |
-|------|------|--------|------|
-| `api/import/import.service.js` | Core service | Add teacher matching, instrumentProgress building, isMusicMajor flag | MEDIUM — modifies 1900-line production service |
-| `config/constants.js` | Constants | None needed — `VALID_INSTRUMENTS`, `MINISTRY_STAGE_LEVELS` already present | - |
+### 4. participantCount: Derive from `memberIds.length`, Do NOT Store Separately
 
-### Files NOT Modified (Backend)
+**Decision:** Do NOT add a `participantCount` field to the orchestra document. The export already computes `memberCount` from `(orch.memberIds || []).length` (ensembles.sheet.js line 307). The imported participant count from Excel is a **preview display value only**.
 
-| File | Why Not |
-|------|---------|
-| `api/import/import.controller.js` | No new endpoints; existing `previewStudentImport` and `executeImport` endpoints unchanged |
-| `api/import/import.route.js` | No route changes |
-| `api/student/student.service.js` | Import bypasses the service layer, writes directly to MongoDB. No service layer involvement. |
-| `api/student/student.validation.js` | Import bypasses Joi validation. Schema awareness needed for shape correctness, but no file changes. |
+**Rationale:**
+- Storing participantCount creates a data integrity problem: it drifts from `memberIds.length` as members are added/removed through the UI
+- The export mapper already derives this value dynamically
+- The imported count is useful during preview to show the user what the Excel says, but should NOT be persisted
+- During preview, include it as `importedParticipantCount` for display; during execute, ignore it
 
-### Files Modified (Frontend)
+**One exception:** If the orchestra is newly created and has no members yet, the imported count provides useful context. Store it as `ministryData.importedParticipantCount` (informational, not authoritative) only for new orchestras.
 
-| File | Type | Change | Risk |
-|------|------|--------|------|
-| `src/pages/ImportData.tsx` | UI component | Add `getStudentRowDetails()`, `formatStudentChange()`, update preview table branch | LOW — additive only, no existing logic removed |
+### 5. Import Log: Same Collection, importType: 'ensembles'
 
-### Files NOT Modified (Frontend)
+**Decision:** Use the existing `import_log` collection with `importType: 'ensembles'`.
 
-| File | Why Not |
-|------|---------|
-| `src/services/apiService.js` | API contract unchanged — same endpoints, same response shape (new fields are additive) |
+**Rationale:**
+- All three existing import types use this collection
+- The `executeImport` dispatcher already routes by `importType` string
+- Adding a new branch is a 3-line change
+- No schema changes needed to import_log itself
 
----
+### 6. Frontend: 4th Tab Following Exact Same Pattern
 
-## Data Flow: Full Enhanced Import
+**Decision:** Add a 4th tab `'ensembles'` to `ImportData.tsx` using the same 3-step flow (upload -> preview -> results).
 
+**Rationale:**
+- The ensemble import is tabular, like teachers/students
+- Preview rendering is closer to the teacher/student pattern (table of rows with matched/not-found/error) than the conservatory pattern (field-by-field diff)
+- The 4th tab needs its own preview rendering because the columns are different (conductor, schedule, type, subType, performance level) but the container structure is identical
+
+## Column Map Design
+
+The Ministry Excel ensemble sheet (Sheet 5: "ensembles") has a specific structure based on the export sheet builder (ensembles.sheet.js):
+
+```javascript
+const ENSEMBLE_COLUMN_MAP = {
+  // Column B: Conductor name
+  'conductor name': 'conductorName',
+  'conductor': 'conductorName',
+
+  // Column C: Ensemble/orchestra name
+  'orchestra/ensemble': 'name',
+  'ensemble name': 'name',
+  'orchestra name': 'name',
+
+  // Column D: Participant count
+  'participant count': 'participantCount',
+  'participants': 'participantCount',
+
+  // Columns E-H: Activity I
+  'day': 'act1Day',        // Will need disambiguation for Activity I vs II
+  'from time': 'act1Start',
+  'to time': 'act1End',
+  'actual hours': 'act1Hours',
+
+  // (Activity II columns I-L use same header names -- need positional disambiguation)
+
+  // Column M: Total hours
+  'total weekly hours': 'totalHours',
+
+  // Column N: Coordination hours
+  'coordination hours': 'coordHours',
+
+  // Column O: Total reporting hours
+  'total for reporting': 'totalReportingHours',
+
+  // Columns P-R: Performance levels (boolean marker columns)
+  'beginner': 'levelBeginner',
+  'intermediate': 'levelIntermediate',
+  'representative': 'levelRepresentative',
+};
 ```
-Excel: "שם פרטי"="דנה", "שם משפחה"="כהן", "המורה"="יונה אברהם",
-       "כלי"="כינור", "שלב"="ב", "מגמת מוסיקה"="כן", "כיתה"="ז"
-  |
-  v  [previewStudentImport]
-mapColumns()
-  → mapped.firstName = "דנה"
-  → mapped.lastName = "כהן"
-  → mapped.teacherName = "יונה אברהם"
-  → mapped.instrument = "כינור"
-  → mapped.ministryStageLevel = "ב"
-  → mapped.isMusicMajor = "כן"
-  → mapped.class = "ז"
-  |
-  v
-validateStudentRow()
-  → mapped.isMusicMajor = true  (TRUTHY_VALUES coercion)
-  → VALID_INSTRUMENTS check passes for "כינור"
-  → MINISTRY_STAGE_LEVELS check passes for "ב"
-  |
-  v
-matchTeacherByName("יונה אברהם", teachers)
-  → mapped.resolvedTeacherId = "67a1b2c3..."
-  |
-  v
-matchStudent("דנה", "כהן", students)
-  → match found → entry.studentId = "66f1a2b3..."
-  |
-  v
-calculateStudentChanges(student, mapped)
-  → change: { field: 'academicInfo.class', newValue: 'ז' }
-  → change: { field: 'teacherAssignment', action: 'add', newValue: '67a1b2c3...' }
-  → change: { field: 'instrumentProgress', action: 'add', instrument: 'כינור', ministryStageLevel: 'ב' }
-  → change: { field: 'academicInfo.isMusicMajor', newValue: true }
-  |
-  v  [stored in import_log preview.matched entry]
-  |
-  v  [executeStudentImport]
-$set: { 'academicInfo.class': 'ז', 'academicInfo.isMusicMajor': true }
-$push: { teacherAssignments: { teacherId: '67a1b2c3...', isActive: true, notes: 'ייבוא ממשרד החינוך', ... } }
-$push: { 'academicInfo.instrumentProgress': { instrumentName: 'כינור', currentStage: 4, ministryStageLevel: 'ב', ... } }
+
+**Actual Hebrew headers from ensembles.sheet.js (line 56-76):**
+```javascript
+// These are the EXACT headers the Ministry Excel uses:
+// Col A: X (active marker)
+// Col B: 'שם המנצח' (conductor name)
+// Col C: 'תזמורת/הרכב' (orchestra/ensemble name)
+// Col D: 'מספר משתתפים' (participant count)
+// Col E: 'ביום' (on day) -- Activity I
+// Col F: 'משעה' (from time) -- Activity I
+// Col G: 'עד שעה' (to time) -- Activity I
+// Col H: 'שעות בפועל' (actual hours) -- Activity I
+// Col I: 'ביום' (on day) -- Activity II (DUPLICATE header!)
+// Col J: 'משעה' (from time) -- Activity II (DUPLICATE header!)
+// Col K: 'עד שעה' (to time) -- Activity II (DUPLICATE header!)
+// Col L: 'שעות בפועל' (actual hours) -- Activity II (DUPLICATE header!)
+// Col M: 'סך ש"ש' (total weekly hours)
+// Col N: 'שעות ריכוז' (coordination hours)
+// Col O: 'סה"כ לדיווח' (total for reporting)
+// Col P: 'התחלתי' (beginner level)
+// Col Q: 'ביניים' (intermediate level)
+// Col R: 'ייצוגי' (representative level)
 ```
 
----
+**Critical parsing challenge:** Activity I and Activity II columns use identical header names. The parser must handle this positionally -- first occurrence maps to Activity I, second to Activity II. This is similar to how the teacher import handles duplicate headers with the `DISAMBIGUATION_MAP` pattern (import.service.js lines 480-518).
+
+**Disambiguation approach:** Use the parent row group headers "Activity I" and "Activity II" (rows 9-10 in the export) to disambiguate duplicate column headers. The existing `parseExcelBufferWithHeaderDetection` already supports parent-row disambiguation via the multi-row header scanning logic (lines 427-537).
 
 ## Patterns to Follow
 
-### Pattern 1: Extend Column Map, Not Parser
+### Pattern 1: Preview-Execute Two-Phase Import
+**What:** All imports follow upload -> parse -> preview (save to import_log) -> user confirms -> execute (read from import_log, apply changes).
+**When:** Always for imports.
+**Why:** Allows user review before destructive changes. Import log provides audit trail and rollback reference.
+```javascript
+// Preview saves everything needed for execute
+const logEntry = {
+  importType: 'ensembles',
+  tenantId,
+  status: 'pending',
+  createdAt: new Date(),
+  preview,       // Summary for frontend display
+  parsedData,    // Full parsed data for execute phase
+};
+```
 
-**What:** Add new Hebrew header → internal key mappings to `STUDENT_COLUMN_MAP`. The parser (`parseExcelBufferWithHeaderDetection`) handles the rest automatically.
+### Pattern 2: matchTeacherByName for Conductor Resolution
+**What:** Reuse the bidirectional name matcher for conductor names.
+**When:** During preview phase.
+**Why:** Conductor names from Ministry Excel follow the same format as teacher names in student import.
 
-**When:** Any new Excel column to support.
+### Pattern 3: Unified Execute Dispatcher
+**What:** Single `executeImport()` routes by `importType` string to type-specific execute functions.
+**When:** Execute phase.
+**Why:** Single route `POST /import/execute/:importLogId` handles all import types. Frontend uses one `executeImport(importLogId)` call regardless of type.
 
-**Example:** `'מגמת מוסיקה': 'isMusicMajor'` — parser already handles extraction, validation and execute just need to know the key name.
-
-### Pattern 2: Preview Stores All Resolved State, Execute Just Applies It
-
-**What:** All matching, resolution, and diff calculation happens in preview. The import log captures the full resolved state (including `resolvedTeacherId`, `changes` array with action metadata). Execute reads the log and applies changes without re-resolving.
-
-**When:** All import logic.
-
-**Why this matters:** Changing this pattern (re-resolving on execute) would introduce a race condition where a teacher is deleted between preview and execute. Always use the resolved state from the log.
-
-### Pattern 3: Direct MongoDB Writes for Import (Bypass Joi)
-
-**What:** Import service uses `studentCollection.updateOne()` / `insertOne()` directly, not via `student.service.js`. This is intentional — the service layer has complex validations (teacher assignment day/time requirements, relationship sync cascades) that are inappropriate for bulk import.
-
-**When:** All import execute operations.
-
-**Gotcha:** Because Joi is bypassed, the import code must manually enforce correct document shape. Use the existing student documents as shape reference, not the validation schema. Specifically:
-- `instrumentProgress[].currentStage` must be in `[1, 2, 3, 4, 5, 6, 7, 8]`
-- `teacherAssignments[].teacherId` must be a string (not ObjectId)
-- `academicInfo.tests.bagrutId` should default to `null` on new students
-
-### Pattern 4: Mirror Teacher Preview Quality for Student Preview
-
-**What:** The teacher preview renders rich Hebrew-labeled detail for each row. Student preview should use the same component structure (`getStudentRowDetails` mirroring `getTeacherRowDetails`).
-
-**When:** Frontend preview table.
-
-**Implementation:** Both helpers follow the same pattern: check `row.status`, render a `<div className="space-y-1 text-xs">` with labeled sub-items, fall back to "אין שינויים" when nothing changed.
-
----
+### Pattern 4: Controller Wrapper Pattern
+**What:** Each controller function is a thin wrapper: check `req.file`, call service, return JSON.
+**When:** All import controller functions.
+```javascript
+async function previewEnsembleImport(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const result = await importService.previewEnsembleImport(req.file.buffer, { context: req.context });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+```
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Re-Query Teacher Collection on Execute
+### Anti-Pattern 1: Storing participantCount as Authoritative
+**What:** Adding a `participantCount` field to orchestra documents that gets updated by import.
+**Why bad:** Immediately drifts from `memberIds.length`. Creates two competing sources of truth.
+**Instead:** Derive count from `memberIds.length` everywhere. Show imported count in preview only.
 
-**What goes wrong:** Querying the teacher collection again in `executeStudentImport()` to resolve teacher names.
+### Anti-Pattern 2: Creating a Separate Import Service File
+**What:** Creating `api/import/ensemble-import.service.js` for the ensemble import logic.
+**Why bad:** Breaks the established pattern where all import types live in `import.service.js`. Fragments the shared parsing infrastructure.
+**Instead:** Add functions to `import.service.js`. The file is already large (~2200 lines) but cohesive.
 
-**Why bad:** The import log already contains `resolvedTeacherId` from preview. Re-querying is redundant, slower, and creates a race condition (teacher could be deleted between preview and execute).
+### Anti-Pattern 3: Matching Orchestras by conductorId + Type
+**What:** Using conductor + type as the match key for orchestra identification.
+**Why bad:** Conductors change between years. A conductor may lead multiple ensembles of the same type.
+**Instead:** Match by name (case-insensitive) -- orchestras have stable names within a conservatory.
 
-**Instead:** Use `entry.mapped.resolvedTeacherId` directly from the stored import log.
+### Anti-Pattern 4: Importing Members from the Ensemble Sheet
+**What:** Trying to populate `memberIds` from the ensemble sheet's participant count.
+**Why bad:** The ensemble sheet has a COUNT of participants, not a LIST. Member assignment comes from the student sheet (student import) or manual UI.
+**Instead:** Leave `memberIds` empty for new orchestras. Existing orchestras keep their current members.
 
-### Anti-Pattern 2: Creating a teacherAssignment with scheduleSlotId
+### Anti-Pattern 5: Skipping Rehearsal Creation
+**What:** Only storing `scheduleSlots` on the orchestra without creating rehearsal documents.
+**Why bad:** The export round-trip reads from `rehearsal` collection. Attendance tracking requires rehearsal documents.
+**Instead:** Create rehearsal documents during execute AND store `scheduleSlots` for convenience.
 
-**What goes wrong:** Setting `scheduleSlotId` to a generated or placeholder value during import.
+## Preview Data Structure
 
-**Why bad:** `scheduleSlotId` is a real reference to a time-block slot in the teacher's `teaching.timeBlocks` array. Import does not have schedule data. A fake scheduleSlotId would corrupt the relationship model.
+The preview response structure follows the teacher/student pattern:
 
-**Instead:** Always set `scheduleSlotId: null` for import-created assignments. The teacher can assign a schedule slot later through the UI.
-
-### Anti-Pattern 3: Using `$set` for instrumentProgress (Instead of `$push`)
-
-**What goes wrong:** Writing `$set: { 'academicInfo.instrumentProgress': [newEntry] }` for matched students.
-
-**Why bad:** This replaces the entire array, deleting any existing instrument progress entries the student already has.
-
-**Instead:** Use `$push: { 'academicInfo.instrumentProgress': newEntry }` for new instruments. For stage-level updates on existing entries, use the positional `$` operator with a filter on `instrumentName`.
-
-### Anti-Pattern 4: Auto-Fuzzy-Matching Teacher Names
-
-**What goes wrong:** Using Levenshtein distance or partial string matching for teacher name resolution.
-
-**Why bad:** Fuzzy matching creates false positives at scale. "יונה אברהם" matching to "יואב אברהם" is worse than no match. The teacher import already uses exact name matching (priority 3 in `matchTeacher()`). Student import should be consistent.
-
-**Instead:** Exact case-insensitive match only. Unmatched teacher names become warnings, not errors. The user can fix the Excel and re-import.
-
-### Anti-Pattern 5: Triggering Teacher Sync on Import
-
-**What goes wrong:** Calling `syncTeacherRecordsForStudentUpdate()` or other cascade sync functions after writing teacher assignments during import.
-
-**Why bad:** The sync functions (used in `student.service.js` updateStudent) create time-block lessons in the teacher's `teaching.timeBlocks`. Import creates assignment-only links — no schedule slots exist yet. The sync would fail or create phantom records.
-
-**Instead:** Write `teacherAssignments` directly without triggering sync. The teacher-student relationship is established correctly by the `$push`. Schedule linking happens later through normal UI flows.
-
----
-
-## Build Order (Dependency-Driven)
-
-```
-Step 1: STUDENT_COLUMN_MAP additions + validateStudentRow() coercions
-  -- Add 'מגמת מוסיקה' → 'isMusicMajor' mapping
-  -- Add isMusicMajor boolean coercion in validateStudentRow
-  Deps: none
-  Risk: LOW — additive column map changes
-
-Step 2: matchTeacherByName() function + teacher collection load in preview
-  -- New function alongside existing matchTeacher()
-  -- Load teacher collection in previewStudentImport (3 lines)
-  -- Resolve teacherId in preview loop
-  Deps: Step 1 (column map must include teacherName, which already exists)
-  Risk: LOW — new function, additive load
-
-Step 3: buildInstrumentProgressEntry() + calculateStudentChanges() extensions
-  -- New helper function with MINISTRY_LEVEL_TO_STAGE map
-  -- Extend calculateStudentChanges() with 3 new change types
-  Deps: Step 2 (resolvedTeacherId must be set before calculateStudentChanges runs)
-  Risk: LOW-MEDIUM — modifying a core diff function
-
-Step 4: executeStudentImport() — apply new change types
-  -- Handle 'teacherAssignment' change → $push teacherAssignments
-  -- Handle 'instrumentProgress' add → $push academicInfo.instrumentProgress
-  -- Handle 'instrumentProgress' updateStageLevel → positional $set
-  -- Handle 'academicInfo.isMusicMajor' → already handled by existing $set loop
-  -- Update newStudent construction for notFound entries
-  Deps: Steps 1-3 (changes array must contain correct change objects)
-  Risk: MEDIUM — modifies execute function, must not affect existing matched student logic
-
-Step 5: Frontend — formatStudentChange() + getStudentRowDetails()
-  -- New helper functions
-  -- Replace raw-field student branch in preview table
-  Deps: Steps 1-4 (preview response must include new change types to display them)
-  Risk: LOW — additive, affects display only
+```javascript
+{
+  importLogId: "...",
+  preview: {
+    totalRows: 12,
+    matched: [
+      {
+        row: 13,                            // Excel row number
+        matchType: 'name',                  // or 'name_subtype', 'name_ambiguous'
+        orchestraId: '...',                 // Existing orchestra _id
+        orchestraName: 'String Orchestra',  // Current name in DB
+        importedName: 'String Orchestra',   // Name from Excel
+        conductorMatch: {
+          status: 'resolved',               // resolved/unresolved/ambiguous/none
+          teacherId: '...',
+          teacherName: 'David Cohen',
+        },
+        changes: [
+          { field: 'ministryData.coordinationHours', currentValue: 2, newValue: 3 },
+          { field: 'performanceLevel', currentValue: 'intermediate', newValue: 'representative' },
+        ],
+        schedule: {
+          act1: { day: 'Monday', start: '14:00', end: '16:00' },
+          act2: { day: 'Wednesday', start: '15:00', end: '17:00' },
+        },
+        importedParticipantCount: 25,
+      }
+    ],
+    notFound: [
+      {
+        row: 18,
+        importedName: 'New Wind Ensemble',
+        mapped: { ... },                    // All parsed fields
+        conductorMatch: { status: 'resolved', teacherId: '...', teacherName: '...' },
+        schedule: { ... },
+      }
+    ],
+    errors: [],
+    warnings: [
+      { row: 15, field: 'conductorName', message: 'Conductor "..." not found in teacher list' },
+    ],
+    conductorMatchSummary: { resolved: 8, unresolved: 2, ambiguous: 1, none: 1 },
+  }
+}
 ```
 
-**Ordering rationale:**
+## Suggested Build Order
 
-Backend changes build on each other strictly: column map → validation → preview matching → diff calculation → execute application. The frontend change is last because it depends on the backend returning richer preview data with the new change types. Each step is independently testable: after Step 2, teacher names appear in preview warnings. After Step 3, the changes array is populated correctly (verifiable by inspecting the import_log). After Step 4, the DB writes are correct.
+Build order is driven by dependencies -- each step produces what the next step consumes.
 
----
+### Phase 1: Backend Parser + Preview (no execute yet)
+1. Add `ENSEMBLE_COLUMN_MAP` constant to `import.service.js`
+2. Add `matchOrchestra()` function
+3. Add `previewEnsembleImport()` function (uses `parseExcelBufferWithHeaderDetection`, `matchOrchestra`, `matchTeacherByName`)
+4. Add controller handler + route
+5. Export from service and controller
+6. Test with real Ministry Excel file via API
 
-## Scalability Considerations
+**Why first:** The parser is the foundation. Preview is read-only (no DB mutations), safe to iterate on.
 
-| Concern | At current scale (<200 students/import) | At 1000+ students/import |
-|---------|----------------------------------------|--------------------------|
-| Teacher collection load | `find({ isActive: true, tenantId })` → ~100-200 docs, in-memory | Same — teacher count is bounded by school size, not import size |
-| Per-row teacher match | O(n) linear scan over teachers array | Still O(n) — 200 teachers × 1000 students = 200K comparisons, <100ms |
-| Instrument $push per row | One extra `updateOne` per matched student with new instrument | Could batch into bulkWrite. At 1000 students, 1000 updateOnes = ~2-3s. Acceptable. |
-| import_log document size | Preview object grows (changes arrays are larger) | MongoDB 16MB doc limit not a concern at 1000 students |
+### Phase 2: Backend Execute
+1. Add `executeEnsembleImport()` function
+2. Add `else if` branch in `executeImport` dispatcher
+3. Handle three cases: update existing orchestra, create new orchestra, create/update rehearsals
+4. Add `scheduleSlots` to `orchestraSchema` in `orchestra.validation.js`
+5. Test full preview-then-execute flow
 
-For current school sizes (<500 students per import), no batching is needed. If import files with >1000 students become common, the instrument $push operations should be batched with `bulkWrite`.
+**Why second:** Execute depends on preview being stable. Schema changes are minimal (one optional field).
 
----
+### Phase 3: Frontend Integration
+1. Add `previewEnsembleImport(file)` to `importService` in `apiService.js`
+2. Extend `ImportTab` type to include `'ensembles'`
+3. Add 4th tab button to `ImportData.tsx`
+4. Add ensemble-specific preview table rendering
+5. Wire up upload/execute for the new tab
+
+**Why third:** Frontend depends on backend API being complete. Tab addition is low-risk -- follows exact same pattern as existing 3 tabs.
+
+## File Change Summary
+
+| File | Action | LOC Estimate |
+|------|--------|-------------|
+| `api/import/import.service.js` | ADD functions (preview, execute, column map, matching) | ~250-350 |
+| `api/import/import.controller.js` | ADD handler function | ~15 |
+| `api/import/import.route.js` | ADD route | ~5 |
+| `api/orchestra/orchestra.validation.js` | ADD `scheduleSlots` to schema | ~10 |
+| `src/services/apiService.js` (frontend) | ADD method | ~20 |
+| `src/pages/ImportData.tsx` (frontend) | ADD tab + preview rendering | ~100-150 |
+| `config/constants.js` | NO CHANGE | 0 |
+| `api/orchestra/orchestra.service.js` | NO CHANGE (used via existing API during execute) | 0 |
+| `api/rehearsal/rehearsal.service.js` | NO CHANGE (used via existing API during execute) | 0 |
 
 ## Sources
 
-- `api/import/import.service.js` — full read (1950 lines, HIGH confidence)
-- `api/student/student.service.js` — teacher assignment patterns, lines 740-770 (HIGH confidence)
-- `api/student/student.validation.js` — instrumentProgressSchema, teacherAssignmentSchema (HIGH confidence)
-- `api/export/sheets/students.sheet.js` — "מגמת מוסיקה" column existence confirmed (HIGH confidence)
-- `src/pages/ImportData.tsx` — full read (962 lines, HIGH confidence)
-- `config/constants.js` — VALID_INSTRUMENTS, MINISTRY_STAGE_LEVELS, VALID_STAGES (HIGH confidence)
-- All confidence ratings are HIGH — research is based on direct codebase analysis, not external sources
+All findings based on direct codebase analysis:
+- `api/import/import.service.js` -- existing import patterns, column maps, matching logic
+- `api/import/import.controller.js` -- controller wrapper pattern
+- `api/import/import.route.js` -- route registration pattern
+- `api/orchestra/orchestra.service.js` -- orchestra CRUD, member management
+- `api/orchestra/orchestra.validation.js` -- Joi schema, valid types/subtypes
+- `api/rehearsal/rehearsal.validation.js` -- rehearsal schema, day/time fields
+- `api/export/sheets/ensembles.sheet.js` -- Ministry Excel ensemble sheet structure (columns, headers)
+- `api/export/ministry-mappers.js` -- ensemble schedule data mapping (how export works)
+- `api/export/sheets/_shared.js` -- ENSEMBLE_TO_COLUMN mapping
+- `config/constants.js` -- ORCHESTRA_TYPES, ORCHESTRA_SUB_TYPES, PERFORMANCE_LEVELS
+- `src/pages/ImportData.tsx` (frontend) -- tab structure, preview/execute flow
+- `src/services/apiService.js` (frontend) -- import service methods

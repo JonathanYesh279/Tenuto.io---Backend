@@ -5,7 +5,8 @@
 - [x] **v1.0 Multi-Tenant Architecture Hardening** — Phases 1-9 (shipped 2026-02-24)
 - [x] **v1.1 Super Admin Platform Management** — Phases 10-14 (shipped 2026-02-26)
 - [x] **v1.2 Student Import Enhancement** — Phases 15-19 (shipped 2026-02-27)
-- [ ] **v1.3 Conservatory Information Import** — Phases 20-22 (in progress)
+- [x] **v1.3 Conservatory Information Import** — Phases 20-22 (shipped 2026-02-28)
+- [ ] **v1.4 Ensemble Import** — Phases 23-25 (in progress)
 
 ## Phases
 
@@ -52,61 +53,67 @@ See: `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 </details>
 
-### v1.3 Conservatory Information Import (In Progress)
+<details>
+<summary>v1.3 Conservatory Information Import (Phases 20-22) — SHIPPED 2026-02-28</summary>
 
-**Milestone Goal:** Import conservatory profile data from Ministry of Education Excel form into tenant settings, with full settings page display and edit capability.
+- [x] Phase 20: Conservatory Excel Parser + API (1/1 plan) — completed 2026-02-27
+- [x] Phase 21: Conservatory Import Frontend (1/1 plan) — completed 2026-02-28
+- [x] Phase 22: Settings Page Expansion (1/1 plan) — completed 2026-02-28
 
-- [x] **Phase 20: Conservatory Excel Parser + API** - Backend service to parse Ministry form-style Excel and preview/execute endpoints — completed 2026-02-27
-- [ ] **Phase 21: Conservatory Import Frontend** - New import tab with upload, diff preview, and execute flow
-- [ ] **Phase 22: Settings Page Expansion** - Display and edit all conservatoryProfile fields on the settings page
+See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
+
+</details>
+
+### v1.4 Ensemble Import (In Progress)
+
+**Milestone Goal:** Import orchestra/ensemble data from Ministry Excel files using the established preview-then-execute pattern, including Hebrew name decomposition, conductor matching, bulk-safe writes, and a 4th frontend import tab.
+
+- [ ] **Phase 23: Ensemble Parser and Preview** - Parse Ministry ensemble Excel, decompose Hebrew names, match conductors and existing orchestras, deliver preview endpoint
+- [ ] **Phase 24: Ensemble Execute and Schema** - Bulk-safe orchestra creation/update, conductor linking, ministry data storage, schema extensions
+- [ ] **Phase 25: Ensemble Import Frontend** - 4th import tab with upload, preview, conductor/name warnings, and results flow
 
 ## Phase Details
 
-### Phase 20: Conservatory Excel Parser + API
-**Goal**: Admin can upload a Ministry conservatory Excel form and receive a structured preview of parsed fields, then execute the import to update tenant settings
-**Depends on**: Nothing (backend schema and tenant PUT endpoint already exist)
-**Requirements**: XLSX-01, XLSX-02, IMUX-04
+### Phase 23: Ensemble Parser and Preview
+**Goal**: Admin can upload a Ministry ensemble Excel and see a complete preview of parsed orchestras with conductor match status, type classification, schedule data, and diff against existing orchestras — before any data is written.
+**Depends on**: Phase 22 (v1.3 complete; import infrastructure stable)
+**Requirements**: PARS-01, PARS-02, PARS-03, PARS-04, PARS-05, PARS-06, PREV-01, PREV-02, PREV-03, PREV-04, PREV-05, SCHM-01, SCHM-02, SCHM-03
 **Success Criteria** (what must be TRUE):
-  1. Uploading a Ministry conservatory Excel file returns a structured JSON object with all recognized conservatoryProfile fields and their parsed values
-  2. Director contact info (name, office phone, mobile, email) is correctly extracted from the form and included in the parsed output
-  3. Preview response includes both current tenant values and imported values for each field, enabling diff comparison
-  4. Execute endpoint updates the tenant's conservatoryProfile via the existing tenant update mechanism, and the updated values persist in the database
-**Plans**: 1 plan
-
+  1. Admin uploads a Ministry Excel file and the system finds and parses the "הרכבי ביצוע" sheet, returning structured ensemble rows with name, conductor, participant count, schedule times, and reporting hours
+  2. Composite Hebrew ensemble names (e.g., "תז' כלי נשיפה ייצוגית") are decomposed into type, subType, and performanceLevel fields; unrecognized names appear as warnings in the preview rather than being silently dropped
+  3. Each ensemble is classified as 'תזמורת' (>12 participants) or 'הרכב' (<=12 participants) based on the imported participant count
+  4. Preview shows per-ensemble conductor match status (resolved/ambiguous/unresolved) and summary statistics, plus schedule data (day, start time, end time) for each ensemble
+  5. Preview differentiates matched existing orchestras (with change diff highlighting) from new orchestras that will be created
+**Plans:** 2 plans
 Plans:
-- [x] 20-01-PLAN.md — Parse conservatory Excel form + preview/execute endpoints — completed 2026-02-27
+- [ ] 23-01-PLAN.md — Ensemble sheet parser with helpers (name decomposition, time conversion, performance level detection, analytics mini-table)
+- [ ] 23-02-PLAN.md — Preview endpoint with conductor matching, orchestra matching, route/controller wiring, and schema extensions
 
-### Phase 21: Conservatory Import Frontend
-**Goal**: Admin can import conservatory profile data through a dedicated tab in the import page, with a clear visual diff before committing changes
-**Depends on**: Phase 20 (needs parser API and preview/execute endpoints)
-**Requirements**: IMUX-01, IMUX-02, IMUX-03
+### Phase 24: Ensemble Execute and Schema
+**Goal**: Admin can execute the previewed ensemble import, creating new orchestras and updating existing ones with bulk-safe writes, proper conductor linking, and ministry data storage — all scoped by tenant and school year.
+**Depends on**: Phase 23 (preview response shape and parsedData structure must be stable)
+**Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04, EXEC-05, EXEC-06
 **Success Criteria** (what must be TRUE):
-  1. Import page shows a third tab labeled "פרטי קונסרבטוריון" alongside the existing teachers and students tabs
-  2. Upload step accepts .xlsx files and displays guidance specific to the Ministry conservatory form format
-  3. After upload, a side-by-side diff shows current settings values next to imported values for every field, with changed fields visually highlighted
-  4. Clicking execute applies the import and the user sees confirmation that settings were updated
-**Plans**: 1 plan
-
-Plans:
-- [ ] 21-01-PLAN.md — Add conservatory tab with diff preview and execute flow to import page
-
-### Phase 22: Settings Page Expansion
-**Goal**: Admin can view and edit all conservatory profile fields directly on the settings page, whether populated by import or manual entry
-**Depends on**: Nothing (uses existing PUT /api/tenant/:id; can run in parallel with Phases 20-21)
-**Requirements**: STPG-01, STPG-02, STPG-03
-**Success Criteria** (what must be TRUE):
-  1. Settings page displays all 19 conservatoryProfile fields organized in logical sections (identification, classification, contact, management)
-  2. Every displayed conservatoryProfile field is editable and changes are saved successfully via the existing tenant update endpoint
-  3. Existing settings sections (general info, director, Ministry info, defaults) continue to function correctly and are not broken by the expansion
+  1. Executing an ensemble import creates new orchestras via bulk insert (not per-row addOrchestra calls) and updates existing matched orchestras with schedule, conductor, level, and ministry data — without overwriting memberIds
+  2. Conductors are linked to their orchestras via teacher.conducting.orchestraIds using a single bulkWrite operation, not individual updates
+  3. Import results report created count, updated count, and any skipped entries with reasons (e.g., unresolved conductor, validation failure)
+  4. All created/updated orchestras are scoped to the correct tenantId and schoolYearId; coordinationHours and totalReportingHours are stored in orchestra.ministryData
 **Plans**: TBD
 
-Plans:
-- [ ] 22-01: TBD
+### Phase 25: Ensemble Import Frontend
+**Goal**: Admin can import ensembles from the existing import page using a new 4th tab that follows the same upload-preview-results flow as teachers, students, and conservatory imports.
+**Depends on**: Phase 24 (backend API contract finalized — preview response shape and execute endpoint)
+**Requirements**: FRNT-01, FRNT-02, FRNT-03, FRNT-04
+**Success Criteria** (what must be TRUE):
+  1. Import page shows a 4th tab labeled "הרכבים" alongside the existing teacher, student, and conservatory tabs
+  2. Ensemble tab supports the full upload-then-preview-then-execute flow: file upload triggers preview display, user confirms to execute, results are shown
+  3. Preview displays conductor match warnings (amber/red badges for ambiguous/unresolved conductors) and warnings for unrecognized ensemble names that could not be decomposed
+**Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases 20 and 22 can execute in parallel. Phase 21 depends on Phase 20.
+Phases execute in numeric order: 23 -> 24 -> 25
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -130,9 +137,12 @@ Phases 20 and 22 can execute in parallel. Phase 21 depends on Phase 20.
 | 18. Frontend Preview Enhancement | v1.2 | 1/1 | Complete | 2026-02-27 |
 | 19. Import Data Quality | v1.2 | 2/2 | Complete | 2026-02-27 |
 | 20. Conservatory Excel Parser + API | v1.3 | 1/1 | Complete | 2026-02-27 |
-| 21. Conservatory Import Frontend | v1.3 | 0/1 | Planned | - |
-| 22. Settings Page Expansion | v1.3 | 0/TBD | Not started | - |
+| 21. Conservatory Import Frontend | v1.3 | 1/1 | Complete | 2026-02-28 |
+| 22. Settings Page Expansion | v1.3 | 1/1 | Complete | 2026-02-28 |
+| 23. Ensemble Parser and Preview | v1.4 | 0/2 | Not started | - |
+| 24. Ensemble Execute and Schema | v1.4 | 0/TBD | Not started | - |
+| 25. Ensemble Import Frontend | v1.4 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-27 — Phase 21 planned*
+*Last updated: 2026-02-28 — Phase 23 planned (2 plans)*

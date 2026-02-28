@@ -1,498 +1,634 @@
-# Domain Pitfalls: Enhanced Student Import
+# Domain Pitfalls: Ensemble/Orchestra Import from Ministry Excel
 
-**Domain:** Adding teacher-student linking, instrumentProgress creation, and enhanced preview to existing music school import pipeline
-**Researched:** 2026-02-26
-**Confidence:** HIGH (based on direct codebase analysis of import.service.js, student.validation.js, student-assignments.validation.js, bagrut.service.js, and ImportData.tsx — all production files)
+**Domain:** Adding ensemble (orchestra/ensemble) import from Ministry of Education Excel files to existing multi-tenant music conservatory SaaS
+**Researched:** 2026-02-28
+**Confidence:** HIGH (based on direct codebase analysis of orchestra.service.js, orchestra.validation.js, rehearsal.validation.js, ensembles.sheet.js, ministry-mappers.js, import.service.js, _shared.js, constants.js, and hours-summary.service.js)
 
 ---
 
 ## Executive Summary
 
-This analysis covers pitfalls specific to **adding** four interconnected features to the existing 962-line import pipeline:
+This analysis covers pitfalls specific to **importing ensemble/orchestra data** from Ministry of Education Excel files into the existing Tenuto.io system. The import must parse the ensemble schedule sheet (Sheet 5 in ministry files), create orchestra documents, match conductors to existing teachers, handle schedule/rehearsal data, and maintain bidirectional references (orchestra.memberIds <-> student.enrollments.orchestraIds, orchestra.conductorId <-> teacher.conducting.orchestraIds).
 
-1. Teacher matching from the Hebrew "המורה" column and creating `teacherAssignment` records
-2. Building `instrumentProgress` array entries from the existing `instrument` field
-3. Mapping Ministry `ministryStageLevel` (א/ב/ג) to internal `currentStage` (1-8)
-4. Enhancing the 962-line `ImportData.tsx` preview UI without breaking teacher import
+The system has hard constraints that shape every decision:
 
-The system has several hard constraints that dramatically shape what is and is not possible. `teacherAssignment` requires `{ teacherId, day, time, duration }` — three of these four fields are missing from Ministry files. Student name matching is exact only (no fuzzy matching). The `studentSchema` Joi validation requires `instrumentProgress[].currentStage` as a number (1-8), but Ministry files only provide `ministryStageLevel` as א/ב/ג. These constraints force architectural decisions that are not obvious until you read the validation code.
+1. **Orchestra validation requires `conductorId` as a required string** (orchestra.validation.js line 69). Ministry files provide conductor names, not IDs. If the conductor is not in the teacher DB, the orchestra cannot be created without either creating the teacher first or relaxing the schema.
 
-The four most dangerous pitfalls are:
+2. **Bidirectional reference updates are not atomic.** The existing `addOrchestra()` does two separate writes: insert orchestra, then push to `teacher.conducting.orchestraIds`. If the second fails, the orchestra exists but the teacher does not know about it. Bulk import amplifies this risk by N orchestras.
 
-1. **teacherAssignment schema will reject import-created records** — the schema requires `day`, `time`, and `duration` as mandatory fields, but Ministry files only have the teacher name. Creating records without these fields fails Joi validation silently in the wrong path.
-2. **importProgress creation bypasses the full student service path** — `executeStudentImport` writes directly to MongoDB without going through `addStudent()`, so the instrumentProgress primary-instrument guard and schoolYear enrollment do not run.
-3. **Teacher name matching has no fallback for ambiguous Hebrew names** — `matchStudent()` already shows the pattern: multiple matches collapse to first match with a warning. Teacher name matching needs the same treatment but the consequences are worse (wrong teacher gets linked to 1,293 students).
-4. **Adding student-specific preview UI to ImportData.tsx will break teacher preview** — the tab switching resets state but the preview data shape differs between teacher and student imports. The existing `getTeacherRowDetails()` function accesses `row.instruments`, `row.roles`, `row.teachingHours` — the student rows have none of these.
+3. **Ensemble names in Ministry files are composite strings** like "תז' כלי נשיפה ייצוגית" that encode type + subType + performanceLevel. The system stores these as separate fields (type: "תזמורת", subType: "כלי נשיפה", performanceLevel: "ייצוגי"). Decomposition errors silently create orchestras that the export system cannot map back to columns.
+
+4. **Excel time values are fractional day numbers** (0.7083 = 17:00). The system stores times as "HH:MM" strings (rehearsal.validation.js). Incorrect conversion creates invalid rehearsal times that pass string validation ("17:00") but represent wrong actual times.
+
+5. **Re-importing the same file has no deduplication mechanism.** Unlike teacher import (matches by email/ID) or student import (matches by name), there is no existing orchestra matching function. Without one, every re-import creates duplicate orchestras.
+
+The six most dangerous pitfalls are numbered 1-6 below, ranked by severity (data corruption risk x likelihood of occurrence).
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause data loss, validation failures, or require architectural rework.
+Mistakes that cause data corruption, validation failures, or require architectural rework.
 
-### Pitfall 1: teacherAssignment Schema Requires Fields Ministry Files Cannot Provide
+### Pitfall 1: Bidirectional Reference Desync During Bulk Import
 
 **What goes wrong:**
-Developer reads `STUDENT_COLUMN_MAP` and sees `'המורה': 'teacherName'` — the teacher name column is already parsed. They resolve the teacher name to a teacher `_id`, then try to insert a `teacherAssignment` record. Joi validation in `student-assignments.validation.js` immediately rejects the record because `day`, `time`, and `duration` are all `required()` with no defaults.
+Importing 15 orchestras means 15 orchestra inserts + 15 teacher.conducting.orchestraIds pushes. If any teacher push fails (teacher deleted, network error, ObjectId mismatch), the orchestra document exists with a `conductorId` pointing to a teacher who does not list that orchestra in `conducting.orchestraIds`. The hours-summary service then calculates zero orchestra hours for that teacher because it reads from `conducting.orchestraIds` to find conducted orchestras.
 
+The existing `addOrchestra()` function (orchestra.service.js lines 214-258) does this:
 ```javascript
-// student-assignments.validation.js (lines 72-94) — these are REQUIRED:
-day: Joi.string().valid(...VALID_DAYS).required(),
-time: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).required(),
-duration: Joi.number().valid(...VALID_DURATIONS).required(),
+// Insert orchestra
+const result = await collection.insertOne(value);
+// Then update teacher (separate write, no transaction)
+await teacherCollection.updateOne(
+  { _id: ObjectId.createFromHexString(value.conductorId), tenantId },
+  { $push: { 'conducting.orchestraIds': result.insertedId.toString() } }
+);
 ```
 
-Ministry files contain: teacher name, instrument, class, study years, lesson duration (as weekly hours). They do NOT contain: lesson day, lesson start time. The schema will never pass without these fields.
+There is NO rollback if the teacher update fails. The `addMember()` function (lines 385-436) DOES have rollback logic for the student side, but `addOrchestra()` does not.
 
 **Why it happens:**
-The `teacherAssignment` schema was designed for the interactive schedule builder where all fields are selected by the user. Import data from Ministry files is fundamentally incomplete for this schema. The schema's strictness is correct for the UI path but blocks the import path entirely.
+The original code was designed for single-orchestra creation via UI, where failure is immediately visible. Bulk import processes 15+ orchestras in a loop, and a single failure mid-loop leaves the database in an inconsistent state.
 
 **Consequences:**
-- All attempts to create `teacherAssignment` records during import silently fail (if done through `addStudent`) or throw Joi validation errors (if done through the update path)
-- Developer wastes time debugging why the insert doesn't take
-- If developer bypasses validation and inserts raw docs, the `validateTeacherAssignmentsWithDB` function in `student.service.js` will later reject them or apply fixes that corrupt the intent
-- Teacher-student relationship is never created despite import appearing to succeed
-
-**Detection:**
-- `validateTeacherAssignmentsWithDB` logs `VALIDATION_ERROR` for missing `day`/`time`/`duration`
-- MongoDB writes succeed but the stored documents have null/undefined for required fields
-- Teacher's `teaching.timeBlocks` does not contain the imported student (no bidirectional sync happened)
+- Teacher's hours summary misses orchestra conducting hours
+- Ministry export shows wrong totals (teacher roster ensemble hours != ensemble schedule total)
+- Cross-validation rule 1 in export.service.js (line 175-198) flags this as a data mismatch
+- The desync is invisible in the UI because `getOrchestras()` does a `$lookup` to find the conductor, not the other way around
 
 **Prevention:**
-Two viable approaches (choose one before writing any code):
+- Do NOT reuse `addOrchestra()` for import. Write a dedicated bulk-import function that:
+  1. Inserts all orchestras first (collect all insertedIds)
+  2. Builds a single `bulkWrite` operation for all teacher updates
+  3. If any teacher update fails, marks that orchestra in the import log as "conductor link failed" and includes it in the preview warnings
+- Alternative: use `$addToSet` instead of `$push` for idempotent teacher updates (already used in `addMember()` at line 403)
 
-**Approach A: Deferred Linking (Recommended)**
-Do not create `teacherAssignment` records during import. Instead:
-1. Store `teacherName` as a separate field on the student doc: `academicInfo.importedTeacherName`
-2. After import, show a "Link Teachers" UI step where the admin confirms/specifies the schedule details
-3. This makes the import correct and complete; teacher linking happens as a second deliberate step
+**Detection:**
+- After import, run: `orchestra.conductorId NOT IN teacher.conducting.orchestraIds` consistency check
+- Add to preview response: `conductorLinkWarnings: []`
 
-**Approach B: Soft Assignment (Import-Only Schema)**
-1. Create a separate schema for import-created teacher associations: `{ teacherId, source: 'import', importedAt, isScheduled: false }`
-2. Store in a different field than `teacherAssignments` (e.g., `pendingTeacherLinks`)
-3. These are NOT validated by `validateTeacherAssignmentsWithDB` and do NOT trigger the sync path in `student.service.js`
-4. Displayed in the UI as "unscheduled links" until the teacher confirms schedule details
-
-**Approach C: Placeholder Values (Fragile, not recommended)**
-Fill `day`/'time'/'duration' with placeholder values. This creates garbage data in the schedule system and causes `addSchoolYearToRequest` and the hours calculation to produce wrong results.
-
-**Which phase should address it:** Phase 1 of this milestone — this architectural decision must be made before writing any import code that touches teacher linking.
+**Phase:** Phase 1 (Core parser + data matching). Must be solved before any execute logic.
 
 ---
 
-### Pitfall 2: executeStudentImport Bypasses addStudent(), Missing Critical Side Effects
+### Pitfall 2: No Orchestra Deduplication Strategy
 
 **What goes wrong:**
-`executeStudentImport` in `import.service.js` (lines 1788-1823) inserts new student documents directly via `studentCollection.insertOne(newStudent)`. This bypasses `addStudent()` in `student.service.js`, which means these side effects do NOT run for imported students:
+User imports the same Ministry file twice. The system creates 15 orchestras on first import, then 15 identical orchestras on second import. Now there are 30 orchestras, half of which are duplicates. Students might be members of the original set but not the duplicates (or vice versa if member assignment runs after import).
 
-1. **schoolYear enrollment** — `addStudent()` lines 131-152 auto-enrolls the student in the current school year. Direct insert skips this entirely. Imported students have no `enrollments.schoolYears` entry.
-2. **instrumentProgress isPrimary guard** — `addStudent()` lines 122-128 ensures one instrument has `isPrimary: true`. Direct insert does not run this guard.
-3. **Teacher assignment sync** — `addStudent()` lines 171-188 syncs teacher records when `teacherAssignments` are populated at creation time.
-4. **Joi schema defaults** — `validateStudent()` applies Joi defaults (empty arrays for `enrollments`, etc.). Direct insert does not run Joi, so defaults are not applied.
+Unlike teacher import which matches by email/idNumber/name (import.service.js lines 1200-1231), and student import which matches by firstName+lastName (lines 1233-1250), there is NO `matchOrchestra()` function. Orchestras do not have a natural unique key -- the name alone is not unique across years, and the same name could appear in different school years.
 
 **Why it happens:**
-The existing `executeStudentImport` was written to be fast and simple. It bypasses the service layer intentionally to avoid the complexity of `addStudent`. But adding instrumentProgress creation and teacher linking to the import requires the side effects that only exist in the service layer.
+- Orchestras lack a natural unique identifier (no ID number, no email)
+- Multiple valid orchestras could have the same name in the same tenant (e.g., "קאמרי קלאסי 1" and "קאמרי קלאסי 2" are legitimate different orchestras, but "קאמרי קלאסי 1" imported twice is a duplicate)
+- The existing import pattern (preview -> execute) assumes matching is done during preview, but no matching logic exists for orchestras
 
 **Consequences:**
-- Imported students do not appear in the current school year's student list until manually enrolled
-- Queries filtering by `enrollments.schoolYears.schoolYearId` exclude all imported students
-- If `instrumentProgress` is created during import without the isPrimary guard, the export service (`export.service.js` lines 120-127) cannot find the primary instrument and returns null for that student's instrument in Ministry reports
-- `hours_summary` calculations that depend on school year enrollment produce wrong results for imported students
-
-**Detection:**
-- After import, query: `db.student.find({ 'enrollments.schoolYears': { $exists: false } })` — this returns all improperly imported students
-- The student list filtered by current school year does not show newly imported students
-- Export to Ministry format shows blank instrument columns for imported students
+- Duplicate orchestras in the database
+- Hours summary double-counts conducting hours
+- Export generates duplicate rows in the ensemble schedule sheet
+- Ministry report becomes invalid
 
 **Prevention:**
-Two options:
-1. **Route through `addStudent()`**: Build the full student object and call `addStudent(studentToAdd, null, true, options)` (isAdmin=true skips permission checks). This gets all side effects for free. Slower but correct.
-2. **Replicate the side effects in executeStudentImport**: Explicitly run `schoolYearService.getCurrentSchoolYear()`, build the `enrollments.schoolYears` array, enforce `isPrimary` on instrumentProgress, and call the school year enrollment step. This is a maintenance burden — every future `addStudent` side effect must be mirrored here.
+Match orchestras by composite key: `{ name (normalized), conductorId (resolved), schoolYearId, tenantId }`. A matching name + same conductor + same school year + same tenant is overwhelmingly likely to be the same orchestra. During preview:
+- For each parsed row, query existing orchestras with the composite key
+- If match found: show as "existing" with diff of changed fields (schedule, memberCount, etc.)
+- If no match: show as "new"
+- Edge case: same name, different conductor = likely different orchestra (or conductor changed). Flag for manual review.
 
-Option 1 is strongly recommended because the service layer is the canonical place for business logic.
-
-**Which phase should address it:** Immediately — this affects the correctness of every student created by the import, not just those with teacher links or instrument progress.
-
----
-
-### Pitfall 3: studentSchema Requires instrumentProgress at Creation Time
-
-**What goes wrong:**
-Developer looks at the import flow and sees `newStudent.academicInfo.instrument` being set (line 1799). They assume this is sufficient. But the canonical `studentSchema` in `student.validation.js` requires `academicInfo.instrumentProgress` as an array with at least one entry (`min(1).required()`), and each entry requires `instrumentName` (one of `VALID_INSTRUMENTS`) and `currentStage` (one of `VALID_STAGES`: 1-8).
-
-Ministry files have:
-- `instrument` (a text string, e.g., "כינור") — already parsed into `mapped.instrument`
-- `ministryStageLevel` (א, ב, or ג) — already parsed into `mapped.ministryStageLevel`
-
-Ministry files do NOT have:
-- `currentStage` as a number (1-8)
-
-The import service bypasses `addStudent()` and builds `newStudent` directly, so Joi validation doesn't run and the missing `instrumentProgress` doesn't surface as an error — it's silently absent. But the downstream code (export, teacher-lessons aggregation, data-integrity service) all assume `instrumentProgress` exists.
-
-**Why it happens:**
-The import was written before `instrumentProgress` became required. The `newStudent` object built in `executeStudentImport` (lines 1789-1815) does not include `instrumentProgress` at all. The `academicInfo.instrument` field is a legacy flat field; `instrumentProgress` is the current source of truth.
-
-**Consequences:**
-- `data-integrity.service.js` line 16 flags all imported students as invalid: `requiredFields: ['academicInfo.instrumentProgress']`
-- `export.service.js` lines 120-127 calls `instrumentProgress.find(p => p.isPrimary) || instrumentProgress[0]` — on an empty/absent array, this returns undefined, producing blank instrument cells in Ministry export
-- `teacher-lessons.service.js` lines 111-113 does a `$filter` on `instrumentProgress` — absent array causes the aggregation to return null for the instrument name
-
-**Detection:**
-- Data integrity check returns "missing required field: instrumentProgress" for all imported students
-- Ministry export shows empty instrument column for all imported students
-- `db.student.find({ 'academicInfo.instrumentProgress': { $exists: false } })` returns non-empty result set after import
-
-**Prevention:**
-When building the new student document during import:
-
+The composite match key must be:
 ```javascript
-// Map ministryStageLevel → currentStage
-const MINISTRY_STAGE_TO_CURRENT = {
-  'א': 1,  // Ministry level aleph → internal stage 1 (beginning)
-  'ב': 3,  // Ministry level bet → internal stage 3 (intermediate)
-  'ג': 6,  // Ministry level gimel → internal stage 6 (advanced)
-};
-
-// Build instrumentProgress if instrument is known
-if (mapped.instrument && VALID_INSTRUMENTS.includes(mapped.instrument)) {
-  newStudent.academicInfo.instrumentProgress = [{
-    instrumentName: mapped.instrument,
-    isPrimary: true,
-    currentStage: MINISTRY_STAGE_TO_CURRENT[mapped.ministryStageLevel] || 1,
-    ministryStageLevel: mapped.ministryStageLevel || null,
-    tests: {},
-  }];
-} else {
-  // Student has no known instrument — cannot create instrumentProgress
-  // Log a warning; the student will fail data integrity checks
-  warnings.push({ row: entry.row, field: 'instrumentProgress', message: 'כלי נגינה לא ידוע — אין instrumentProgress' });
+function matchOrchestra(parsed, existingOrchestras) {
+  const normalizedName = parsed.name.trim().replace(/\s+/g, ' ');
+  return existingOrchestras.find(orch =>
+    orch.name.trim().replace(/\s+/g, ' ') === normalizedName &&
+    orch.conductorId === parsed.conductorId &&
+    orch.schoolYearId === parsed.schoolYearId
+  );
 }
 ```
 
-The mapping from ministryStageLevel to currentStage is a business decision. The specific numbers (1, 3, 6) above are a reasonable default but must be confirmed with domain experts. Document this mapping explicitly in code comments.
+**Detection:**
+- Preview should show match counts: "12 existing (3 changed), 3 new"
+- Warning if matched orchestra has different memberCount from import
 
-**Which phase should address it:** Same phase as instrumentProgress creation.
+**Phase:** Phase 1 (Core parser + data matching). This must be designed before execute logic.
 
 ---
 
-### Pitfall 4: Hebrew Name Matching Returns Wrong Teacher When Name is Common
+### Pitfall 3: Ensemble Name Decomposition Errors
 
 **What goes wrong:**
-`matchStudent()` already demonstrates the pattern: when multiple students match the same name, it takes `matches[0]` and adds a `name_duplicate` warning. For students this is acceptable because they are being updated, not created as a relationship. For teacher-student linking, taking the wrong teacher silently links all ~1,293 students to the wrong instructor.
+Ministry Excel cells contain composite ensemble names like:
+- `"תז' כלי נשיפה ייצוגית"` -> type: "תזמורת", subType: "כלי נשיפה", performanceLevel: "ייצוגי"
+- `"הרכב קאמרי קלאסי 1"` -> type: "הרכב", subType: "קאמרי קלאסי", instance number: 1
+- `"מקהלה"` -> type: "הרכב", subType: "מקהלה"
+- `"ביג-בנד"` -> type: "הרכב", subType: "ביג-בנד"
 
-Common Israeli music teacher first names (שרה, מיכל, דוד, יוסי) combined with common last names create real ambiguity. Ministry files have one "המורה" column with the teacher's full name as typed by a Ministry clerk — not normalized, not matching the internal `firstName`/`lastName` split.
+The valid values are strictly constrained by constants.js:
+```javascript
+ORCHESTRA_TYPES = ['הרכב', 'תזמורת'];
+ORCHESTRA_SUB_TYPES = ['כלי נשיפה', 'סימפונית', 'כלי קשת', 'קאמרי קלאסי',
+                       'קולי', 'מקהלה', 'ביג-בנד', "ג'אז-פופ-רוק", 'עממית'];
+PERFORMANCE_LEVELS = ['התחלתי', 'ביניים', 'ייצוגי'];
+```
+
+If decomposition produces a subType that is not in `ORCHESTRA_SUB_TYPES`, Joi validation rejects the orchestra entirely (orchestra.validation.js line 62: `.valid(...ORCHESTRA_SUB_TYPES)`).
+
+The decomposition must also handle:
+- Hebrew abbreviations: `"תז'"` = `"תזמורת"`
+- Feminine suffix mapping: `"ייצוגית"` -> `"ייצוגי"`, `"התחלתית"` -> `"התחלתי"`
+- Instance numbers: `"קאמרי קלאסי 1"` -- the "1" is not part of the subType
+- Prefix/suffix variants: `"תזמורת כלי קשת"` vs `"תז' כלי קשת"` vs just `"כלי קשת"`
 
 **Why it happens:**
-The existing `matchTeacher()` function (lines 1079-1110) does exact-match by `firstName.toLowerCase() + lastName.toLowerCase()` after splitting a full name on whitespace. This means:
-- "שרה כהן" splits to firstName="שרה", lastName="כהן"
-- If the teacher is stored as firstName="שרה" lastName="כהן הלוי" → no match
-- If there are two teachers named "דוד לוי" → always matches the first one found in the DB query result (indeterminate order)
-
-Additionally, the Ministry file may write the teacher's name in reverse order (family name first in some layouts) or with a middle name or initials.
+Ministry files use natural Hebrew text with abbreviations, feminine forms, and numbering. The system uses canonical enum values. No mapping exists between the two. The export system does the reverse (data -> formatted name) but there is no import-direction mapping.
 
 **Consequences:**
-- 50-100 students silently linked to the wrong teacher
-- Wrong teacher gets visibility into students' records (`_studentAccessIds` is built from `teacherAssignments`)
-- Correct teacher has no access to their own students in the system
-- No error or warning is raised because the match appears successful
-
-**Detection:**
-- After import, run: `db.student.aggregate([{ $unwind: '$teacherAssignments' }, { $group: { _id: '$teacherAssignments.teacherId', count: { $sum: 1 } } }, { $sort: { count: -1 } }])` — a teacher with an unusually high count is a sign of false matches
-- Teachers report seeing students they do not know
-- Students report missing teachers in their profile
+- Orchestra creation fails Joi validation -> import silently skips the orchestra
+- Wrong subType -> export system cannot map to correct column in student sheet (ENSEMBLE_TO_COLUMN in _shared.js lines 130-141 maps subType to column letter Q-Y)
+- Wrong type -> orchestra shows in wrong section of admin UI
+- Wrong performanceLevel -> wrong X marker in export performance level columns (P/Q/R)
 
 **Prevention:**
-1. **Exact match only, report unresolved as warnings** — never silently take `matches[0]` when multiple exist; surface them as unresolved requiring manual review
-2. **Show teacher match quality in preview** — for each student row with a teacher name, show: "Matched to [Teacher Name] (exact)" or "Ambiguous — 2 teachers with this name, manual assignment needed"
-3. **Normalize before matching**:
-   - Strip leading/trailing whitespace and invisible RTL/LTR marks (the codebase already does `replace(/[\u200F\u200E\uFEFF\u200B]/g, '')` — apply this to teacher names too)
-   - Try both orderings: "שם משפחה" first and "שם פרטי" first
-   - Compare against `personalInfo.firstName + ' ' + personalInfo.lastName` AND `personalInfo.lastName + ' ' + personalInfo.firstName`
-4. **Never store a teacherAssignment based on an ambiguous match** — flag as unresolved
+Build an explicit decomposition map and test it exhaustively:
 
-**Which phase should address it:** Teacher matching phase, before any teacher-student linking is written.
+```javascript
+const ENSEMBLE_NAME_PATTERNS = [
+  // Order matters: more specific patterns first
+  { pattern: /תז['׳]?\s*כלי נשיפה\s+(ייצוגי[ת]?|ביניים|התחלתי[ת]?)$/i, type: 'תזמורת', subType: 'כלי נשיפה' },
+  { pattern: /תז['׳]?\s*סימפונית/i, type: 'תזמורת', subType: 'סימפונית' },
+  { pattern: /תז['׳]?\s*כלי קשת/i, type: 'תזמורת', subType: 'כלי קשת' },
+  { pattern: /תזמורת\s*עממית/i, type: 'תזמורת', subType: 'עממית' },
+  { pattern: /קאמרי\s*קלאסי/i, type: 'הרכב', subType: 'קאמרי קלאסי' },
+  { pattern: /ביג[-\s]?בנד/i, type: 'הרכב', subType: 'ביג-בנד' },
+  { pattern: /ג['׳]אז[-\s]?פופ[-\s]?רוק/i, type: 'הרכב', subType: "ג'אז-פופ-רוק" },
+  { pattern: /מקהלה/i, type: 'הרכב', subType: 'מקהלה' },
+  { pattern: /הרכב\s*קולי/i, type: 'הרכב', subType: 'קולי' },
+  // Fallback for names that directly match a subType
+];
+```
+
+Key requirement: if decomposition fails (no pattern matches), the preview must flag it as "unrecognized ensemble type" with the raw name, NOT silently skip it. The user must be able to manually assign type/subType during preview.
+
+**Detection:**
+- Preview response should include `unmappedEnsembles: []` with raw names
+- Unit test every known Ministry name variant against the decomposition function
+- Compare decomposition output against ORCHESTRA_TYPES, ORCHESTRA_SUB_TYPES, PERFORMANCE_LEVELS before validation
+
+**Phase:** Phase 1 (Core parser). This is the core parsing logic that everything else depends on.
+
+---
+
+### Pitfall 4: Conductor Name Matching With Missing Teachers
+
+**What goes wrong:**
+The Ministry Excel column "שם המנצח" (conductor name) contains a Hebrew name string. The existing `matchTeacherByName()` function (import.service.js lines 1257-1308) already handles both name orderings ("אבי כהן" and "כהן אבי"). But it returns `{ status: 'unresolved' }` when the teacher is not in the database.
+
+Unlike student import where an unresolved teacher just means no `teacherAssignment`, an unresolved conductor means the orchestra CANNOT be created -- `conductorId` is `Joi.string().required()` (orchestra.validation.js line 69). This is a hard blocker, not a warning.
+
+Possible scenarios:
+1. Conductor exists, unique match -> resolved, orchestra can be created
+2. Conductor exists, ambiguous (2+ matches) -> cannot auto-resolve, needs manual selection
+3. Conductor does NOT exist in teacher DB -> orchestra cannot be created at all
+4. Conductor name column is empty -> orchestra has no conductor
+
+**Why it happens:**
+- Ministry files may include conductors who are part-time / external and were never imported into the teacher system
+- The teacher import and ensemble import may be done in different order
+- Hebrew names have no standard ordering, and the Ministry file may use a different spelling
+
+**Consequences:**
+- Scenario 3 blocks orchestra creation entirely. If 5 of 15 orchestras have unknown conductors, those 5 are lost.
+- Scenario 2 creates the wrong teacher link if auto-resolved to first match
+- The user expected all 15 orchestras to import; getting only 10 is confusing
+
+**Prevention:**
+The preview must handle all four scenarios explicitly:
+- **Resolved:** Show conductor name + matched teacher name + confidence
+- **Ambiguous:** Show candidate list, let user pick in preview UI
+- **Unresolved:** Two options:
+  a. Flag as blocked with option to skip
+  b. Offer to create a placeholder teacher (minimal: firstName, lastName, role "ניצוח" or "מדריך הרכב"). The existing teacher import creates teachers via `authService.register()` which sets up credentials. A lighter-weight path is needed for import-created teachers.
+- **Empty:** Skip orchestra or flag as incomplete
+
+The `matchTeacherByName()` function already exists and handles orderings. Reuse it directly -- do NOT write a new matching function.
+
+**Detection:**
+- Preview: `conductorStatus: 'resolved' | 'ambiguous' | 'unresolved' | 'none'`
+- Preview summary: `{ resolved: 10, ambiguous: 2, unresolved: 3 }`
+
+**Phase:** Phase 1 (Data matching). Must be decided in parser phase because it determines what the preview UI needs to show.
+
+---
+
+### Pitfall 5: Excel Time Fraction Misinterpretation
+
+**What goes wrong:**
+Ministry Excel stores time values as fractional day numbers:
+- 0.7083333... = 17:00:00
+- 0.75 = 18:00:00
+- 0.625 = 15:00:00
+- 0.66666... = 16:00:00
+
+The "משעה" (from time) and "עד שעה" (to time) columns in the ensemble schedule sheet contain these fractions. The system stores rehearsal times as "HH:MM" strings (rehearsal.validation.js line 24: `pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)`).
+
+If you read the cell value without time conversion, you get `0.7083333` instead of `"17:00"`. If you use `XLSX.SSF.format('h:mm', 0.7083333)` you get the correct value, but only if you know the cell is a time. If the cell is formatted as a number, SheetJS may not auto-detect it as time.
+
+The export system writes times as formatted values (ensembles.sheet.js lines 110-115):
+```javascript
+if (row.act1Start) {
+  sheet.getCell(r, 6).value = row.act1Start;  // Already "17:00" string
+}
+```
+
+But the Ministry original file may store the TIME as an Excel serial fraction, not as a pre-formatted string. The two formats (string "17:00" vs fraction 0.7083) require different handling.
+
+**Why it happens:**
+- Excel stores all dates/times as serial numbers internally
+- Different Excel versions and Ministry file templates may format the same cell differently
+- SheetJS `.v` (raw value) gives the fraction; `.w` (formatted) gives the display string
+- ExcelJS may give a Date object for time cells, which then needs timezone-aware formatting
+- The conservatory import already hit this exact bug (import.service.js line 1910 comment: "ExcelJS misinterprets VLOOKUP formula results as invalid Date objects")
+
+**Consequences:**
+- Rehearsal times stored as "0.7083" instead of "17:00" -- fails regex validation
+- If converted incorrectly, times are off by hours (timezone issues with Date objects)
+- Hours calculation in export becomes wrong (totalActualHours depends on time difference)
+- The "שעות בפועל" (actual hours) column contains a formula `HOUR(G-F)+MINUTE(G-F)/60` -- reading the formula result gives a number (e.g., 2.0 for a 2-hour rehearsal), NOT a time
+
+**Prevention:**
+Use SheetJS and prefer `.w` (formatted string) for time cells. Implement a robust time converter:
+
+```javascript
+function excelTimeToHHMM(value) {
+  if (typeof value === 'string') {
+    // Already formatted: "17:00" or "5:00 PM"
+    const match = value.match(/^(\d{1,2}):(\d{2})/);
+    if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
+    // Try parsing "5:00 PM" format
+    const pmMatch = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (pmMatch) {
+      let h = parseInt(pmMatch[1]);
+      if (pmMatch[3].toUpperCase() === 'PM' && h < 12) h += 12;
+      if (pmMatch[3].toUpperCase() === 'AM' && h === 12) h = 0;
+      return `${String(h).padStart(2, '0')}:${pmMatch[2]}`;
+    }
+    return null;
+  }
+  if (typeof value === 'number' && value >= 0 && value < 1) {
+    // Excel fraction: 0.7083 = 17:00
+    const totalMinutes = Math.round(value * 24 * 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+  return null;
+}
+```
+
+Test edge cases: midnight (0.0), noon (0.5), 23:59 (0.99930...), and invalid values (negative, > 1).
+
+**Detection:**
+- Validate every converted time against the rehearsal schema regex before including in preview
+- Preview should show original cell value alongside converted time for verification
+- Log warning if any time value cannot be converted
+
+**Phase:** Phase 1 (Core parser). Time parsing is a core parsing concern.
+
+---
+
+### Pitfall 6: Ensemble Schedule Sheet Header Detection Failure
+
+**What goes wrong:**
+The ensemble schedule sheet has a complex header structure:
+- Rows 9-10: Group headers with merged cells ("פעילות I", "פעילות II", "רמת ביצוע")
+- Row 11 is empty or has sub-group labels
+- Row 12: Column headers ("שם המנצח", "תזמורת/הרכב", "מספר משתתפים", "ביום", "משעה", etc.)
+- Row 13+: Data rows
+
+The existing teacher import's `parseMinistryTeacherSheet()` uses instrument abbreviation scoring to find the header row (import.service.js lines 900-916). The student import uses `parseExcelBufferWithHeaderDetection()` which scores against a known column map (lines 358-460). Neither approach directly works for the ensemble sheet because:
+
+1. There are NO instrument abbreviations in the ensemble sheet
+2. The column headers are different from both TEACHER_COLUMN_MAP and STUDENT_COLUMN_MAP
+3. The merged cells spanning rows 9-12 mean ExcelJS/SheetJS may place the merged value in only the top-left cell, leaving rows 11-12 partially empty
+4. Summary rows at the bottom (totals, averages) look like data rows but should be excluded
+
+**Why it happens:**
+- The ensemble sheet layout is fundamentally different from teacher/student sheets
+- Merged cells in Excel are notoriously inconsistent across libraries (SheetJS puts value in top-left, ExcelJS sometimes duplicates across merged range)
+- The header row (12) might not score highly if the detector is looking at row 9 (merged headers) instead
+- Bottom summary rows with numeric totals can be mistaken for data rows
+
+**Consequences:**
+- Wrong header row detected -> all column mappings are off by N rows -> wrong data in every field
+- Merged cell values not found -> columns mapped as empty -> missing conductor names, ensemble names
+- Summary rows imported as orchestras -> ghost orchestras with aggregated/nonsensical data
+
+**Prevention:**
+Do NOT use generic header detection for this sheet. Instead, use a purpose-built parser:
+
+1. **Find the data start row by pattern matching:** Look for the first row where column B has a Hebrew name and column C has text matching an ensemble pattern. This is more reliable than header detection.
+
+2. **Use fixed column positions as fallback.** The Ministry template has a stable structure (confirmed by ensembles.sheet.js): A=active marker, B=conductor, C=ensemble name, D=participant count, E-H=activity I, I-L=activity II, M=total hours, N=coordination hours, O=total reporting hours, P-R=performance levels.
+
+3. **Detect data end by looking for:** empty rows, "סה"כ" (total) rows, rows where column D is a SUM formula instead of a number.
+
+```javascript
+function isEnsembleDataRow(row) {
+  // Column C (ensemble name) must be non-empty text
+  const ensembleName = getCellText(row, 3);
+  if (!ensembleName || ensembleName.length < 2) return false;
+  // Column D (participant count) should be a number
+  const participantCount = getCellValue(row, 4);
+  if (typeof participantCount === 'object') return false; // formula = summary row
+  // Skip rows with "סה"כ" in any cell
+  for (const cell of row) {
+    if (typeof cell === 'string' && cell.includes('סה"כ')) return false;
+  }
+  return true;
+}
+```
+
+**Detection:**
+- Log the detected header row number and matched column names
+- Validate that at least 3 required columns are found (conductor, name, participant count)
+- Preview should show raw row count vs parsed row count
+
+**Phase:** Phase 1 (Core parser). This is the first thing that must work.
 
 ---
 
 ## Moderate Pitfalls
 
-Mistakes that cause bugs, poor UX, or significant rework but are recoverable.
+Mistakes that cause incorrect data but do not require architectural rework.
 
-### Pitfall 5: ImportData.tsx Tab Switch Assumes Symmetric Preview Data Shape
+### Pitfall 7: Hebrew Day Name Mapping Ambiguity
 
 **What goes wrong:**
-The existing preview state in `ImportData.tsx` is a single `previewData` state variable. Teacher import preview rows have `row.instruments`, `row.roles`, `row.teachingHours`, `row.teachingSubjects`. Student import preview rows have `row.mapped`, `row.changes`, `row.duplicateCount`. The `allPreviewRows` array merges matched/notFound/errors and sorts by row number.
+The "ביום" (on day) columns contain Hebrew day names: "ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי". The rehearsal schema requires `dayOfWeek` as a number 0-6 (rehearsal.validation.js line 23). The constant `VALID_DAYS` in constants.js uses the same names: `['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי']`.
 
-When adding student-specific preview details (instrument detected, teacher name matched, stage level), developers add new fields to the student row shape. If these fields overlap with teacher-specific field names (e.g., adding `row.instruments` to student rows to show detected instruments), the teacher preview `getTeacherRowDetails()` function will accidentally render student instrument data in teacher rows when the tab is teachers.
+The VALID_DAYS_OF_WEEK in rehearsal.validation.js maps numbers to names (0='ראשון', 1='שני', etc.) but there is no reverse mapping. The import needs the reverse direction.
 
-**Why it happens:**
-The `activeTab` state determines which detail renderer is called, but `resetState()` clears `previewData` on tab change. The risk is during development when a developer tests one tab and forgets the other. The shapes are similar enough that TypeScript won't catch the collision (both use `any[]` for preview arrays).
-
-**Consequences:**
-- Teacher import preview shows wrong field labels or data from previous student import state
-- Student import preview renders nothing for the "changes" column because `getTeacherRowDetails()` looks for `row.changes` in a format it doesn't recognize
-
-**Detection:**
-- Switch from student tab to teacher tab without resetting — check if teacher preview renders correctly
-- Verify `resetState()` is called on every tab change (it is, at line 454-457, but only if the tab actually changes)
+Edge cases:
+- Ministry files may use "יום ראשון" (with "יום" prefix) instead of just "ראשון"
+- Abbreviated forms like "א'" for "ראשון"
+- Empty day field (rehearsal day not set yet)
+- "שבת" (Saturday, index 6) exists in rehearsal.validation.js but NOT in constants.js VALID_DAYS
 
 **Prevention:**
-1. Keep preview data shapes explicitly separate — define separate TypeScript interfaces for `TeacherPreviewRow` and `StudentPreviewRow`
-2. Guard all field accesses with `activeTab` checks, not just the top-level renderer
-3. Add a TypeScript discriminated union for preview rows: `{ type: 'teacher'; ...teacherFields } | { type: 'student'; ...studentFields }`
-4. For the student detail renderer, create a separate `getStudentRowDetails()` function analogous to `getTeacherRowDetails()` — do not add student-specific cases into `getTeacherRowDetails()`
+Build explicit reverse map with aliases:
+```javascript
+const DAY_NAME_TO_NUMBER = {
+  'ראשון': 0, 'יום ראשון': 0, "א'": 0,
+  'שני': 1, 'יום שני': 1, "ב'": 1,
+  'שלישי': 2, 'יום שלישי': 2, "ג'": 2,
+  'רביעי': 3, 'יום רביעי': 3, "ד'": 3,
+  'חמישי': 4, 'יום חמישי': 4, "ה'": 4,
+  'שישי': 5, 'יום שישי': 5, "ו'": 5,
+  'שבת': 6,
+};
+```
 
-**Which phase should address it:** Frontend preview enhancement phase. Must be done before adding any student-specific preview fields.
+**Phase:** Phase 1 (Parser utilities).
 
 ---
 
-### Pitfall 6: previewStudentImport Passes Wrong headerColMap to detectInstrumentColumns
+### Pitfall 8: Performance Level Extraction From Merged "X" Columns
 
 **What goes wrong:**
-Line 1490-1491 of `import.service.js`:
+The ensemble schedule sheet uses three columns (P/Q/R in export, columns 16/17/18) for performance level: "התחלתי", "ביניים", "ייצוגי". An "X" in one column indicates the level. When importing, the parser must check which of the three columns has an "X" (or "x", or "V", or any truthy value).
 
-```javascript
-const headers = Object.keys(rows[0]);  // <-- headers from first ROW, not from parsed header row
-const instrumentColumns = detectInstrumentColumns(headers);  // <-- no headerColMap passed
-```
+However, merged headers mean the column indices may shift. If row 9-10 has merged "רמת ביצוע" spanning P-R, and the parser detects header on row 12, the P/Q/R columns may not be in positions 16/17/18 depending on how the template was modified.
 
-`detectInstrumentColumns` has a two-argument signature: `detectInstrumentColumns(headers, headerColMap)`. Without `headerColMap`, the `colIndex < instrumentSectionStart` threshold check cannot work — `colIndex` will always be `undefined`, and the instrument section start detection will fail silently.
-
-Meanwhile, the teacher import path at line 1443 correctly passes both arguments: `detectInstrumentColumns(parsedHeaders, headerColMap)`.
-
-This is an existing bug in the current code that will become more impactful when instrument columns are used for `instrumentProgress` creation (currently the bug means instruments may be mis-detected, but the `academicInfo.instrument` field is set anyway — once instrumentProgress depends on this, the miss rate matters more).
-
-**Why it happens:**
-The student import was added after the teacher import path and the `detectInstrumentColumns` function signature was updated. The student path was not updated to pass `headerColMap`.
-
-**Consequences:**
-- Instrument columns that appear before column 24 (the old hardcoded threshold) may be incorrectly classified
-- Students whose instrument is detected via department column rather than specific instrument column may get wrong instruments
-- `instrumentProgress` created from a mis-detected instrument name fails the `instrumentProgressSchema` validation (`.valid(...VALID_INSTRUMENTS)`) — the entire student insert fails
-
-**Detection:**
-- Upload a student Ministry file with instruments in columns before position 24
-- Check the `warnings` array for "כלי לא מוכר" warnings — these indicate a mis-detected instrument name
+Additionally, the export uses column 20 (T) for validation formulas -- this should NOT be treated as data.
 
 **Prevention:**
-Fix the existing bug before adding instrumentProgress creation:
+- Use the header text to find the performance level columns dynamically: look for "התחלתי", "ביניים", "ייצוגי" as header values in row 12
+- Fall back to positions 16/17/18 if headers are not found (known template structure)
+- Check all truthy variants: `['X', 'x', 'V', 'v', '1', true]`
+- Only one of the three columns should be truthy per row. If multiple are set, log a warning and take the rightmost (highest level).
 
-```javascript
-// Replace lines 1490-1491 with:
-const headers = Object.keys(rows[0]);
-const instrumentColumns = detectInstrumentColumns(headers, headerColMap);  // pass headerColMap
-```
-
-This is a one-line fix but it must be validated before building instrumentProgress creation on top of it.
-
-**Which phase should address it:** Before instrumentProgress creation (bug fix prerequisite).
+**Phase:** Phase 1 (Parser).
 
 ---
 
-### Pitfall 7: import_log Stores importType='students' but Does Not Store Teacher Match Results
+### Pitfall 9: participantCount vs memberIds.length Discrepancy
 
 **What goes wrong:**
-The `import_log` document saved during `previewStudentImport` stores the full `preview` object including `preview.matched` and `preview.notFound`. When `executeStudentImport` runs later, it reads the preview from `import_log` and processes it.
+The Ministry file has a "מספר משתתפים" (participant count) column. The system stores actual members in `orchestra.memberIds[]`. These numbers will almost certainly not match:
+- Ministry count reflects the paper roster at time of filing
+- System memberIds reflect which students have been digitally linked
+- Some members may not be imported as students yet
+- The count could be from a different point in the school year
 
-If teacher matching is added to the preview phase (resolving "המורה" to a teacher `_id`), the teacher `_id` must be stored in `preview.matched[].mapped.teacherId` or a similar field within the `import_log` document. If not, `executeStudentImport` has no way to know which teacher was matched without re-running the matching logic against the live teacher collection — which may produce different results if teachers were added/removed between preview and execute.
-
-**Why it happens:**
-The current preview stores `mapped.teacherName` (the raw text from the file) but not the resolved `teacherId`. This is fine today because teacher linking is not implemented. Once teacher matching is added to the preview phase, the result must be persisted.
-
-**Consequences:**
-- Preview shows "Matched to דוד לוי (שם מלא)" but execute re-runs matching and now matches a different teacher
-- Two different teachers get linked depending on the timing of execute relative to preview
-- Execute tries to create a `teacherAssignment` with `teacherId = null` because the match is not re-run
+The export generates memberCount from `(orch.memberIds || []).length` (ministry-mappers.js line 307). If the import stores the Ministry's participantCount somewhere, it creates a confusing inconsistency.
 
 **Prevention:**
-Store teacher match results in the `import_log` preview:
+- Store the Ministry's participantCount in `orchestra.ministryData.participantCount` (a new field alongside the existing `coordinationHours`, `totalReportingHours`, `ministryUseCode`)
+- Do NOT overwrite memberIds based on participantCount
+- In the preview, show: "Ministry reports 25 participants, system has 18 members linked"
+- Add the `participantCount` to `ministryDataSchema` in orchestra.validation.js:
+  ```javascript
+  participantCount: Joi.number().integer().min(0).allow(null).default(null),
+  ```
 
+**Phase:** Phase 2 (Execute logic). The preview can show the discrepancy, but the data model change is part of execution.
+
+---
+
+### Pitfall 10: School Year Scoping Not Applied to Import
+
+**What goes wrong:**
+The existing `addOrchestra()` function auto-assigns `schoolYearId` from the current school year if not provided (orchestra.service.js lines 224-228):
 ```javascript
-// In preview.matched[] and preview.notFound[] entries:
-{
-  ...existingFields,
-  teacherMatch: {
-    teacherId: resolvedTeacher._id.toString(),
-    teacherName: `${resolvedTeacher.personalInfo.firstName} ${resolvedTeacher.personalInfo.lastName}`,
-    matchType: 'exact' | 'ambiguous' | 'not_found',
-    ambiguousOptions: []  // filled when matchType === 'ambiguous'
-  }
+if (!value.schoolYearId) {
+  const currentSchoolYear = await schoolYearService.getCurrentSchoolYear({ context: options.context });
+  value.schoolYearId = currentSchoolYear._id.toString();
 }
 ```
 
-`executeStudentImport` reads `entry.teacherMatch.teacherId` directly rather than re-running matching.
+But import may be for a PREVIOUS school year's data. If the user imports the 2024-2025 Ministry file while the current year is 2025-2026, all orchestras get the wrong schoolYearId. This makes them invisible in the current year's views and export.
 
-**Which phase should address it:** Teacher matching phase, when the preview data shape is extended.
+**Prevention:**
+- The import flow must explicitly ask the user which school year the file belongs to
+- The school year should be selected BEFORE upload, not auto-detected
+- Alternatively, detect from the Ministry file metadata (some files include the year in the header area, rows 1-8)
+- Pass `schoolYearId` as a required parameter to the preview endpoint
+
+**Phase:** Phase 2 (Preview endpoint design). Must be in the API contract from the start.
 
 ---
 
-### Pitfall 8: Bagrut Flag Requires a Separate Collection Write — Not Just a Student Field
+### Pitfall 11: Coordination Hours and Total Reporting Hours Stored in Wrong Field
 
 **What goes wrong:**
-Developer sees `student.academicInfo.tests.bagrutId` and assumes bagrut flagging means setting `bagrutId: 'flagged'` or `bagrutId: true` on the student document. But examining `bagrut.service.js` reveals that:
+The ensemble schedule sheet has columns for:
+- "שעות ריכוז" (coordination hours) -- stored in `orchestra.ministryData.coordinationHours`
+- "סה"כ לדיווח" (total reporting hours) -- stored in `orchestra.ministryData.totalReportingHours`
 
-1. `addBagrut()` inserts a full document in the `bagrut` collection (line 124)
-2. It then calls `studentService.setBagrutId()` to set `student.academicInfo.tests.bagrutId` to the `bagrut._id` (line 128)
-3. The `setBagrutId` function updates the student record with the ObjectId of the bagrut document
+These are teacher-level data (how many hours this teacher spends coordinating ensembles), NOT orchestra-level data. The coordination hours should go to `teacher.managementInfo.ensembleCoordHours`, and the total is a calculated field.
 
-Creating a bagrut record during import requires creating TWO documents atomically: the bagrut document and the student reference update. If only the student's `bagrutId` field is set (without creating the bagrut document), every subsequent call to `getBagrutByStudentId()` returns `null` despite `bagrutId` being set.
+But the existing orchestra schema also has `ministryData.coordinationHours` (orchestra.validation.js line 46), and the export reads from orchestra for the ensemble sheet (ministry-mappers.js line 302):
+```javascript
+const coordHours = orch.ministryData?.coordinationHours ?? null;
+```
 
-Additionally, `addBagrut()` checks for duplicate bagrut records: `collection.findOne({ studentId: value.studentId, isActive: true, tenantId })`. If import runs twice, the second run will find the existing bagrut and throw `'Bagrut for student X already exists'`.
-
-**Why it happens:**
-Bagrut is a complex entity with its own lifecycle (presentations, grading, program pieces). The import might want to "flag" a student as a bagrut candidate without creating the full bagrut entity. But the system has no "draft" or "flagged" state — it either exists or it does not.
+So the system stores coordination hours in TWO places: teacher.managementInfo and orchestra.ministryData. Import must update BOTH, or the cross-validation in export will flag a mismatch.
 
 **Prevention:**
-Three clean approaches:
-1. **Do not create bagrut records during import** — instead, set a flag field: `student.academicInfo.isBagrutCandidate: true` (requires adding this field to the schema). Admins then create the bagrut record explicitly.
-2. **Create a minimal stub bagrut record** — call `bagrutService.addBagrut({ studentId, tenantId, ... })` with minimal required fields. Must be done within the same import transaction or with rollback handling.
-3. **Use the existing `setBagrutId()` only if a full bagrut already exists** — import does not create bagrut records, only links existing ones.
+- During execute, write coordinationHours to BOTH:
+  1. `orchestra.ministryData.coordinationHours` (for ensemble sheet export)
+  2. Check if `teacher.managementInfo.ensembleCoordHours` should be updated (only if the imported value differs)
+- Preview should flag if the imported coordination hours differ from what the teacher already has
+- Do NOT blindly overwrite teacher.managementInfo -- it may have been manually set by admin
 
-Option 1 is recommended for import. Bagrut creation should remain a deliberate user action.
-
-**Which phase should address it:** Bagrut flagging phase.
+**Phase:** Phase 2 (Execute logic).
 
 ---
 
-### Pitfall 9: Preview Table Renders at Most 50 Rows — Teacher Names Are Not Visible at Scale
+### Pitfall 12: "הרכב ביצוע" vs "תזמורת" Type Confusion
 
 **What goes wrong:**
-Line 823 of `ImportData.tsx`: `allPreviewRows.slice(0, 50)`. With 1,293 students, 97% of the preview is invisible. When adding teacher name match status to the preview (showing which students have resolved/unresolved/ambiguous teacher matches), the admin cannot see most of the matching results.
+The system has two orchestra types: "הרכב" (ensemble) and "תזמורת" (orchestra). The Ministry sheet is called "הרכבי ביצוע" (performance ensembles) and the column header says "תזמורת/הרכב". But the actual data rows contain BOTH types -- some are actual orchestras (תזמורת סימפונית, תזמורת כלי נשיפה) and some are ensembles (הרכב קאמרי, מקהלה).
 
-The teacher ambiguity warnings are currently rendered in the `warnings` array displayed above the table, but the warnings only show `row` numbers — not student names. With 1,293 rows and 50 visible, it is impossible to review teacher assignments in the current UI.
+The ORCHESTRA_SUB_TYPES in constants.js include both types:
+- תזמורת subTypes: סימפונית, כלי נשיפה, כלי קשת, עממית
+- הרכב subTypes: קאמרי קלאסי, קולי, מקהלה, ביג-בנד, ג'אז-פופ-רוק
 
-**Why it happens:**
-The 50-row limit was set when import files were small (single-school teacher lists, ~30-50 teachers). Student Ministry files have up to 1,293 rows.
+If the parser assumes all entries are "הרכב" (because the sheet is called "הרכבי ביצוע"), it misclassifies orchestras. If it assumes "תזמורת", it misclassifies ensembles.
 
 **Prevention:**
-1. Add a summary section above the table specifically for teacher matching: "392 students matched to teachers / 45 unresolved / 3 ambiguous"
-2. Add filter tabs to the preview table: "All | Teacher resolved | Unresolved | Ambiguous" — this lets admins focus on problem rows without removing the 50-row limit entirely
-3. Optionally paginate the preview table rather than hard-limiting to 50 rows
-4. Show teacher match status in the existing preview column ("שינויים / הערות") for student rows — a compact one-liner like "כלי: כינור | מורה: דוד לוי" or "מורה: לא נמצא"
+The name decomposition function (Pitfall 3) must determine the type from the name itself:
+- Names containing "תזמורת" or "תז'" -> type: "תזמורת"
+- Everything else -> type: "הרכב"
+- Explicitly map: "מקהלה" -> "הרכב", "ביג-בנד" -> "הרכב", "קאמרי" -> "הרכב"
 
-**Which phase should address it:** Preview enhancement phase.
+**Phase:** Phase 1 (Parser). Tied to Pitfall 3 decomposition.
 
 ---
 
 ## Minor Pitfalls
 
-Issues that cause friction but are easy to fix once identified.
+Issues that cause inconvenience but are easily fixed.
 
-### Pitfall 10: ministryStageLevel → currentStage Mapping Is a Business Rule, Not a Technical Rule
+### Pitfall 13: Location Field Default vs Ministry Data
 
 **What goes wrong:**
-Ministry stages א/ב/ג do not have a canonical mapping to the internal stages 1-8. Different conservatories may interpret the mapping differently. Hardcoding the mapping in `import.service.js` without documenting it creates invisible business logic that will be questioned by every new admin who notices that "stage ג = 6" rather than "stage ג = 7 or 8".
+The orchestra schema has `location: Joi.string().valid(...VALID_LOCATIONS).default('חדר 1')`. The Ministry file does not include rehearsal location. So all imported orchestras get `location: 'חדר 1'` -- which is almost certainly wrong for most of them.
 
 **Prevention:**
-1. Add the mapping as a named constant with a comment explaining the convention:
-   ```javascript
-   // Ministry levels: א (beginning, year 1-2) → stage 1
-   //                  ב (intermediate, year 3-4) → stage 3
-   //                  ג (advanced, year 5+) → stage 6
-   // These are heuristic defaults; individual student stages should be reviewed after import
-   const MINISTRY_STAGE_TO_INTERNAL_STAGE = { 'א': 1, 'ב': 3, 'ג': 6 };
-   ```
-2. Surface the mapped stage in the preview: "שלב: ג → שלב פנימי: 6 (ניתן לשינוי אחרי ייבוא)"
-3. Do NOT use `studyYears` to derive stage — there is no reliable formula
+- Accept that location will not be set during import
+- Allow `null` or empty string for location during import (may require schema relaxation)
+- Or use the default and document it as "requires manual update after import"
 
-**Which phase should address it:** instrumentProgress creation phase.
+**Phase:** Phase 2 (Execute logic). Low priority.
 
 ---
 
-### Pitfall 11: Duplicate Teacher Name in Import File Matches Same Teacher Twice
+### Pitfall 14: IMPORT_TYPES Constant Not Updated
 
 **What goes wrong:**
-If a teacher appears in two student rows with the same name but is only found once in the DB, the matcher returns the same teacher `_id` twice. This is correct behavior. But if the teacher's name is spelled differently in two rows ("דוד לוי" and "ד. לוי"), one match succeeds and the other fails. No warning is raised for the failed match, leaving some students without a teacher link while others in the same cohort are linked.
+`constants.js` line 204: `export const IMPORT_TYPES = ['teachers', 'students'];` -- does not include 'ensembles' or 'orchestras'. The conservatory import already bypassed this by using `importType: 'conservatory'` without updating the constant. But if any validation or UI relies on IMPORT_TYPES, the new import type will be rejected.
 
 **Prevention:**
-After teacher matching, group unresolved teacher names: if "ד. לוי" appears 30 times and all 30 are unresolved, surface this as a single actionable item in the preview: "30 students list 'ד. לוי' as teacher — no match found. Did you mean 'דוד לוי'?"
+- Update `IMPORT_TYPES` to include 'ensembles' (or 'orchestras', pick one name and be consistent)
+- Grep for `IMPORT_TYPES` usage to find any validation that checks against it
 
-This requires a name-frequency analysis pass in the preview, not individual row processing.
-
-**Which phase should address it:** Teacher matching phase.
+**Phase:** Phase 1 (Infrastructure). Trivial but easy to forget.
 
 ---
 
-### Pitfall 12: Updating Existing Students During Import Overwrites academicInfo.instrument But Not instrumentProgress
+### Pitfall 15: Rehearsal Creation Without Specific Dates
 
 **What goes wrong:**
-The current `calculateStudentChanges()` (lines 1311-1329) diffs `studyYears`, `extraHour`, and `class`. It does NOT diff `instrument` or `instrumentProgress`. When an existing student is matched during import, the instrument column in the Ministry file is ignored for updates.
+The Ministry file provides rehearsal schedule as day + time (e.g., "ראשון, 17:00-19:00"). The rehearsal schema requires `date: Joi.date().required()` -- an actual calendar date. The import only has the weekly pattern, not specific rehearsal dates.
 
-If instrumentProgress creation is added for new student creation but not for updates, existing students will have mismatched `academicInfo.instrument` (updated flat field from previous imports) and `instrumentProgress` (never updated from import). Over time the two fields diverge.
+The existing `bulkCreateRehearsals` function generates dates from a range (rehearsal.validation.js lines 44-59: `startDate`, `endDate`, `dayOfWeek`). But the import does not know the school year date range at parse time.
 
 **Prevention:**
-Decide explicitly: should import update `instrumentProgress` for existing students? If yes, add it to `calculateStudentChanges()`. If no, document this limitation in the preview UI: "כלי נגינה ושלב לא מתעדכנים עבור תלמידים קיימים".
+Two approaches:
+1. **Store schedule data on the orchestra itself** (e.g., `orchestra.schedule: [{ dayOfWeek, startTime, endTime }]`) and defer rehearsal creation to a later step. This requires a schema addition but keeps the import simple.
+2. **Create rehearsals using the school year's date range.** After resolving schoolYearId, use `bulkCreateRehearsals` with the year start/end dates. This creates many rehearsal documents but matches the existing pattern.
 
-**Which phase should address it:** instrumentProgress creation phase, when the decision about updates vs creates is made.
+Recommended: Option 1 for import, let users generate actual rehearsal instances via the existing bulk-create UI. The import's job is to create the orchestra with its schedule metadata, not to generate a year's worth of rehearsal records.
 
----
-
-### Pitfall 13: The 'המורה' Column Is in Both TEACHER_COLUMN_MAP and STUDENT_COLUMN_MAP with Different Mappings
-
-**What goes wrong:**
-In `import.service.js`:
-
+This means adding to the orchestra schema:
 ```javascript
-// TEACHER_COLUMN_MAP line 107:
-'המורה': 'fullName',   // teacher sheet: this is the TEACHER'S own full name
-
-// STUDENT_COLUMN_MAP line 130:
-'המורה': 'teacherName',  // student sheet: this is the STUDENT'S teacher's name
+schedule: Joi.array().items(Joi.object({
+  dayOfWeek: Joi.number().integer().min(0).max(6).required(),
+  startTime: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).required(),
+  endTime: Joi.string().pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).required(),
+})).default([]),
 ```
 
-These are different fields with the same Hebrew column header. The parser selects the correct map based on which import function is called (`previewTeacherImport` vs `previewStudentImport`). If someone accidentally calls the wrong function (or the route passes the wrong import type), teacher names in the student file will be parsed as the student's own name and vice versa.
+**Phase:** Phase 1 (Data model decision). Must be decided early because it affects what the parser stores.
+
+---
+
+### Pitfall 16: Multi-Row Activity Slots (Activity I and Activity II)
+
+**What goes wrong:**
+The ensemble schedule has two activity time slots: Activity I (columns E-H) and Activity II (columns I-L). A single orchestra can rehearse twice per week. The parser must correctly associate E-H with the first slot and I-L with the second slot.
+
+If Activity II is empty (only one rehearsal per week), the parser should NOT create a second schedule entry with empty/zero times. But if columns I-L have residual formula values (empty cells with formulas that evaluate to 0 or ""), the parser might create a phantom second activity.
 
 **Prevention:**
-This is already correctly handled by the two separate column maps. The risk is during testing: if a developer uploads a teacher file to the student endpoint or vice versa, the error messages will be confusing. Add a validation check at parse time: if `importType === 'students'` and the parsed header row contains "מספר זהות" (an ID number — a teacher file indicator), warn that the wrong file type may have been uploaded.
+- Check that both startTime and endTime are present before creating an activity slot
+- Treat formula results of 0 in the "hours" column as empty (no activity), not as a 0-hour rehearsal
+- Validate: if a day name exists in column I but no times in J-K, flag as warning
 
-**Which phase should address it:** Import type validation — a quick defensive check, can be added any time.
+**Phase:** Phase 1 (Parser). Straightforward but easy to overlook.
 
 ---
 
 ## Phase-Specific Warnings
 
-| Phase Topic | Likely Pitfall | Severity | Mitigation |
-|-------------|---------------|----------|------------|
-| Teacher name matching | No fuzzy matching; ambiguous names silently match first result (Pitfall 4) | CRITICAL | Exact match only; surface ambiguous and unresolved as errors requiring manual review |
-| teacherAssignment creation | Schema requires day/time/duration missing from Ministry files (Pitfall 1) | CRITICAL | Use deferred linking or soft assignment; do NOT try to satisfy the full schema at import time |
-| instrumentProgress creation | Bypassing addStudent() loses schoolYear enrollment and isPrimary guard (Pitfall 2) | HIGH | Route through addStudent() with isAdmin=true; or replicate side effects explicitly |
-| instrumentProgress creation | Validation requires instrumentName in VALID_INSTRUMENTS and currentStage 1-8 (Pitfall 3) | HIGH | Map ministryStageLevel → currentStage with documented constants; skip instrumentProgress if instrument unknown |
-| instrumentProgress creation | detectInstrumentColumns missing headerColMap in student path (Pitfall 6) | HIGH | Fix one-line bug before building on top of instrument detection |
-| ministryStageLevel mapping | Arbitrary business rule hardcoded silently (Pitfall 10) | MODERATE | Named constant with comment; surface mapped stage in preview |
-| Bagrut flagging | Bagrut requires two-document atomic write; no "flag" state exists (Pitfall 8) | MODERATE | Use isBagrutCandidate field instead; defer bagrut creation to explicit user action |
-| Preview enhancement | Teacher preview data shape collides with student preview fields (Pitfall 5) | MODERATE | Separate TypeScript interfaces; separate renderer functions |
-| Preview enhancement | 50-row preview limit hides most of 1,293-student teacher match results (Pitfall 9) | MODERATE | Add summary stats and filter tabs for teacher match status |
-| import_log persistence | Teacher match results not stored; re-matching on execute may differ (Pitfall 7) | MODERATE | Store teacherMatch.teacherId in preview data in import_log |
-| Existing student updates | instrument update vs instrumentProgress update inconsistency (Pitfall 12) | LOW | Decide policy explicitly; document in preview UI if instrumentProgress not updated |
-| Import type safety | 'המורה' header means different things in teacher vs student maps (Pitfall 13) | LOW | Defensive file type check at parse time |
-| Name frequency | Multiple rows with same unresolved teacher name produce 1 useful warning, not N (Pitfall 11) | LOW | Frequency analysis pass on unresolved teacher names |
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Phase 1: Excel Parsing | Header detection failure on merged cells (Pitfall 6) | Use purpose-built parser, not generic header detection |
+| Phase 1: Excel Parsing | Time fraction misinterpretation (Pitfall 5) | Use SheetJS `.w` for times, implement robust converter |
+| Phase 1: Excel Parsing | Ensemble name decomposition (Pitfall 3) | Build and exhaustively test decomposition map |
+| Phase 1: Data Matching | Conductor not in teacher DB (Pitfall 4) | Preview must handle unresolved conductors explicitly |
+| Phase 1: Data Matching | No orchestra dedup strategy (Pitfall 2) | Match by composite key (name + conductorId + schoolYearId) |
+| Phase 2: Execute Logic | Bidirectional ref desync (Pitfall 1) | Dedicated bulk function with bulkWrite, not loop of addOrchestra() |
+| Phase 2: Execute Logic | School year wrong (Pitfall 10) | Require explicit schoolYearId in import request |
+| Phase 2: Execute Logic | Coordination hours dual storage (Pitfall 11) | Write to both orchestra.ministryData and teacher.managementInfo |
+| Phase 2: Data Model | Rehearsal dates not available (Pitfall 15) | Store schedule pattern on orchestra, defer rehearsal generation |
+| Phase 2: Data Model | participantCount mismatch (Pitfall 9) | New field in ministryData, do not overwrite memberIds |
+| Phase 3: Preview UI | Must show conductor match status, ensemble decomposition results, dedup matches | Design preview response shape in Phase 1 |
+| All phases | IMPORT_TYPES constant (Pitfall 14) | Update constants.js early |
 
 ---
 
 ## Integration Risk Matrix
 
-How the new features interact with each other and the existing system.
+These risks emerge from how the new ensemble import interacts with EXISTING system components.
 
-| Feature A | Feature B | Compound Risk | Severity |
-|-----------|-----------|---------------|----------|
-| Teacher name matching | teacherAssignment creation | Teacher is found by name but assignment cannot be created due to schema validation — ambiguous success in preview, silent failure in execute | CRITICAL |
-| instrumentProgress creation | executeStudentImport bypass of addStudent | instrumentProgress is created but schoolYear enrollment is not — student cannot be found by school year filters | HIGH |
-| instrumentProgress creation | detectInstrumentColumns bug | Instrument detected incorrectly → instrumentProgress.instrumentName not in VALID_INSTRUMENTS → insert fails | HIGH |
-| Teacher matching at preview | import_log persistence | Teacher resolved at preview time but teacherId not stored → execute re-matches differently or fails | HIGH |
-| Bagrut flagging | existing bagrut check in addBagrut | Re-importing same file creates duplicate bagrut records or throws error on second run | MODERATE |
-| Preview enhancement | 50-row table limit | Teacher match quality summary is correct but individual row review impossible at 1,293 rows | MODERATE |
-| ministryStageLevel mapping | instrumentProgress validation | Stage mapping produces value outside VALID_STAGES → Joi rejects the instrumentProgress entry | MODERATE |
+| Existing Component | Risk | Severity | Mitigation |
+|-------------------|------|----------|------------|
+| `hours-summary.service.js` | New orchestras affect teacher hour totals; if conducting.orchestraIds not updated, hours are wrong | HIGH | Ensure bidirectional refs are correct before hours recalculation |
+| `export/ministry-mappers.js` | Export reads `orchestra.subType` for ENSEMBLE_TO_COLUMN mapping; wrong subType = wrong column | HIGH | Validate decomposed subType against ENSEMBLE_TO_COLUMN map before storing |
+| `export/ensembles.sheet.js` | Export reads `memberIds.length` for participant count; import may set this to 0 | MEDIUM | Store ministry participantCount separately in ministryData |
+| `orchestra.service.js addOrchestra()` | Passes through Joi validation that requires conductorId, location, etc. | HIGH | Write dedicated import path that handles missing fields |
+| `teacher.conducting.orchestraIds` | Must be updated atomically with orchestra creation; currently not atomic | HIGH | Use bulkWrite for teacher updates after all orchestra inserts |
+| `student.enrollments.orchestraIds` | Ensemble import does not import members (no student data in ensemble sheet) | LOW | Document that member linking is a separate manual step |
+| `constants.js IMPORT_TYPES` | Does not include 'ensembles' | LOW | Update constant |
+| `Cross-validation in export.service.js` | Validates teacher ensemble hours = ensemble schedule hours; import may create inconsistency | MEDIUM | Recalculate hours-summary after import completes |
 
 ---
 
 ## Sources
 
-- Direct codebase analysis:
-  - `api/import/import.service.js` — full 1,947-line import service (both strategy paths, student and teacher)
-  - `api/student/student.validation.js` — `instrumentProgressSchema`, `teacherAssignmentSchema`, `studentSchema` (Joi structure)
-  - `api/student/student-assignments.validation.js` — `validateTeacherAssignmentsWithDB` with DB consistency checks
-  - `api/student/student.service.js` — `addStudent()` side effects (schoolYear, isPrimary, sync)
-  - `api/bagrut/bagrut.service.js` — two-document write pattern for bagrut creation
-  - `src/pages/ImportData.tsx` — 962-line frontend, preview data shape, 50-row limit, tab switching
-- Pattern: direct insert vs service layer side effects — common source of missing business logic in import pipelines
-- Confidence for all findings: HIGH (all claims traceable to specific line numbers in production code)
+All findings are based on direct codebase analysis of the following files:
+
+- `api/orchestra/orchestra.service.js` -- addOrchestra(), addMember() bidirectional ref logic
+- `api/orchestra/orchestra.validation.js` -- Joi schema, required fields, valid enums
+- `api/rehearsal/rehearsal.validation.js` -- rehearsal schema, time format, day numbers
+- `api/import/import.service.js` -- existing import patterns, matchTeacherByName(), Excel parsing
+- `api/export/sheets/ensembles.sheet.js` -- Ministry ensemble sheet layout (rows 9-12 headers, row 13+ data)
+- `api/export/ministry-mappers.js` -- mapEnsembleSchedule(), data structure for ensembles
+- `api/export/sheets/_shared.js` -- ENSEMBLE_TO_COLUMN mapping (subType to column letter)
+- `config/constants.js` -- ORCHESTRA_TYPES, ORCHESTRA_SUB_TYPES, PERFORMANCE_LEVELS, IMPORT_TYPES
+- `api/hours-summary/hours-summary.service.js` -- how orchestra hours feed into teacher totals
