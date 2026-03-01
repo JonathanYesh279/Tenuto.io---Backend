@@ -82,7 +82,7 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
 **Milestone Goal:** Establish regulatory documentation and governance framework required by Israeli Privacy Protection Regulations (Information Security), 2017 -- assessed security level: MEDIUM. All deliverables are compliance documents, not code. Technical hardening deferred to v1.6.
 
 - [x] **Phase 27: Data Inventory and System Mapping** (4/4 plans) — completed 2026-03-02
-- [ ] **Phase 28: Governance Framework and Security Policies** - Appoint security officer, define security procedures, and document access control policies
+- [x] **Phase 28: Governance Framework and Security Policies** (3/3 plans) — completed 2026-03-02
 - [ ] **Phase 29: Operational Procedures** - Define incident response, vendor management, personnel security, and backup/recovery procedures
 - [ ] **Phase 30: Supplementary Policies and Audit Program** - Complete remaining policies (logging, mobile, encryption) and establish ongoing audit framework
 
@@ -117,9 +117,9 @@ Plans:
   5. An Access Logging Policy defines which events are logged, the log retention period, and the review schedule
 **Plans:** 3 plans
 Plans:
-- [ ] 28-01-PLAN.md -- Security Officer role definition and appointment document
-- [ ] 28-02-PLAN.md -- Security Procedure Document (access, auth, backup, retention)
-- [ ] 28-03-PLAN.md -- Access control, authentication, and logging policies
+- [x] 28-01-PLAN.md -- Security Officer role definition and appointment document
+- [x] 28-02-PLAN.md -- Security Procedure Document (access, auth, backup, retention)
+- [x] 28-03-PLAN.md -- Access control, authentication, and logging policies
 
 ### Phase 29: Operational Procedures
 **Goal**: Procedures exist for handling security incidents, managing vendor relationships, onboarding/offboarding personnel, and recovering from data loss
@@ -156,13 +156,14 @@ Plans:
 | 20-22 | v1.3 | 3/3 | Complete | 2026-02-28 |
 | 23-26 | v1.4 | 6/6 | Complete | 2026-02-28 |
 | 27 | v1.5 | 4/4 | Complete | 2026-03-02 |
-| 28 | v1.5 | 0/3 | Planned | - |
+| 28 | v1.5 | 3/3 | Complete | 2026-03-02 |
 | 29 | v1.5 | 0/TBD | Not started | - |
 | 30 | v1.5 | 0/TBD | Not started | - |
 
-**Total:** 30 phases, 62 plans across 6 milestones (Phases 29-30 plans TBD)
+**Total:** 30 phases, 65 plans across 6 milestones (Phases 29-30 plans TBD)
 **Phase 27 documents:** 9 compliance artifacts in `.planning/compliance/`
+**Phase 28 documents:** 5 compliance artifacts in `.planning/compliance/`
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-02 -- Phase 28 planned (3 plans, 5 compliance documents)*
+*Last updated: 2026-03-02 -- Phase 28 complete (3 plans, 5 compliance documents)*
