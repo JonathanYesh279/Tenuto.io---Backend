@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 28 of 30 (Governance Framework and Security Policies)
-Plan: 2 of 4 in current phase (28-01, 28-02 complete)
-Status: Plan 28-02 complete. Ready for Plan 28-03.
-Last activity: 2026-03-02 -- Completed 28-02 (SECURITY-PROCEDURES.md)
+Plan: 3 of 4 in current phase (28-01, 28-02, 28-03 complete)
+Status: Plan 28-03 complete. Ready for Plan 28-04.
+Last activity: 2026-03-02 -- Completed 28-03 (Access Control Policies: ACPOL-01/02/03)
 
-Progress: 5 milestones shipped, v1.5 Phase 28 plan 2/4 complete
+Progress: 5 milestones shipped, v1.5 Phase 28 plan 3/4 complete
 
 ## Performance Metrics
 
@@ -31,6 +31,7 @@ Progress: 5 milestones shipped, v1.5 Phase 28 plan 2/4 complete
 
 **Phase 28-01:** 1 task, 1 file, 3 min (2026-03-02)
 **Phase 28-02:** 2 tasks, 1 file, 6 min (2026-03-02)
+**Phase 28-03:** 2 tasks, 3 files, 8 min (2026-03-02)
 
 ## Accumulated Context
 
@@ -64,6 +65,11 @@ Progress: 5 milestones shipped, v1.5 Phase 28 plan 2/4 complete
 - Data classification handling rules documented but NOT technically enforced differently by tier
 - 11 collection categories mapped to specific retention periods with enforcement mechanisms planned for v1.6
 - Three deletion mechanisms documented: soft delete, cascade deletion (with snapshots), tenant purge (90-day grace)
+- 5 roles (Deputy Admin, Dept Head, Accompanist, Teacher-Accompanist, Guest) have no RBAC entry AND no route-level auth -- functionally unused
+- Permission matrix derived from actual ROLE_PERMISSIONS (5 roles) plus actual requireAuth() route arrays
+- Default password "123456" documented as CRITICAL authentication gap with R-05 reference
+- Log retention tiers: 30 days operational, 2 years security, 7 years legal/minors' data
+- 4-level escalation procedure from anomaly detection through regulatory breach notification
 
 ### Pending Todos
 
@@ -76,5 +82,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 28-02-PLAN.md -- Security Procedure Document (SECPR-01/02/03).
-Resume: Continue with Plan 28-03 (Access Control Policy).
+Stopped at: Completed 28-03-PLAN.md -- Access Control Policies (ACPOL-01/02/03).
+Resume: Continue with Plan 28-04 (Compliance Review and Cross-Reference Verification).
