@@ -143,8 +143,8 @@ export function buildEnsemblesSheet({ workbook, mappedData, data, metadata }) {
       result: row.totalActualHours,
     };
 
-    // N: Coordination hours (direct value)
-    sheet.getCell(r, 14).value = row.coordHours ?? '';
+    // N: Coordination hours (direct value — must be numeric for formula M+N)
+    sheet.getCell(r, 14).value = row.coordHours ?? 0;
 
     // O: Total reporting hours (formula + result)
     sheet.getCell(r, 15).value = {
