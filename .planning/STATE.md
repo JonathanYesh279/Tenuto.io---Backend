@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.5 Privacy Compliance Foundation -- Phase 27 COMPLETE, ready for Phase 28
+**Current focus:** v1.5 Privacy Compliance Foundation -- Phase 28 in progress (Governance Framework and Security Policies)
 
 ## Current Position
 
-Phase: 27 of 30 (Data Inventory and System Mapping) -- COMPLETE
-Plan: 4 of 4 in current phase (all plans complete)
-Status: Phase 27 complete. Ready to begin Phase 28 (Privacy Policies and Governance)
-Last activity: 2026-03-02 -- Completed 27-04 (VENDOR-INVENTORY.md, RISK-ASSESSMENT.md, GLOSSARY.md)
+Phase: 28 of 30 (Governance Framework and Security Policies)
+Plan: 1 of 4 in current phase (28-01 complete)
+Status: Plan 28-01 complete. Ready for Plan 28-02.
+Last activity: 2026-03-02 -- Completed 28-01 (SECURITY-OFFICER.md)
 
-Progress: 5 milestones shipped, v1.5 Phase 27 fully complete (4/4 plans)
+Progress: 5 milestones shipped, v1.5 Phase 28 plan 1/4 complete
 
 ## Performance Metrics
 
@@ -28,6 +28,8 @@ Progress: 5 milestones shipped, v1.5 Phase 27 fully complete (4/4 plans)
 **Phase 27-02:** 2 tasks, 3 files, 5 min (2026-03-02)
 **Phase 27-03:** 2 tasks, 2 files, 4 min (2026-03-02)
 **Phase 27-04:** 2 tasks, 3 files, 6 min (2026-03-02)
+
+**Phase 28-01:** 1 task, 1 file, 3 min (2026-03-02)
 
 ## Accumulated Context
 
@@ -53,6 +55,9 @@ Progress: 5 milestones shipped, v1.5 Phase 27 fully complete (4/4 plans)
 - Risk distribution: 6 HIGH, 5 MEDIUM, 1 LOW, 0 CRITICAL across 12 formally assessed risks
 - Low Likelihood + High Impact = HIGH (not MEDIUM) due to minors' data breach severity
 - 30+ Hebrew-English regulatory terms mapped across 6 categories for auditor cross-referencing
+- Security Officer role combined SECOFF-01 (definition) and SECOFF-02 (appointment) into single document
+- Pre-launch conflict of interest exception: developer-as-Security-Officer allowed with documented mitigation
+- Named individual required before production launch; position title acceptable during pre-launch
 
 ### Pending Todos
 
@@ -65,5 +70,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 27-04-PLAN.md -- Phase 27 fully complete. All 9 compliance documents delivered.
-Resume: Begin Phase 28 (Privacy Policies and Governance) when ready.
+Stopped at: Completed 28-01-PLAN.md -- Security Officer role definition and appointment document.
+Resume: Continue with Plan 28-02 (Security Procedure Document).
