@@ -6,7 +6,8 @@
 - [x] **v1.1 Super Admin Platform Management** — Phases 10-14 (shipped 2026-02-26)
 - [x] **v1.2 Student Import Enhancement** — Phases 15-19 (shipped 2026-02-27)
 - [x] **v1.3 Conservatory Information Import** — Phases 20-22 (shipped 2026-02-28)
-- [ ] **v1.4 Ensemble Import** — Phases 23-26 (in progress)
+- [x] **v1.4 Ensemble Import** — Phases 23-26 (shipped 2026-02-28)
+- [ ] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (in progress)
 
 ## Phases
 
@@ -64,106 +65,99 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 </details>
 
-### v1.4 Ensemble Import (In Progress)
+<details>
+<summary>v1.4 Ensemble Import (Phases 23-26) — SHIPPED 2026-02-28</summary>
 
-**Milestone Goal:** Import orchestra/ensemble data from Ministry Excel files using the established preview-then-execute pattern, including Hebrew name decomposition, conductor matching, bulk-safe writes, and a 4th frontend import tab.
+- [x] Phase 23: Ensemble Parser and Preview (2/2 plans) — completed 2026-02-28
+- [x] Phase 24: Ensemble Execute and Schema (1/1 plan) — completed 2026-02-28
+- [x] Phase 25: Ensemble Import Frontend (1/1 plan) — completed 2026-02-28
+- [x] Phase 26: Student-Orchestra Linking from Import (2/2 plans) — completed 2026-02-28
 
-- [x] **Phase 23: Ensemble Parser and Preview** - Parse Ministry ensemble Excel, decompose Hebrew names, match conductors and existing orchestras, deliver preview endpoint — completed 2026-02-28
-- [x] **Phase 24: Ensemble Execute and Schema** - Bulk-safe orchestra creation/update, conductor linking, ministry data storage, schema extensions — completed 2026-02-28
-- [x] **Phase 25: Ensemble Import Frontend** - 4th import tab with upload, preview, conductor/name warnings, and results flow — completed 2026-02-28
-- [ ] **Phase 26: Student-Orchestra Linking from Import** - Parse ensemble columns from student Excel, match to existing orchestras, enroll students via $addToSet
+See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
+
+</details>
+
+### v1.5 Privacy Compliance Foundation (In Progress)
+
+**Milestone Goal:** Establish regulatory documentation and governance framework required by Israeli Privacy Protection Regulations (Information Security), 2017 -- assessed security level: MEDIUM. All deliverables are compliance documents, not code. Technical hardening deferred to v1.6.
+
+- [ ] **Phase 27: Data Inventory and System Mapping** - Catalog all personal data holdings, map system architecture and data flows, and assess risks
+- [ ] **Phase 28: Governance Framework and Security Policies** - Appoint security officer, define security procedures, and document access control policies
+- [ ] **Phase 29: Operational Procedures** - Define incident response, vendor management, personnel security, and backup/recovery procedures
+- [ ] **Phase 30: Supplementary Policies and Audit Program** - Complete remaining policies (logging, mobile, encryption) and establish ongoing audit framework
 
 ## Phase Details
 
-### Phase 23: Ensemble Parser and Preview
-**Goal**: Admin can upload a Ministry ensemble Excel and see a complete preview of parsed orchestras with conductor match status, type classification, schedule data, and diff against existing orchestras — before any data is written.
-**Depends on**: Phase 22 (v1.3 complete; import infrastructure stable)
-**Requirements**: PARS-01, PARS-02, PARS-03, PARS-04, PARS-05, PARS-06, PREV-01, PREV-02, PREV-03, PREV-04, PREV-05, SCHM-01, SCHM-02, SCHM-03
+### Phase 27: Data Inventory and System Mapping
+**Goal**: The platform's personal data holdings, system architecture, data flows, and risks are fully documented and classified
+**Depends on**: Nothing (foundation for all subsequent compliance documents)
+**Requirements**: DBDF-01, DBDF-02, DBDF-03, DBDF-04, SMAP-01, SMAP-02, SMAP-03, RISK-01
 **Success Criteria** (what must be TRUE):
-  1. Admin uploads a Ministry Excel file and the system finds and parses the "הרכבי ביצוע" sheet, returning structured ensemble rows with name, conductor, participant count, schedule times, and reporting hours
-  2. Composite Hebrew ensemble names (e.g., "תז' כלי נשיפה ייצוגית") are decomposed into type, subType, and performanceLevel fields; unrecognized names appear as warnings in the preview rather than being silently dropped
-  3. Each ensemble is classified as 'תזמורת' (>12 participants) or 'הרכב' (<=12 participants) based on the imported participant count
-  4. Preview shows per-ensemble conductor match status (resolved/ambiguous/unresolved) and summary statistics, plus schedule data (day, start time, end time) for each ensemble
-  5. Preview differentiates matched existing orchestras (with change diff highlighting) from new orchestras that will be created
-**Plans:** 2 plans
+  1. A Database Definition Document exists listing every MongoDB collection containing personal data, with field-level sensitivity classification (public / internal / sensitive / restricted)
+  2. Each collection entry specifies its data purpose, lawful basis for processing, and retention policy
+  3. Collections holding minors' data are explicitly identified with their special handling requirements documented
+  4. A system architecture diagram documents all components (Express API, MongoDB Atlas, S3, Render) with data classification labels, and a data flow map traces personal data movement between components
+  5. A risk assessment document identifies threats, vulnerabilities, and existing/planned mitigations, and a third-party vendor inventory lists every external service with its data access scope
+**Plans:** 4 plans
 Plans:
-- [x] 23-01-PLAN.md — Ensemble sheet parser with helpers (name decomposition, time conversion, performance level detection, analytics mini-table)
-- [x] 23-02-PLAN.md — Preview endpoint with conductor matching, orchestra matching, route/controller wiring, and schema extensions
+- [ ] 27-01-PLAN.md -- Complete field-level data inventory for all 21 MongoDB collections
+- [ ] 27-02-PLAN.md -- Lawful basis, retention, minors' data handling, and data minimization process
+- [ ] 27-03-PLAN.md -- System architecture and data flow diagrams (Mermaid)
+- [ ] 27-04-PLAN.md -- Vendor inventory, risk assessment, and Hebrew-English glossary
 
-### Phase 24: Ensemble Execute and Schema
-**Goal**: Admin can execute the previewed ensemble import, creating new orchestras and updating existing ones with bulk-safe writes, proper conductor linking, and ministry data storage — all scoped by tenant and school year.
-**Depends on**: Phase 23 (preview response shape and parsedData structure must be stable)
-**Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04, EXEC-05, EXEC-06
+### Phase 28: Governance Framework and Security Policies
+**Goal**: Organizational accountability is established and all security rules governing access, authentication, and data handling are formally documented
+**Depends on**: Phase 27 (policies reference the data inventory, system map, and risk assessment)
+**Requirements**: SECOFF-01, SECOFF-02, SECPR-01, SECPR-02, SECPR-03, ACPOL-01, ACPOL-02, ACPOL-03
 **Success Criteria** (what must be TRUE):
-  1. Executing an ensemble import creates new orchestras via bulk insert (not per-row addOrchestra calls) and updates existing matched orchestras with schedule, conductor, level, and ministry data — without overwriting memberIds
-  2. Conductors are linked to their orchestras via teacher.conducting.orchestraIds using a single bulkWrite operation, not individual updates
-  3. Import results report created count, updated count, and any skipped entries with reasons (e.g., unresolved conductor, validation failure)
-  4. All created/updated orchestras are scoped to the correct tenantId and schoolYearId; coordinationHours and totalReportingHours are stored in orchestra.ministryData
-**Plans:** 1 plan
-Plans:
-- [x] 24-01-PLAN.md — Implement executeEnsembleImport with bulk insertMany/bulkWrite operations, conductor linking, and results reporting
+  1. A Security Officer role is formally defined with responsibilities per Regulation 3, and a named appointment document specifies contact information and authority scope
+  2. A Security Procedure Document exists covering access management, authentication policies, authorization rules, backup/recovery procedures, and data handling/retention/deletion practices
+  3. An Access Control Policy documents all 8 application roles, their permissions, and tenant data boundaries
+  4. A Password and Authentication Policy documents current controls (JWT, refresh tokens, credential storage) and identifies planned v1.6 technical hardening items
+  5. An Access Logging Policy defines which events are logged, the log retention period, and the review schedule
+**Plans**: TBD
 
-### Phase 25: Ensemble Import Frontend
-**Goal**: Admin can import ensembles from the existing import page using a new 4th tab that follows the same upload-preview-results flow as teachers, students, and conservatory imports.
-**Depends on**: Phase 24 (backend API contract finalized — preview response shape and execute endpoint)
-**Requirements**: FRNT-01, FRNT-02, FRNT-03, FRNT-04
+### Phase 29: Operational Procedures
+**Goal**: Procedures exist for handling security incidents, managing vendor relationships, onboarding/offboarding personnel, and recovering from data loss
+**Depends on**: Phase 28 (procedures implement the policies defined in Phase 28; escalation paths reference the Security Officer)
+**Requirements**: INCD-01, INCD-02, INCD-03, VEND-01, VEND-02, VEND-03, PERS-01, PERS-02, PERS-03, BACK-01
 **Success Criteria** (what must be TRUE):
-  1. Import page shows a 4th tab labeled "הרכבים" alongside the existing teacher, student, and conservatory tabs
-  2. Ensemble tab supports the full upload-then-preview-then-execute flow: file upload triggers preview display, user confirms to execute, results are shown
-  3. Preview displays conductor match warnings (amber/red badges for ambiguous/unresolved conductors) and warnings for unrecognized ensemble names that could not be decomposed
-**Plans:** 1 plan
-Plans:
-- [x] 25-01-PLAN.md — Add ensemble import tab with preview, conductor badges, and results
+  1. An Incident Response Plan exists with severity classification (P1-P4), escalation procedures, and role assignments
+  2. A breach notification procedure specifies immediate reporting requirements and an incident log template captures all required documentation fields
+  3. Data Processing Agreement templates exist for each cloud vendor (MongoDB Atlas, Render, AWS S3), and a vendor risk assessment checklist with scoring framework is ready for use
+  4. A vendor registry documents all third-party data processors with their specific data scope
+  5. Onboarding/offboarding security procedures define access provisioning and revocation steps, a security awareness training outline exists for conservatory admins and teachers, and a confidentiality agreement template is ready for personnel with data access
+**Plans**: TBD
+
+### Phase 30: Supplementary Policies and Audit Program
+**Goal**: All remaining policy gaps are closed and an ongoing compliance verification program is established
+**Depends on**: Phase 29 (the audit checklist and self-assessment reference all documents produced in Phases 27-29)
+**Requirements**: LOG-01, MOB-01, ENC-01, AUDT-01, AUDT-02, AUDT-03
+**Success Criteria** (what must be TRUE):
+  1. A user notification policy exists informing all authorized users that their access and activity are logged and monitored
+  2. A mobile device policy defines usage restrictions and required safeguards for accessing the platform from mobile devices
+  3. An encryption policy defines standards for data in transit (TLS) and at rest, including protocols and key management principles
+  4. A periodic security audit program exists with annual schedule and scope definition, and a compliance self-assessment checklist maps controls to all 18 regulations
+  5. A remediation tracking process is documented for handling audit findings through to resolution
+
+**Plans**: TBD
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 23 -> 24 -> 25 -> 26
+| Phase | Milestone | Plans | Status | Completed |
+|-------|-----------|-------|--------|-----------|
+| 1-9 | v1.0 | 25/25 | Complete | 2026-02-24 |
+| 10-14 | v1.1 | 13/13 | Complete | 2026-02-26 |
+| 15-19 | v1.2 | 8/8 | Complete | 2026-02-27 |
+| 20-22 | v1.3 | 3/3 | Complete | 2026-02-28 |
+| 23-26 | v1.4 | 6/6 | Complete | 2026-02-28 |
+| 27 | v1.5 | 0/4 | Planned | - |
+| 28 | v1.5 | 0/TBD | Not started | - |
+| 29 | v1.5 | 0/TBD | Not started | - |
+| 30 | v1.5 | 0/TBD | Not started | - |
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 1. Audit & Infrastructure | v1.0 | 3/3 | Complete | 2026-02-14 |
-| 2. Service Layer Query Hardening | v1.0 | 8/8 | Complete | 2026-02-15 |
-| 3. Write Protection & Validation | v1.0 | 1/1 | Complete | 2026-02-23 |
-| 4. Super-Admin Allowlist | v1.0 | 2/2 | Complete | 2026-02-23 |
-| 5. Error Handling & Cascade Safety | v1.0 | 4/4 | Complete | 2026-02-24 |
-| 6. Testing & Verification | v1.0 | 4/4 | Complete | 2026-02-24 |
-| 7. Fix Import Teacher Null Properties | v1.0 | 1/1 | Complete | 2026-02-23 |
-| 8. Fix Import Teacher Bugs | v1.0 | 1/1 | Complete | 2026-02-23 |
-| 9. Fix Import Column Mapping | v1.0 | 1/1 | Complete | 2026-02-23 |
-| 10. Super Admin Auth Fixes | v1.1 | 2/2 | Complete | 2026-02-24 |
-| 11. Tenant Lifecycle Management | v1.1 | 3/3 | Complete | 2026-02-24 |
-| 12. Platform Reporting | v1.1 | 2/2 | Complete | 2026-02-25 |
-| 13. Impersonation | v1.1 | 2/2 | Complete | 2026-02-25 |
-| 14. Super Admin Frontend | v1.1 | 4/4 | Complete | 2026-02-26 |
-| 15. Bug Fix + Column Map Extensions | v1.2 | 1/1 | Complete | 2026-02-27 |
-| 16. Instrument Progress + Student Data Enrichment | v1.2 | 2/2 | Complete | 2026-02-27 |
-| 17. Teacher-Student Linking | v1.2 | 2/2 | Complete | 2026-02-27 |
-| 18. Frontend Preview Enhancement | v1.2 | 1/1 | Complete | 2026-02-27 |
-| 19. Import Data Quality | v1.2 | 2/2 | Complete | 2026-02-27 |
-| 20. Conservatory Excel Parser + API | v1.3 | 1/1 | Complete | 2026-02-27 |
-| 21. Conservatory Import Frontend | v1.3 | 1/1 | Complete | 2026-02-28 |
-| 22. Settings Page Expansion | v1.3 | 1/1 | Complete | 2026-02-28 |
-| 23. Ensemble Parser and Preview | v1.4 | 2/2 | Complete | 2026-02-28 |
-| 24. Ensemble Execute and Schema | v1.4 | 1/1 | Complete | 2026-02-28 |
-| 25. Ensemble Import Frontend | v1.4 | 1/1 | Complete | 2026-02-28 |
-| 26. Student-Orchestra Linking from Import | v1.4 | 0/2 | Not started | - |
-
-### Phase 26: Student-Orchestra Linking from Import
-**Goal**: Students imported from Ministry Excel are automatically linked to their orchestras based on the הרכבי ביצוע columns (9 ensemble columns containing specific orchestra names).
-**Depends on**: Phase 24 (orchestras must exist in DB before student import can link to them)
-**Requirements**: LINK-01, LINK-02, LINK-03, LINK-04, LINK-05
-**Success Criteria** (what must be TRUE):
-  1. Student import preview parses the 9 ensemble columns and shows per-student orchestra matches with green badges for matched and amber warnings for unmatched names
-  2. Student import execute enrolls matched students in orchestras via $addToSet on both orchestra.memberIds and student.enrollments.orchestraIds
-  3. Unmatched orchestra names are shown as warnings without blocking the import
-  4. Re-importing the same file is idempotent (no duplicate memberships)
-**Plans:** 2 plans
-
-Plans:
-- [ ] 26-01-PLAN.md — Backend: extend previewStudentImport with ensemble column detection and orchestra name matching, extend executeStudentImport with bulk $addToSet enrollment
-- [ ] 26-02-PLAN.md — Frontend: orchestra match summary cards, per-student orchestra badges, and link count in results
+**Total:** 30 phases, 59 plans across 6 milestones (Phases 28-30 plans TBD)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-28 — Phase 26 planned (2 plans in 2 waves)*
+*Last updated: 2026-03-01 -- Phase 27 planned (4 plans, 1 wave)*
