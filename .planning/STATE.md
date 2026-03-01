@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 27 of 30 (Data Inventory and System Mapping)
-Plan: 1 of 4 in current phase (27-01 complete)
+Plan: 2 of 4 in current phase (27-01, 27-02 complete)
 Status: Executing Phase 27 plans (wave 1, all parallel)
-Last activity: 2026-03-02 -- Completed 27-01 (DATA-INVENTORY.md)
+Last activity: 2026-03-02 -- Completed 27-02 (DATA-PURPOSES.md, MINORS-DATA.md, DATA-MINIMIZATION.md)
 
-Progress: 5 milestones shipped, v1.5 Phase 27 plan 01 complete
+Progress: 5 milestones shipped, v1.5 Phase 27 plans 01-02 complete
 
 ## Performance Metrics
 
@@ -25,6 +25,7 @@ Progress: 5 milestones shipped, v1.5 Phase 27 plan 01 complete
 **v1.4 Milestone:** 6 plans, 4 phases, 1 day (2026-02-28)
 
 **Phase 27-01:** 1 task, 1 file, 5 min (2026-03-02)
+**Phase 27-02:** 2 tasks, 3 files, 5 min (2026-03-02)
 
 ## Accumulated Context
 
@@ -38,6 +39,11 @@ Progress: 5 milestones shipped, v1.5 Phase 27 plan 01 complete
 - Actual collection count is 22 (not 21): 21 from COLLECTIONS constant + healthcheck
 - managementInfo has 10 hours fields (not 11 as in research): actual field names from teacher.validation.js
 - Blob fields (previewData, snapshotData, collectionSnapshots) classified SENSITIVE but effectively contain RESTRICTED data
+- 11 collections flagged as NEEDS RETENTION POLICY (all PII-containing collections)
+- Consent not used as lawful basis for any collection -- gap for minors' data processing
+- 5 minors' data handling gaps identified (consent, access logging, age verification, snapshot retention, API response minimization)
+- Cross-border data transfer via SendGrid to US requires DPA verification
+- 90-day TTL recommended for deletion/import snapshots; 7-year for legal obligation collections
 
 ### Pending Todos
 
@@ -50,5 +56,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 27-01-PLAN.md (DATA-INVENTORY.md). Plans 27-02, 27-03, 27-04 remain.
-Resume: Run `/gsd:execute-phase 27` to continue with plans 27-02 through 27-04.
+Stopped at: Completed 27-02-PLAN.md (DATA-PURPOSES.md, MINORS-DATA.md, DATA-MINIMIZATION.md). Plans 27-03, 27-04 remain.
+Resume: Run `/gsd:execute-phase 27` to continue with plans 27-03 and 27-04.
