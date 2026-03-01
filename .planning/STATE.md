@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 28 of 30 (Governance Framework and Security Policies)
-Plan: 1 of 4 in current phase (28-01 complete)
-Status: Plan 28-01 complete. Ready for Plan 28-02.
-Last activity: 2026-03-02 -- Completed 28-01 (SECURITY-OFFICER.md)
+Plan: 2 of 4 in current phase (28-01, 28-02 complete)
+Status: Plan 28-02 complete. Ready for Plan 28-03.
+Last activity: 2026-03-02 -- Completed 28-02 (SECURITY-PROCEDURES.md)
 
-Progress: 5 milestones shipped, v1.5 Phase 28 plan 1/4 complete
+Progress: 5 milestones shipped, v1.5 Phase 28 plan 2/4 complete
 
 ## Performance Metrics
 
@@ -30,6 +30,7 @@ Progress: 5 milestones shipped, v1.5 Phase 28 plan 1/4 complete
 **Phase 27-04:** 2 tasks, 3 files, 6 min (2026-03-02)
 
 **Phase 28-01:** 1 task, 1 file, 3 min (2026-03-02)
+**Phase 28-02:** 2 tasks, 1 file, 6 min (2026-03-02)
 
 ## Accumulated Context
 
@@ -58,6 +59,11 @@ Progress: 5 milestones shipped, v1.5 Phase 28 plan 1/4 complete
 - Security Officer role combined SECOFF-01 (definition) and SECOFF-02 (appointment) into single document
 - Pre-launch conflict of interest exception: developer-as-Security-Officer allowed with documented mitigation
 - Named individual required before production launch; position title acceptable during pre-launch
+- RPO 24h / RTO 4h as recommended defaults for pre-launch SaaS (subject to Security Officer approval)
+- Retention periods documented as recommendations pending Security Officer approval, not binding policy
+- Data classification handling rules documented but NOT technically enforced differently by tier
+- 11 collection categories mapped to specific retention periods with enforcement mechanisms planned for v1.6
+- Three deletion mechanisms documented: soft delete, cascade deletion (with snapshots), tenant purge (90-day grace)
 
 ### Pending Todos
 
@@ -70,5 +76,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 28-01-PLAN.md -- Security Officer role definition and appointment document.
-Resume: Continue with Plan 28-02 (Security Procedure Document).
+Stopped at: Completed 28-02-PLAN.md -- Security Procedure Document (SECPR-01/02/03).
+Resume: Continue with Plan 28-03 (Access Control Policy).
