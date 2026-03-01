@@ -81,7 +81,7 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 **Milestone Goal:** Establish regulatory documentation and governance framework required by Israeli Privacy Protection Regulations (Information Security), 2017 -- assessed security level: MEDIUM. All deliverables are compliance documents, not code. Technical hardening deferred to v1.6.
 
-- [ ] **Phase 27: Data Inventory and System Mapping** - Catalog all personal data holdings, map system architecture and data flows, and assess risks
+- [x] **Phase 27: Data Inventory and System Mapping** (4/4 plans) — completed 2026-03-02
 - [ ] **Phase 28: Governance Framework and Security Policies** - Appoint security officer, define security procedures, and document access control policies
 - [ ] **Phase 29: Operational Procedures** - Define incident response, vendor management, personnel security, and backup/recovery procedures
 - [ ] **Phase 30: Supplementary Policies and Audit Program** - Complete remaining policies (logging, mobile, encryption) and establish ongoing audit framework
@@ -100,10 +100,10 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
   5. A risk assessment document identifies threats, vulnerabilities, and existing/planned mitigations, and a third-party vendor inventory lists every external service with its data access scope
 **Plans:** 4 plans
 Plans:
-- [ ] 27-01-PLAN.md -- Complete field-level data inventory for all 21 MongoDB collections
-- [ ] 27-02-PLAN.md -- Lawful basis, retention, minors' data handling, and data minimization process
-- [ ] 27-03-PLAN.md -- System architecture and data flow diagrams (Mermaid)
-- [ ] 27-04-PLAN.md -- Vendor inventory, risk assessment, and Hebrew-English glossary
+- [x] 27-01-PLAN.md -- Complete field-level data inventory for all 22 MongoDB collections
+- [x] 27-02-PLAN.md -- Lawful basis, retention, minors' data handling, and data minimization process
+- [x] 27-03-PLAN.md -- System architecture and data flow diagrams (Mermaid)
+- [x] 27-04-PLAN.md -- Vendor inventory, risk assessment, and Hebrew-English glossary
 
 ### Phase 28: Governance Framework and Security Policies
 **Goal**: Organizational accountability is established and all security rules governing access, authentication, and data handling are formally documented
@@ -151,13 +151,14 @@ Plans:
 | 15-19 | v1.2 | 8/8 | Complete | 2026-02-27 |
 | 20-22 | v1.3 | 3/3 | Complete | 2026-02-28 |
 | 23-26 | v1.4 | 6/6 | Complete | 2026-02-28 |
-| 27 | v1.5 | 0/4 | Planned | - |
+| 27 | v1.5 | 4/4 | Complete | 2026-03-02 |
 | 28 | v1.5 | 0/TBD | Not started | - |
 | 29 | v1.5 | 0/TBD | Not started | - |
 | 30 | v1.5 | 0/TBD | Not started | - |
 
 **Total:** 30 phases, 59 plans across 6 milestones (Phases 28-30 plans TBD)
+**Phase 27 documents:** 9 compliance artifacts in `.planning/compliance/`
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-01 -- Phase 27 planned (4 plans, 1 wave)*
+*Last updated: 2026-03-02 -- Phase 27 complete (4 plans, 9 compliance documents)*
