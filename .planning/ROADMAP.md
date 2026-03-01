@@ -115,7 +115,11 @@ Plans:
   3. An Access Control Policy documents all 8 application roles, their permissions, and tenant data boundaries
   4. A Password and Authentication Policy documents current controls (JWT, refresh tokens, credential storage) and identifies planned v1.6 technical hardening items
   5. An Access Logging Policy defines which events are logged, the log retention period, and the review schedule
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 28-01-PLAN.md -- Security Officer role definition and appointment document
+- [ ] 28-02-PLAN.md -- Security Procedure Document (access, auth, backup, retention)
+- [ ] 28-03-PLAN.md -- Access control, authentication, and logging policies
 
 ### Phase 29: Operational Procedures
 **Goal**: Procedures exist for handling security incidents, managing vendor relationships, onboarding/offboarding personnel, and recovering from data loss
@@ -152,13 +156,13 @@ Plans:
 | 20-22 | v1.3 | 3/3 | Complete | 2026-02-28 |
 | 23-26 | v1.4 | 6/6 | Complete | 2026-02-28 |
 | 27 | v1.5 | 4/4 | Complete | 2026-03-02 |
-| 28 | v1.5 | 0/TBD | Not started | - |
+| 28 | v1.5 | 0/3 | Planned | - |
 | 29 | v1.5 | 0/TBD | Not started | - |
 | 30 | v1.5 | 0/TBD | Not started | - |
 
-**Total:** 30 phases, 59 plans across 6 milestones (Phases 28-30 plans TBD)
+**Total:** 30 phases, 62 plans across 6 milestones (Phases 29-30 plans TBD)
 **Phase 27 documents:** 9 compliance artifacts in `.planning/compliance/`
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-02 -- Phase 27 complete (4 plans, 9 compliance documents)*
+*Last updated: 2026-03-02 -- Phase 28 planned (3 plans, 5 compliance documents)*
