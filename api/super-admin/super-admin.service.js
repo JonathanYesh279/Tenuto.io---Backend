@@ -649,9 +649,11 @@ function deriveHealthAlerts(tenant, stats) {
     });
   }
 
-  // Inactive
-  if (!tenant.isActive || !sub?.isActive) {
-    alerts.push({ type: 'inactive', severity: 'info' });
+  // Inactive tenant (only flag when explicitly deactivated, not when subscription field is missing)
+  if (tenant.isActive === false) {
+    alerts.push({ type: 'inactive_tenant', severity: 'info' });
+  } else if (sub && sub.isActive === false) {
+    alerts.push({ type: 'inactive_subscription', severity: 'warning' });
   }
 
   return alerts;
