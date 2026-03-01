@@ -58,9 +58,10 @@ export async function authenticateToken(req, res, next) {
     }
 
     // Check tenant.isActive — block deactivated tenant users
+    let tenant = null;
     if (teacher.tenantId) {
       const tenantCollection = await getCollection('tenant');
-      const tenant = await tenantCollection.findOne({
+      tenant = await tenantCollection.findOne({
         _id: ObjectId.createFromHexString(teacher.tenantId),
       });
 
@@ -80,6 +81,7 @@ export async function authenticateToken(req, res, next) {
     req.loggedinUser = {
       _id: teacher._id.toString(),
       tenantId: teacher.tenantId || null,
+      tenantName: tenant?.name || null,
       roles: teacher.roles,
       firstName: teacher.personalInfo?.firstName || '',
       lastName: teacher.personalInfo?.lastName || '',

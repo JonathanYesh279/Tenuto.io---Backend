@@ -78,9 +78,10 @@ async function login(email, password, tenantId) {
     }
 
     // Check tenant.isActive — block login for deactivated tenant users
+    let tenant = null
     if (teacher.tenantId) {
       const tenantCollection = await getCollection('tenant')
-      const tenant = await tenantCollection.findOne({
+      tenant = await tenantCollection.findOne({
         _id: ObjectId.createFromHexString(teacher.tenantId),
       })
 
@@ -129,6 +130,7 @@ async function login(email, password, tenantId) {
       teacher: {
         _id: teacher._id.toString(),
         tenantId: teacher.tenantId || null,
+        tenantName: tenant?.name || null,
         personalInfo: {
           firstName: displayFirstName,
           lastName: displayLastName,
