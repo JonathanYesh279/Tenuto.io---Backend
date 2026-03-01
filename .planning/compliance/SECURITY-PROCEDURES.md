@@ -420,3 +420,296 @@ The platform applies the principle of least privilege through layered scoping:
 - Define a periodic access review process aligned with the school year cycle
 - Evaluate granular admin permissions for specific administrative functions
 - Consider scoped impersonation (limiting impersonated actions to specific operations rather than full admin access)
+
+---
+
+## 5. Backup and Recovery Procedures (SECPR-02a)
+
+### 5.1 Backup Strategy
+
+**Current State:**
+
+The platform employs a multi-layer backup strategy combining managed infrastructure backups with application-level data preservation:
+
+**Infrastructure-Level Backups (MongoDB Atlas):**
+
+MongoDB Atlas provides automated managed backups for the database cluster. Atlas continuous backup offers point-in-time recovery capability, meaning the database can be restored to any point within the configured backup window. Backups are managed entirely by Atlas -- no application code is involved in the backup process.
+
+**Application-Level Backup Mechanisms:**
+
+| Mechanism | Collection | Trigger | Purpose |
+|-----------|-----------|---------|---------|
+| Deletion snapshots | `deletion_snapshots` | Cascade deletion of student/teacher entities | Stores complete document copies before permanent deletion, enabling recovery of accidentally deleted records |
+| Tenant deletion snapshots | `tenant_deletion_snapshots` | Tenant purge operation | Stores complete data dump for all tenant-scoped collections before permanent tenant purge. 90-day grace period before purge execution |
+| Migration backups | `migration_backups` | Database migration scripts | Stores pre-migration document snapshots, enabling rollback if a migration corrupts data |
+| Soft deletion | `isActive: false` on teacher, student, orchestra | User-initiated deactivation | Preserves record in database with deactivated status; fully recoverable by re-setting `isActive: true` |
+
+**Gap Analysis:**
+
+- Atlas backup configuration is not formally documented or verified. The backup window, retention period, and point-in-time recovery range have not been audited against platform needs.
+- No backup restoration testing schedule. Backups have never been tested by restoring to a test environment and verifying data integrity.
+- No documented verification that Atlas backups are actually occurring successfully. No monitoring or alerting for backup failures.
+- Application-level snapshot collections have no TTL indexes -- deletion snapshots, tenant deletion snapshots, and migration backups accumulate indefinitely (R-07, R-11 from RISK-01).
+
+**Planned Remediation (v1.6):**
+
+- Document Atlas backup configuration (backup window, retention period, point-in-time range, storage region)
+- Implement quarterly backup restoration tests: restore a backup to a test cluster and verify data integrity
+- Set up backup verification monitoring: alert if Atlas backup has not completed within expected window
+- Implement TTL indexes on snapshot collections (see Section 6.2 for recommended retention periods)
+
+### 5.2 Recovery Objectives
+
+**Current State:**
+
+No formally documented Recovery Point Objective (RPO) or Recovery Time Objective (RTO) exists for the platform.
+
+**Recommended Defaults** (subject to Security Officer approval per SECOFF-01/02):
+
+| Objective | Recommended Value | Rationale |
+|-----------|------------------|-----------|
+| **RPO** (Recovery Point Objective) | **24 hours** | Maximum acceptable data loss. The platform is a pre-launch SaaS with zero production tenants. Data changes occur primarily during business hours. A 24-hour RPO means that in a worst-case scenario, up to one business day of data entry could be lost. |
+| **RTO** (Recovery Time Objective) | **4 hours** | Maximum acceptable downtime. For a conservatory management platform, a 4-hour recovery window is acceptable -- conservatory operations can continue manually for a brief period. This target is achievable with Atlas point-in-time recovery and Render infrastructure. |
+
+These targets should be reviewed and formally approved by the Security Officer before the first production tenant is onboarded.
+
+**Gap Analysis:**
+
+- RPO and RTO are recommendations, not formally approved targets. They have not been tested or validated against actual recovery procedures.
+- No differentiation of recovery objectives by data classification. RESTRICTED data (student records, credentials) and INTERNAL data (schedules, attendance) have the same recovery targets.
+- No documented recovery procedures to achieve the stated objectives.
+
+**Planned Remediation (v1.6):**
+
+- Formal RPO/RTO approval by the Security Officer
+- Disaster recovery testing to validate that the stated objectives are achievable
+- Document step-by-step recovery procedures for the most likely failure scenarios
+
+### 5.3 Disaster Recovery
+
+**Current State:**
+
+No formal disaster recovery plan exists. The platform relies on infrastructure-level redundancy provided by its hosting providers:
+
+| Provider | Redundancy | Recovery Capability |
+|----------|-----------|-------------------|
+| MongoDB Atlas | Replica sets (3-node minimum) | Automatic failover within the cluster; point-in-time recovery from backups |
+| Render | Managed hosting with auto-deploy from git | Redeploy from git repository; environment variables managed in Render dashboard |
+| AWS S3 | 11 nines durability (99.999999999%) | Data is replicated across multiple availability zones in eu-central-1 |
+
+**Gap Analysis:**
+
+No documented recovery procedure exists for the following scenarios:
+
+1. **Complete database corruption:** Atlas point-in-time recovery is the expected mechanism, but no step-by-step procedure has been written or tested.
+2. **Hosting provider outage:** If Render experiences a prolonged outage, there is no documented procedure for deploying the application to an alternative hosting provider.
+3. **Credential compromise requiring full key rotation:** If JWT secrets, database connection strings, or API keys are compromised, there is no documented procedure for rotating all credentials and re-establishing secure operation.
+4. **MongoDB Atlas account compromise:** If the Atlas admin account is compromised, there is no documented procedure for regaining control, auditing changes, and verifying data integrity.
+5. **Complete data loss:** If all data is lost (database and backups), there is no documented procedure for reconstructing the system from external sources.
+
+**Planned Remediation (v1.6):**
+
+- Create disaster recovery runbooks for each identified scenario
+- Conduct an annual disaster recovery tabletop exercise
+- Document infrastructure dependencies and alternative providers
+
+### 5.4 Business Continuity
+
+**Current State:**
+
+No formal business continuity plan exists. The platform is a web application -- if the hosting infrastructure is available, the application is available. There is no degraded-mode operation capability: either the full application works or it does not.
+
+Communication channels: The platform has no built-in mechanism for notifying tenants of outages or service disruptions. Communication would rely on external channels (email, phone) managed manually.
+
+**Gap Analysis:**
+
+- No documented procedures for prolonged outage communication to tenants
+- No degraded-mode operation capability (e.g., read-only mode if database writes fail)
+- No data breach notification procedure. Notification requirements under Israeli privacy regulations are being addressed in Phase 29 (Incident Response Plan)
+- No service level agreement (SLA) defining availability targets
+- No documented escalation procedure for infrastructure failures
+
+**Planned Remediation:**
+
+- Phase 29 (Incident Response Plan) will address breach notification procedures and incident communication
+- v1.6 Technical Hardening will address: service health monitoring, automated status page, tenant notification mechanism for planned/unplanned downtime, SLA definition
+
+---
+
+## 6. Data Handling and Retention (SECPR-03a)
+
+### 6.1 Data Classification and Handling
+
+**Current State:**
+
+The platform uses a four-tier sensitivity classification defined in DATA-INVENTORY.md (DBDF-01). All 22 MongoDB collections are classified, with field-level classification for collections containing personal data.
+
+| Classification | Collections | Handling Rules |
+|---------------|-------------|---------------|
+| **PUBLIC** | healthcheck (1 collection) | No access restrictions. No special handling required. Standard deletion. |
+| **INTERNAL** | orchestra, rehearsal, theory_lesson, school_year, activity_attendance, hours_summary, deletion_audit, security_log, integrityAuditLog, integrityStatus (10 collections) | Authenticated users only. Standard MongoDB storage. TLS encryption in transit. Standard deletion. |
+| **SENSITIVE** | tenant, import_log, ministry_report_snapshots, deletion_snapshots, tenant_deletion_snapshots, migration_backups, platform_audit_log (7 collections) | Role-based access, tenant-scoped. Encrypted at rest (Atlas). TLS in transit. Secure deletion with audit trail. |
+| **RESTRICTED** | student, teacher, bagrut, super_admin (4 collections) | Role-based access, tenant-scoped, access-logged (planned). Encrypted at rest (Atlas). TLS in transit. Secure deletion with snapshot and audit trail. |
+
+**Data Handling Rules Matrix:**
+
+| Aspect | PUBLIC | INTERNAL | SENSITIVE | RESTRICTED |
+|--------|--------|----------|-----------|------------|
+| **Access** | No restrictions | Authenticated users only | Role-based, tenant-scoped | Role-based, tenant-scoped, access-logged |
+| **Storage** | Standard | Standard MongoDB | Encrypted at rest (Atlas) | Encrypted at rest (Atlas) |
+| **Transmission** | Standard | TLS in transit | TLS in transit | TLS in transit |
+| **Disposal** | No special requirements | Standard deletion | Secure deletion with audit trail | Secure deletion with snapshot + audit trail |
+| **Backup** | Standard | Standard Atlas backup | Atlas backup + application snapshots | Atlas backup + application snapshots |
+
+**Gap Analysis:**
+
+- Handling rules are documented in this procedure but are **NOT technically enforced differently by classification tier**. All data receives the same technical treatment regardless of classification. A PUBLIC collection gets the same encryption at rest, the same access control middleware, and the same backup treatment as a RESTRICTED collection.
+- No access logging for RESTRICTED data (planned as "access-logged" in the matrix but not yet implemented).
+- SENSITIVE collections containing blob fields (`previewData`, `snapshotData`, `collectionSnapshots`) effectively contain RESTRICTED-level data when they include student PII or credentials (documented in DATA-INVENTORY.md, Section 5.3).
+
+**Planned Remediation (v1.6):**
+
+- Implement classification-aware access controls, particularly access logging for RESTRICTED data
+- Evaluate field-level encryption for RESTRICTED fields within SENSITIVE blob collections
+- Implement API response data minimization to return only fields appropriate for the requesting role
+
+### 6.2 Retention Policies
+
+**Current State:**
+
+DATA-PURPOSES.md (DBDF-02) recommends retention periods for 11 collections containing personal data. **No retention policies are currently enforced.** No TTL (Time-To-Live) indexes exist on any collection (R-11 from RISK-01). All data is retained indefinitely unless explicitly deleted through the application's deletion features.
+
+**Recommended Retention Periods** (from DATA-PURPOSES.md, pending Security Officer approval):
+
+| Collection Category | Collections | Recommended Retention | Lawful Basis | Enforcement Mechanism (Planned) |
+|--------------------|-------------|----------------------|-------------|-------------------------------|
+| Active records (enrollment/employment) | teacher, student, orchestra | Duration of enrollment/engagement + 2 years | Contractual obligation | Archive after inactive period; purge PII after retention |
+| Examination records | bagrut | 7 years per Ministry of Education requirements | Legal obligation | TTL index or retention job |
+| Audit logs (compliance-critical) | deletion_audit, platform_audit_log, security_log | 7 years | Legal obligation / Legitimate interest | TTL index with 7-year expiry |
+| Operational data | school_year, hours_summary | Duration of active use + 1 year | Contractual obligation / Legal obligation | Archive after school year close |
+| Deletion snapshots | deletion_snapshots | 90 days from creation | Legitimate interest (recovery) | TTL index on `deletedAt` |
+| Tenant purge snapshots | tenant_deletion_snapshots | 90 days from creation | Legal obligation (recovery window) | TTL index on `createdAt` |
+| Import logs | import_log (previewData field) | 90 days from execution | Legitimate interest (import troubleshooting) | Purge `previewData` field; retain metadata for 1 year |
+| Migration backups | migration_backups | 180 days from creation | Legitimate interest (rollback) | TTL index on `createdAt` |
+| Ministry report snapshots | ministry_report_snapshots | 7 years | Legal obligation | Archive to cold storage after 2 years; purge after 7 |
+| Operational platform data | integrityAuditLog, integrityStatus | 1 year | Legitimate interest | TTL index or periodic purge |
+| Super admin accounts | super_admin | 90 days after deactivation | Legitimate interest | Purge deactivated accounts; retain audit trail separately |
+
+**Gap Analysis:**
+
+- Retention periods are **recommendations, not binding policy**. They have not been formally approved by the Security Officer.
+- No automated enforcement mechanism exists. Data accumulates indefinitely across all collections.
+- Snapshot data (`deletion_snapshots`, `tenant_deletion_snapshots`, `import_log.previewData`) is the highest risk -- these collections accumulate complete copies of personal data (including minors' PII) with no time limit (R-06, R-07, R-11 from RISK-01).
+- No distinction between metadata retention and PII retention. For example, `import_log` metadata (type, status, timestamps) is useful for long-term audit, but `previewData` (containing full PII) should be purged much sooner.
+
+**Planned Remediation (v1.6):**
+
+- Formal retention policy approval by the Security Officer
+- Implement TTL indexes on: `deletion_snapshots` (90 days), `tenant_deletion_snapshots` (90 days), `migration_backups` (180 days)
+- Implement a scheduled job to purge `import_log.previewData` 90 days after import execution
+- Define and implement an automated retention enforcement service that runs on a configurable schedule
+
+### 6.3 Data Deletion Procedures
+
+**Current State:**
+
+Three deletion mechanisms exist in the platform, each appropriate for different use cases:
+
+**1. Soft Delete:**
+
+| Aspect | Detail |
+|--------|--------|
+| Mechanism | Set `isActive: false` on the document |
+| Applies to | teacher, student, orchestra |
+| Effect | Record remains in database but is excluded from normal queries (services filter by `isActive: true`) |
+| Recovery | Set `isActive: true` to restore the record |
+| Audit trail | No deletion audit entry created for soft deletes |
+
+**2. Cascade Deletion:**
+
+| Aspect | Detail |
+|--------|--------|
+| Mechanism | Full entity removal orchestrated by `cascadeDeletion.service.js` |
+| Applies to | Student, teacher, and related dependent records |
+| Effect | Complete document snapshots saved to `deletion_snapshots` before permanent deletion from source collection. All related records (assignments, attendance, schedules) also removed |
+| Recovery | Restore from `deletion_snapshots` within the retention window |
+| Audit trail | Entry created in `deletion_audit` with cascade details (affected collections and counts) |
+
+**3. Tenant Purge:**
+
+| Aspect | Detail |
+|--------|--------|
+| Mechanism | Complete tenant data removal via `tenantPurge.service.js` |
+| Applies to | All data for a specific tenant across all 14 tenant-scoped collections |
+| Effect | Full data dump saved to `tenant_deletion_snapshots`. 90-day grace period between scheduled deletion (`deletionScheduledAt`) and permanent purge (`deletionPurgeAt`). During grace period, tenant is deactivated but data is preserved |
+| Recovery | Restore from `tenant_deletion_snapshots` within the 90-day grace period |
+| Audit trail | Entry in `platform_audit_log` by super admin who initiated the purge |
+
+**Gap Analysis:**
+
+- **Soft-deleted records remain queryable** by admin users and through direct database access. Soft delete does not constitute data erasure.
+- **No right-to-erasure (data subject deletion request) procedure.** There is no documented process for handling a request from a data subject (or parent/guardian of a minor) to delete their personal data. The platform can perform cascade deletion, but there is no formal intake process, verification of identity, response timeline, or confirmation mechanism.
+- **previewData in `import_log` is not purged after import execution** (R-06 from RISK-01). Successfully imported data exists redundantly in both the target collection and the import log preview.
+- **Deletion snapshots are retained indefinitely** (R-07 from RISK-01). The recovery mechanism undermines the deletion: data that was "deleted" persists in snapshot form without time limit.
+- **No cross-border deletion verification.** When a data subject's data is deleted from the platform, there is no mechanism to verify that copies held by third-party vendors (SendGrid delivery logs, for example) are also purged.
+
+**Planned Remediation (v1.6):**
+
+- Define and implement a data subject deletion request procedure: intake form, identity verification, scope assessment, execution, confirmation, and documentation
+- Implement `previewData` auto-purge after successful import execution
+- Implement TTL enforcement on snapshot collections (90-day retention window)
+- Document cross-border deletion responsibilities per vendor (reference VENDOR-INVENTORY.md, SMAP-03)
+
+---
+
+## 7. Document Review and Maintenance
+
+### 7.1 Review Schedule
+
+This document is subject to the following review schedule:
+
+**Regular Review:**
+
+- **Annual comprehensive review** by the Security Officer, covering all sections for accuracy against current platform state
+- Review must verify that Current State descriptions match actual code and configurations
+- Review must update Gap Analysis and Planned Remediation sections based on implemented changes
+
+**Triggered Review:**
+
+An immediate review of this document is triggered by any of the following events:
+
+| Trigger | Review Scope |
+|---------|-------------|
+| Security incident | Full document review; update procedures based on incident findings |
+| Regulatory change | Full document review for compliance with updated regulations |
+| Significant system architecture change | Affected sections only (e.g., new authentication mechanism, new data store, new hosting provider) |
+| Breach notification | Sections 3 (authentication), 5 (backup/recovery), 6 (data handling) |
+| New third-party vendor onboarded | Sections 5 (backup), 6 (data handling, cross-border) |
+| v1.6 Technical Hardening completion | Full document review -- convert "Planned Remediation" items to "Current State" |
+
+### 7.2 Version History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2026-03-02 | Development Team | Initial creation -- SECPR-01 (access, auth, authz), SECPR-02 (backup, recovery), SECPR-03 (data handling, retention, deletion) |
+
+### 7.3 Approval
+
+This document is effective upon approval by the Security Officer (SECOFF-01/02).
+
+**Status:** DRAFT -- pending Security Officer appointment and formal approval.
+
+The Security Officer must review and approve this document before the platform enters production operation with real tenant data. Upon approval, the document status changes to APPROVED and the approval date, approver name, and signature are recorded below.
+
+| Field | Value |
+|-------|-------|
+| Approved by | [Security Officer name -- to be completed] |
+| Approval date | [To be completed] |
+| Next review date | [Approval date + 1 year] |
+
+---
+
+*Document: SECPR-01/02/03 -- Security Procedure Document*
+*Phase: 28 -- Governance Framework and Security Policies*
+*Created: 2026-03-02*
+*Classification: INTERNAL -- COMPLIANCE DOCUMENT*
