@@ -172,6 +172,8 @@ planning/
 scripts/*
 !scripts/create-tenant-indexes.js
 !scripts/anonymize/
+scripts/anonymize/name-map.json
+!scripts/anonymize/README.md
 
 # Reports and test result JSON files
 reports/
