@@ -7,7 +7,7 @@
 - [x] **v1.2 Student Import Enhancement** — Phases 15-19 (shipped 2026-02-27)
 - [x] **v1.3 Conservatory Information Import** — Phases 20-22 (shipped 2026-02-28)
 - [x] **v1.4 Ensemble Import** — Phases 23-26 (shipped 2026-02-28)
-- [ ] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (in progress)
+- [x] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (shipped 2026-03-02)
 
 ## Phases
 
@@ -77,14 +77,19 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 </details>
 
-### v1.5 Privacy Compliance Foundation (In Progress)
+<details>
+<summary>v1.5 Privacy Compliance Foundation (Phases 27-30) — SHIPPED 2026-03-02</summary>
 
 **Milestone Goal:** Establish regulatory documentation and governance framework required by Israeli Privacy Protection Regulations (Information Security), 2017 -- assessed security level: MEDIUM. All deliverables are compliance documents, not code. Technical hardening deferred to v1.6.
 
 - [x] **Phase 27: Data Inventory and System Mapping** (4/4 plans) — completed 2026-03-02
 - [x] **Phase 28: Governance Framework and Security Policies** (3/3 plans) — completed 2026-03-02
 - [x] **Phase 29: Operational Procedures** (2/2 plans) — completed 2026-03-02
-- [ ] **Phase 30: Supplementary Policies and Audit Program** (0/2 plans) - Complete remaining policies (logging, mobile, encryption) and establish ongoing audit framework
+- [x] **Phase 30: Supplementary Policies and Audit Program** (2/2 plans) — completed 2026-03-02
+
+See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
+
+</details>
 
 ## Phase Details
 
@@ -148,8 +153,8 @@ Plans:
   5. A remediation tracking process is documented for handling audit findings through to resolution
 **Plans:** 2 plans
 Plans:
-- [ ] 30-01-PLAN.md -- Supplementary policies: user notification (LOG-01), mobile device (MOB-01), encryption (ENC-01)
-- [ ] 30-02-PLAN.md -- Audit program (AUDT-01), compliance self-assessment checklist (AUDT-02), remediation tracking (AUDT-03)
+- [x] 30-01-PLAN.md -- Supplementary policies: user notification (LOG-01), mobile device (MOB-01), encryption (ENC-01)
+- [x] 30-02-PLAN.md -- Audit program (AUDT-01), compliance self-assessment checklist (AUDT-02), remediation tracking (AUDT-03)
 
 ## Progress
 
@@ -163,14 +168,14 @@ Plans:
 | 27 | v1.5 | 4/4 | Complete | 2026-03-02 |
 | 28 | v1.5 | 3/3 | Complete | 2026-03-02 |
 | 29 | v1.5 | 2/2 | Complete | 2026-03-02 |
-| 30 | v1.5 | 0/2 | Not started | - |
+| 30 | v1.5 | 2/2 | Complete | 2026-03-02 |
 
 **Total:** 30 phases, 69 plans across 6 milestones
 **Phase 27 documents:** 9 compliance artifacts in `.planning/compliance/`
 **Phase 28 documents:** 5 compliance artifacts in `.planning/compliance/`
 **Phase 29 documents:** 4 compliance artifacts in `.planning/compliance/`
-**Phase 30 documents:** 6 compliance artifacts planned for `.planning/compliance/`
+**Phase 30 documents:** 6 compliance artifacts in `.planning/compliance/`
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-02 -- Phase 30 planned (2 plans, 6 compliance documents)*
+*Last updated: 2026-03-02 -- v1.5 Privacy Compliance Foundation SHIPPED (24 compliance documents)*
