@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.5 Privacy Compliance Foundation -- Phase 29 Plan 01 COMPLETE, continuing Phase 29
+**Current focus:** v1.5 Privacy Compliance Foundation -- Phase 29 COMPLETE, ready for Phase 30
 
 ## Current Position
 
-Phase: 29 of 30 (Operational Procedures) -- IN PROGRESS
-Plan: 1 of 2 in current phase (Plan 01 complete, Plan 02 remaining)
-Status: Phase 29 Plan 01 complete (INCIDENT-RESPONSE-PLAN.md, VENDOR-MANAGEMENT.md). Ready for Plan 02.
-Last activity: 2026-03-02 -- Completed 29-01 (incident response plan + vendor management, 6 of 10 Phase 29 requirements)
+Phase: 29 of 30 (Operational Procedures) -- COMPLETE
+Plan: 2 of 2 in current phase -- PHASE COMPLETE
+Status: Phase 29 fully complete. All 10 requirements covered (INCD-01/02/03, VEND-01/02/03, PERS-01/02/03, BACK-01). Ready for Phase 30.
+Last activity: 2026-03-02 -- Completed 29-02 (personnel security + backup/recovery, remaining 4 of 10 Phase 29 requirements)
 
-Progress: 5 milestones shipped, v1.5 Phases 27-28 fully complete (7/7 plans), Phase 29 Plan 01 complete (8/9 plans)
+Progress: 5 milestones shipped, v1.5 Phases 27-29 fully complete (9/9 plans). Phase 30 remaining.
 
 ## Performance Metrics
 
@@ -34,6 +34,7 @@ Progress: 5 milestones shipped, v1.5 Phases 27-28 fully complete (7/7 plans), Ph
 **Phase 28-03:** 2 tasks, 3 files, 8 min (2026-03-02)
 
 **Phase 29-01:** 2 tasks, 2 files, 9 min (2026-03-02)
+**Phase 29-02:** 2 tasks, 2 files, 8 min (2026-03-02)
 
 ## Accumulated Context
 
@@ -77,6 +78,9 @@ Progress: 5 milestones shipped, v1.5 Phases 27-28 fully complete (7/7 plans), Ph
 - Vendor risk scores: MongoDB Atlas 2.45 (HIGH), Render 2.30 (HIGH), AWS S3 3.10 (MEDIUM), SendGrid 2.55 (HIGH), Gmail 2.75 (HIGH)
 - DPA templates cover 12 mandatory clause areas per Israeli Reg. 15-16 and PPA Guideline 2/2011
 - Render at CRITICAL/HIGH boundary due to all-secrets + all-data-in-transit; assessed as HIGH tier
+- Confidentiality obligations for minors' data survive termination indefinitely (vs. 5 years for other data)
+- Secret rotation during offboarding causes platform-wide session invalidation; must be planned during low-usage window
+- 4 blocking pre-production requirements: Atlas backup verification, Atlas restore test, application snapshot restore, secure secret backup creation
 
 ### Pending Todos
 
@@ -89,5 +93,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 29-01-PLAN.md -- incident response plan and vendor management (2 compliance documents, 6 of 10 Phase 29 requirements).
-Resume: Begin Phase 29 Plan 02 (Personnel Security and Backup/Recovery) for remaining 4 requirements (PERS-01/02/03, BACK-01).
+Stopped at: Completed 29-02-PLAN.md -- personnel security and backup/recovery (2 compliance documents, remaining 4 of 10 Phase 29 requirements). Phase 29 fully complete.
+Resume: Begin Phase 30 (Audit Readiness) -- final phase of v1.5 Privacy Compliance Foundation.
