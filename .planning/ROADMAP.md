@@ -83,7 +83,7 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 - [x] **Phase 27: Data Inventory and System Mapping** (4/4 plans) — completed 2026-03-02
 - [x] **Phase 28: Governance Framework and Security Policies** (3/3 plans) — completed 2026-03-02
-- [ ] **Phase 29: Operational Procedures** - Define incident response, vendor management, personnel security, and backup/recovery procedures
+- [x] **Phase 29: Operational Procedures** (2/2 plans) — completed 2026-03-02
 - [ ] **Phase 30: Supplementary Policies and Audit Program** - Complete remaining policies (logging, mobile, encryption) and establish ongoing audit framework
 
 ## Phase Details
@@ -133,8 +133,8 @@ Plans:
   5. Onboarding/offboarding security procedures define access provisioning and revocation steps, a security awareness training outline exists for conservatory admins and teachers, and a confidentiality agreement template is ready for personnel with data access
 **Plans:** 2 plans
 Plans:
-- [ ] 29-01-PLAN.md -- Incident response plan (INCD-01/02/03) and vendor management (VEND-01/02/03)
-- [ ] 29-02-PLAN.md -- Personnel security (PERS-01/02/03) and backup/recovery plan (BACK-01)
+- [x] 29-01-PLAN.md -- Incident response plan (INCD-01/02/03) and vendor management (VEND-01/02/03)
+- [x] 29-02-PLAN.md -- Personnel security (PERS-01/02/03) and backup/recovery plan (BACK-01)
 
 ### Phase 30: Supplementary Policies and Audit Program
 **Goal**: All remaining policy gaps are closed and an ongoing compliance verification program is established
@@ -160,13 +160,14 @@ Plans:
 | 23-26 | v1.4 | 6/6 | Complete | 2026-02-28 |
 | 27 | v1.5 | 4/4 | Complete | 2026-03-02 |
 | 28 | v1.5 | 3/3 | Complete | 2026-03-02 |
-| 29 | v1.5 | 0/2 | Planned | - |
+| 29 | v1.5 | 2/2 | Complete | 2026-03-02 |
 | 30 | v1.5 | 0/TBD | Not started | - |
 
 **Total:** 30 phases, 67 plans across 6 milestones (Phase 30 plans TBD)
 **Phase 27 documents:** 9 compliance artifacts in `.planning/compliance/`
 **Phase 28 documents:** 5 compliance artifacts in `.planning/compliance/`
+**Phase 29 documents:** 4 compliance artifacts in `.planning/compliance/`
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-02 -- Phase 29 planned (2 plans, 4 compliance documents)*
+*Last updated: 2026-03-02 -- Phase 29 complete (2 plans, 4 compliance documents)*
