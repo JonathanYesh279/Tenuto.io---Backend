@@ -84,7 +84,7 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
 - [x] **Phase 27: Data Inventory and System Mapping** (4/4 plans) — completed 2026-03-02
 - [x] **Phase 28: Governance Framework and Security Policies** (3/3 plans) — completed 2026-03-02
 - [x] **Phase 29: Operational Procedures** (2/2 plans) — completed 2026-03-02
-- [ ] **Phase 30: Supplementary Policies and Audit Program** - Complete remaining policies (logging, mobile, encryption) and establish ongoing audit framework
+- [ ] **Phase 30: Supplementary Policies and Audit Program** (0/2 plans) - Complete remaining policies (logging, mobile, encryption) and establish ongoing audit framework
 
 ## Phase Details
 
@@ -146,8 +146,10 @@ Plans:
   3. An encryption policy defines standards for data in transit (TLS) and at rest, including protocols and key management principles
   4. A periodic security audit program exists with annual schedule and scope definition, and a compliance self-assessment checklist maps controls to all 18 regulations
   5. A remediation tracking process is documented for handling audit findings through to resolution
-
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 30-01-PLAN.md -- Supplementary policies: user notification (LOG-01), mobile device (MOB-01), encryption (ENC-01)
+- [ ] 30-02-PLAN.md -- Audit program (AUDT-01), compliance self-assessment checklist (AUDT-02), remediation tracking (AUDT-03)
 
 ## Progress
 
@@ -161,13 +163,14 @@ Plans:
 | 27 | v1.5 | 4/4 | Complete | 2026-03-02 |
 | 28 | v1.5 | 3/3 | Complete | 2026-03-02 |
 | 29 | v1.5 | 2/2 | Complete | 2026-03-02 |
-| 30 | v1.5 | 0/TBD | Not started | - |
+| 30 | v1.5 | 0/2 | Not started | - |
 
-**Total:** 30 phases, 67 plans across 6 milestones (Phase 30 plans TBD)
+**Total:** 30 phases, 69 plans across 6 milestones
 **Phase 27 documents:** 9 compliance artifacts in `.planning/compliance/`
 **Phase 28 documents:** 5 compliance artifacts in `.planning/compliance/`
 **Phase 29 documents:** 4 compliance artifacts in `.planning/compliance/`
+**Phase 30 documents:** 6 compliance artifacts planned for `.planning/compliance/`
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-02 -- Phase 29 complete (2 plans, 4 compliance documents)*
+*Last updated: 2026-03-02 -- Phase 30 planned (2 plans, 6 compliance documents)*
