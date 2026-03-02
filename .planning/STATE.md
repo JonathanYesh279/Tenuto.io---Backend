@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.5 Privacy Compliance Foundation -- Phase 28 COMPLETE, ready for Phase 29
+**Current focus:** v1.5 Privacy Compliance Foundation -- Phase 29 Plan 01 COMPLETE, continuing Phase 29
 
 ## Current Position
 
-Phase: 28 of 30 (Governance Framework and Security Policies) -- COMPLETE
-Plan: 3 of 3 in current phase (all plans complete)
-Status: Phase 28 complete. Ready to begin Phase 29 (Operational Procedures)
-Last activity: 2026-03-02 -- Completed phase 28 (5 compliance documents: SECURITY-OFFICER, SECURITY-PROCEDURES, ACCESS-CONTROL-POLICY, AUTH-POLICY, ACCESS-LOGGING-POLICY)
+Phase: 29 of 30 (Operational Procedures) -- IN PROGRESS
+Plan: 1 of 2 in current phase (Plan 01 complete, Plan 02 remaining)
+Status: Phase 29 Plan 01 complete (INCIDENT-RESPONSE-PLAN.md, VENDOR-MANAGEMENT.md). Ready for Plan 02.
+Last activity: 2026-03-02 -- Completed 29-01 (incident response plan + vendor management, 6 of 10 Phase 29 requirements)
 
-Progress: 5 milestones shipped, v1.5 Phases 27-28 fully complete (7/7 plans)
+Progress: 5 milestones shipped, v1.5 Phases 27-28 fully complete (7/7 plans), Phase 29 Plan 01 complete (8/9 plans)
 
 ## Performance Metrics
 
@@ -32,6 +32,8 @@ Progress: 5 milestones shipped, v1.5 Phases 27-28 fully complete (7/7 plans)
 **Phase 28-01:** 1 task, 1 file, 3 min (2026-03-02)
 **Phase 28-02:** 2 tasks, 1 file, 6 min (2026-03-02)
 **Phase 28-03:** 2 tasks, 3 files, 8 min (2026-03-02)
+
+**Phase 29-01:** 2 tasks, 2 files, 9 min (2026-03-02)
 
 ## Accumulated Context
 
@@ -70,6 +72,11 @@ Progress: 5 milestones shipped, v1.5 Phases 27-28 fully complete (7/7 plans)
 - Default password "123456" documented as CRITICAL authentication gap with R-05 reference
 - Log retention tiers: 30 days operational, 2 years security, 7 years legal/minors' data
 - 4-level escalation procedure from anomaly detection through regulatory breach notification
+- Israeli PPA-directed breach notification model: data subject notification NOT mandatory, PPA orders case-by-case
+- Automatic severity elevation for minors' data incidents (P4->P3, P3->P2, P2->P1)
+- Vendor risk scores: MongoDB Atlas 2.45 (HIGH), Render 2.30 (HIGH), AWS S3 3.10 (MEDIUM), SendGrid 2.55 (HIGH), Gmail 2.75 (HIGH)
+- DPA templates cover 12 mandatory clause areas per Israeli Reg. 15-16 and PPA Guideline 2/2011
+- Render at CRITICAL/HIGH boundary due to all-secrets + all-data-in-transit; assessed as HIGH tier
 
 ### Pending Todos
 
@@ -82,5 +89,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed Phase 28 -- all 3 plans, 5 compliance documents, verification PASSED (5/5 must-haves).
-Resume: Begin Phase 29 (Operational Procedures) when ready.
+Stopped at: Completed 29-01-PLAN.md -- incident response plan and vendor management (2 compliance documents, 6 of 10 Phase 29 requirements).
+Resume: Begin Phase 29 Plan 02 (Personnel Security and Backup/Recovery) for remaining 4 requirements (PERS-01/02/03, BACK-01).
