@@ -162,7 +162,7 @@ NOTES.md
 notes.txt
 *.notes
 planning/
-.planning/
+.planning/**
 
 # Markdown / documentation files (AI-generated guides, etc.)
 *.md
@@ -266,3 +266,8 @@ core.*
 # Email templates with real data
 email-templates/compiled/
 !email-templates/compiled/example.html
+
+# Compliance documents — tracked exceptions to .planning/** and *.md
+!.planning/compliance/
+!.planning/compliance/**
+!.planning/PRODUCTION-READINESS.md
