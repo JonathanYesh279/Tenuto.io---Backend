@@ -131,7 +131,10 @@ Plans:
   3. Data Processing Agreement templates exist for each cloud vendor (MongoDB Atlas, Render, AWS S3), and a vendor risk assessment checklist with scoring framework is ready for use
   4. A vendor registry documents all third-party data processors with their specific data scope
   5. Onboarding/offboarding security procedures define access provisioning and revocation steps, a security awareness training outline exists for conservatory admins and teachers, and a confidentiality agreement template is ready for personnel with data access
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 29-01-PLAN.md -- Incident response plan (INCD-01/02/03) and vendor management (VEND-01/02/03)
+- [ ] 29-02-PLAN.md -- Personnel security (PERS-01/02/03) and backup/recovery plan (BACK-01)
 
 ### Phase 30: Supplementary Policies and Audit Program
 **Goal**: All remaining policy gaps are closed and an ongoing compliance verification program is established
@@ -157,13 +160,13 @@ Plans:
 | 23-26 | v1.4 | 6/6 | Complete | 2026-02-28 |
 | 27 | v1.5 | 4/4 | Complete | 2026-03-02 |
 | 28 | v1.5 | 3/3 | Complete | 2026-03-02 |
-| 29 | v1.5 | 0/TBD | Not started | - |
+| 29 | v1.5 | 0/2 | Planned | - |
 | 30 | v1.5 | 0/TBD | Not started | - |
 
-**Total:** 30 phases, 65 plans across 6 milestones (Phases 29-30 plans TBD)
+**Total:** 30 phases, 67 plans across 6 milestones (Phase 30 plans TBD)
 **Phase 27 documents:** 9 compliance artifacts in `.planning/compliance/`
 **Phase 28 documents:** 5 compliance artifacts in `.planning/compliance/`
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-02 -- Phase 28 complete (3 plans, 5 compliance documents)*
+*Last updated: 2026-03-02 -- Phase 29 planned (2 plans, 4 compliance documents)*
