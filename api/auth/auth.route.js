@@ -13,8 +13,11 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts, please try again in 5 minutes' }
 })
 
-// Self-protecting: checks internally if admin already exists, rejects if so
-router.post('/init-admin', authController.initAdmin);
+// Init-admin — ONLY available in non-production environments
+// Self-protecting (rejects if admin exists), but creates predictable credentials — must not be reachable in production.
+if (process.env.NODE_ENV !== 'production') {
+  router.post('/init-admin', authController.initAdmin);
+}
 
 // Admin-only routes
 router.post('/migrate-users', authenticateToken, requireAuth(['מנהל']), authController.migrateExistingUsers);

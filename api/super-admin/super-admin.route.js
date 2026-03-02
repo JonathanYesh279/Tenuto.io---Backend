@@ -7,7 +7,12 @@ const router = Router();
 // Public routes
 router.post('/auth/login', superAdminController.login);
 router.post('/auth/refresh', superAdminController.refresh);
-router.post('/seed', superAdminController.seed);
+
+// Seed route — ONLY available in non-production environments
+// In production this route does not exist (404). Self-protecting even in dev: rejects if any super admin exists.
+if (process.env.NODE_ENV !== 'production') {
+  router.post('/seed', superAdminController.seed);
+}
 
 // All routes below require super admin authentication
 router.use(authenticateSuperAdmin);
