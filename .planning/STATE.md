@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.5 Privacy Compliance Foundation -- Phase 29 COMPLETE, ready for Phase 30
+**Current focus:** v1.5 Privacy Compliance Foundation -- Phase 30 Plan 01 COMPLETE, Plan 02 remaining
 
 ## Current Position
 
-Phase: 29 of 30 (Operational Procedures) -- COMPLETE
-Plan: 2 of 2 in current phase -- PHASE COMPLETE
-Status: Phase 29 fully complete. All 10 requirements covered (INCD-01/02/03, VEND-01/02/03, PERS-01/02/03, BACK-01). Ready for Phase 30.
-Last activity: 2026-03-02 -- Completed 29-02 (personnel security + backup/recovery, remaining 4 of 10 Phase 29 requirements)
+Phase: 30 of 30 (Supplementary Policies and Audit Program) -- IN PROGRESS
+Plan: 1 of 2 in current phase -- Plan 01 complete
+Status: Phase 30 Plan 01 complete. Three supplementary policies created (LOG-01, MOB-01, ENC-01) closing Regulation 10(e), 12, and 14 gaps. Plan 02 (audit program) remaining.
+Last activity: 2026-03-02 -- Completed 30-01 (supplementary policies: user notification, mobile device, encryption)
 
-Progress: 5 milestones shipped, v1.5 Phases 27-29 fully complete (9/9 plans). Phase 30 remaining.
+Progress: 5 milestones shipped, v1.5 Phases 27-29 complete (9/9 plans) + Phase 30 Plan 01 (10/11 plans).
 
 ## Performance Metrics
 
@@ -35,6 +35,8 @@ Progress: 5 milestones shipped, v1.5 Phases 27-29 fully complete (9/9 plans). Ph
 
 **Phase 29-01:** 2 tasks, 2 files, 9 min (2026-03-02)
 **Phase 29-02:** 2 tasks, 2 files, 8 min (2026-03-02)
+
+**Phase 30-01:** 3 tasks, 3 files, 7 min (2026-03-02)
 
 ## Accumulated Context
 
@@ -81,6 +83,11 @@ Progress: 5 milestones shipped, v1.5 Phases 27-29 fully complete (9/9 plans). Ph
 - Confidentiality obligations for minors' data survive termination indefinitely (vs. 5 years for other data)
 - Secret rotation during offboarding causes platform-wide session invalidation; must be planned during low-usage window
 - 4 blocking pre-production requirements: Atlas backup verification, Atlas restore test, application snapshot restore, secure secret backup creation
+- User notification uses "may be monitored" language to honestly reflect partial monitoring capabilities (LOG-01)
+- Mobile device policy scoped to browser-based access only -- no MDM, no native app, no device enrollment (MOB-01)
+- Encryption policy established as single authoritative source; SMAP-01 and SMAP-02 serve as evidence documents (ENC-01)
+- Certificate pinning assessed as ACCEPTABLE risk for medium-security level -- no remediation planned (ENC-01 Gap 5)
+- RESTRICTED data field-level encryption designated as REQUIRED for v1.6 at policy level (ENC-01 Section 6)
 
 ### Pending Todos
 
@@ -93,5 +100,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 29-02-PLAN.md -- personnel security and backup/recovery (2 compliance documents, remaining 4 of 10 Phase 29 requirements). Phase 29 fully complete.
-Resume: Begin Phase 30 (Audit Readiness) -- final phase of v1.5 Privacy Compliance Foundation.
+Stopped at: Completed 30-01-PLAN.md -- supplementary policies (3 compliance documents: LOG-01, MOB-01, ENC-01). Phase 30 Plan 01 complete.
+Resume: Begin Phase 30 Plan 02 (Audit Program: AUDT-01/02/03) -- final plan of v1.5 Privacy Compliance Foundation.
