@@ -171,6 +171,7 @@ planning/
 # Scripts (migrations, seeds, one-off fixes, utilities)
 scripts/*
 !scripts/create-tenant-indexes.js
+!scripts/anonymize/
 
 # Reports and test result JSON files
 reports/
