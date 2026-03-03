@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.6 Room & Hours Management Table — Phase 34: Grid Interaction (COMPLETE)
+**Current focus:** v1.6 Room & Hours Management Table — Phase 35: Polish & Week Overview
 
 ## Current Position
 
-Phase: 34 of 35 (Grid Interaction) -- COMPLETE
-Plan: 3 of 3 in current phase (all complete)
-Status: Phase 34 complete, ready for Phase 35
-Last activity: 2026-03-03 — Completed 34-03 (Drag-and-Drop Time Block Moves)
+Phase: 35 of 35 (Polish & Week Overview)
+Plan: 1 of 2 in current phase (35-01 complete)
+Status: Executing Phase 35
+Last activity: 2026-03-03 — Completed 35-01 (Print/Export Toolbar)
 
-Progress: [###########...] 85% (v1.6) — 11/13 plans
+Progress: [############..] 92% (v1.6) — 12/13 plans
 
 ## Performance Metrics
 
@@ -78,6 +78,9 @@ Progress: [###########...] 85% (v1.6) — 11/13 plans
 - 34-03: apiService 409 handler added to preserve conflict details on error object
 - 34-03: RTL keyboard navigation accepted as-is; custom coordinateGetter deferred to Phase 35
 - 34-03: DroppableCell ID format: room::HH:MM with lastIndexOf parsing for safe room name handling
+- 35-01: Tailwind print variant via screens config (raw: 'print') for print: utility classes
+- 35-01: handleExportPDF placed after useMemo hooks to avoid block-scoped variable TDZ error
+- 35-01: Page header + DaySelector hidden in print; SummaryBar stays visible for context
 
 ### Pending Todos
 
@@ -101,9 +104,10 @@ None.
 | 34    | 01   | 6min     | 2     | 4     |
 | 34    | 02   | 8min     | 2     | 3     |
 | 34    | 03   | 9min     | 2     | 7     |
+| 35    | 01   | 16min    | 2     | 4     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 34-03-PLAN.md (Drag-and-Drop Time Block Moves) -- Phase 34 complete
-Resume: Continue with Phase 35 planning
+Stopped at: Completed 35-01-PLAN.md (Print/Export Toolbar)
+Resume: Continue with 35-02-PLAN.md (Week Overview)
