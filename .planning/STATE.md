@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.6 Room & Hours Management Table — COMPLETE
+**Current focus:** Phase 37 — Room Schedule UX Fixes & Conflict Prevention
 
 ## Current Position
 
-Phase: 36 of 36 (Seed Teacher Schedule Data)
-Plan: 1 of 1 in current phase (COMPLETE)
-Status: v1.6 milestone complete
-Last activity: 2026-03-03 — Phase 36 Plan 01 executed
+Phase: 37 (Room Schedule UX Fixes & Conflict Prevention)
+Plan: 2 of 4 in current phase (Plan 01 COMPLETE)
+Status: Executing phase 37
+Last activity: 2026-03-03 — Phase 37 Plan 01 executed
 
-Progress: [##############] 100% (v1.6) — 14/14 plans
+Progress: [#-------------] 1/4 plans (Phase 37)
 
 ## Performance Metrics
 
@@ -89,6 +89,17 @@ Progress: [##############] 100% (v1.6) — 14/14 plans
 - 36-01: Morning/afternoon time block pattern (08-10 or 13-15 start, 3-5hr span) for realistic windows
 - 36-01: pickDuration distribution: 30min 50%, 45min 40%, 60min 10%
 - 36-01: Cross-reference verification samples 10 random teacher-student pairs for bidirectional consistency
+- 37-01: borderAccent pattern: 4px right border per activity type (blue/purple/orange) for at-a-glance identification
+- 37-01: Conflict indicator reduced to subtle border border-red-400 (safety net, not primary UX)
+- 37-01: WarningCircle icon removed from conflict cells -- prevention over display
+- 37-01: SummaryBar already reflects filtered data via filteredRooms chain -- no changes needed
+- 37-01: Grid cells widened to 120px min columns, 80px row height, 40px stacked item height
+- 37-01: Filter toggle inactive state uses line-through text for clear off visual
+- 37-01: generateConflicts function deleted from seed-dev-data.js -- zero intentional conflicts in seed data
+
+### Roadmap Evolution
+
+- Phase 37 added: Room Schedule UX Fixes & Conflict Prevention (fullscreen mode, larger cells, teacher/student label clarity, functional activity type filters, PDF export fix, stronger color coding, conflict prevention at scheduling time)
 
 ### Pending Todos
 
@@ -115,9 +126,10 @@ None.
 | 35    | 01   | 16min    | 2     | 4     |
 | 35    | 02   | 11min    | 2     | 4     |
 | 36    | 01   | 4min     | 2     | 1     |
+| 37    | 01   | 9min     | 2     | 4     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 36-01-PLAN.md (v1.6 milestone complete)
-Resume: Next milestone planning
+Stopped at: Completed 37-01-PLAN.md
+Resume: Execute 37-02-PLAN.md
