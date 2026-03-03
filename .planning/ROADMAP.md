@@ -146,12 +146,12 @@ Plans:
   3. Each occupied cell displays the teacher name and the student or group name
   4. Cells are color-coded by activity type (blue for private lessons, purple for rehearsals, orange for theory) and conflict cells have a red border or warning indicator
   5. A summary statistics bar above or below the grid shows total rooms, occupied slots, free slots, and conflict count
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 33-01: Grid page, layout components, and day selector
-- [ ] 33-02: Activity cells, color coding, conflict indicators, and room settings modal
-- [ ] 33-03: Summary statistics bar and unassigned activities row
+- [ ] 33-01-PLAN.md — API service, route/sidebar registration, page skeleton with day selector and CSS grid
+- [ ] 33-02-PLAN.md — ActivityCell color coding, conflict indicators, tooltips, and conflict stacking
+- [ ] 33-03-PLAN.md — Summary statistics bar and unassigned activities row
 
 ### Phase 34: Grid Interaction
 **Goal**: Admins can create lessons in empty slots, move lessons between rooms/times via drag-and-drop, and filter the grid
@@ -201,4 +201,4 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 32 complete*
+*Last updated: 2026-03-03 -- Phase 33 planned*
