@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 37 (Room Schedule UX Fixes & Conflict Prevention)
-Plan: 7 of 9 in current phase (Plans 01-07 COMPLETE, 08-09 gap closure remaining)
+Plan: 8 of 9 in current phase (Plans 01-08 COMPLETE, 09 gap closure remaining)
 Status: Executing gap closure plans
-Last activity: 2026-03-03 — Phase 37 Plan 07 executed (gap closure)
+Last activity: 2026-03-04 — Phase 37 Plan 08 executed (gap closure)
 
-Progress: [###########---] 7/9 plans (Phase 37 gap closure)
+Progress: [############--] 8/9 plans (Phase 37 gap closure)
 
 ## Performance Metrics
 
@@ -118,6 +118,10 @@ Progress: [###########---] 7/9 plans (Phase 37 gap closure)
 - 37-07: JSX expression syntax {''} for placeholder instead of HTML attribute to ensure bundler interprets unicode escapes
 - 37-07: Skip same-room in teacher double-booking loop to avoid duplicate warnings with room conflict
 - 37-07: String() coercion on both sides of teacherId comparison for safety against ObjectId type mismatches
+- 37-08: h-screen flex-col layout for fullscreen instead of min-h-screen (ensures grid fills exactly one viewport)
+- 37-08: SummaryBar hidden in fullscreen to maximize grid space
+- 37-08: Compact DaySelector inline instead of full page header in fullscreen
+- 37-08: Grid columns 140px min in fullscreen (vs 120px normal) for wider time slots
 
 ### Roadmap Evolution
 
@@ -155,9 +159,10 @@ None.
 | 37    | 05   | 3min     | 2     | 2     |
 | 37    | 06   | 8min     | 1     | 1     |
 | 37    | 07   | 4min     | 1     | 1     |
+| 37    | 08   | 3min     | 1     | 3     |
 
 ## Session Continuity
 
-Last session: 2026-03-03
-Stopped at: Completed 37-07-PLAN.md (gap closure)
-Resume: Continue with 37-08-PLAN.md through 37-09-PLAN.md gap closure plans
+Last session: 2026-03-04
+Stopped at: Completed 37-08-PLAN.md (gap closure)
+Resume: Continue with 37-09-PLAN.md gap closure plan (final plan in phase 37)
