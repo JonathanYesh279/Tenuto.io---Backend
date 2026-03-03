@@ -9,7 +9,6 @@
  *   - ~50 orchestras/ensembles with members
  *   - ~100-150 rehearsals with room-referenced locations
  *   - ~30-50 theory lessons with room-referenced locations
- *   - 10-15 intentional scheduling conflicts for Phase 32 testing
  *
  * Usage:
  *   node scripts/seed-dev-data.js              # Seed all data
@@ -725,204 +724,6 @@ function generateTheoryLessons(teachers, students, schoolYearId) {
   return theoryLessons;
 }
 
-/**
- * Create intentional scheduling conflicts for Phase 32 conflict detection testing.
- * Reads existing data and creates conflicting records in different collections.
- */
-function generateConflicts(teachers, rehearsals, theoryLessons, schoolYearId) {
-  const conflictRehearsals = [];
-  const conflictTheoryLessons = [];
-  let conflictCount = 0;
-
-  // Helper: find time blocks from teachers
-  const allTimeBlocks = [];
-  for (const teacher of teachers) {
-    for (const tb of teacher.teaching.timeBlocks) {
-      allTimeBlocks.push({ ...tb, teacherId: teacher._id.toString() });
-    }
-  }
-
-  // ── Same-room conflicts (5-7): Two activities in same room at same time ──
-
-  // Type A: Rehearsal conflicts with existing time block (3 conflicts)
-  for (let i = 0; i < 3 && i < allTimeBlocks.length; i++) {
-    const tb = allTimeBlocks[i];
-    const dayIndex = DAY_INDICES[tb.day];
-    const dates = generateDatesForDay(dayIndex, 1);
-    const date = dates.length > 0 ? dates[0] : new Date('2024-10-15');
-
-    conflictRehearsals.push({
-      _id: new ObjectId(),
-      tenantId: TENANT_ID_STR,
-      groupId: new ObjectId().toString(),
-      type: pick(['תזמורת', 'הרכב']),
-      date,
-      dayOfWeek: dayIndex,
-      startTime: tb.startTime,
-      endTime: addHours(tb.startTime, 1),
-      location: tb.location,
-      attendance: { present: [], absent: [] },
-      notes: `INTENTIONAL_CONFLICT:same_room - conflicts with time block in ${tb.location} on ${tb.day}`,
-      schoolYearId: schoolYearId.toHexString(),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    conflictCount++;
-    console.log(`    Created conflict: same_room (rehearsal vs time-block) in room "${tb.location}" on day ${tb.day} at ${tb.startTime}`);
-  }
-
-  // Type B: Theory lesson conflicts with existing time block (3 conflicts)
-  for (let i = 3; i < 6 && i < allTimeBlocks.length; i++) {
-    const tb = allTimeBlocks[i];
-    const dayIndex = DAY_INDICES[tb.day];
-    const dates = generateDatesForDay(dayIndex, 1);
-    const date = dates.length > 0 ? dates[0] : new Date('2024-10-15');
-
-    const studentIds = pickN(teachers.slice(0, 20).map(t => t._id), 8).map(id => id.toString());
-
-    conflictTheoryLessons.push({
-      _id: new ObjectId(),
-      tenantId: TENANT_ID_STR,
-      category: pick(THEORY_CATEGORIES),
-      teacherId: pick(teachers.map(t => t._id)).toString(),
-      date,
-      dayOfWeek: dayIndex,
-      startTime: tb.startTime,
-      endTime: addHours(tb.startTime, 1),
-      location: tb.location,
-      studentIds,
-      notes: `INTENTIONAL_CONFLICT:same_room - conflicts with time block in ${tb.location} on ${tb.day}`,
-      schoolYearId: schoolYearId.toHexString(),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    conflictCount++;
-    console.log(`    Created conflict: same_room (theory vs time-block) in room "${tb.location}" on day ${tb.day} at ${tb.startTime}`);
-  }
-
-  // ── Cross-source conflicts (3-4): Different source types in same room/time ──
-
-  // Rehearsal vs rehearsal in same room (1 conflict)
-  if (rehearsals.length > 0) {
-    const existing = rehearsals[0];
-    conflictRehearsals.push({
-      _id: new ObjectId(),
-      tenantId: TENANT_ID_STR,
-      groupId: new ObjectId().toString(),
-      type: pick(['תזמורת', 'הרכב']),
-      date: existing.date,
-      dayOfWeek: existing.dayOfWeek,
-      startTime: existing.startTime,
-      endTime: existing.endTime,
-      location: existing.location,
-      attendance: { present: [], absent: [] },
-      notes: `INTENTIONAL_CONFLICT:cross_source - rehearsal vs rehearsal in ${existing.location}`,
-      schoolYearId: schoolYearId.toHexString(),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    conflictCount++;
-    console.log(`    Created conflict: cross_source (rehearsal vs rehearsal) in room "${existing.location}" on day ${existing.dayOfWeek} at ${existing.startTime}`);
-  }
-
-  // Rehearsal vs theory lesson in same room (1 conflict)
-  if (rehearsals.length > 1) {
-    const existingRehearsal = rehearsals[1];
-    const studentIds = pickN(teachers.slice(0, 15).map(t => t._id), 8).map(id => id.toString());
-
-    conflictTheoryLessons.push({
-      _id: new ObjectId(),
-      tenantId: TENANT_ID_STR,
-      category: pick(THEORY_CATEGORIES),
-      teacherId: pick(teachers.map(t => t._id)).toString(),
-      date: existingRehearsal.date,
-      dayOfWeek: existingRehearsal.dayOfWeek,
-      startTime: existingRehearsal.startTime,
-      endTime: existingRehearsal.endTime,
-      location: existingRehearsal.location,
-      studentIds,
-      notes: `INTENTIONAL_CONFLICT:cross_source - theory vs rehearsal in ${existingRehearsal.location}`,
-      schoolYearId: schoolYearId.toHexString(),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    conflictCount++;
-    console.log(`    Created conflict: cross_source (theory vs rehearsal) in room "${existingRehearsal.location}" on day ${existingRehearsal.dayOfWeek} at ${existingRehearsal.startTime}`);
-  }
-
-  // Theory vs theory in same room (1 conflict)
-  if (theoryLessons.length > 0) {
-    const existingTheory = theoryLessons[0];
-    const studentIds = pickN(teachers.slice(0, 15).map(t => t._id), 8).map(id => id.toString());
-
-    conflictTheoryLessons.push({
-      _id: new ObjectId(),
-      tenantId: TENANT_ID_STR,
-      category: pick(THEORY_CATEGORIES),
-      teacherId: pick(teachers.map(t => t._id)).toString(),
-      date: existingTheory.date,
-      dayOfWeek: existingTheory.dayOfWeek,
-      startTime: existingTheory.startTime,
-      endTime: existingTheory.endTime,
-      location: existingTheory.location,
-      studentIds,
-      notes: `INTENTIONAL_CONFLICT:cross_source - theory vs theory in ${existingTheory.location}`,
-      schoolYearId: schoolYearId.toHexString(),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    conflictCount++;
-    console.log(`    Created conflict: cross_source (theory vs theory) in room "${existingTheory.location}" on day ${existingTheory.dayOfWeek} at ${existingTheory.startTime}`);
-  }
-
-  // ── Teacher double-booking (3): Same teacher in two places at same time ──
-
-  // Find teachers that have multiple time blocks on the same day (or use first few teachers)
-  const teachersForDoubleBooking = teachers.slice(0, 3);
-  for (const teacher of teachersForDoubleBooking) {
-    const tb = teacher.teaching.timeBlocks[0];
-    const dayIndex = DAY_INDICES[tb.day];
-    // Create a theory lesson for this teacher at the same time in a DIFFERENT room
-    let conflictRoom = pick(LOCATIONS);
-    let attempts = 0;
-    while (conflictRoom === tb.location && attempts < 10) {
-      conflictRoom = pick(LOCATIONS);
-      attempts++;
-    }
-
-    const dates = generateDatesForDay(dayIndex, 1);
-    const date = dates.length > 0 ? dates[0] : new Date('2024-10-15');
-    const studentIds = pickN(teachers.slice(0, 15).map(t => t._id), 8).map(id => id.toString());
-
-    conflictTheoryLessons.push({
-      _id: new ObjectId(),
-      tenantId: TENANT_ID_STR,
-      category: pick(THEORY_CATEGORIES),
-      teacherId: teacher._id.toString(),
-      date,
-      dayOfWeek: dayIndex,
-      startTime: tb.startTime,
-      endTime: addHours(tb.startTime, 1),
-      location: conflictRoom,
-      studentIds,
-      notes: `INTENTIONAL_CONFLICT:teacher_double_booking - teacher ${teacher.personalInfo.firstName} ${teacher.personalInfo.lastName} booked in ${conflictRoom} AND ${tb.location} at ${tb.startTime}`,
-      schoolYearId: schoolYearId.toHexString(),
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    conflictCount++;
-    console.log(`    Created conflict: teacher_double_booking for "${teacher.personalInfo.firstName} ${teacher.personalInfo.lastName}" at ${tb.startTime} on ${tb.day} (${tb.location} vs ${conflictRoom})`);
-  }
-
-  return { conflictRehearsals, conflictTheoryLessons, conflictCount };
-}
-
 // ─── Database Operations ─────────────────────────────────────────────────────
 
 async function dropSeededData(db) {
@@ -1104,27 +905,13 @@ async function seedData(db) {
   const theoryMs = Math.round(performance.now() - t6);
   console.log(`  Theory lessons: ${theoryLessons.length} (${theoryMs}ms)`);
 
-  // 9. Create intentional conflicts
-  console.log('');
-  console.log('  Creating intentional conflicts for Phase 32 testing...');
-  const { conflictRehearsals, conflictTheoryLessons, conflictCount } = generateConflicts(
-    teachers, rehearsals, theoryLessons, schoolYear._id
-  );
-  if (conflictRehearsals.length > 0) {
-    await db.collection('rehearsal').insertMany(conflictRehearsals);
-  }
-  if (conflictTheoryLessons.length > 0) {
-    await db.collection('theory_lesson').insertMany(conflictTheoryLessons);
-  }
-  console.log(`  Created ${conflictCount} intentional conflicts for Phase 32 testing`);
-
-  // 10. Create indexes
+  // 9. Create indexes
   const t4 = performance.now();
   await createIndexes(db);
   const indexMs = Math.round(performance.now() - t4);
   console.log(`  Indexes created (${indexMs}ms)`);
 
-  // 10b. Verification step
+  // 10. Verification step
   console.log('');
   console.log('  ── Schedule Verification ──');
   const tv = performance.now();
@@ -1233,10 +1020,9 @@ async function seedData(db) {
     teachers,
     students,
     orchestras,
-    rehearsals: rehearsals.length + conflictRehearsals.length,
-    theoryLessons: theoryLessons.length + conflictTheoryLessons.length,
+    rehearsals: rehearsals.length,
+    theoryLessons: theoryLessons.length,
     rooms: rooms.length,
-    conflicts: conflictCount,
     adminTeacher,
     totalTimeBlocks,
     totalLessons,
