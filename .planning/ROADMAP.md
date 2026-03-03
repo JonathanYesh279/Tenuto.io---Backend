@@ -237,12 +237,12 @@ Plans:
 - [x] 37-02-PLAN.md — Conflict prevention: DnD visual feedback and create dialog pre-check
 - [x] 37-03-PLAN.md — Dedicated fullscreen route with no sidebar/header
 - [x] 37-04-PLAN.md — Dual PDF export (grid-style + tabular), week 6-page PDF, filter-aware export
-- [ ] 37-05-PLAN.md — Gap fix: Seed data conflict-free room allocation + accent border prominence
-- [ ] 37-06-PLAN.md — Gap fix: DnD optimistic update with silent reload (no page refresh)
-- [ ] 37-07-PLAN.md — Gap fix: Create dialog placeholder + teacher conflict check
-- [ ] 37-08-PLAN.md — Gap fix: Fullscreen UX overhaul (fill viewport, expand grid)
-- [ ] 37-09-PLAN.md — Gap fix: PDF Hebrew font support for all exports
+- [x] 37-05-PLAN.md — Gap fix: Seed data conflict-free room allocation + accent border prominence
+- [x] 37-06-PLAN.md — Gap fix: DnD optimistic update with silent reload (no page refresh)
+- [x] 37-07-PLAN.md — Gap fix: Create dialog placeholder + teacher conflict check
+- [x] 37-08-PLAN.md — Gap fix: Fullscreen UX overhaul (fill viewport, expand grid)
+- [x] 37-09-PLAN.md — Gap fix: PDF Hebrew font support for all exports
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 37 gap closure plans created (5 fixes for UAT issues)*
+*Last updated: 2026-03-04 -- Phase 37 COMPLETE (9/9 plans, all gap closures verified)*
