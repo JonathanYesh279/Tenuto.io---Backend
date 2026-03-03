@@ -118,6 +118,36 @@ const CITIES = [
   'הוד השרון', 'גבעתיים', 'רחובות', 'לוד', 'רמלה', 'עכו',
 ];
 
+// ─── Room Occupancy Tracking ─────────────────────────────────────────────────
+
+/** Global map: key = `${room}::${dayIndex}`, value = [{start, end}] minute ranges */
+const roomOccupancy = new Map();
+
+function isRoomAvailable(room, dayIndex, startMin, endMin) {
+  const key = `${room}::${dayIndex}`;
+  const entries = roomOccupancy.get(key);
+  if (!entries) return true;
+  return !entries.some(e => startMin < e.end && endMin > e.start);
+}
+
+/**
+ * Find an available room for the given day + time range.
+ * Shuffles LOCATIONS, returns the first available room.
+ * Records occupancy on success. Returns null if no room is free.
+ */
+function pickAvailableRoom(dayIndex, startMin, endMin) {
+  const shuffled = [...LOCATIONS].sort(() => Math.random() - 0.5);
+  for (const room of shuffled) {
+    if (isRoomAvailable(room, dayIndex, startMin, endMin)) {
+      const key = `${room}::${dayIndex}`;
+      if (!roomOccupancy.has(key)) roomOccupancy.set(key, []);
+      roomOccupancy.get(key).push({ start: startMin, end: endMin });
+      return room;
+    }
+  }
+  return null;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -291,7 +321,10 @@ async function generateTeachers() {
         const startMin = pick([0, 30]);
         const startTotalMin = startHour * 60 + startMin;
         const endTotalMin = startTotalMin + spanHours * 60;
-        const location = pick(LOCATIONS);
+        const dayIndex = DAY_INDICES[day];
+        const room = pickAvailableRoom(dayIndex, startTotalMin, endTotalMin);
+        if (!room) continue; // skip this time block if no room available
+        const location = room;
 
         timeBlocks.push({
           _id: new ObjectId(),
@@ -646,6 +679,12 @@ function generateRehearsals(orchestras, schoolYearId) {
       const dates = generateDatesForDay(dayIndex, 1);
       const date = dates.length > 0 ? dates[0] : new Date('2024-10-01');
 
+      // Conflict-aware room selection
+      const startTotalMin = timeToMinutes(start.str);
+      const endTotalMin = timeToMinutes(endTime);
+      const room = pickAvailableRoom(dayIndex, startTotalMin, endTotalMin);
+      if (!room) continue; // skip this rehearsal if no room available
+
       rehearsals.push({
         _id: new ObjectId(),
         tenantId: TENANT_ID_STR,
@@ -655,7 +694,7 @@ function generateRehearsals(orchestras, schoolYearId) {
         dayOfWeek: dayIndex,
         startTime: start.str,
         endTime,
-        location: pick(LOCATIONS),
+        location: room,
         attendance: { present: [], absent: [] },
         notes: '',
         schoolYearId: schoolYearId.toHexString(),
@@ -698,6 +737,12 @@ function generateTheoryLessons(teachers, students, schoolYearId) {
       const dates = generateDatesForDay(dayIndex, 1);
       const date = dates.length > 0 ? dates[0] : new Date('2024-10-01');
 
+      // Conflict-aware room selection
+      const startTotalMin = timeToMinutes(start.str);
+      const endTotalMin = timeToMinutes(endTime);
+      const room = pickAvailableRoom(dayIndex, startTotalMin, endTotalMin);
+      if (!room) continue; // skip this theory lesson if no room available
+
       // Assign 5-15 random students
       const lessonStudentIds = pickN(studentIds, randInt(5, 15)).map(id => id.toString());
 
@@ -710,7 +755,7 @@ function generateTheoryLessons(teachers, students, schoolYearId) {
         dayOfWeek: dayIndex,
         startTime: start.str,
         endTime,
-        location: pick(LOCATIONS),
+        location: room,
         studentIds: lessonStudentIds,
         notes: '',
         schoolYearId: schoolYearId.toHexString(),
@@ -792,6 +837,9 @@ async function createIndexes(db) {
 }
 
 async function seedData(db) {
+  // Clear room occupancy for re-runs
+  roomOccupancy.clear();
+
   // 1. Create tenant
   const tenant = generateTenant();
   await db.collection('tenant').insertOne(tenant);
@@ -1093,7 +1141,6 @@ async function main() {
     console.log(`      Orchestras:     ${result.orchestras.length}`);
     console.log(`      Rehearsals:     ${result.rehearsals}`);
     console.log(`      Theory lessons: ${result.theoryLessons}`);
-    console.log(`      Conflicts:      ${result.conflicts}`);
     console.log(`  ${line}`);
     console.log('');
   } catch (err) {
