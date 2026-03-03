@@ -41,6 +41,7 @@ import tenantRoutes from './api/tenant/tenant.route.js';
 import hoursSummaryRoutes from './api/hours-summary/hours-summary.route.js';
 import importRoutes from './api/import/import.route.js';
 import exportRoutes from './api/export/export.route.js';
+import roomScheduleRoutes from './api/room-schedule/room-schedule.route.js';
 import superAdminRoutes from './api/super-admin/super-admin.route.js';
 import { cascadeSystemInitializer } from './services/cascadeSystemInitializer.js';
 import { errorHandler } from './middleware/error.handler.js';
@@ -328,6 +329,16 @@ app.use(
   stripTenantId,
   addSchoolYearToRequest,
   exportRoutes
+);
+app.use(
+  '/api/room-schedule',
+  authenticateToken,
+  enrichImpersonationContext,
+  buildContext,
+  enforceTenant,
+  stripTenantId,
+  addSchoolYearToRequest,
+  roomScheduleRoutes
 );
 // Super admin routes (auth handled internally)
 app.use('/api/super-admin', superAdminRoutes);
