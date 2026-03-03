@@ -213,24 +213,18 @@ const validateSchoolYear = async (req, res, next) => {
 };
 
 /**
- * Validate location against allowed values
+ * Validate location against tenant's active room list.
+ * Delegates to the shared roomValidation middleware.
+ * Kept for backward compatibility with existing middleware chains.
+ * @deprecated Use validateRoomExists from middleware/roomValidation.js directly.
  */
 const validateLocation = async (req, res, next) => {
   const { location } = req.body;
-  
   if (!location) return next();
 
   try {
-    // Import the valid locations from validation
-    const { VALID_THEORY_LOCATIONS } = await import('../api/theory/theory.validation.js');
-    
-    if (!VALID_THEORY_LOCATIONS.includes(location)) {
-      return sendErrorResponse(res, 'VALIDATION_ERROR', [{ 
-        message: `Location must be one of: ${VALID_THEORY_LOCATIONS.join(', ')}` 
-      }]);
-    }
-
-    next();
+    const { validateRoomExists } = await import('./roomValidation.js');
+    return validateRoomExists(req, res, next);
   } catch (error) {
     console.error('Error validating location:', error);
     return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'Error validating location');

@@ -12,6 +12,7 @@ export const tenantController = {
   addRoom,
   updateRoom,
   deactivateRoom,
+  importRooms,
 };
 
 async function getTenants(req, res) {
@@ -105,6 +106,20 @@ async function deactivateRoom(req, res) {
   } catch (err) {
     log.error({ err: err.message }, 'Error deactivating room');
     const status = err.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function importRooms(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+    const result = await tenantService.importRooms(req.params.id, req.file.buffer);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error importing rooms');
+    const status = err.message.includes('not found') ? 404 : 400;
     res.status(status).json({ success: false, error: err.message });
   }
 }

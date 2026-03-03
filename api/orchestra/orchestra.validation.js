@@ -82,7 +82,6 @@ export const orchestraSchema = Joi.object({
   scheduleSlots: Joi.array().items(scheduleSlotSchema).default([]),
   schoolYearId: Joi.string().required(),
   location: Joi.string()
-    .valid(...VALID_LOCATIONS)
     .default('חדר 1'),
   ministryData: ministryDataSchema,
   isActive: Joi.boolean().default(true),
@@ -108,7 +107,6 @@ export const orchestraUpdateSchema = Joi.object({
   scheduleSlots: Joi.array().items(scheduleSlotSchema).optional(),
   schoolYearId: Joi.string().optional(),
   location: Joi.string()
-    .valid(...VALID_LOCATIONS)
     .optional(),
   ministryData: Joi.object({
     coordinationHours: Joi.number().min(0).max(50).allow(null),

@@ -1,14 +1,15 @@
 import express from 'express'
 import { orchestraController } from './orchestra.controller.js'
 import { requireAuth } from '../../middleware/auth.middleware.js';
+import { validateRoomExists } from '../../middleware/roomValidation.js';
 
 const router = express.Router()
 
 router.get('/', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), orchestraController.getOrchestras)
 router.get('/:id', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), orchestraController.getOrchestraById)
 
-router.post('/', requireAuth(['מנהל']), orchestraController.addOrchestra)
-router.put('/:id', requireAuth(['מנהל', 'מנצח']), orchestraController.updateOrchestra)
+router.post('/', requireAuth(['מנהל']), validateRoomExists, orchestraController.addOrchestra)
+router.put('/:id', requireAuth(['מנהל', 'מנצח']), validateRoomExists, orchestraController.updateOrchestra)
 router.delete('/:id', requireAuth(['מנהל']), orchestraController.removeOrchestra)
 
 router.post('/:id/members', requireAuth(['מנהל', 'מנצח', 'מדריך הרכב']), orchestraController.addMember)

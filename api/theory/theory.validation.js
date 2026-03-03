@@ -111,10 +111,8 @@ export const theoryLessonSchema = Joi.object({
     }),
 
   location: Joi.string()
-    .valid(...VALID_THEORY_LOCATIONS)
     .required()
     .messages({
-      'any.only': `Location must be one of the valid classroom locations`,
       'any.required': 'Location is required',
     }),
 
@@ -218,7 +216,6 @@ export const theoryBulkCreateSchema = Joi.object({
     .required(),
 
   location: Joi.string()
-    .valid(...VALID_THEORY_LOCATIONS)
     .required(),
 
   studentIds: Joi.array().items(
@@ -312,11 +309,7 @@ export const theoryLessonUpdateSchema = Joi.object({
     }),
 
   location: Joi.string()
-    .valid(...VALID_THEORY_LOCATIONS)
-    .optional()
-    .messages({
-      'any.only': `Location must be one of the valid classroom locations`,
-    }),
+    .optional(),
 
   studentIds: Joi.array().items(
     Joi.string().custom((value, helpers) => {

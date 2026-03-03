@@ -3,6 +3,7 @@ import { validateTenant, validateRoom } from './tenant.validation.js';
 import { ObjectId } from 'mongodb';
 import { createLogger } from '../../services/logger.service.js';
 import { COLLECTIONS } from '../../config/constants.js';
+import XLSX from 'xlsx';
 
 const log = createLogger('tenant.service');
 
@@ -16,6 +17,7 @@ export const tenantService = {
   addRoom,
   updateRoom,
   deactivateRoom,
+  importRooms,
 };
 
 async function getTenants() {
@@ -215,4 +217,89 @@ async function deactivateRoom(tenantId, roomId) {
 
   log.info({ tenantId, roomId }, 'Room deactivated');
   return result.settings?.rooms || [];
+}
+
+/**
+ * Import rooms from an Excel file buffer.
+ * Reads room names from column A of the first sheet, normalizes them,
+ * skips duplicates (both within the file and against existing rooms),
+ * and adds new rooms to the tenant's settings.rooms[].
+ */
+async function importRooms(tenantId, buffer) {
+  const workbook = XLSX.read(buffer, { type: 'buffer' });
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    throw new Error('Excel file has no sheets');
+  }
+
+  const sheet = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+  if (rows.length === 0) {
+    throw new Error('Excel file is empty');
+  }
+
+  // Detect header row — skip if first cell matches common header labels
+  const HEADER_PATTERNS = ['name', 'room', 'rooms', '\u05D7\u05D3\u05E8', '\u05E9\u05DD', '\u05E9\u05DD \u05D7\u05D3\u05E8'];
+  let startIndex = 0;
+  const firstCell = String(rows[0]?.[0] || '').trim().toLowerCase();
+  if (HEADER_PATTERNS.includes(firstCell)) {
+    startIndex = 1;
+  }
+
+  // Extract and normalize names from column A
+  const seen = new Set();
+  const names = [];
+  for (let i = startIndex; i < rows.length; i++) {
+    const raw = rows[i]?.[0];
+    if (raw === undefined || raw === null) continue;
+    const name = String(raw).trim().replace(/\s+/g, ' ');
+    if (!name) continue;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    names.push(name);
+  }
+
+  if (names.length === 0) {
+    throw new Error('No room names found in Excel file');
+  }
+
+  // Get existing rooms
+  const existingRooms = await getRooms(tenantId);
+  const existingNames = new Set(existingRooms.map(r => r.name));
+
+  // Determine new rooms
+  const newRooms = [];
+  let skipped = 0;
+  for (const name of names) {
+    if (existingNames.has(name)) {
+      skipped++;
+      continue;
+    }
+    newRooms.push({
+      _id: new ObjectId(),
+      name,
+      isActive: true,
+      createdAt: new Date(),
+    });
+  }
+
+  if (newRooms.length > 0) {
+    const collection = await getCollection(COLLECTIONS.TENANT);
+    await collection.updateOne(
+      { _id: ObjectId.createFromHexString(tenantId) },
+      {
+        $push: { 'settings.rooms': { $each: newRooms } },
+        $set: { updatedAt: new Date() },
+      }
+    );
+  }
+
+  const allRooms = await getRooms(tenantId);
+  log.info(
+    { tenantId, added: newRooms.length, skipped },
+    'Rooms imported from Excel'
+  );
+
+  return { added: newRooms.length, skipped, rooms: allRooms };
 }
