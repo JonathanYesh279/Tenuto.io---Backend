@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.6 Room & Hours Management Table — Phase 31: Room Data Foundation
+**Current focus:** v1.6 Room & Hours Management Table — Phase 32: Hours Management Table
 
 ## Current Position
 
-Phase: 31 of 35 (Room Data Foundation)
-Plan: 2 of 3 in current phase
-Status: Executing
-Last activity: 2026-03-03 — Completed 31-02 (Dynamic Room Validation & Excel Import)
+Phase: 32 of 35 (Hours Management Table)
+Plan: 1 of ? in current phase
+Status: Ready
+Last activity: 2026-03-03 — Completed Phase 31 (Room Data Foundation) - all 3 plans
 
-Progress: [##............] 15% (v1.6) — 2/13 plans
+Progress: [###...........] 23% (v1.6) — 3/13 plans
 
 ## Performance Metrics
 
@@ -43,6 +43,9 @@ Progress: [##............] 15% (v1.6) — 2/13 plans
 - 31-02: Backward compat: skip room validation when tenant has no rooms configured
 - 31-02: theoryValidation.validateLocation delegates to roomValidation.validateRoomExists
 - 31-02: Migration seeds VALID_THEORY_LOCATIONS (34 rooms) for tenants without rooms
+- 31-03: Theory categories subset (6 of 14) sufficient for dev testing
+- 31-03: 12 intentional conflicts: 6 same-room, 3 cross-source, 3 teacher double-booking
+- 31-03: LOCATIONS array produces 29 rooms; all location fields use consistent `location` name
 
 ### Pending Todos
 
@@ -57,9 +60,10 @@ None.
 |-------|------|----------|-------|-------|
 | 31    | 01   | 14min    | 2     | 6     |
 | 31    | 02   | 11min    | 2     | 12    |
+| 31    | 03   | 6min     | 1     | 1     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 31-02-PLAN.md (Dynamic Room Validation & Excel Import)
-Resume: `/gsd:execute-phase 31` (plan 03 next)
+Stopped at: Completed Phase 31 (Room Data Foundation) - all 3 plans complete
+Resume: `/gsd:execute-phase 32` (next phase)
