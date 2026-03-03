@@ -163,12 +163,12 @@ Plans:
   3. When a drag target would cause a teacher, student, or room conflict, the drop is blocked and an error message explains the conflict
   4. Admin can type a teacher name to filter the grid to show only that teacher's activities
   5. Admin can filter by room name or activity type (private/rehearsal/theory) and the grid updates immediately
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 34-01: Filter controls (teacher, room, activity type)
-- [ ] 34-02: Click-to-create lesson in empty cells
-- [ ] 34-03: Drag-and-drop with @dnd-kit, conflict validation, and optimistic updates
+- [ ] 34-01-PLAN.md — Filter controls (teacher search, room select, activity type toggles) and empty rooms display
+- [ ] 34-02-PLAN.md — Click-to-create lesson dialog with teacher selection in empty grid cells
+- [ ] 34-03-PLAN.md — Drag-and-drop with @dnd-kit/core, conflict validation, and move API integration
 
 ### Phase 35: Polish & Week Overview
 **Goal**: Admins can print a day's schedule, see a compact week overview, and understand room utilization at a glance
@@ -201,4 +201,4 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 33 complete*
+*Last updated: 2026-03-03 -- Phase 34 planned*
