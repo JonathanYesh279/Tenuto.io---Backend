@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.6 Room & Hours Management Table — Phase 33: Read-Only Room Grid UI
+**Current focus:** v1.6 Room & Hours Management Table — Phase 34: Grid Interaction
 
 ## Current Position
 
-Phase: 33 of 35 (Read-Only Room Grid UI)
-Plan: 3 of 3 in current phase (PHASE COMPLETE)
-Status: Phase 33 Complete
-Last activity: 2026-03-03 — Completed 33-03 (Summary Stats Bar and Unassigned Activities)
+Phase: 34 of 35 (Grid Interaction)
+Plan: 1 of 3 in current phase
+Status: Executing Phase 34
+Last activity: 2026-03-03 — Completed 34-01 (Filter Controls and Empty Rooms)
 
-Progress: [########......] 62% (v1.6) — 8/13 plans
+Progress: [#########.....] 69% (v1.6) — 9/13 plans
 
 ## Performance Metrics
 
@@ -65,6 +65,10 @@ Progress: [########......] 62% (v1.6) — 8/13 plans
 - 33-03: Conflict count card dynamically switches green/red based on count value
 - 33-03: Shared utils.ts extracted for timeToMinutes and grid constants (eliminates duplication)
 - 33-03: Slot occupancy computed via Set<number> per room for correct overlap handling
+- 34-01: Client-side filtering via useMemo (no new API calls) -- schedule data per day is small
+- 34-01: Empty rooms from tenant settings merged into filteredRooms for grid display
+- 34-01: Stats recomputed from filteredRooms so summary bar reflects active filter state
+- 34-01: DAY_NAMES moved to shared utils.ts; minutesToTime added for Plan 34-03
 
 ### Pending Todos
 
@@ -85,9 +89,10 @@ None.
 | 33    | 01   | 7min     | 2     | 6     |
 | 33    | 02   | 10min    | 2     | 2     |
 | 33    | 03   | 6min     | 2     | 5     |
+| 34    | 01   | 6min     | 2     | 4     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 33-03-PLAN.md (Summary Stats Bar and Unassigned Activities) -- Phase 33 complete
-Resume: `/gsd:execute-phase 34` to begin Phase 34 (Drag-and-Drop Room Assignment)
+Stopped at: Completed 34-01-PLAN.md (Filter Controls and Empty Rooms)
+Resume: Continue with 34-02-PLAN.md (Click-to-Create Lesson Dialog)
