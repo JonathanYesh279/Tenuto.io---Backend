@@ -220,6 +220,24 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36
 
 **Previous milestones:** 30 phases, 66 plans across 6 milestones (all shipped)
 
+### Phase 37: Room Schedule UX Fixes & Conflict Prevention
+
+**Goal:** Improve room schedule grid usability with larger readable cells, conflict prevention at scheduling time, a fullscreen route, and dual-format PDF export
+**Depends on:** Phase 36
+**Plans:** 4 plans
+**Success Criteria** (what must be TRUE):
+  1. Each cell shows 3 lines of info (teacher, student, time) without needing to hover, with accent borders per type
+  2. Conflicts are prevented at scheduling time: create dialog pre-checks and DnD visual feedback (green/red)
+  3. A fullscreen route at /room-schedule/fullscreen renders the grid without sidebar/header
+  4. PDF export supports grid-style visual and tabular formats, week PDF with 6 pages, filter-aware output
+  5. Filter toggles have clear on/off visual states; seed data has zero intentional conflicts
+
+Plans:
+- [ ] 37-01-PLAN.md — Cell readability, visual polish, filter toggle states, and seed cleanup
+- [ ] 37-02-PLAN.md — Conflict prevention: DnD visual feedback and create dialog pre-check
+- [ ] 37-03-PLAN.md — Dedicated fullscreen route with no sidebar/header
+- [ ] 37-04-PLAN.md — Dual PDF export (grid-style + tabular), week 6-page PDF, filter-aware export
+
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 36 complete, v1.6 shipped*
+*Last updated: 2026-03-03 -- Phase 37 planned (4 plans, 3 waves)*
