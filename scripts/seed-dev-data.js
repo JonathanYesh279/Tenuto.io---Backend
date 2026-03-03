@@ -1092,7 +1092,62 @@ async function seedData(db) {
   console.log(`    Cross-references valid: ${crossRefValid}/${crossRefTotal}`);
   console.log(`    Verification time: ${verifyMs}ms`);
 
-  if (invalidBlockRef === 0 && missingScheduleInfo === 0 && timeMismatch === 0 && crossRefValid === crossRefTotal) {
+  // Room conflict audit: check for block-level overlaps in same room+day
+  const roomDayBlocks = new Map(); // key: room::day -> [{start, end, teacher}]
+  for (const t of teachers) {
+    const tName = `${t.personalInfo.firstName} ${t.personalInfo.lastName}`;
+    for (const block of (t.teaching?.timeBlocks || [])) {
+      const key = `${block.location}::${block.day}`;
+      if (!roomDayBlocks.has(key)) roomDayBlocks.set(key, []);
+      roomDayBlocks.get(key).push({
+        start: timeToMinutes(block.startTime),
+        end: timeToMinutes(block.endTime),
+        teacher: tName,
+      });
+    }
+  }
+  // Also check rehearsals and theory lessons
+  for (const r of rehearsals) {
+    const dayName = VALID_DAYS[r.dayOfWeek] || `day${r.dayOfWeek}`;
+    const key = `${r.location}::${dayName}`;
+    if (!roomDayBlocks.has(key)) roomDayBlocks.set(key, []);
+    roomDayBlocks.get(key).push({
+      start: timeToMinutes(r.startTime),
+      end: timeToMinutes(r.endTime),
+      teacher: 'rehearsal',
+    });
+  }
+  for (const tl of theoryLessons) {
+    const dayName = VALID_DAYS[tl.dayOfWeek] || `day${tl.dayOfWeek}`;
+    const key = `${tl.location}::${dayName}`;
+    if (!roomDayBlocks.has(key)) roomDayBlocks.set(key, []);
+    roomDayBlocks.get(key).push({
+      start: timeToMinutes(tl.startTime),
+      end: timeToMinutes(tl.endTime),
+      teacher: 'theory',
+    });
+  }
+  let roomConflicts = 0;
+  const conflictExamples = [];
+  for (const [key, slots] of roomDayBlocks) {
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        const a = slots[i], b = slots[j];
+        if (a.start < b.end && a.end > b.start) {
+          roomConflicts++;
+          if (conflictExamples.length < 3) {
+            conflictExamples.push(`${key}: ${a.teacher} ${minutesToTime(a.start)}-${minutesToTime(a.end)} vs ${b.teacher} ${minutesToTime(b.start)}-${minutesToTime(b.end)}`);
+          }
+        }
+      }
+    }
+  }
+  console.log(`    Room-time conflicts: ${roomConflicts}`);
+  if (conflictExamples.length > 0) {
+    for (const ex of conflictExamples) console.log(`      ↳ ${ex}`);
+  }
+
+  if (invalidBlockRef === 0 && missingScheduleInfo === 0 && timeMismatch === 0 && crossRefValid === crossRefTotal && roomConflicts === 0) {
     console.log('    All checks passed');
   } else {
     console.log('    Issues detected -- see counts above');
