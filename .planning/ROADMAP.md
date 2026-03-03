@@ -98,7 +98,7 @@ See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 
 - [x] **Phase 31: Room Data Foundation** (3/3 plans) — completed 2026-03-03
 - [x] **Phase 32: Room Schedule API & Conflict Detection** (2/2 plans) — completed 2026-03-03
-- [ ] **Phase 33: Read-Only Room Grid UI** — Visual rooms x time-slots matrix with day tabs, color coding, and summary statistics
+- [x] **Phase 33: Read-Only Room Grid UI** (3/3 plans) — completed 2026-03-03
 - [ ] **Phase 34: Grid Interaction** — Drag-and-drop lesson movement, click-to-create, and filter controls
 - [ ] **Phase 35: Polish & Week Overview** — Print/export, compact week view, and room utilization indicators
 
@@ -149,9 +149,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 33-01-PLAN.md — API service, route/sidebar registration, page skeleton with day selector and CSS grid
-- [ ] 33-02-PLAN.md — ActivityCell color coding, conflict indicators, tooltips, and conflict stacking
-- [ ] 33-03-PLAN.md — Summary statistics bar and unassigned activities row
+- [x] 33-01-PLAN.md — API service, route/sidebar registration, page skeleton with day selector and CSS grid
+- [x] 33-02-PLAN.md — ActivityCell color coding, conflict indicators, tooltips, and conflict stacking
+- [x] 33-03-PLAN.md — Summary statistics bar and unassigned activities row
 
 ### Phase 34: Grid Interaction
 **Goal**: Admins can create lessons in empty slots, move lessons between rooms/times via drag-and-drop, and filter the grid
@@ -193,7 +193,7 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 |-------|-----------|----------------|--------|-----------|
 | 31. Room Data Foundation | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
 | 32. Room Schedule API & Conflict Detection | v1.6 | 2/2 | ✓ Complete | 2026-03-03 |
-| 33. Read-Only Room Grid UI | v1.6 | 0/3 | Not started | - |
+| 33. Read-Only Room Grid UI | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
 | 34. Grid Interaction | v1.6 | 0/3 | Not started | - |
 | 35. Polish & Week Overview | v1.6 | 0/2 | Not started | - |
 
@@ -201,4 +201,4 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 33 planned*
+*Last updated: 2026-03-03 -- Phase 33 complete*
