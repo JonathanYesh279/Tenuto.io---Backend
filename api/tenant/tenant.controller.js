@@ -8,6 +8,10 @@ export const tenantController = {
   getTenantById,
   createTenant,
   updateTenant,
+  getRooms,
+  addRoom,
+  updateRoom,
+  deactivateRoom,
 };
 
 async function getTenants(req, res) {
@@ -49,6 +53,58 @@ async function updateTenant(req, res) {
   } catch (err) {
     log.error({ err: err.message }, 'Error updating tenant');
     const status = err.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function getRooms(req, res) {
+  try {
+    const rooms = await tenantService.getRooms(req.params.id);
+    res.json({ success: true, data: rooms });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error getting rooms');
+    const status = err.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function addRoom(req, res) {
+  try {
+    const room = await tenantService.addRoom(req.params.id, req.body);
+    res.status(201).json({ success: true, data: room });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error adding room');
+    const status = err.message.includes('already exists')
+      ? 409
+      : err.message.includes('not found')
+        ? 404
+        : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function updateRoom(req, res) {
+  try {
+    const rooms = await tenantService.updateRoom(req.params.id, req.params.roomId, req.body);
+    res.json({ success: true, data: rooms });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error updating room');
+    const status = err.message.includes('already exists')
+      ? 409
+      : err.message.includes('not found')
+        ? 404
+        : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function deactivateRoom(req, res) {
+  try {
+    const rooms = await tenantService.deactivateRoom(req.params.id, req.params.roomId);
+    res.json({ success: true, data: rooms });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error deactivating room');
+    const status = err.message.includes('not found') ? 404 : 500;
     res.status(status).json({ success: false, error: err.message });
   }
 }

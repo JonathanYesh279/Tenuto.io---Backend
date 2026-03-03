@@ -26,6 +26,12 @@ export const tenantSchema = Joi.object({
   settings: Joi.object({
     lessonDurations: Joi.array().items(Joi.number().positive()).default([30, 45, 60]),
     schoolStartMonth: Joi.number().min(1).max(12).default(9),
+    rooms: Joi.array().items(Joi.object({
+      _id: Joi.any(),
+      name: Joi.string().trim().required(),
+      isActive: Joi.boolean().default(true),
+      createdAt: Joi.date().default(() => new Date()),
+    })).optional().default([]),
   }).default({ lessonDurations: [30, 45, 60], schoolStartMonth: 9 }),
 
   subscription: Joi.object({
@@ -93,6 +99,12 @@ export const tenantUpdateSchema = Joi.object({
   settings: Joi.object({
     lessonDurations: Joi.array().items(Joi.number().positive()),
     schoolStartMonth: Joi.number().min(1).max(12),
+    rooms: Joi.array().items(Joi.object({
+      _id: Joi.any(),
+      name: Joi.string().trim().required(),
+      isActive: Joi.boolean(),
+      createdAt: Joi.date(),
+    })).optional(),
   }),
 
   subscription: Joi.object({
@@ -134,4 +146,12 @@ export const tenantUpdateSchema = Joi.object({
 export function validateTenant(tenant, isUpdate = false) {
   const schema = isUpdate ? tenantUpdateSchema : tenantSchema;
   return schema.validate(tenant, { abortEarly: false });
+}
+
+export const roomSchema = Joi.object({
+  name: Joi.string().trim().min(1).max(100).required(),
+});
+
+export function validateRoom(data) {
+  return roomSchema.validate(data, { abortEarly: false });
 }
