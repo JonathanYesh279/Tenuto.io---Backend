@@ -233,11 +233,11 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36
   5. Filter toggles have clear on/off visual states; seed data has zero intentional conflicts
 
 Plans:
-- [ ] 37-01-PLAN.md — Cell readability, visual polish, filter toggle states, and seed cleanup
-- [ ] 37-02-PLAN.md — Conflict prevention: DnD visual feedback and create dialog pre-check
-- [ ] 37-03-PLAN.md — Dedicated fullscreen route with no sidebar/header
-- [ ] 37-04-PLAN.md — Dual PDF export (grid-style + tabular), week 6-page PDF, filter-aware export
+- [x] 37-01-PLAN.md — Cell readability, visual polish, filter toggle states, and seed cleanup
+- [x] 37-02-PLAN.md — Conflict prevention: DnD visual feedback and create dialog pre-check
+- [x] 37-03-PLAN.md — Dedicated fullscreen route with no sidebar/header
+- [x] 37-04-PLAN.md — Dual PDF export (grid-style + tabular), week 6-page PDF, filter-aware export
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 37 planned (4 plans, 3 waves)*
+*Last updated: 2026-03-03 -- Phase 37 complete (4/4 plans)*

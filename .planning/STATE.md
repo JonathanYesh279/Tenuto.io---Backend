@@ -107,6 +107,7 @@ Progress: [##############] 4/4 plans (Phase 37) COMPLETE
 - 37-04: Grid PDF uses 5pt font, 1pt cell padding to fit 24 time columns in landscape
 - 37-04: applyFilters extracted as standalone function for reuse in useMemo and PDF callbacks
 - 37-04: Spanning activity slots show '...' continuation marker in grid PDF cells
+- 37-fix: Hebrew prefix labels (מורה:/תלמיד:) added to ActivityCell 3-line content per verification gap
 
 ### Roadmap Evolution
 
