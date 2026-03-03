@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 37 (Room Schedule UX Fixes & Conflict Prevention)
-Plan: 6 of 9 in current phase (Plans 01-06 COMPLETE, 07-09 gap closure remaining)
+Plan: 7 of 9 in current phase (Plans 01-07 COMPLETE, 08-09 gap closure remaining)
 Status: Executing gap closure plans
-Last activity: 2026-03-03 — Phase 37 Plan 06 executed (gap closure)
+Last activity: 2026-03-03 — Phase 37 Plan 07 executed (gap closure)
 
-Progress: [##########----] 6/9 plans (Phase 37 gap closure)
+Progress: [###########---] 7/9 plans (Phase 37 gap closure)
 
 ## Performance Metrics
 
@@ -115,6 +115,9 @@ Progress: [##########----] 6/9 plans (Phase 37 gap closure)
 - 37-06: silentReloadSchedule skips setLoading to keep grid mounted and scroll preserved during DnD
 - 37-06: Optimistic state update in handleDragEnd before API call for instant visual feedback
 - 37-06: scrollContainerRef approach removed -- grid never unmounts so scroll is naturally preserved
+- 37-07: JSX expression syntax {''} for placeholder instead of HTML attribute to ensure bundler interprets unicode escapes
+- 37-07: Skip same-room in teacher double-booking loop to avoid duplicate warnings with room conflict
+- 37-07: String() coercion on both sides of teacherId comparison for safety against ObjectId type mismatches
 
 ### Roadmap Evolution
 
@@ -151,9 +154,10 @@ None.
 | 37    | 04   | 4min     | 2     | 2     |
 | 37    | 05   | 3min     | 2     | 2     |
 | 37    | 06   | 8min     | 1     | 1     |
+| 37    | 07   | 4min     | 1     | 1     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 37-06-PLAN.md (gap closure)
-Resume: Continue with 37-07-PLAN.md through 37-09-PLAN.md gap closure plans
+Stopped at: Completed 37-07-PLAN.md (gap closure)
+Resume: Continue with 37-08-PLAN.md through 37-09-PLAN.md gap closure plans
