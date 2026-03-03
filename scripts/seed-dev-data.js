@@ -129,15 +129,33 @@ function pickN(arr, n) {
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function pad(n) { return String(n).padStart(2, '0'); }
 function generatePhone() { return `05${randInt(0, 9)}-${randInt(1000000, 9999999)}`; }
-function generateTime() {
-  const hour = randInt(8, 18);
-  const minute = pick([0, 30]);
-  return `${pad(hour)}:${pad(minute)}`;
-}
 function generateAlignedStartTime() {
   const hour = randInt(8, 17);
   const minute = pick([0, 30]);
   return { hour, minute, str: `${pad(hour)}:${pad(minute)}` };
+}
+
+// ─── Schedule Helpers (ported from seed-schedules.js) ────────────────────────
+
+function minutesToTime(totalMin) {
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${pad(h)}:${pad(m)}`;
+}
+
+function timeToMinutes(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+/**
+ * Pick a lesson duration with distribution: 30 min (50%), 45 min (40%), 60 min (10%)
+ */
+function pickDuration() {
+  const r = Math.random();
+  if (r < 0.5) return 30;
+  if (r < 0.9) return 45;
+  return 60;
 }
 function addHours(timeStr, hours) {
   const [h, m] = timeStr.split(':').map(Number);
@@ -250,7 +268,7 @@ async function generateTeachers() {
       if (isAdmin) roles.push('מנהל');
       if (isConductor) roles.push('מנצח');
 
-      // Generate 2-4 time blocks per teacher
+      // Generate 2-4 time blocks per teacher (morning/afternoon pattern)
       const timeBlockCount = randInt(2, 4);
       const timeBlocks = [];
       const usedDays = new Set();
@@ -261,17 +279,34 @@ async function generateTeachers() {
         while (usedDays.has(day) && attempts < 10) { day = pick(VALID_DAYS); attempts++; }
         usedDays.add(day);
 
-        const startHour = randInt(8, 15);
+        // Morning (08-10 start) or afternoon (13-15 start) with 3-5 hour span
+        const isMorning = Math.random() < 0.5;
+        let startHour, spanHours;
+        if (isMorning) {
+          startHour = randInt(8, 10);
+          spanHours = randInt(3, 5);
+        } else {
+          startHour = randInt(13, 15);
+          spanHours = randInt(3, 5);
+        }
         const startMin = pick([0, 30]);
-        const endHour = startHour + randInt(2, 4);
+        const startTotalMin = startHour * 60 + startMin;
+        const endTotalMin = startTotalMin + spanHours * 60;
+        const location = pick(LOCATIONS);
 
         timeBlocks.push({
           _id: new ObjectId(),
           day,
-          startTime: `${pad(startHour)}:${pad(startMin)}`,
-          endTime: `${pad(Math.min(endHour, 19))}:${pad(startMin)}`,
-          location: pick(LOCATIONS),
+          startTime: minutesToTime(startTotalMin),
+          endTime: minutesToTime(endTotalMin),
+          totalDuration: spanHours * 60,
+          location,
+          isActive: true,
+          recurring: { isRecurring: true, excludeDates: [] },
+          notes: null,
           assignedLessons: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
         });
       }
 
@@ -308,9 +343,16 @@ async function generateTeachers() {
   return teachers;
 }
 
+/**
+ * Generate students with properly-aligned teacherAssignments.
+ * Uses cursor-based back-to-back packing to place students within teacher time blocks.
+ * Returns { students, lessonRefs } where lessonRefs is Map(teacherId -> Map(blockId -> lesson[]))
+ */
 function generateStudents(teachers) {
   const students = [];
+  const lessonRefs = new Map(); // teacherId -> Map(blockId -> lessonRef[])
   let nameIdx = 0;
+  let overflowCount = 0;
 
   const basePerTeacher = Math.floor(STUDENT_TARGET / teachers.length);
   let remainder = STUDENT_TARGET - basePerTeacher * teachers.length;
@@ -318,72 +360,221 @@ function generateStudents(teachers) {
   for (const teacher of teachers) {
     const count = basePerTeacher + (remainder-- > 0 ? 1 : 0);
     const instrument = teacher.professionalInfo.instruments[0];
-    const teacherTimeBlock = teacher.teaching.timeBlocks[0];
+    const teacherId = teacher._id.toHexString();
+    const teacherName = `${teacher.personalInfo.firstName} ${teacher.personalInfo.lastName}`;
 
+    // Build block slots with cursor-based packing
+    const blocks = teacher.teaching.timeBlocks;
+    const blockSlots = blocks.map(b => ({
+      block: b,
+      capacity: timeToMinutes(b.endTime) - timeToMinutes(b.startTime),
+      cursor: timeToMinutes(b.startTime),
+      endMin: timeToMinutes(b.endTime),
+    }));
+    const totalCapacity = blockSlots.reduce((sum, bs) => sum + bs.capacity, 0);
+
+    // Collect this teacher's students in order so we can pack them
+    const teacherStudents = [];
     for (let i = 0; i < count; i++) {
       const firstName = FIRST_NAMES[nameIdx % FIRST_NAMES.length];
       const lastName = LAST_NAMES[Math.floor(nameIdx / FIRST_NAMES.length) % LAST_NAMES.length];
       nameIdx++;
+      teacherStudents.push({ firstName, lastName, nameIdx });
+    }
 
-      const duration = pick(VALID_DURATIONS);
-      const day = teacherTimeBlock.day;
-      const time = generateTime();
+    // Distribute students proportionally across blocks
+    let studentIdx = 0;
+    const lessonsByBlock = new Map(); // blockId -> lesson[]
 
-      students.push({
-        _id: new ObjectId(),
-        tenantId: TENANT_ID_STR,
+    for (const bs of blockSlots) {
+      const blockId = bs.block._id.toHexString();
+      if (!lessonsByBlock.has(blockId)) lessonsByBlock.set(blockId, []);
+
+      // Proportional share of students for this block
+      const share = Math.round((bs.capacity / totalCapacity) * teacherStudents.length);
+
+      for (let j = 0; j < share && studentIdx < teacherStudents.length; j++) {
+        const duration = pickDuration();
+
+        // Check if lesson fits in block (15-min overflow tolerance)
+        if (bs.cursor + duration > bs.endMin + 15) {
+          break;
+        }
+
+        const s = teacherStudents[studentIdx];
+        const lessonId = new ObjectId();
+        const scheduleSlotId = new ObjectId();
+        const lessonStartMin = bs.cursor;
+        const lessonEndMin = bs.cursor + duration;
+        const startTime = minutesToTime(lessonStartMin);
+        const endTime = minutesToTime(lessonEndMin);
+        const day = bs.block.day;
+        const location = bs.block.location;
+
+        const student = _buildStudent(s, nameIdx, instrument, {
+          teacherId,
+          day,
+          time: startTime,
+          duration,
+          location,
+          blockId,
+          lessonId: lessonId.toHexString(),
+          scheduleSlotId: scheduleSlotId.toHexString(),
+          endTime,
+        });
+        students.push(student);
+
+        // Collect lesson ref for teacher's assignedLessons
+        lessonsByBlock.get(blockId).push({
+          _id: lessonId,
+          studentId: student._id.toHexString(),
+          studentName: `${s.firstName} ${s.lastName}`,
+          lessonStartTime: startTime,
+          lessonEndTime: endTime,
+          duration,
+          notes: null,
+          isActive: true,
+          isRecurring: true,
+          startDate: new Date('2024-09-01'),
+          endDate: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        bs.cursor = lessonEndMin;
+        studentIdx++;
+      }
+    }
+
+    // Handle remaining students: force 30-min slots into block with most remaining capacity
+    while (studentIdx < teacherStudents.length) {
+      // Find block with most remaining capacity
+      let bestSlot = blockSlots[0];
+      for (const bs of blockSlots) {
+        const remaining = bs.endMin - bs.cursor;
+        const bestRemaining = bestSlot.endMin - bestSlot.cursor;
+        if (remaining > bestRemaining) bestSlot = bs;
+      }
+
+      const s = teacherStudents[studentIdx];
+      const duration = 30; // Force minimum for overflow
+      const lessonId = new ObjectId();
+      const scheduleSlotId = new ObjectId();
+      const lessonStartMin = bestSlot.cursor;
+      const lessonEndMin = bestSlot.cursor + duration;
+      const startTime = minutesToTime(lessonStartMin);
+      const endTime = minutesToTime(lessonEndMin);
+      const day = bestSlot.block.day;
+      const location = bestSlot.block.location;
+      const blockId = bestSlot.block._id.toHexString();
+
+      if (!lessonsByBlock.has(blockId)) lessonsByBlock.set(blockId, []);
+
+      const student = _buildStudent(s, nameIdx, instrument, {
+        teacherId,
+        day,
+        time: startTime,
+        duration,
+        location,
+        blockId,
+        lessonId: lessonId.toHexString(),
+        scheduleSlotId: scheduleSlotId.toHexString(),
+        endTime,
+      });
+      students.push(student);
+
+      lessonsByBlock.get(blockId).push({
+        _id: lessonId,
+        studentId: student._id.toHexString(),
+        studentName: `${s.firstName} ${s.lastName}`,
+        lessonStartTime: startTime,
+        lessonEndTime: endTime,
+        duration,
+        notes: null,
         isActive: true,
-        personalInfo: {
-          firstName,
-          lastName,
-          phone: generatePhone(),
-          email: `student${nameIdx}@tenuto-dev.com`,
-          parentPhone: generatePhone(),
-          parentName: `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`,
-          idNumber: generateIdNumber(),
-          address: { city: pick(CITIES), street: `רחוב ${pick(LAST_NAMES)} ${randInt(1, 200)}` },
-        },
-        academicInfo: {
-          class: pick(VALID_CLASSES),
-          instrumentProgress: [
-            {
-              instrumentName: instrument,
-              currentStage: randInt(1, 8),
-              isPrimary: true,
-              tests: {
-                technicalTest: { status: pick(['עבר', 'לא נבחן', 'לא עבר']) },
-                stageTest: { status: pick(['עבר', 'לא נבחן', 'לא עבר']) },
-              },
-            },
-          ],
-        },
-        teacherAssignments: [
-          {
-            _id: new ObjectId(),
-            teacherId: teacher._id.toHexString(),
-            isActive: true,
-            day,
-            time,
-            duration,
-            location: teacherTimeBlock.location,
-            timeBlockId: teacherTimeBlock._id.toHexString(),
-            lessonId: new ObjectId().toHexString(),
-            scheduleSlotId: new ObjectId().toHexString(),
-            startDate: new Date('2024-09-01'),
-            endDate: null,
-            isRecurring: true,
-            notes: '',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        ],
+        isRecurring: true,
+        startDate: new Date('2024-09-01'),
+        endDate: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+
+      bestSlot.cursor += duration;
+      studentIdx++;
+      overflowCount++;
     }
+
+    lessonRefs.set(teacherId, lessonsByBlock);
   }
 
-  return students;
+  if (overflowCount > 0) {
+    console.log(`  (${overflowCount} overflow students packed into 30-min slots)`);
+  }
+
+  return { students, lessonRefs };
+}
+
+/** Build a single student document with aligned teacherAssignment */
+function _buildStudent(s, nameIdx, instrument, assignment) {
+  return {
+    _id: new ObjectId(),
+    tenantId: TENANT_ID_STR,
+    isActive: true,
+    personalInfo: {
+      firstName: s.firstName,
+      lastName: s.lastName,
+      phone: generatePhone(),
+      email: `student${nameIdx}@tenuto-dev.com`,
+      parentPhone: generatePhone(),
+      parentName: `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`,
+      idNumber: generateIdNumber(),
+      address: { city: pick(CITIES), street: `רחוב ${pick(LAST_NAMES)} ${randInt(1, 200)}` },
+    },
+    academicInfo: {
+      class: pick(VALID_CLASSES),
+      instrumentProgress: [
+        {
+          instrumentName: instrument,
+          currentStage: randInt(1, 8),
+          isPrimary: true,
+          tests: {
+            technicalTest: { status: pick(['עבר', 'לא נבחן', 'לא עבר']) },
+            stageTest: { status: pick(['עבר', 'לא נבחן', 'לא עבר']) },
+          },
+        },
+      ],
+    },
+    teacherAssignments: [
+      {
+        _id: new ObjectId(),
+        teacherId: assignment.teacherId,
+        isActive: true,
+        day: assignment.day,
+        time: assignment.time,
+        duration: assignment.duration,
+        location: assignment.location,
+        timeBlockId: assignment.blockId,
+        lessonId: assignment.lessonId,
+        scheduleSlotId: assignment.scheduleSlotId,
+        scheduleInfo: {
+          day: assignment.day,
+          startTime: assignment.time,
+          endTime: assignment.endTime,
+          duration: assignment.duration,
+          location: assignment.location,
+          notes: null,
+        },
+        startDate: new Date('2024-09-01'),
+        endDate: null,
+        isRecurring: true,
+        notes: '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }
 
 function generateOrchestras(teachers, students, schoolYearId) {
@@ -838,15 +1029,59 @@ async function seedData(db) {
     { $set: { 'director.name': `${adminTeacher.personalInfo.firstName} ${adminTeacher.personalInfo.lastName}`, 'director.teacherId': adminTeacher._id.toHexString() } }
   );
 
-  // 5. Create students
+  // 5. Create students (with aligned teacherAssignments)
   const t2 = performance.now();
-  const students = generateStudents(teachers);
+  const { students, lessonRefs } = generateStudents(teachers);
   // Insert in batches of 500
   for (let i = 0; i < students.length; i += 500) {
     await db.collection('student').insertMany(students.slice(i, i + 500));
   }
   const studentMs = Math.round(performance.now() - t2);
   console.log(`  Students: ${students.length} (${studentMs}ms)`);
+
+  // 5b. Populate assignedLessons on teacher time blocks
+  const t2b = performance.now();
+  const enrichOps = [];
+  let totalLessons = 0;
+  let enrichedTeachers = 0;
+
+  for (const teacher of teachers) {
+    const teacherId = teacher._id.toHexString();
+    const blockRefs = lessonRefs.get(teacherId);
+    if (!blockRefs) continue;
+
+    let hasLessons = false;
+    const updatedBlocks = teacher.teaching.timeBlocks.map(block => {
+      const lessons = blockRefs.get(block._id.toHexString()) || [];
+      totalLessons += lessons.length;
+      if (lessons.length > 0) hasLessons = true;
+      return { ...block, assignedLessons: lessons };
+    });
+
+    if (hasLessons) enrichedTeachers++;
+
+    // Update in-memory teacher for downstream use (conflicts, etc.)
+    teacher.teaching.timeBlocks = updatedBlocks;
+
+    enrichOps.push({
+      updateOne: {
+        filter: { _id: teacher._id },
+        update: {
+          $set: {
+            'teaching.timeBlocks': updatedBlocks,
+            updatedAt: new Date(),
+          },
+        },
+      },
+    });
+  }
+
+  // bulkWrite in batches of 50
+  for (let i = 0; i < enrichOps.length; i += 50) {
+    await db.collection('teacher').bulkWrite(enrichOps.slice(i, i + 50));
+  }
+  const enrichMs = Math.round(performance.now() - t2b);
+  console.log(`  Schedule enrichment: ${totalLessons} lessons across ${enrichedTeachers} teachers (${enrichMs}ms)`);
 
   // 6. Create orchestras
   const t3 = performance.now();
@@ -889,6 +1124,111 @@ async function seedData(db) {
   const indexMs = Math.round(performance.now() - t4);
   console.log(`  Indexes created (${indexMs}ms)`);
 
+  // 10b. Verification step
+  console.log('');
+  console.log('  ── Schedule Verification ──');
+  const tv = performance.now();
+
+  // Build teacher block lookup
+  const teacherBlockMap = new Map();
+  const blockRangeMap = new Map();
+  let verifyLessonRefs = 0;
+  let blocksWithLessons = 0;
+  let verifyTotalBlocks = 0;
+
+  for (const t of teachers) {
+    const tId = t._id.toHexString();
+    const blockIds = new Set();
+    for (const block of (t.teaching?.timeBlocks || [])) {
+      verifyTotalBlocks++;
+      const bId = block._id.toHexString();
+      blockIds.add(bId);
+      blockRangeMap.set(bId, {
+        startMin: timeToMinutes(block.startTime),
+        endMin: timeToMinutes(block.endTime),
+        day: block.day,
+      });
+      const lessonCount = (block.assignedLessons || []).length;
+      verifyLessonRefs += lessonCount;
+      if (lessonCount > 0) blocksWithLessons++;
+    }
+    teacherBlockMap.set(tId, blockIds);
+  }
+
+  // Validate student assignments
+  let validAssignments = 0;
+  let invalidBlockRef = 0;
+  let missingScheduleInfo = 0;
+  let timeMismatch = 0;
+
+  for (const s of students) {
+    for (const a of (s.teacherAssignments || [])) {
+      if (!a.timeBlockId) { invalidBlockRef++; continue; }
+      const teacherBlocks = teacherBlockMap.get(a.teacherId);
+      if (!teacherBlocks || !teacherBlocks.has(a.timeBlockId)) {
+        invalidBlockRef++;
+        continue;
+      }
+      if (!a.scheduleInfo) { missingScheduleInfo++; }
+
+      // Check lesson time falls within block range (15-min tolerance)
+      const blockRange = blockRangeMap.get(a.timeBlockId);
+      if (blockRange && a.time) {
+        const lessonStart = timeToMinutes(a.time);
+        const lessonEnd = lessonStart + (a.duration || 0);
+        if (lessonStart < blockRange.startMin || lessonEnd > blockRange.endMin + 15) {
+          timeMismatch++;
+        }
+      }
+      validAssignments++;
+    }
+  }
+
+  // Cross-reference sampling: verify 10 random teacher-student pairs
+  let crossRefValid = 0;
+  const crossRefTotal = 10;
+  const sampleStudents = pickN(students.filter(s => s.teacherAssignments?.length > 0), crossRefTotal);
+
+  for (const student of sampleStudents) {
+    const assignment = student.teacherAssignments[0];
+    const teacher = teachers.find(t => t._id.toHexString() === assignment.teacherId);
+    if (!teacher) continue;
+
+    const block = teacher.teaching.timeBlocks.find(b => b._id.toHexString() === assignment.timeBlockId);
+    if (!block) continue;
+
+    const matchingLesson = (block.assignedLessons || []).find(
+      l => l._id.toHexString() === assignment.lessonId
+    );
+    if (!matchingLesson) continue;
+
+    // Verify bidirectional consistency
+    const dayMatch = assignment.day === block.day;
+    const timeMatch = assignment.time === matchingLesson.lessonStartTime;
+    const locationMatch = assignment.location === block.location;
+    const studentIdMatch = matchingLesson.studentId === student._id.toHexString();
+
+    if (dayMatch && timeMatch && locationMatch && studentIdMatch) {
+      crossRefValid++;
+    }
+  }
+
+  const verifyMs = Math.round(performance.now() - tv);
+  console.log(`    Total blocks: ${verifyTotalBlocks}, with lessons: ${blocksWithLessons}`);
+  console.log(`    Total lesson refs in teacher blocks: ${verifyLessonRefs}`);
+  console.log(`    Valid student assignments: ${validAssignments}`);
+  console.log(`    Invalid block refs: ${invalidBlockRef}`);
+  console.log(`    Missing scheduleInfo: ${missingScheduleInfo}`);
+  console.log(`    Time outside block range: ${timeMismatch}`);
+  console.log(`    Cross-references valid: ${crossRefValid}/${crossRefTotal}`);
+  console.log(`    Verification time: ${verifyMs}ms`);
+
+  if (invalidBlockRef === 0 && missingScheduleInfo === 0 && timeMismatch === 0 && crossRefValid === crossRefTotal) {
+    console.log('    All checks passed');
+  } else {
+    console.log('    Issues detected -- see counts above');
+  }
+
   return {
     teachers,
     students,
@@ -899,6 +1239,7 @@ async function seedData(db) {
     conflicts: conflictCount,
     adminTeacher,
     totalTimeBlocks,
+    totalLessons,
   };
 }
 
@@ -961,6 +1302,7 @@ async function main() {
     console.log(`      Rooms:          ${result.rooms}`);
     console.log(`      Teachers:       ${result.teachers.length}`);
     console.log(`      Time blocks:    ${result.totalTimeBlocks}`);
+    console.log(`      Lessons:        ${result.totalLessons}`);
     console.log(`      Students:       ${result.students.length}`);
     console.log(`      Orchestras:     ${result.orchestras.length}`);
     console.log(`      Rehearsals:     ${result.rehearsals}`);
