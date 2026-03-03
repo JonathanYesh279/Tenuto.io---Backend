@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 33 of 35 (Read-Only Room Grid UI)
-Plan: 0 of 3 in current phase
-Status: Ready
-Last activity: 2026-03-03 — Completed Phase 32 (Room Schedule API & Conflict Detection) - all 2 plans
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-03 — Completed 33-01 (Room Grid UI Skeleton)
 
-Progress: [#####.........] 38% (v1.6) — 5/13 plans
+Progress: [######........] 46% (v1.6) — 6/13 plans
 
 ## Performance Metrics
 
@@ -53,6 +53,10 @@ Progress: [#####.........] 38% (v1.6) — 5/13 plans
 - 32-02: TimeBlock move updates entire block (not individual lessons) -- block is the grid unit
 - 32-02: Conflict pre-check reuses getRoomSchedule + doTimesOverlap (centralized logic)
 - 32-02: Same-day moves only; cross-day moves deferred to Phase 34
+- 33-01: SquaresFourIcon for sidebar nav (distinct from CalendarIcon used by rehearsals)
+- 33-01: Fixed 08:00-20:00 grid range with 24 half-hour slots
+- 33-01: Initial day defaults to current weekday; Saturday wraps to Sunday
+- 33-01: Only rooms with activities shown (empty rooms deferred to Phase 34)
 
 ### Pending Todos
 
@@ -70,9 +74,10 @@ None.
 | 31    | 03   | 6min     | 1     | 1     |
 | 32    | 01   | 4min     | 2     | 5     |
 | 32    | 02   | 2min     | 2     | 4     |
+| 33    | 01   | 7min     | 2     | 6     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed Phase 32 (Room Schedule API & Conflict Detection) - all 2 plans
-Resume: `/gsd:plan-phase 33` (next phase)
+Stopped at: Completed 33-01-PLAN.md (Room Grid UI Skeleton)
+Resume: `/gsd:execute-phase 33` to continue with 33-02
