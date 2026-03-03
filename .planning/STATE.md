@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 37 (Room Schedule UX Fixes & Conflict Prevention)
-Plan: 4 of 4 in current phase (Plans 01-03 COMPLETE)
-Status: Executing phase 37
-Last activity: 2026-03-03 — Phase 37 Plan 03 executed
+Plan: 4 of 4 in current phase (Plans 01-04 COMPLETE)
+Status: Phase 37 COMPLETE
+Last activity: 2026-03-03 — Phase 37 Plan 04 executed
 
-Progress: [########------] 3/4 plans (Phase 37)
+Progress: [##############] 4/4 plans (Phase 37) COMPLETE
 
 ## Performance Metrics
 
@@ -103,6 +103,10 @@ Progress: [########------] 3/4 plans (Phase 37)
 - 37-03: Fullscreen route outside Layout (no sidebar/header) via separate Route without Layout wrapper
 - 37-03: window.open with _blank for new-tab fullscreen UX (user keeps original tab)
 - 37-03: Chrome-free page pattern: Route without Layout wrapper + ProtectedRoute for auth
+- 37-04: Table icon (Phosphor) for tabular PDF button; FilePdf icon for grid PDF button
+- 37-04: Grid PDF uses 5pt font, 1pt cell padding to fit 24 time columns in landscape
+- 37-04: applyFilters extracted as standalone function for reuse in useMemo and PDF callbacks
+- 37-04: Spanning activity slots show '...' continuation marker in grid PDF cells
 
 ### Roadmap Evolution
 
@@ -136,9 +140,10 @@ None.
 | 37    | 01   | 9min     | 2     | 4     |
 | 37    | 02   | 8min     | 2     | 5     |
 | 37    | 03   | 5min     | 1     | 3     |
+| 37    | 04   | 4min     | 2     | 2     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 37-03-PLAN.md
-Resume: Execute 37-04-PLAN.md
+Stopped at: Completed 37-04-PLAN.md — Phase 37 COMPLETE
+Resume: Next milestone planning
