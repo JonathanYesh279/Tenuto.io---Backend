@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 31 of 35 (Room Data Foundation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Executing
-Last activity: 2026-03-03 — Completed 31-01 (Room Schema & CRUD)
+Last activity: 2026-03-03 — Completed 31-02 (Dynamic Room Validation & Excel Import)
 
-Progress: [#.............] 8% (v1.6) — 1/13 plans
+Progress: [##............] 15% (v1.6) — 2/13 plans
 
 ## Performance Metrics
 
@@ -39,6 +39,10 @@ Progress: [#.............] 8% (v1.6) — 1/13 plans
 - 31-01: Duplicate room name check is case-sensitive with normalized whitespace
 - 31-01: Deactivation (isActive=false) over deletion for referential safety
 - 31-01: Tenant sub-resource CRUD pattern: /tenant/:id/{resource}/:resourceId
+- 31-02: Dynamic room validation via middleware query (not hardcoded arrays)
+- 31-02: Backward compat: skip room validation when tenant has no rooms configured
+- 31-02: theoryValidation.validateLocation delegates to roomValidation.validateRoomExists
+- 31-02: Migration seeds VALID_THEORY_LOCATIONS (34 rooms) for tenants without rooms
 
 ### Pending Todos
 
@@ -52,9 +56,10 @@ None.
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 31    | 01   | 14min    | 2     | 6     |
+| 31    | 02   | 11min    | 2     | 12    |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 31-01-PLAN.md (Room Schema & CRUD)
-Resume: `/gsd:execute-phase 31` (plan 02 next)
+Stopped at: Completed 31-02-PLAN.md (Dynamic Room Validation & Excel Import)
+Resume: `/gsd:execute-phase 31` (plan 03 next)
