@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.6 Room & Hours Management Table — Phase 34: Grid Interaction
+**Current focus:** v1.6 Room & Hours Management Table — Phase 34: Grid Interaction (COMPLETE)
 
 ## Current Position
 
-Phase: 34 of 35 (Grid Interaction)
-Plan: 2 of 3 in current phase
-Status: Executing Phase 34
-Last activity: 2026-03-03 — Completed 34-02 (Click-to-Create Lesson Dialog)
+Phase: 34 of 35 (Grid Interaction) -- COMPLETE
+Plan: 3 of 3 in current phase (all complete)
+Status: Phase 34 complete, ready for Phase 35
+Last activity: 2026-03-03 — Completed 34-03 (Drag-and-Drop Time Block Moves)
 
-Progress: [##########....] 77% (v1.6) — 10/13 plans
+Progress: [###########...] 85% (v1.6) — 11/13 plans
 
 ## Performance Metrics
 
@@ -73,6 +73,11 @@ Progress: [##########....] 77% (v1.6) — 10/13 plans
 - 34-02: Occupied slot detection via Set<number> per room row for empty cell click targeting
 - 34-02: Teachers fetched once on mount (not per dialog open) for performance
 - 34-02: CreateDialogState interface: open, room, day, startTime, endTime as dialog prop contract
+- 34-03: DndContext wraps only RoomGrid+DragOverlay, not entire page
+- 34-03: PointerSensor 8px activation distance prevents click/drag conflict
+- 34-03: apiService 409 handler added to preserve conflict details on error object
+- 34-03: RTL keyboard navigation accepted as-is; custom coordinateGetter deferred to Phase 35
+- 34-03: DroppableCell ID format: room::HH:MM with lastIndexOf parsing for safe room name handling
 
 ### Pending Todos
 
@@ -95,9 +100,10 @@ None.
 | 33    | 03   | 6min     | 2     | 5     |
 | 34    | 01   | 6min     | 2     | 4     |
 | 34    | 02   | 8min     | 2     | 3     |
+| 34    | 03   | 9min     | 2     | 7     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 34-02-PLAN.md (Click-to-Create Lesson Dialog)
-Resume: Continue with 34-03-PLAN.md (Drag-and-Drop Time Block Moves)
+Stopped at: Completed 34-03-PLAN.md (Drag-and-Drop Time Block Moves) -- Phase 34 complete
+Resume: Continue with Phase 35 planning
