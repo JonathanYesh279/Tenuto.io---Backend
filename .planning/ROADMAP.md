@@ -8,7 +8,7 @@
 - [x] **v1.3 Conservatory Information Import** — Phases 20-22 (shipped 2026-02-28)
 - [x] **v1.4 Ensemble Import** — Phases 23-26 (shipped 2026-02-28)
 - [x] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (shipped 2026-03-02)
-- [ ] **v1.6 Room & Hours Management Table** — Phases 31-35 (in progress)
+- [x] **v1.6 Room & Hours Management Table** — Phases 31-35 (shipped 2026-03-03)
 
 ## Phases
 
@@ -100,7 +100,7 @@ See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 - [x] **Phase 32: Room Schedule API & Conflict Detection** (2/2 plans) — completed 2026-03-03
 - [x] **Phase 33: Read-Only Room Grid UI** (3/3 plans) — completed 2026-03-03
 - [x] **Phase 34: Grid Interaction** (3/3 plans) — completed 2026-03-03
-- [ ] **Phase 35: Polish & Week Overview** — Print/export, compact week view, and room utilization indicators
+- [x] **Phase 35: Polish & Week Overview** (2/2 plans) — completed 2026-03-03
 
 ## Phase Details
 
@@ -181,8 +181,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 35-01-PLAN.md — Schedule toolbar with print/export PDF and Tailwind print styling
-- [ ] 35-02-PLAN.md — Week overview with compact mini-grid and room utilization indicators
+- [x] 35-01-PLAN.md — Schedule toolbar with print/export PDF and Tailwind print styling
+- [x] 35-02-PLAN.md — Week overview with compact mini-grid and room utilization indicators
 
 ## Progress
 
@@ -195,10 +195,10 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 | 32. Room Schedule API & Conflict Detection | v1.6 | 2/2 | ✓ Complete | 2026-03-03 |
 | 33. Read-Only Room Grid UI | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
 | 34. Grid Interaction | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
-| 35. Polish & Week Overview | v1.6 | 0/2 | Not started | - |
+| 35. Polish & Week Overview | v1.6 | 2/2 | ✓ Complete | 2026-03-03 |
 
 **Previous milestones:** 30 phases, 66 plans across 6 milestones (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 35 planned*
+*Last updated: 2026-03-03 -- Phase 35 complete, v1.6 shipped*
