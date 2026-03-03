@@ -8,7 +8,7 @@
 - [x] **v1.3 Conservatory Information Import** — Phases 20-22 (shipped 2026-02-28)
 - [x] **v1.4 Ensemble Import** — Phases 23-26 (shipped 2026-02-28)
 - [x] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (shipped 2026-03-02)
-- [x] **v1.6 Room & Hours Management Table** — Phases 31-35 (shipped 2026-03-03)
+- [ ] **v1.6 Room & Hours Management Table** — Phases 31-36 (in progress)
 
 ## Phases
 
@@ -101,6 +101,7 @@ See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 - [x] **Phase 33: Read-Only Room Grid UI** (3/3 plans) — completed 2026-03-03
 - [x] **Phase 34: Grid Interaction** (3/3 plans) — completed 2026-03-03
 - [x] **Phase 35: Polish & Week Overview** (2/2 plans) — completed 2026-03-03
+- [ ] **Phase 36: Seed Teacher Schedule Data** — Populate timeBlocks with assigned lessons and bidirectional student-teacher schedule data
 
 ## Phase Details
 
@@ -184,10 +185,24 @@ Plans:
 - [x] 35-01-PLAN.md — Schedule toolbar with print/export PDF and Tailwind print styling
 - [x] 35-02-PLAN.md — Week overview with compact mini-grid and room utilization indicators
 
+### Phase 36: Seed Teacher Schedule Data
+**Goal**: Running the seed script produces teachers with teaching days and time blocks populated with assigned student lessons, creating bidirectional schedule data that shows up in the room schedule grid
+**Depends on**: Phase 35 (room schedule UI must exist to verify seed data displays correctly)
+**Success Criteria** (what must be TRUE):
+  1. Each seeded teacher has teaching days configured and 2-4 time blocks with properly slotted assigned lessons
+  2. Each time block's assignedLessons array contains student lesson records with correct lessonStartTime/lessonEndTime within the block range
+  3. Each student's teacherAssignments references the correct teacher, timeBlock, day, time, and location matching the teacher's assignedLesson
+  4. The room schedule grid displays seeded activities (private lessons, rehearsals, theory) across all weekdays with visible room occupancy
+  5. Week overview shows utilization data across rooms from the seeded schedule
+**Plans**: 1 plan
+
+Plans:
+- [ ] 36-01-PLAN.md — Enhance seed script with teaching day configuration and bidirectional lesson assignment
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
+Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -196,9 +211,10 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 | 33. Read-Only Room Grid UI | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
 | 34. Grid Interaction | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
 | 35. Polish & Week Overview | v1.6 | 2/2 | ✓ Complete | 2026-03-03 |
+| 36. Seed Teacher Schedule Data | v1.6 | 0/1 | Not started | - |
 
 **Previous milestones:** 30 phases, 66 plans across 6 milestones (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 35 complete, v1.6 shipped*
+*Last updated: 2026-03-03 -- Phase 36 added*
