@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 35 of 35 (Polish & Week Overview)
-Plan: 1 of 2 in current phase (35-01 complete)
-Status: Executing Phase 35
-Last activity: 2026-03-03 — Completed 35-01 (Print/Export Toolbar)
+Plan: 2 of 2 in current phase (35-02 complete)
+Status: v1.6 COMPLETE
+Last activity: 2026-03-03 — Completed 35-02 (Week Overview)
 
-Progress: [############..] 92% (v1.6) — 12/13 plans
+Progress: [##############] 100% (v1.6) — 13/13 plans
 
 ## Performance Metrics
 
@@ -81,6 +81,10 @@ Progress: [############..] 92% (v1.6) — 12/13 plans
 - 35-01: Tailwind print variant via screens config (raw: 'print') for print: utility classes
 - 35-01: handleExportPDF placed after useMemo hooks to avoid block-scoped variable TDZ error
 - 35-01: Page header + DaySelector hidden in print; SummaryBar stays visible for context
+- 35-02: Local RoomScheduleDay interface in WeekOverview to avoid circular imports with RoomSchedule.tsx
+- 35-02: insetInlineStart CSS property for RTL-correct mini-block positioning in WeekMiniGrid
+- 35-02: Week cache invalidation via setWeekData(null) on any day-mode schedule reload
+- 35-02: DaySelector hidden in week mode since all 6 days are visible simultaneously
 
 ### Pending Todos
 
@@ -105,9 +109,10 @@ None.
 | 34    | 02   | 8min     | 2     | 3     |
 | 34    | 03   | 9min     | 2     | 7     |
 | 35    | 01   | 16min    | 2     | 4     |
+| 35    | 02   | 11min    | 2     | 4     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 35-01-PLAN.md (Print/Export Toolbar)
-Resume: Continue with 35-02-PLAN.md (Week Overview)
+Stopped at: Completed 35-02-PLAN.md (Week Overview) -- v1.6 milestone complete
+Resume: All v1.6 plans complete (13/13). Next milestone planning needed.
