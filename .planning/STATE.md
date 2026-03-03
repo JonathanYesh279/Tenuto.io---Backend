@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 37 (Room Schedule UX Fixes & Conflict Prevention)
-Plan: 2 of 4 in current phase (Plan 01 COMPLETE)
+Plan: 3 of 4 in current phase (Plans 01-02 COMPLETE)
 Status: Executing phase 37
-Last activity: 2026-03-03 — Phase 37 Plan 01 executed
+Last activity: 2026-03-03 — Phase 37 Plan 02 executed
 
-Progress: [#-------------] 1/4 plans (Phase 37)
+Progress: [###-----------] 2/4 plans (Phase 37)
 
 ## Performance Metrics
 
@@ -96,6 +96,10 @@ Progress: [#-------------] 1/4 plans (Phase 37)
 - 37-01: Grid cells widened to 120px min columns, 80px row height, 40px stacked item height
 - 37-01: Filter toggle inactive state uses line-through text for clear off visual
 - 37-01: generateConflicts function deleted from seed-dev-data.js -- zero intentional conflicts in seed data
+- 37-02: Room-level conflicts only in DroppableCell; teacher double-booking caught by backend move API
+- 37-02: CreateLessonDialog checks both room and teacher conflicts client-side using loaded schedule data
+- 37-02: Student double-booking handled by existing backend checkStudentScheduleConflict in assignLesson
+- 37-02: doTimesOverlap ported from backend to frontend utils.ts for client-side conflict detection
 
 ### Roadmap Evolution
 
@@ -127,9 +131,10 @@ None.
 | 35    | 02   | 11min    | 2     | 4     |
 | 36    | 01   | 4min     | 2     | 1     |
 | 37    | 01   | 9min     | 2     | 4     |
+| 37    | 02   | 8min     | 2     | 5     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 37-01-PLAN.md
-Resume: Execute 37-02-PLAN.md
+Stopped at: Completed 37-02-PLAN.md
+Resume: Execute 37-03-PLAN.md
