@@ -96,7 +96,7 @@ See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 
 **Milestone Goal:** Give conservatory admins a visual room-scheduling grid -- rooms x time slots per weekday -- showing all lessons, rehearsals, and theory classes with drag-and-drop editing.
 
-- [ ] **Phase 31: Room Data Foundation** — Room definitions, CRUD, Excel import, location normalization, and seed data
+- [x] **Phase 31: Room Data Foundation** (3/3 plans) — completed 2026-03-03
 - [ ] **Phase 32: Room Schedule API & Conflict Detection** — Unified aggregation endpoint merging 3 data sources with cross-source conflict detection
 - [ ] **Phase 33: Read-Only Room Grid UI** — Visual rooms x time-slots matrix with day tabs, color coding, and summary statistics
 - [ ] **Phase 34: Grid Interaction** — Drag-and-drop lesson movement, click-to-create, and filter controls
@@ -117,9 +117,9 @@ See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 31-01-PLAN.md — Room schema, CRUD endpoints, and settings UI
-- [ ] 31-02-PLAN.md — Room Excel import, dynamic validation, and location normalization migration
-- [ ] 31-03-PLAN.md — Dev seed script for rooms, time blocks, rehearsals, theory lessons, and conflicts
+- [x] 31-01-PLAN.md — Room schema, CRUD endpoints, and settings UI
+- [x] 31-02-PLAN.md — Room Excel import, dynamic validation, and location normalization migration
+- [x] 31-03-PLAN.md — Dev seed script for rooms, time blocks, rehearsals, theory lessons, and conflicts
 
 ### Phase 32: Room Schedule API & Conflict Detection
 **Goal**: A single API endpoint returns all room occupancy for a given weekday, merging private lessons, rehearsals, and theory classes, with conflicts detected across all sources
@@ -191,7 +191,7 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 31. Room Data Foundation | v1.6 | 0/3 | Planned | - |
+| 31. Room Data Foundation | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
 | 32. Room Schedule API & Conflict Detection | v1.6 | 0/2 | Not started | - |
 | 33. Read-Only Room Grid UI | v1.6 | 0/3 | Not started | - |
 | 34. Grid Interaction | v1.6 | 0/3 | Not started | - |
@@ -201,4 +201,4 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 31 plans created*
+*Last updated: 2026-03-03 -- Phase 31 complete*
