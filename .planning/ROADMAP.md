@@ -99,7 +99,7 @@ See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 - [x] **Phase 31: Room Data Foundation** (3/3 plans) — completed 2026-03-03
 - [x] **Phase 32: Room Schedule API & Conflict Detection** (2/2 plans) — completed 2026-03-03
 - [x] **Phase 33: Read-Only Room Grid UI** (3/3 plans) — completed 2026-03-03
-- [ ] **Phase 34: Grid Interaction** — Drag-and-drop lesson movement, click-to-create, and filter controls
+- [x] **Phase 34: Grid Interaction** (3/3 plans) — completed 2026-03-03
 - [ ] **Phase 35: Polish & Week Overview** — Print/export, compact week view, and room utilization indicators
 
 ## Phase Details
@@ -166,9 +166,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 34-01-PLAN.md — Filter controls (teacher search, room select, activity type toggles) and empty rooms display
-- [ ] 34-02-PLAN.md — Click-to-create lesson dialog with teacher selection in empty grid cells
-- [ ] 34-03-PLAN.md — Drag-and-drop with @dnd-kit/core, conflict validation, and move API integration
+- [x] 34-01-PLAN.md — Filter controls (teacher search, room select, activity type toggles) and empty rooms display
+- [x] 34-02-PLAN.md — Click-to-create lesson dialog with teacher selection in empty grid cells
+- [x] 34-03-PLAN.md — Drag-and-drop with @dnd-kit/core, conflict validation, and move API integration
 
 ### Phase 35: Polish & Week Overview
 **Goal**: Admins can print a day's schedule, see a compact week overview, and understand room utilization at a glance
@@ -194,11 +194,11 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 | 31. Room Data Foundation | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
 | 32. Room Schedule API & Conflict Detection | v1.6 | 2/2 | ✓ Complete | 2026-03-03 |
 | 33. Read-Only Room Grid UI | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
-| 34. Grid Interaction | v1.6 | 0/3 | Not started | - |
+| 34. Grid Interaction | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
 | 35. Polish & Week Overview | v1.6 | 0/2 | Not started | - |
 
 **Previous milestones:** 30 phases, 66 plans across 6 milestones (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 34 planned*
+*Last updated: 2026-03-03 -- Phase 34 complete*
