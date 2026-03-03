@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 37 (Room Schedule UX Fixes & Conflict Prevention)
-Plan: 3 of 4 in current phase (Plans 01-02 COMPLETE)
+Plan: 4 of 4 in current phase (Plans 01-03 COMPLETE)
 Status: Executing phase 37
-Last activity: 2026-03-03 — Phase 37 Plan 02 executed
+Last activity: 2026-03-03 — Phase 37 Plan 03 executed
 
-Progress: [###-----------] 2/4 plans (Phase 37)
+Progress: [########------] 3/4 plans (Phase 37)
 
 ## Performance Metrics
 
@@ -100,6 +100,9 @@ Progress: [###-----------] 2/4 plans (Phase 37)
 - 37-02: CreateLessonDialog checks both room and teacher conflicts client-side using loaded schedule data
 - 37-02: Student double-booking handled by existing backend checkStudentScheduleConflict in assignLesson
 - 37-02: doTimesOverlap ported from backend to frontend utils.ts for client-side conflict detection
+- 37-03: Fullscreen route outside Layout (no sidebar/header) via separate Route without Layout wrapper
+- 37-03: window.open with _blank for new-tab fullscreen UX (user keeps original tab)
+- 37-03: Chrome-free page pattern: Route without Layout wrapper + ProtectedRoute for auth
 
 ### Roadmap Evolution
 
@@ -132,9 +135,10 @@ None.
 | 36    | 01   | 4min     | 2     | 1     |
 | 37    | 01   | 9min     | 2     | 4     |
 | 37    | 02   | 8min     | 2     | 5     |
+| 37    | 03   | 5min     | 1     | 3     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 37-02-PLAN.md
-Resume: Execute 37-03-PLAN.md
+Stopped at: Completed 37-03-PLAN.md
+Resume: Execute 37-04-PLAN.md
