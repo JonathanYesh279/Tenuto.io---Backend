@@ -31,8 +31,9 @@ dotenv.config();
 
 const DB_NAME = process.env.MONGODB_NAME || 'Tenuto-DB';
 const TENANT_SLUG = 'dev-conservatory';
-// Fixed tenantId so --clean always finds the old data
-const TENANT_ID_STR = 'dev-conservatory-001';
+// Fixed ObjectId so --clean always finds the old data and auth works
+const TENANT_OID = new ObjectId('aaa000000000000000000001');
+const TENANT_ID_STR = TENANT_OID.toHexString();
 const TEACHER_COUNT = 130;
 const STUDENT_TARGET = 1200;
 const ORCHESTRA_COUNT = 50;
@@ -233,7 +234,7 @@ function generateDatesForDay(dayOfWeek, count) {
 
 function generateTenant() {
   return {
-    _id: new ObjectId(),
+    _id: TENANT_OID,
     tenantId: TENANT_ID_STR,
     slug: TENANT_SLUG,
     name: 'קונסרבטוריון תנועתו - פיתוח',
