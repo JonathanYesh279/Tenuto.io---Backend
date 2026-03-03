@@ -178,11 +178,11 @@ Plans:
   1. Admin can click a print/export button and get a clean printable layout of the current day's room schedule (PDF or print dialog)
   2. Admin can switch to a week overview showing all 6 weekdays side by side in a compact format
   3. Each room row shows a utilization percentage (occupied slots / total slots across the week)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 35-01: Print/export day schedule
-- [ ] 35-02: Week overview and room utilization indicators
+- [ ] 35-01-PLAN.md — Schedule toolbar with print/export PDF and Tailwind print styling
+- [ ] 35-02-PLAN.md — Week overview with compact mini-grid and room utilization indicators
 
 ## Progress
 
@@ -201,4 +201,4 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 34 complete*
+*Last updated: 2026-03-03 -- Phase 35 planned*
