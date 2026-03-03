@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.6 Room & Hours Management Table — Phase 35: Polish & Week Overview
+**Current focus:** v1.6 Room & Hours Management Table — COMPLETE
 
 ## Current Position
 
-Phase: 35 of 35 (Polish & Week Overview)
-Plan: 2 of 2 in current phase (35-02 complete)
-Status: v1.6 COMPLETE
-Last activity: 2026-03-03 — Completed 35-02 (Week Overview)
+Phase: 36 of 36 (Seed Teacher Schedule Data)
+Plan: 1 of 1 in current phase (COMPLETE)
+Status: v1.6 milestone complete
+Last activity: 2026-03-03 — Phase 36 Plan 01 executed
 
-Progress: [##############] 100% (v1.6) — 13/13 plans
+Progress: [##############] 100% (v1.6) — 14/14 plans
 
 ## Performance Metrics
 
@@ -85,6 +85,10 @@ Progress: [##############] 100% (v1.6) — 13/13 plans
 - 35-02: insetInlineStart CSS property for RTL-correct mini-block positioning in WeekMiniGrid
 - 35-02: Week cache invalidation via setWeekData(null) on any day-mode schedule reload
 - 35-02: DaySelector hidden in week mode since all 6 days are visible simultaneously
+- 36-01: Schedule logic ported inline (not imported) from seed-schedules.js for self-contained seed script
+- 36-01: Morning/afternoon time block pattern (08-10 or 13-15 start, 3-5hr span) for realistic windows
+- 36-01: pickDuration distribution: 30min 50%, 45min 40%, 60min 10%
+- 36-01: Cross-reference verification samples 10 random teacher-student pairs for bidirectional consistency
 
 ### Pending Todos
 
@@ -110,9 +114,10 @@ None.
 | 34    | 03   | 9min     | 2     | 7     |
 | 35    | 01   | 16min    | 2     | 4     |
 | 35    | 02   | 11min    | 2     | 4     |
+| 36    | 01   | 4min     | 2     | 1     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 35-02-PLAN.md (Week Overview) -- v1.6 milestone complete
-Resume: All v1.6 plans complete (13/13). Next milestone planning needed.
+Stopped at: Completed 36-01-PLAN.md (v1.6 milestone complete)
+Resume: Next milestone planning
