@@ -224,7 +224,7 @@ Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36
 
 **Goal:** Improve room schedule grid usability with larger readable cells, conflict prevention at scheduling time, a fullscreen route, and dual-format PDF export
 **Depends on:** Phase 36
-**Plans:** 4 plans
+**Plans:** 9 plans (4 original + 5 gap closure)
 **Success Criteria** (what must be TRUE):
   1. Each cell shows 3 lines of info (teacher, student, time) without needing to hover, with accent borders per type
   2. Conflicts are prevented at scheduling time: create dialog pre-checks and DnD visual feedback (green/red)
@@ -237,7 +237,12 @@ Plans:
 - [x] 37-02-PLAN.md — Conflict prevention: DnD visual feedback and create dialog pre-check
 - [x] 37-03-PLAN.md — Dedicated fullscreen route with no sidebar/header
 - [x] 37-04-PLAN.md — Dual PDF export (grid-style + tabular), week 6-page PDF, filter-aware export
+- [ ] 37-05-PLAN.md — Gap fix: Seed data conflict-free room allocation + accent border prominence
+- [ ] 37-06-PLAN.md — Gap fix: DnD optimistic update with silent reload (no page refresh)
+- [ ] 37-07-PLAN.md — Gap fix: Create dialog placeholder + teacher conflict check
+- [ ] 37-08-PLAN.md — Gap fix: Fullscreen UX overhaul (fill viewport, expand grid)
+- [ ] 37-09-PLAN.md — Gap fix: PDF Hebrew font support for all exports
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-03 -- Phase 37 complete (4/4 plans)*
+*Last updated: 2026-03-03 -- Phase 37 gap closure plans created (5 fixes for UAT issues)*
