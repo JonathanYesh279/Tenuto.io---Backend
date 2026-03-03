@@ -807,24 +807,25 @@ function generateTheoryLessons(teachers, students, schoolYearId) {
 // ─── Database Operations ─────────────────────────────────────────────────────
 
 async function dropSeededData(db) {
-  console.log('  Cleaning existing data...');
+  console.log('  Cleaning ALL existing data...');
 
   const collections = await db.listCollections().toArray();
   const names = collections.map(c => c.name);
 
-  // Only drop data for our tenant, not the entire collection
+  // Drop ALL data from all relevant collections (all tenants)
   const ops = [];
-  if (names.includes('student')) ops.push(db.collection('student').deleteMany({ tenantId: TENANT_ID_STR }));
-  if (names.includes('teacher')) ops.push(db.collection('teacher').deleteMany({ tenantId: TENANT_ID_STR }));
-  if (names.includes('orchestra')) ops.push(db.collection('orchestra').deleteMany({ tenantId: TENANT_ID_STR }));
-  if (names.includes('school_year')) ops.push(db.collection('school_year').deleteMany({ tenantId: TENANT_ID_STR }));
-  if (names.includes('rehearsal')) ops.push(db.collection('rehearsal').deleteMany({ tenantId: TENANT_ID_STR }));
-  if (names.includes('theory_lesson')) ops.push(db.collection('theory_lesson').deleteMany({ tenantId: TENANT_ID_STR }));
-  if (names.includes('tenant')) ops.push(db.collection('tenant').deleteMany({ slug: TENANT_SLUG }));
+  if (names.includes('student')) ops.push(db.collection('student').deleteMany({}));
+  if (names.includes('teacher')) ops.push(db.collection('teacher').deleteMany({}));
+  if (names.includes('orchestra')) ops.push(db.collection('orchestra').deleteMany({}));
+  if (names.includes('school_year')) ops.push(db.collection('school_year').deleteMany({}));
+  if (names.includes('rehearsal')) ops.push(db.collection('rehearsal').deleteMany({}));
+  if (names.includes('theory_lesson')) ops.push(db.collection('theory_lesson').deleteMany({}));
+  if (names.includes('tenant')) ops.push(db.collection('tenant').deleteMany({}));
+  if (names.includes('import_log')) ops.push(db.collection('import_log').deleteMany({}));
 
   const results = await Promise.all(ops);
   const total = results.reduce((sum, r) => sum + r.deletedCount, 0);
-  console.log(`  Deleted ${total} documents`);
+  console.log(`  Deleted ${total} documents across all tenants`);
 }
 
 async function createIndexes(db) {
