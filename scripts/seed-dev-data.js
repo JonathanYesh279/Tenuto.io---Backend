@@ -308,15 +308,15 @@ async function generateTeachers() {
         while (usedDays.has(day) && attempts < 10) { day = pick(VALID_DAYS); attempts++; }
         usedDays.add(day);
 
-        // Morning (08-10 start) or afternoon (13-15 start) with 3-5 hour span
+        // Morning (08-10 start) or afternoon (13-15 start) with 2-3 hour span
         const isMorning = Math.random() < 0.5;
         let startHour, spanHours;
         if (isMorning) {
           startHour = randInt(8, 10);
-          spanHours = randInt(3, 5);
+          spanHours = randInt(2, 3);
         } else {
           startHour = randInt(13, 15);
-          spanHours = randInt(3, 5);
+          spanHours = randInt(2, 3);
         }
         const startMin = pick([0, 30]);
         const startTotalMin = startHour * 60 + startMin;
@@ -333,6 +333,36 @@ async function generateTeachers() {
           endTime: minutesToTime(endTotalMin),
           totalDuration: spanHours * 60,
           location,
+          isActive: true,
+          recurring: { isRecurring: true, excludeDates: [] },
+          notes: null,
+          assignedLessons: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+
+      // Ensure every teacher has at least 1 time block
+      if (timeBlocks.length === 0) {
+        // Try multiple day/time combos to find an available room
+        let fallbackRoom = null;
+        let fallbackDay, fbStart, fbEnd, fbDayIndex;
+        for (let attempt = 0; attempt < 20 && !fallbackRoom; attempt++) {
+          fallbackDay = pick(VALID_DAYS);
+          fbDayIndex = DAY_INDICES[fallbackDay];
+          fbStart = randInt(8, 16) * 60 + pick([0, 30]);
+          fbEnd = fbStart + 120;
+          fallbackRoom = pickAvailableRoom(fbDayIndex, fbStart, fbEnd);
+        }
+        // Last resort: random room (may conflict, but teacher needs at least 1 block)
+        if (!fallbackRoom) fallbackRoom = pick(LOCATIONS);
+        timeBlocks.push({
+          _id: new ObjectId(),
+          day: fallbackDay,
+          startTime: minutesToTime(fbStart),
+          endTime: minutesToTime(fbEnd),
+          totalDuration: 120,
+          location: fallbackRoom,
           isActive: true,
           recurring: { isRecurring: true, excludeDates: [] },
           notes: null,
@@ -479,6 +509,10 @@ function generateStudents(teachers) {
     }
 
     // Handle remaining students: force 30-min slots into block with most remaining capacity
+    if (blockSlots.length === 0) {
+      // Teacher has no time blocks — skip remaining students
+      studentIdx = teacherStudents.length;
+    }
     while (studentIdx < teacherStudents.length) {
       // Find block with most remaining capacity
       let bestSlot = blockSlots[0];
