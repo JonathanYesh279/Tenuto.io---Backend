@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 32 of 35 (Room Schedule API & Conflict Detection)
-Plan: 2 of ? in current phase
+Plan: 3 of ? in current phase
 Status: In Progress
-Last activity: 2026-03-03 — Completed 32-01 (Room Schedule API & Conflict Detection)
+Last activity: 2026-03-03 — Completed 32-02 (Move Activity Endpoint)
 
-Progress: [####..........] 31% (v1.6) — 4/13 plans
+Progress: [#####.........] 38% (v1.6) — 5/13 plans
 
 ## Performance Metrics
 
@@ -50,6 +50,9 @@ Progress: [####..........] 31% (v1.6) — 4/13 plans
 - 32-01: Union-find for transitive conflict grouping across sources
 - 32-01: Empty timeBlocks (no assignedLessons) emitted as single block activity for room occupancy
 - 32-01: Rehearsal/theory deduplication via MongoDB $group by weekly pattern composite key
+- 32-02: TimeBlock move updates entire block (not individual lessons) -- block is the grid unit
+- 32-02: Conflict pre-check reuses getRoomSchedule + doTimesOverlap (centralized logic)
+- 32-02: Same-day moves only; cross-day moves deferred to Phase 34
 
 ### Pending Todos
 
@@ -66,9 +69,10 @@ None.
 | 31    | 02   | 11min    | 2     | 12    |
 | 31    | 03   | 6min     | 1     | 1     |
 | 32    | 01   | 4min     | 2     | 5     |
+| 32    | 02   | 2min     | 2     | 4     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 32-01 (Room Schedule API & Conflict Detection)
-Resume: Continue with 32-02 (next plan in phase 32)
+Stopped at: Completed 32-02 (Move Activity Endpoint)
+Resume: Continue with next plan in phase 32
