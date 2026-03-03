@@ -201,8 +201,10 @@ test-*.js
 validate-*.js
 cookies.txt
 
-# Migration scripts (one-off)
+# Migration scripts (one-off, generic)
 migrations/
+# But keep our project migration scripts
+!scripts/migrations/
 
 # Examples
 examples/
