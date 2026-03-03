@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 37 (Room Schedule UX Fixes & Conflict Prevention)
-Plan: 4 of 4 in current phase (Plans 01-04 COMPLETE)
-Status: Phase 37 COMPLETE
-Last activity: 2026-03-03 — Phase 37 Plan 04 executed
+Plan: 5 of 9 in current phase (Plans 01-05 COMPLETE, 06-09 gap closure remaining)
+Status: Executing gap closure plans
+Last activity: 2026-03-03 — Phase 37 Plan 05 executed (gap closure)
 
-Progress: [##############] 4/4 plans (Phase 37) COMPLETE
+Progress: [########------] 5/9 plans (Phase 37 gap closure)
 
 ## Performance Metrics
 
@@ -108,6 +108,10 @@ Progress: [##############] 4/4 plans (Phase 37) COMPLETE
 - 37-04: applyFilters extracted as standalone function for reuse in useMemo and PDF callbacks
 - 37-04: Spanning activity slots show '...' continuation marker in grid PDF cells
 - 37-fix: Hebrew prefix labels (מורה:/תלמיד:) added to ActivityCell 3-line content per verification gap
+- 37-05: roomOccupancy Map with key format room::dayIndex for O(1) lookup per room-day pair
+- 37-05: pickAvailableRoom returns null on no availability -- callers skip via continue
+- 37-05: Orchestra location left as pick(LOCATIONS) -- home room, not time-bound booking
+- 37-05: Accent borders widened to border-r-[6px] + border-l-2 for dual-border type identification
 
 ### Roadmap Evolution
 
@@ -142,9 +146,10 @@ None.
 | 37    | 02   | 8min     | 2     | 5     |
 | 37    | 03   | 5min     | 1     | 3     |
 | 37    | 04   | 4min     | 2     | 2     |
+| 37    | 05   | 3min     | 2     | 2     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 37-04-PLAN.md — Phase 37 COMPLETE
-Resume: Next milestone planning
+Stopped at: Completed 37-05-PLAN.md (gap closure)
+Resume: Continue with 37-06-PLAN.md through 37-09-PLAN.md gap closure plans
