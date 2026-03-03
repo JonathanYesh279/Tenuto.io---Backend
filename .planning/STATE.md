@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 34 of 35 (Grid Interaction)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: Executing Phase 34
-Last activity: 2026-03-03 — Completed 34-01 (Filter Controls and Empty Rooms)
+Last activity: 2026-03-03 — Completed 34-02 (Click-to-Create Lesson Dialog)
 
-Progress: [#########.....] 69% (v1.6) — 9/13 plans
+Progress: [##########....] 77% (v1.6) — 10/13 plans
 
 ## Performance Metrics
 
@@ -69,6 +69,10 @@ Progress: [#########.....] 69% (v1.6) — 9/13 plans
 - 34-01: Empty rooms from tenant settings merged into filteredRooms for grid display
 - 34-01: Stats recomputed from filteredRooms so summary bar reflects active filter state
 - 34-01: DAY_NAMES moved to shared utils.ts; minutesToTime added for Plan 34-03
+- 34-02: Searchable teacher list via text input + scrollable div (not Radix Select) for Hebrew search
+- 34-02: Occupied slot detection via Set<number> per room row for empty cell click targeting
+- 34-02: Teachers fetched once on mount (not per dialog open) for performance
+- 34-02: CreateDialogState interface: open, room, day, startTime, endTime as dialog prop contract
 
 ### Pending Todos
 
@@ -90,9 +94,10 @@ None.
 | 33    | 02   | 10min    | 2     | 2     |
 | 33    | 03   | 6min     | 2     | 5     |
 | 34    | 01   | 6min     | 2     | 4     |
+| 34    | 02   | 8min     | 2     | 3     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 34-01-PLAN.md (Filter Controls and Empty Rooms)
-Resume: Continue with 34-02-PLAN.md (Click-to-Create Lesson Dialog)
+Stopped at: Completed 34-02-PLAN.md (Click-to-Create Lesson Dialog)
+Resume: Continue with 34-03-PLAN.md (Drag-and-Drop Time Block Moves)
