@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 37 (Room Schedule UX Fixes & Conflict Prevention)
-Plan: 5 of 9 in current phase (Plans 01-05 COMPLETE, 06-09 gap closure remaining)
+Plan: 6 of 9 in current phase (Plans 01-06 COMPLETE, 07-09 gap closure remaining)
 Status: Executing gap closure plans
-Last activity: 2026-03-03 — Phase 37 Plan 05 executed (gap closure)
+Last activity: 2026-03-03 — Phase 37 Plan 06 executed (gap closure)
 
-Progress: [########------] 5/9 plans (Phase 37 gap closure)
+Progress: [##########----] 6/9 plans (Phase 37 gap closure)
 
 ## Performance Metrics
 
@@ -112,6 +112,9 @@ Progress: [########------] 5/9 plans (Phase 37 gap closure)
 - 37-05: pickAvailableRoom returns null on no availability -- callers skip via continue
 - 37-05: Orchestra location left as pick(LOCATIONS) -- home room, not time-bound booking
 - 37-05: Accent borders widened to border-r-[6px] + border-l-2 for dual-border type identification
+- 37-06: silentReloadSchedule skips setLoading to keep grid mounted and scroll preserved during DnD
+- 37-06: Optimistic state update in handleDragEnd before API call for instant visual feedback
+- 37-06: scrollContainerRef approach removed -- grid never unmounts so scroll is naturally preserved
 
 ### Roadmap Evolution
 
@@ -147,9 +150,10 @@ None.
 | 37    | 03   | 5min     | 1     | 3     |
 | 37    | 04   | 4min     | 2     | 2     |
 | 37    | 05   | 3min     | 2     | 2     |
+| 37    | 06   | 8min     | 1     | 1     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 37-05-PLAN.md (gap closure)
-Resume: Continue with 37-06-PLAN.md through 37-09-PLAN.md gap closure plans
+Stopped at: Completed 37-06-PLAN.md (gap closure)
+Resume: Continue with 37-07-PLAN.md through 37-09-PLAN.md gap closure plans
