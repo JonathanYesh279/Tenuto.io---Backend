@@ -458,8 +458,8 @@ function generateStudents(teachers) {
       for (let j = 0; j < share && studentIdx < teacherStudents.length; j++) {
         const duration = pickDuration();
 
-        // Check if lesson fits in block (15-min overflow tolerance)
-        if (bs.cursor + duration > bs.endMin + 15) {
+        // Check if lesson fits in block (strict: no overflow past block end)
+        if (bs.cursor + duration > bs.endMin) {
           break;
         }
 
@@ -509,11 +509,7 @@ function generateStudents(teachers) {
     }
 
     // Handle remaining students: force 30-min slots into block with most remaining capacity
-    if (blockSlots.length === 0) {
-      // Teacher has no time blocks — skip remaining students
-      studentIdx = teacherStudents.length;
-    }
-    while (studentIdx < teacherStudents.length) {
+    while (studentIdx < teacherStudents.length && blockSlots.length > 0) {
       // Find block with most remaining capacity
       let bestSlot = blockSlots[0];
       for (const bs of blockSlots) {
@@ -522,8 +518,13 @@ function generateStudents(teachers) {
         if (remaining > bestRemaining) bestSlot = bs;
       }
 
-      const s = teacherStudents[studentIdx];
+      // Stop if no block has enough room (strict: no overflow past block end)
       const duration = 30; // Force minimum for overflow
+      if (bestSlot.cursor + duration > bestSlot.endMin) {
+        break; // All blocks full — remaining students unassigned
+      }
+
+      const s = teacherStudents[studentIdx];
       const lessonId = new ObjectId();
       const scheduleSlotId = new ObjectId();
       const lessonStartMin = bestSlot.cursor;
@@ -1092,18 +1093,31 @@ async function seedData(db) {
   console.log(`    Cross-references valid: ${crossRefValid}/${crossRefTotal}`);
   console.log(`    Verification time: ${verifyMs}ms`);
 
-  // Room conflict audit: check for block-level overlaps in same room+day
+  // Room conflict audit: check for LESSON-level overlaps in same room+day
+  // (This mirrors what the room-schedule API detects — individual lessons, not blocks)
   const roomDayBlocks = new Map(); // key: room::day -> [{start, end, teacher}]
   for (const t of teachers) {
     const tName = `${t.personalInfo.firstName} ${t.personalInfo.lastName}`;
     for (const block of (t.teaching?.timeBlocks || [])) {
       const key = `${block.location}::${block.day}`;
       if (!roomDayBlocks.has(key)) roomDayBlocks.set(key, []);
-      roomDayBlocks.get(key).push({
-        start: timeToMinutes(block.startTime),
-        end: timeToMinutes(block.endTime),
-        teacher: tName,
-      });
+      const activeLessons = (block.assignedLessons || []).filter(l => l.isActive !== false);
+      if (activeLessons.length > 0) {
+        // Emit each lesson as a separate activity (same as room-schedule API)
+        for (const lesson of activeLessons) {
+          roomDayBlocks.get(key).push({
+            start: timeToMinutes(lesson.lessonStartTime),
+            end: timeToMinutes(lesson.lessonEndTime),
+            teacher: tName,
+          });
+        }
+      } else {
+        roomDayBlocks.get(key).push({
+          start: timeToMinutes(block.startTime),
+          end: timeToMinutes(block.endTime),
+          teacher: tName,
+        });
+      }
     }
   }
   // Also check rehearsals and theory lessons
