@@ -22,6 +22,7 @@ const DAY_NAMES = VALID_DAYS; // ['ראשון', 'שני', 'שלישי', 'רבי�
 
 export const roomScheduleService = {
   getRoomSchedule,
+  moveActivity,
 };
 
 /**
@@ -97,6 +98,201 @@ async function getRoomSchedule(day, options = {}) {
       },
     },
   };
+}
+
+/**
+ * Move an activity (timeBlock, rehearsal, or theory lesson) to a new room/time.
+ * Pre-checks for conflicts at the target slot before persisting.
+ *
+ * @param {object} moveData - Validated move request body
+ * @param {string} moveData.activityId - Source activity ID
+ * @param {string} moveData.source - 'timeBlock' | 'rehearsal' | 'theory'
+ * @param {string} moveData.targetRoom - Target room name
+ * @param {string} moveData.targetStartTime - Target start time (HH:MM)
+ * @param {string} moveData.targetEndTime - Target end time (HH:MM)
+ * @param {string} [moveData.teacherId] - Teacher ID (required for timeBlock)
+ * @param {string} [moveData.blockId] - Block ID (required for timeBlock)
+ * @param {object} options - { context: { tenantId, schoolYearId } }
+ * @returns {Promise<object>} Updated room schedule for the day
+ */
+async function moveActivity(moveData, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+  const { activityId, source, targetRoom, targetStartTime, targetEndTime, teacherId, blockId } = moveData;
+
+  // Step 1: Determine the day for the activity being moved
+  let numericDay;
+
+  if (source === 'timeBlock') {
+    const teacherCollection = await getCollection('teacher');
+    const teacher = await teacherCollection.findOne(
+      {
+        _id: ObjectId.createFromHexString(teacherId),
+        tenantId,
+        'teaching.timeBlocks._id': ObjectId.createFromHexString(blockId),
+      },
+      { projection: { 'teaching.timeBlocks.$': 1 } }
+    );
+
+    if (!teacher || !teacher.teaching?.timeBlocks?.length) {
+      const err = new Error('Activity not found');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+
+    const block = teacher.teaching.timeBlocks[0];
+    const hebrewDay = block.day;
+    numericDay = DAY_NAMES.indexOf(hebrewDay);
+    if (numericDay === -1) {
+      const err = new Error('Invalid day on time block');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+  } else if (source === 'rehearsal') {
+    const rehearsalCollection = await getCollection('rehearsal');
+    const rehearsal = await rehearsalCollection.findOne(
+      { _id: ObjectId.createFromHexString(activityId), tenantId },
+      { projection: { dayOfWeek: 1 } }
+    );
+
+    if (!rehearsal) {
+      const err = new Error('Activity not found');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+    numericDay = rehearsal.dayOfWeek;
+  } else if (source === 'theory') {
+    const theoryCollection = await getCollection('theory_lesson');
+    const theory = await theoryCollection.findOne(
+      { _id: ObjectId.createFromHexString(activityId), tenantId },
+      { projection: { dayOfWeek: 1 } }
+    );
+
+    if (!theory) {
+      const err = new Error('Activity not found');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+    numericDay = theory.dayOfWeek;
+  }
+
+  // Step 2: Conflict pre-check
+  const schedule = await getRoomSchedule(numericDay, options);
+
+  // Collect all activities from rooms + unassigned, filter out the one being moved
+  const allActivities = [
+    ...schedule.rooms.flatMap((r) => r.activities),
+    ...schedule.unassigned,
+  ];
+
+  // Determine the ID to exclude (for timeBlock, the block-level id or lesson-level id)
+  const excludeId = source === 'timeBlock' ? blockId : activityId;
+
+  const activitiesInTargetRoom = allActivities.filter((a) => {
+    // Exclude the activity being moved (match by id or by blockId prefix for timeBlock lessons)
+    if (source === 'timeBlock') {
+      // TimeBlock activities have id = blockId or blockId_N; exclude all from same block
+      if (a.source === 'timeBlock' && (a.id === excludeId || a.id.startsWith(`${excludeId}_`))) {
+        return false;
+      }
+    } else {
+      if (a.id === excludeId && a.source === source) {
+        return false;
+      }
+    }
+    // Only keep activities in the target room
+    return a.room === targetRoom;
+  });
+
+  // Check for overlaps with remaining activities in target room
+  const conflicts = [];
+  for (const activity of activitiesInTargetRoom) {
+    if (
+      activity.startTime && activity.endTime &&
+      doTimesOverlap(targetStartTime, targetEndTime, activity.startTime, activity.endTime)
+    ) {
+      conflicts.push({
+        id: activity.id,
+        source: activity.source,
+        teacherName: activity.teacherName,
+        startTime: activity.startTime,
+        endTime: activity.endTime,
+      });
+    }
+  }
+
+  if (conflicts.length > 0) {
+    const err = new Error('Conflict detected at target room/time');
+    err.code = 'CONFLICT';
+    err.conflictsWith = conflicts;
+    throw err;
+  }
+
+  // Step 3: Per-source update
+  if (source === 'timeBlock') {
+    const teacherCollection = await getCollection('teacher');
+    const result = await teacherCollection.updateOne(
+      {
+        _id: ObjectId.createFromHexString(teacherId),
+        tenantId,
+        'teaching.timeBlocks._id': ObjectId.createFromHexString(blockId),
+      },
+      {
+        $set: {
+          'teaching.timeBlocks.$.location': targetRoom,
+          'teaching.timeBlocks.$.startTime': targetStartTime,
+          'teaching.timeBlocks.$.endTime': targetEndTime,
+          'teaching.timeBlocks.$.updatedAt': new Date(),
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      const err = new Error('Activity not found');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+  } else if (source === 'rehearsal') {
+    const rehearsalCollection = await getCollection('rehearsal');
+    const result = await rehearsalCollection.updateOne(
+      { _id: ObjectId.createFromHexString(activityId), tenantId },
+      {
+        $set: {
+          location: targetRoom,
+          startTime: targetStartTime,
+          endTime: targetEndTime,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      const err = new Error('Activity not found');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+  } else if (source === 'theory') {
+    const theoryCollection = await getCollection('theory_lesson');
+    const result = await theoryCollection.updateOne(
+      { _id: ObjectId.createFromHexString(activityId), tenantId },
+      {
+        $set: {
+          location: targetRoom,
+          startTime: targetStartTime,
+          endTime: targetEndTime,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      const err = new Error('Activity not found');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+  }
+
+  // Step 4: Return fresh schedule
+  return getRoomSchedule(numericDay, options);
 }
 
 // ─── Source Queries ───────────────────────────────────────────────────────────

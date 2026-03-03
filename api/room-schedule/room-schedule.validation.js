@@ -1,4 +1,7 @@
 import Joi from 'joi';
+import { timeToMinutes } from '../../utils/timeUtils.js';
+
+const TIME_PATTERN = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
 
 const dayQuerySchema = Joi.object({
   day: Joi.number().integer().min(0).max(5).required()
@@ -9,6 +12,38 @@ const dayQuerySchema = Joi.object({
       'number.max': 'day must be between 0 (Sunday) and 5 (Friday)',
       'any.required': 'day query parameter is required',
     }),
+});
+
+const moveBodySchema = Joi.object({
+  activityId: Joi.string().required()
+    .messages({ 'any.required': 'activityId is required' }),
+  source: Joi.string().valid('timeBlock', 'rehearsal', 'theory').required()
+    .messages({
+      'any.only': 'source must be one of: timeBlock, rehearsal, theory',
+      'any.required': 'source is required',
+    }),
+  targetRoom: Joi.string().required()
+    .messages({ 'any.required': 'targetRoom is required' }),
+  targetStartTime: Joi.string().pattern(TIME_PATTERN).required()
+    .messages({
+      'string.pattern.base': 'targetStartTime must be in HH:MM format',
+      'any.required': 'targetStartTime is required',
+    }),
+  targetEndTime: Joi.string().pattern(TIME_PATTERN).required()
+    .messages({
+      'string.pattern.base': 'targetEndTime must be in HH:MM format',
+      'any.required': 'targetEndTime is required',
+    }),
+  teacherId: Joi.string().when('source', {
+    is: 'timeBlock',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }).messages({ 'any.required': 'teacherId is required for timeBlock source' }),
+  blockId: Joi.string().when('source', {
+    is: 'timeBlock',
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }).messages({ 'any.required': 'blockId is required for timeBlock source' }),
 });
 
 /**
@@ -26,5 +61,26 @@ export function validateDayQuery(query) {
     const message = error.details.map(d => d.message).join('; ');
     throw new Error(message);
   }
+  return value;
+}
+
+/**
+ * Validate move request body.
+ * @param {object} body - The request body
+ * @returns {object} Validated body
+ * @throws {Error} If validation fails (message includes details)
+ */
+export function validateMoveBody(body) {
+  const { error, value } = moveBodySchema.validate(body, { abortEarly: false });
+  if (error) {
+    const message = error.details.map(d => d.message).join('; ');
+    throw new Error(message);
+  }
+
+  // Custom validation: startTime must be before endTime
+  if (timeToMinutes(value.targetStartTime) >= timeToMinutes(value.targetEndTime)) {
+    throw new Error('targetStartTime must be before targetEndTime');
+  }
+
   return value;
 }

@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 
 ## Current Position
 
-Phase: 32 of 35 (Hours Management Table)
-Plan: 1 of ? in current phase
-Status: Ready
-Last activity: 2026-03-03 — Completed Phase 31 (Room Data Foundation) - all 3 plans
+Phase: 32 of 35 (Room Schedule API & Conflict Detection)
+Plan: 2 of ? in current phase
+Status: In Progress
+Last activity: 2026-03-03 — Completed 32-01 (Room Schedule API & Conflict Detection)
 
-Progress: [###...........] 23% (v1.6) — 3/13 plans
+Progress: [####..........] 31% (v1.6) — 4/13 plans
 
 ## Performance Metrics
 
@@ -46,6 +46,10 @@ Progress: [###...........] 23% (v1.6) — 3/13 plans
 - 31-03: Theory categories subset (6 of 14) sufficient for dev testing
 - 31-03: 12 intentional conflicts: 6 same-room, 3 cross-source, 3 teacher double-booking
 - 31-03: LOCATIONS array produces 29 rooms; all location fields use consistent `location` name
+- 32-01: On-the-fly aggregation with timing instrumentation (no materialized collection yet)
+- 32-01: Union-find for transitive conflict grouping across sources
+- 32-01: Empty timeBlocks (no assignedLessons) emitted as single block activity for room occupancy
+- 32-01: Rehearsal/theory deduplication via MongoDB $group by weekly pattern composite key
 
 ### Pending Todos
 
@@ -61,9 +65,10 @@ None.
 | 31    | 01   | 14min    | 2     | 6     |
 | 31    | 02   | 11min    | 2     | 12    |
 | 31    | 03   | 6min     | 1     | 1     |
+| 32    | 01   | 4min     | 2     | 5     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed Phase 31 (Room Data Foundation) - all 3 plans complete
-Resume: `/gsd:execute-phase 32` (next phase)
+Stopped at: Completed 32-01 (Room Schedule API & Conflict Detection)
+Resume: Continue with 32-02 (next plan in phase 32)
