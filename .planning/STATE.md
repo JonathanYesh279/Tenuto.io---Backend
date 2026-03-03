@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 33 of 35 (Read-Only Room Grid UI)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-03-03 — Completed 33-02 (Activity Cell Color Coding and Conflict Stacking)
+Plan: 3 of 3 in current phase (PHASE COMPLETE)
+Status: Phase 33 Complete
+Last activity: 2026-03-03 — Completed 33-03 (Summary Stats Bar and Unassigned Activities)
 
-Progress: [#######.......] 54% (v1.6) — 7/13 plans
+Progress: [########......] 62% (v1.6) — 8/13 plans
 
 ## Performance Metrics
 
@@ -61,6 +61,10 @@ Progress: [#######.......] 54% (v1.6) — 7/13 plans
 - 33-02: Conflict stacking uses flex-column within grid cell spanning full conflict group time range
 - 33-02: Dynamic row heights: 60px base + 32px per stacked conflict item
 - 33-02: TooltipProvider wraps each cell with 300ms delay to prevent tooltip spam
+- 33-03: BuildingOffice icon for rooms stat card (distinct from MapPinIcon used for locations)
+- 33-03: Conflict count card dynamically switches green/red based on count value
+- 33-03: Shared utils.ts extracted for timeToMinutes and grid constants (eliminates duplication)
+- 33-03: Slot occupancy computed via Set<number> per room for correct overlap handling
 
 ### Pending Todos
 
@@ -80,9 +84,10 @@ None.
 | 32    | 02   | 2min     | 2     | 4     |
 | 33    | 01   | 7min     | 2     | 6     |
 | 33    | 02   | 10min    | 2     | 2     |
+| 33    | 03   | 6min     | 2     | 5     |
 
 ## Session Continuity
 
 Last session: 2026-03-03
-Stopped at: Completed 33-02-PLAN.md (Activity Cell Color Coding and Conflict Stacking)
-Resume: `/gsd:execute-phase 33` to continue with 33-03
+Stopped at: Completed 33-03-PLAN.md (Summary Stats Bar and Unassigned Activities) -- Phase 33 complete
+Resume: `/gsd:execute-phase 34` to begin Phase 34 (Drag-and-Drop Room Assignment)
