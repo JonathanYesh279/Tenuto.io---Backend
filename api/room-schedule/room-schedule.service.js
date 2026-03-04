@@ -404,7 +404,8 @@ async function rescheduleLesson(rescheduleData, options = {}) {
     throw err;
   }
 
-  // 6. Create target block
+  // 6. Create target block (exclude source block from conflict check
+  //    since we just deactivated the lesson there — the block still exists)
   let newBlockId;
   try {
     const createResult = await timeBlockService.createTimeBlock(teacherId, {
@@ -412,7 +413,7 @@ async function rescheduleLesson(rescheduleData, options = {}) {
       startTime: targetStartTime,
       endTime: targetEndTime,
       location: targetRoom,
-    }, options);
+    }, { ...options, excludeBlockId: sourceBlockId });
     newBlockId = createResult.timeBlock._id.toString();
   } catch (createErr) {
     console.error(`Error creating target block: ${createErr.message}`);

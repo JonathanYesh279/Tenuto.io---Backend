@@ -50,7 +50,7 @@ async function createTimeBlock(teacherId, blockData, options = {}) {
       value.day,
       value.startTime,
       value.endTime,
-      null,
+      options.excludeBlockId || null,
       tenantId
     );
 
