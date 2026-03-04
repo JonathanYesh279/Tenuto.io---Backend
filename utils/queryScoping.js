@@ -1,6 +1,14 @@
 // utils/queryScoping.js
 // Centralised query-scoping helpers for role-based data access.
 
+import { ADMIN_TIER_ROLES } from '../config/constants.js';
+
+/**
+ * NOTE: context.isAdmin is set by buildContext using ADMIN_TIER_ROLES
+ * (includes מנהל, סגן מנהל, מזכירות). All admin checks in this module
+ * rely on this being set correctly upstream.
+ */
+
 /**
  * Build a MongoDB filter scoped by tenant and user role.
  *

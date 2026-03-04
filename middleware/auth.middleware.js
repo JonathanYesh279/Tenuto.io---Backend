@@ -2,8 +2,18 @@ import jwt from 'jsonwebtoken';
 import { getCollection } from '../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { createLogger } from '../services/logger.service.js';
+import { ADMIN_TIER_ROLES } from '../config/constants.js';
 
 const log = createLogger('auth.middleware');
+
+/**
+ * Check if a teacher's roles include any admin-tier role (מנהל, סגן מנהל, מזכירות).
+ * @param {string[]} roles
+ * @returns {boolean}
+ */
+function isAdminTier(roles) {
+  return Array.isArray(roles) && roles.some(r => ADMIN_TIER_ROLES.includes(r));
+}
 
 export async function authenticateToken(req, res, next) {
   try {
@@ -94,8 +104,8 @@ export async function authenticateToken(req, res, next) {
     req.user = {
       id: teacher._id.toString(),
       tenantId: teacher.tenantId || null,
-      role: teacher.roles?.includes('מנהל') ? 'admin' : 'teacher',
-      isAdmin: teacher.roles?.includes('מנהל') || false,
+      role: isAdminTier(teacher.roles) ? 'admin' : 'teacher',
+      isAdmin: isAdminTier(teacher.roles),
       email: teacher.credentials?.email,
       displayName,
     };
@@ -140,7 +150,7 @@ export function requireAuth(roles) {
         });
       }
 
-      if (teacher.roles && teacher.roles.includes('מנהל')) {
+      if (teacher.roles && isAdminTier(teacher.roles)) {
         req.isAdmin = true;
         return next();
       }

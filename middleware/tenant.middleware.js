@@ -1,5 +1,8 @@
 import { createLogger } from '../services/logger.service.js';
 import { getCollection } from '../services/mongoDB.service.js';
+import { ObjectId } from 'mongodb';
+import { ADMIN_TIER_ROLES, COORDINATOR_ROLES } from '../config/constants.js';
+import { DEFAULT_ROLE_PERMISSIONS, resolveEffectivePermissions } from '../config/permissions.js';
 
 const log = createLogger('tenant.middleware');
 
@@ -52,17 +55,47 @@ export async function buildContext(req, res, next) {
       }
     }
 
+    // Resolve effective permissions from tenant's rolePermissions (or hardcoded defaults)
+    let rolePermissions = DEFAULT_ROLE_PERMISSIONS;
+    if (teacher.tenantId) {
+      try {
+        const tenantCollection = await getCollection('tenant');
+        const tenantDoc = await tenantCollection.findOne(
+          { _id: ObjectId.createFromHexString(teacher.tenantId) },
+          { projection: { rolePermissions: 1 } }
+        );
+        if (tenantDoc?.rolePermissions) {
+          rolePermissions = tenantDoc.rolePermissions;
+        }
+      } catch (err) {
+        log.warn({ err: err.message }, 'Failed to load tenant rolePermissions, using defaults');
+      }
+    }
+
+    const teacherRoles = teacher.roles || [];
+    const effectivePermissions = resolveEffectivePermissions(teacherRoles, rolePermissions);
+
+    // Coordinator detection
+    const isCoordinator = teacherRoles.some(r => COORDINATOR_ROLES.includes(r));
+    const coordinatorDepartments = isCoordinator ? (teacher.coordinatorDepartments || []) : [];
+
+    const isAdmin = teacherRoles.some(r => ADMIN_TIER_ROLES.includes(r));
+
     req.context = {
       tenantId: teacher.tenantId || null,
       userId: teacherId,
-      userRoles: teacher.roles || [],
-      isAdmin: teacher.roles?.includes('מנהל') || false,
+      userRoles: teacherRoles,
+      isAdmin,
       schoolYearId: req.schoolYear?._id?.toString() || req.query.schoolYearId || null,
       // Access scopes for query filtering
       scopes: {
         studentIds: teacher._studentAccessIds,
         orchestraIds: teacher.conducting?.orchestraIds || [],
       },
+      // RBAC fields
+      effectivePermissions,
+      coordinatorDepartments,
+      isCoordinator,
     };
 
     next();
