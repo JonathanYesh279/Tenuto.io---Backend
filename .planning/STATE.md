@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 38 (Single-Lesson Reschedule & Detail Modal)
-Plan: 2 of 2 in current phase
-Status: Phase 38 COMPLETE
-Last activity: 2026-03-04 — Completed 38-02 (frontend detail modal + lesson DnD fork)
+Plan: 3 of 3 in current phase (gap closure plan 03 added)
+Status: Phase 38 COMPLETE (including gap closure)
+Last activity: 2026-03-04 — Completed 38-03 (client-side DnD conflict guard)
 
-Progress: [==============] 2/2 plans (Phase 38)
+Progress: [==============] 3/3 plans (Phase 38)
 
 ## Performance Metrics
 
@@ -132,6 +132,8 @@ Progress: [==============] 2/2 plans (Phase 38)
 - 38-02: Inline delete confirmation toggle (not window.confirm) for consistent UX within shadcn Dialog
 - 38-02: Lesson-level DnD skips optimistic update (new backend entities have unpredictable IDs)
 - 38-02: deleteLessonFromBlock reuses existing DELETE /lesson/:teacherId/:timeBlockId/:lessonId route
+- 38-03: Client-side conflict guard in handleDragEnd uses same doTimesOverlap + room activities pattern as DroppableCell
+- 38-03: schedule added to handleDragEnd useCallback deps since guard reads it directly
 
 ### Roadmap Evolution
 
@@ -174,9 +176,10 @@ None.
 | 37    | 09   | 5min     | 2     | 2     |
 | 38    | 01   | 10min    | 2     | 4     |
 | 38    | 02   | 9min     | 2     | 5     |
+| 38    | 03   | 4min     | 1     | 1     |
 
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed Phase 38 (all plans)
-Resume: Phase 38 complete. Next milestone/phase TBD.
+Stopped at: Completed 38-03 (gap closure: client-side DnD conflict guard)
+Resume: Phase 38 fully complete (3/3 plans including gap closure). Next milestone/phase TBD.
