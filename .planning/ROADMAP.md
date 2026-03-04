@@ -113,7 +113,7 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 
 **Design doc:** `docs/plans/2026-03-05-rbac-admin-provisioning-design.md`
 
-- [ ] **Phase 39: Role & Permission Foundation** — Constants, data model, and hardcoded defaults
+- [x] **Phase 39: Role & Permission Foundation** — Constants, data model, and hardcoded defaults (completed 2026-03-05)
 - [ ] **Phase 40: Permission Engine & Middleware** — requirePermission, buildContext extension, department-scoped filtering
 - [ ] **Phase 41: Route Migration** — Migrate all routes from requireAuth(roles[]) to requirePermission(domain, action)
 - [ ] **Phase 42: Admin Provisioning** — Tenant creation with inline admin account in a transaction
@@ -135,8 +135,8 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
   5. `PERMISSION_DOMAINS` and `PERMISSION_ACTIONS` constants enumerate all 9 domains and their valid actions
 **Plans:** 2 plans
 Plans:
-- [ ] 39-01-PLAN.md — Role constants, permission vocabulary, and DEFAULT_ROLE_PERMISSIONS matrix
-- [ ] 39-02-PLAN.md — Admin-tier middleware awareness and buildContext permission resolution
+- [x] 39-01-PLAN.md — Role constants, permission vocabulary, and DEFAULT_ROLE_PERMISSIONS matrix
+- [x] 39-02-PLAN.md — Admin-tier middleware awareness and buildContext permission resolution
 
 ### Phase 40: Permission Engine & Middleware
 **Goal**: Every request carries resolved effective permissions on `req.context`, and `requirePermission(domain, action)` can gate any route with scope-aware filtering -- including department-scoped coordinators
@@ -213,7 +213,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 39. Role & Permission Foundation | v1.7 | 0/2 | Planned | - |
+| 39. Role & Permission Foundation | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 40. Permission Engine & Middleware | v1.7 | 0/TBD | Not started | - |
 | 41. Route Migration | v1.7 | 0/TBD | Not started | - |
 | 42. Admin Provisioning | v1.7 | 0/TBD | Not started | - |
@@ -225,4 +225,4 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 39 planned (2 plans, 2 waves)*
+*Last updated: 2026-03-05 -- Phase 39 complete (2/2 plans, verified)*
