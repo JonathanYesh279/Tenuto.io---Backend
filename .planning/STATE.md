@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 39 of 45 (Role & Permission Foundation)
-Plan: 01 complete
+Plan: 02 complete
 Status: Executing
-Last activity: 2026-03-05 — 39-01 RBAC constants and permission matrix
+Last activity: 2026-03-05 — 39-02 Middleware admin-tier and permission resolution
 
-Progress: [█░░░░░░░░░] 14%
+Progress: [██░░░░░░░░] 29%
 
 ## Performance Metrics
 
@@ -42,6 +42,9 @@ Progress: [█░░░░░░░░░] 14%
 - 39-01: Admin-tier roles share same frozen ADMIN_PERMISSIONS object reference
 - 39-01: rolePermissions defaults to null on tenant schema; middleware falls back to DEFAULT_ROLE_PERMISSIONS
 - 39-01: LOCKED_DOMAINS (settings, roles) enforced via validateRolePermissions
+- 39-02: isAdminTier helper kept private in auth.middleware (not exported)
+- 39-02: buildContext queries tenant for rolePermissions separately (small indexed projection)
+- 39-02: DB errors on rolePermissions fetch silently fall back to defaults (no 500)
 
 ### Pending Todos
 
@@ -54,9 +57,10 @@ None.
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 39-01 | RBAC constants | 3min | 2 | 4 |
+| 39-02 | Middleware permissions | 2min | 1 | 3 |
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 39-01-PLAN.md (RBAC constants and permission matrix)
+Stopped at: Completed 39-02-PLAN.md (Middleware admin-tier and permission resolution)
 Resume: Execute next plan in phase 39 or run `/gsd:execute-phase 39`
