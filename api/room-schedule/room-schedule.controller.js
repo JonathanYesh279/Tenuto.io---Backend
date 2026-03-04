@@ -100,10 +100,10 @@ async function rescheduleLesson(req, res) {
     if (err.code === 'NOT_FOUND') {
       return res.status(404).json({ error: err.message });
     }
-    console.error(`Error rescheduling lesson: ${err.message}`);
+    console.error(`Error rescheduling lesson: ${err.message}`, err.stack);
     if (err.message.includes('TENANT_GUARD')) {
       return res.status(403).json({ error: 'Tenant context required' });
     }
-    res.status(500).json({ error: 'Failed to reschedule lesson' });
+    res.status(500).json({ error: 'Failed to reschedule lesson', detail: err.message });
   }
 }
