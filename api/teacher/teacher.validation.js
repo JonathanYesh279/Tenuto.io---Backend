@@ -8,6 +8,7 @@ import {
   TEACHER_DEGREES,
   MANAGEMENT_ROLES,
   TEACHING_SUBJECTS,
+  INSTRUMENT_DEPARTMENTS,
 } from '../../config/constants.js';
 
 const VALID_DURATION = [30, 45, 60];
@@ -103,6 +104,10 @@ export const teacherSchema = Joi.object({
   roles: Joi.array()
     .items(Joi.string().valid(...TEACHER_ROLES))
     .required(),
+
+  coordinatorDepartments: Joi.array()
+    .items(Joi.string().valid(...INSTRUMENT_DEPARTMENTS))
+    .default([]),
 
   professionalInfo: Joi.object({
     instrument: Joi.string().allow('', null).optional(),
@@ -252,6 +257,10 @@ export const teacherUpdateSchema = Joi.object({
     .items(Joi.string().valid(...TEACHER_ROLES))
     .optional(),
 
+  coordinatorDepartments: Joi.array()
+    .items(Joi.string().valid(...INSTRUMENT_DEPARTMENTS))
+    .optional(),
+
   professionalInfo: Joi.object({
     instrument: Joi.string().allow('', null).optional(),
     instruments: Joi.array()
@@ -366,6 +375,10 @@ export const teacherImportSchema = Joi.object({
   roles: Joi.array()
     .items(Joi.string().valid(...TEACHER_ROLES))
     .default(['מורה']),
+
+  coordinatorDepartments: Joi.array()
+    .items(Joi.string().valid(...INSTRUMENT_DEPARTMENTS))
+    .default([]),
 
   professionalInfo: Joi.object({
     instrument: Joi.string().allow('', null).optional().default(null),

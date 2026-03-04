@@ -1,5 +1,28 @@
 import Joi from 'joi';
-import { SUBSCRIPTION_PLANS } from '../../config/constants.js';
+import { SUBSCRIPTION_PLANS, TEACHER_ROLES } from '../../config/constants.js';
+import { PERMISSION_SCOPES, DOMAIN_ACTIONS } from '../../config/permissions.js';
+
+// ─── Role Permissions Schema ──────────────────────────────────────────────────
+// Structure: rolePermissions: { [roleName]: { [domain]: { [action]: scope } } }
+
+const actionScopeSchema = Joi.string().valid(...PERMISSION_SCOPES);
+
+const domainPermissionSchemas = {};
+for (const [domain, actions] of Object.entries(DOMAIN_ACTIONS)) {
+  const actionObj = {};
+  for (const action of actions) {
+    actionObj[action] = actionScopeSchema.optional();
+  }
+  domainPermissionSchemas[domain] = Joi.object(actionObj).optional();
+}
+
+const singleRolePermissionSchema = Joi.object(domainPermissionSchemas);
+
+const rolePermissionsSchema = Joi.object(
+  Object.fromEntries(TEACHER_ROLES.map(role => [role, singleRolePermissionSchema.optional()]))
+).optional();
+
+// ─── Tenant Schemas ───────────────────────────────────────────────────────────
 
 export const tenantSchema = Joi.object({
   slug: Joi.string()
@@ -33,6 +56,8 @@ export const tenantSchema = Joi.object({
       createdAt: Joi.date().default(() => new Date()),
     })).optional().default([]),
   }).default({ lessonDurations: [30, 45, 60], schoolStartMonth: 9 }),
+
+  rolePermissions: rolePermissionsSchema.default(null),
 
   subscription: Joi.object({
     plan: Joi.string()
@@ -106,6 +131,8 @@ export const tenantUpdateSchema = Joi.object({
       createdAt: Joi.date(),
     })).optional(),
   }),
+
+  rolePermissions: rolePermissionsSchema,
 
   subscription: Joi.object({
     plan: Joi.string().valid(...SUBSCRIPTION_PLANS),
