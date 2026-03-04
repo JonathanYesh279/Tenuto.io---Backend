@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 38 (Single-Lesson Reschedule & Detail Modal)
-Plan: 1 of 2 in current phase
-Status: Plan 38-01 complete, 38-02 remaining
-Last activity: 2026-03-04 — Completed 38-01 (backend API for lesson metadata + reschedule)
+Plan: 2 of 2 in current phase
+Status: Phase 38 COMPLETE
+Last activity: 2026-03-04 — Completed 38-02 (frontend detail modal + lesson DnD fork)
 
-Progress: [=======       ] 1/2 plans (Phase 38)
+Progress: [==============] 2/2 plans (Phase 38)
 
 ## Performance Metrics
 
@@ -127,6 +127,11 @@ Progress: [=======       ] 1/2 plans (Phase 38)
 - 38-01: Conflict exclusion by lessonId field rather than blockId prefix to avoid masking sibling lessons
 - 38-01: Empty block cleanup is non-fatal: logged but does not fail the reschedule operation
 - 38-01: Duration fallback: uses targetEndTime - targetStartTime when lesson.duration is null
+- 38-02: ActivityData extended with lessonId/studentId/duration/blockId as optional fields for backward compat
+- 38-02: onClick on ActivityCell only fires when not dragging (isDragging check prevents click-on-drag)
+- 38-02: Inline delete confirmation toggle (not window.confirm) for consistent UX within shadcn Dialog
+- 38-02: Lesson-level DnD skips optimistic update (new backend entities have unpredictable IDs)
+- 38-02: deleteLessonFromBlock reuses existing DELETE /lesson/:teacherId/:timeBlockId/:lessonId route
 
 ### Roadmap Evolution
 
@@ -168,9 +173,10 @@ None.
 | 37    | 08   | 3min     | 1     | 3     |
 | 37    | 09   | 5min     | 2     | 2     |
 | 38    | 01   | 10min    | 2     | 4     |
+| 38    | 02   | 9min     | 2     | 5     |
 
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 38-01-PLAN.md
-Resume: Execute 38-02-PLAN.md (frontend detail modal + lesson drag-and-drop).
+Stopped at: Completed Phase 38 (all plans)
+Resume: Phase 38 complete. Next milestone/phase TBD.
