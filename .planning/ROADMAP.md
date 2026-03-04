@@ -8,7 +8,8 @@
 - [x] **v1.3 Conservatory Information Import** — Phases 20-22 (shipped 2026-02-28)
 - [x] **v1.4 Ensemble Import** — Phases 23-26 (shipped 2026-02-28)
 - [x] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (shipped 2026-03-02)
-- [x] **v1.6 Room & Hours Management Table** — Phases 31-36 (shipped 2026-03-03)
+- [x] **v1.6 Room & Hours Management Table** — Phases 31-38 (shipped 2026-03-04)
+- [ ] **v1.7 RBAC & Admin Provisioning** — Phases 39-45 (in progress)
 
 ## Phases
 
@@ -81,186 +82,147 @@ See: `.planning/milestones/v1.4-ROADMAP.md` for full details.
 <details>
 <summary>v1.5 Privacy Compliance Foundation (Phases 27-30) — SHIPPED 2026-03-02</summary>
 
-**Milestone Goal:** Establish regulatory documentation and governance framework required by Israeli Privacy Protection Regulations (Information Security), 2017 -- assessed security level: MEDIUM. All deliverables are compliance documents, not code. Technical hardening deferred to v1.6.
-
-- [x] **Phase 27: Data Inventory and System Mapping** (4/4 plans) — completed 2026-03-02
-- [x] **Phase 28: Governance Framework and Security Policies** (3/3 plans) — completed 2026-03-02
-- [x] **Phase 29: Operational Procedures** (2/2 plans) — completed 2026-03-02
-- [x] **Phase 30: Supplementary Policies and Audit Program** (2/2 plans) — completed 2026-03-02
+- [x] Phase 27: Data Inventory and System Mapping (4/4 plans) — completed 2026-03-02
+- [x] Phase 28: Governance Framework and Security Policies (3/3 plans) — completed 2026-03-02
+- [x] Phase 29: Operational Procedures (2/2 plans) — completed 2026-03-02
+- [x] Phase 30: Supplementary Policies and Audit Program (2/2 plans) — completed 2026-03-02
 
 See: `.planning/milestones/v1.5-ROADMAP.md` for full details.
 
 </details>
 
 <details>
-<summary>v1.6 Room & Hours Management Table (Phases 31-36) — SHIPPED 2026-03-03</summary>
+<summary>v1.6 Room & Hours Management Table (Phases 31-38) — SHIPPED 2026-03-04</summary>
 
-**Milestone Goal:** Give conservatory admins a visual room-scheduling grid -- rooms x time slots per weekday -- showing all lessons, rehearsals, and theory classes with drag-and-drop editing.
-
-- [x] **Phase 31: Room Data Foundation** (3/3 plans) — completed 2026-03-03
-- [x] **Phase 32: Room Schedule API & Conflict Detection** (2/2 plans) — completed 2026-03-03
-- [x] **Phase 33: Read-Only Room Grid UI** (3/3 plans) — completed 2026-03-03
-- [x] **Phase 34: Grid Interaction** (3/3 plans) — completed 2026-03-03
-- [x] **Phase 35: Polish & Week Overview** (2/2 plans) — completed 2026-03-03
-- [x] **Phase 36: Seed Teacher Schedule Data** (1/1 plan) — completed 2026-03-03
-
-## Phase Details
-
-### Phase 31: Room Data Foundation
-**Goal**: Admins can manage a canonical list of rooms in conservatory settings, and all existing location data references those rooms
-**Depends on**: Nothing (first phase of v1.6)
-**Requirements**: ROOM-01, ROOM-02, ROOM-03, ROOM-04, ROOM-05, SEED-01
-**Success Criteria** (what must be TRUE):
-  1. Admin can view the list of rooms on the conservatory settings page with name and active status
-  2. Admin can add a new room, edit an existing room name, and deactivate a room from settings
-  3. Admin can upload an Excel file to bulk-import room definitions on the settings page
-  4. Creating or editing a theory lesson or rehearsal validates location against the tenant's room list instead of the hardcoded VALID_THEORY_LOCATIONS / VALID_LOCATIONS arrays
-  5. Running the seed script produces rooms, time blocks with room assignments, rehearsals, and theory lessons sufficient for grid development (30+ teachers, 200+ time blocks, multiple conflicts)
-**Plans:** 3 plans
-
-Plans:
-- [x] 31-01-PLAN.md — Room schema, CRUD endpoints, and settings UI
-- [x] 31-02-PLAN.md — Room Excel import, dynamic validation, and location normalization migration
-- [x] 31-03-PLAN.md — Dev seed script for rooms, time blocks, rehearsals, theory lessons, and conflicts
-
-### Phase 32: Room Schedule API & Conflict Detection
-**Goal**: A single API endpoint returns all room occupancy for a given weekday, merging private lessons, rehearsals, and theory classes, with conflicts detected across all sources
-**Depends on**: Phase 31 (room definitions and seed data must exist)
-**Requirements**: GRID-05, GRID-06
-**Success Criteria** (what must be TRUE):
-  1. GET /api/room-schedule?day=1 returns a unified response containing private lessons (from teacher.teaching.timeBlocks), rehearsals (from rehearsal collection), and theory classes (from theory_lesson collection) grouped by room
-  2. Activities in the response include teacher name, student/group name, activity type, and time slot for each occupied cell
-  3. When two or more activities occupy the same room at the same time, the response flags those activities with a conflict indicator
-  4. Conflict detection covers all three data sources (a time block and a rehearsal in the same room at the same time are detected as a conflict, not just theory-vs-theory)
-**Plans**: 2 plans
-
-Plans:
-- [x] 32-01-PLAN.md — Three-source aggregation service, conflict detection, and GET endpoint
-- [x] 32-02-PLAN.md — Move activity endpoint with per-source update logic and conflict pre-check
-
-### Phase 33: Read-Only Room Grid UI
-**Goal**: Admins see a visual matrix of rooms x 30-minute time slots for each weekday, with color-coded activities and summary statistics
-**Depends on**: Phase 32 (API endpoint must return unified room schedule data)
-**Requirements**: GRID-01, GRID-02, GRID-03, GRID-04, GRID-07
-**Success Criteria** (what must be TRUE):
-  1. Admin sees a grid with rooms as rows and 30-minute time slots as columns, scrollable horizontally, rendered in RTL layout
-  2. Admin can switch between weekdays (Sunday through Friday) using day tabs, and the grid shows only that day's activities
-  3. Each occupied cell displays the teacher name and the student or group name
-  4. Cells are color-coded by activity type (blue for private lessons, purple for rehearsals, orange for theory) and conflict cells have a red border or warning indicator
-  5. A summary statistics bar above or below the grid shows total rooms, occupied slots, free slots, and conflict count
-**Plans:** 3 plans
-
-Plans:
-- [x] 33-01-PLAN.md — API service, route/sidebar registration, page skeleton with day selector and CSS grid
-- [x] 33-02-PLAN.md — ActivityCell color coding, conflict indicators, tooltips, and conflict stacking
-- [x] 33-03-PLAN.md — Summary statistics bar and unassigned activities row
-
-### Phase 34: Grid Interaction
-**Goal**: Admins can create lessons in empty slots, move lessons between rooms/times via drag-and-drop, and filter the grid
-**Depends on**: Phase 33 (stable read-only grid must exist before adding interaction)
-**Requirements**: EDIT-01, EDIT-02, EDIT-03, EDIT-04, EDIT-05, EDIT-06
-**Success Criteria** (what must be TRUE):
-  1. Admin can click an empty cell and a form opens with room, day, and time pre-filled to create a one-time lesson
-  2. Admin can drag an activity card from one cell and drop it into another cell (different room or different time) and the lesson moves
-  3. When a drag target would cause a teacher, student, or room conflict, the drop is blocked and an error message explains the conflict
-  4. Admin can type a teacher name to filter the grid to show only that teacher's activities
-  5. Admin can filter by room name or activity type (private/rehearsal/theory) and the grid updates immediately
-**Plans:** 3 plans
-
-Plans:
-- [x] 34-01-PLAN.md — Filter controls (teacher search, room select, activity type toggles) and empty rooms display
-- [x] 34-02-PLAN.md — Click-to-create lesson dialog with teacher selection in empty grid cells
-- [x] 34-03-PLAN.md — Drag-and-drop with @dnd-kit/core, conflict validation, and move API integration
-
-### Phase 35: Polish & Week Overview
-**Goal**: Admins can print a day's schedule, see a compact week overview, and understand room utilization at a glance
-**Depends on**: Phase 34 (full grid functionality should be stable before polish)
-**Requirements**: PLSH-01, PLSH-02, PLSH-03
-**Success Criteria** (what must be TRUE):
-  1. Admin can click a print/export button and get a clean printable layout of the current day's room schedule (PDF or print dialog)
-  2. Admin can switch to a week overview showing all 6 weekdays side by side in a compact format
-  3. Each room row shows a utilization percentage (occupied slots / total slots across the week)
-**Plans**: 2 plans
-
-Plans:
-- [x] 35-01-PLAN.md — Schedule toolbar with print/export PDF and Tailwind print styling
-- [x] 35-02-PLAN.md — Week overview with compact mini-grid and room utilization indicators
-
-### Phase 36: Seed Teacher Schedule Data
-**Goal**: Running the seed script produces teachers with teaching days and time blocks populated with assigned student lessons, creating bidirectional schedule data that shows up in the room schedule grid
-**Depends on**: Phase 35 (room schedule UI must exist to verify seed data displays correctly)
-**Success Criteria** (what must be TRUE):
-  1. Each seeded teacher has teaching days configured and 2-4 time blocks with properly slotted assigned lessons
-  2. Each time block's assignedLessons array contains student lesson records with correct lessonStartTime/lessonEndTime within the block range
-  3. Each student's teacherAssignments references the correct teacher, timeBlock, day, time, and location matching the teacher's assignedLesson
-  4. The room schedule grid displays seeded activities (private lessons, rehearsals, theory) across all weekdays with visible room occupancy
-  5. Week overview shows utilization data across rooms from the seeded schedule
-**Plans**: 1 plan
-
-Plans:
-- [x] 36-01-PLAN.md — Enhance seed script with teaching day configuration and bidirectional lesson assignment
+- [x] Phase 31: Room Data Foundation (3/3 plans) — completed 2026-03-03
+- [x] Phase 32: Room Schedule API & Conflict Detection (2/2 plans) — completed 2026-03-03
+- [x] Phase 33: Read-Only Room Grid UI (3/3 plans) — completed 2026-03-03
+- [x] Phase 34: Grid Interaction (3/3 plans) — completed 2026-03-03
+- [x] Phase 35: Polish & Week Overview (2/2 plans) — completed 2026-03-03
+- [x] Phase 36: Seed Teacher Schedule Data (1/1 plan) — completed 2026-03-03
+- [x] Phase 37: Room Schedule UX Fixes & Conflict Prevention (9/9 plans) — completed 2026-03-04
+- [x] Phase 38: Single-Lesson Reschedule & Detail Modal (3/3 plans) — completed 2026-03-04
 
 See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 
 </details>
 
+## v1.7 RBAC & Admin Provisioning
+
+**Milestone Goal:** Give conservatory admins granular role-based access control with department-scoped coordinators, and fix the missing admin-creation step in tenant provisioning.
+
+**Design doc:** `docs/plans/2026-03-05-rbac-admin-provisioning-design.md`
+
+- [ ] **Phase 39: Role & Permission Foundation** — Constants, data model, and hardcoded defaults
+- [ ] **Phase 40: Permission Engine & Middleware** — requirePermission, buildContext extension, department-scoped filtering
+- [ ] **Phase 41: Route Migration** — Migrate all routes from requireAuth(roles[]) to requirePermission(domain, action)
+- [ ] **Phase 42: Admin Provisioning** — Tenant creation with inline admin account in a transaction
+- [ ] **Phase 43: Permission Configuration API & Safeguards** — Admin customization endpoints with lockout prevention
+- [ ] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor
+- [ ] **Phase 45: Migration & Verification** — Migration script for existing tenants and end-to-end verification
+
+## Phase Details
+
+### Phase 39: Role & Permission Foundation
+**Goal**: The system has a complete, typed vocabulary of roles, permission domains, actions, and scopes -- with hardcoded defaults that any phase can reference
+**Depends on**: Nothing (first phase of v1.7)
+**Requirements**: ROLE-01, ROLE-02, ROLE-05, PERM-02, CONF-01, CONF-02
+**Success Criteria** (what must be TRUE):
+  1. `TEACHER_ROLES` array includes all 13 roles (3 admin-tier, 2 coordinator, 7 teaching, 1 view-only) and the teacher Joi schema accepts them
+  2. `ADMIN_TIER_ROLES` and `COORDINATOR_ROLES` subsets are exported and usable as guards in any module
+  3. `DEFAULT_ROLE_PERMISSIONS` constant defines the complete domain/action/scope matrix for all 13 roles, with admin-tier roles having identical full-access permissions
+  4. Tenant schema accepts an optional `rolePermissions` field, and when missing, middleware code can fall back to `DEFAULT_ROLE_PERMISSIONS` without error
+  5. `PERMISSION_DOMAINS` and `PERMISSION_ACTIONS` constants enumerate all 9 domains and their valid actions
+**Plans:** 2 plans
+Plans:
+- [ ] 39-01-PLAN.md — Role constants, permission vocabulary, and DEFAULT_ROLE_PERMISSIONS matrix
+- [ ] 39-02-PLAN.md — Admin-tier middleware awareness and buildContext permission resolution
+
+### Phase 40: Permission Engine & Middleware
+**Goal**: Every request carries resolved effective permissions on `req.context`, and `requirePermission(domain, action)` can gate any route with scope-aware filtering -- including department-scoped coordinators
+**Depends on**: Phase 39 (role constants and DEFAULT_ROLE_PERMISSIONS must exist)
+**Requirements**: PERM-01, PERM-03, PERM-04, PERM-05, ROLE-03, ROLE-04, CONF-05
+**Success Criteria** (what must be TRUE):
+  1. `buildContext` resolves the union of all teacher roles into `req.context.effectivePermissions` -- a teacher with roles `['מורה', 'רכז/ת מחלקתי']` gets the most permissive scope per domain/action
+  2. `requirePermission('students', 'view')` returns 403 for a teacher without that permission, and sets `req.permissionScope` to `'all'`, `'department'`, or `'own'` for authorized teachers
+  3. A department coordinator viewing students sees only students whose any instrument falls within their `coordinatorDepartments` -- `buildScopedFilter` adds the instrument-based filter automatically
+  4. `settings` and `roles` domains return 403 for any non-admin-tier role, regardless of tenant rolePermissions customization
+  5. `req.context` includes `coordinatorDepartments` (array) and `isCoordinator` (boolean) for downstream use
+**Plans**: TBD
+
+### Phase 41: Route Migration
+**Goal**: Every route in the application uses `requirePermission(domain, action)` instead of `requireAuth(roles[])`, with no change in externally observable access patterns for existing roles
+**Depends on**: Phase 40 (requirePermission middleware must be functional)
+**Requirements**: PERM-06
+**Success Criteria** (what must be TRUE):
+  1. No route file imports or calls `requireAuth` -- all replaced with `requirePermission(domain, action)`
+  2. An admin (`מנהל`) can still access every endpoint they could before migration (no regressions)
+  3. A regular teacher (`מורה`) can still access their own students and schedule but cannot access admin endpoints (settings, teacher management)
+  4. Super admin routes remain unchanged (they use `requireSuperAdmin`, not `requireAuth`)
+**Plans**: TBD
+
+### Phase 42: Admin Provisioning
+**Goal**: Super admin can create a new tenant with its first admin account in a single step -- no chicken-and-egg problem
+**Depends on**: Phase 39 (DEFAULT_ROLE_PERMISSIONS needed for PROV-04)
+**Requirements**: PROV-01, PROV-02, PROV-03, PROV-04
+**Success Criteria** (what must be TRUE):
+  1. Super admin tenant creation form includes admin account fields (firstName, lastName, email) alongside tenant fields (name, slug, city)
+  2. Submitting the form creates both the tenant document and the admin teacher document in a single MongoDB transaction -- if either fails, neither is created
+  3. The created admin teacher has `roles: ['מנהל']`, a hashed default password, and `requiresPasswordChange: true`
+  4. The created tenant document has `rolePermissions` populated with the hardcoded defaults from Phase 39
+**Plans**: TBD
+
+### Phase 43: Permission Configuration API & Safeguards
+**Goal**: Tenant admins can customize their permission matrix per role and assign roles to staff, with safeguards preventing admin lockout
+**Depends on**: Phase 40 (permission engine must resolve permissions), Phase 41 (routes must use requirePermission)
+**Requirements**: CONF-03, CONF-04, SAFE-01, SAFE-02
+**Success Criteria** (what must be TRUE):
+  1. Admin can PUT to `/api/settings/roles/:roleName` to customize a role's permissions, and the changes take effect on next request from teachers with that role
+  2. Admin can POST to `/api/settings/roles/:roleName/reset` to restore a role's permissions to the hardcoded defaults
+  3. Attempting to remove the last `מנהל` role from a tenant returns an error and the role is not removed
+  4. Attempting to downgrade `מנהל` permissions (reduce scope or remove domain access) returns an error and the permissions are unchanged
+  5. PUT to `/api/teacher/:id/roles` allows admin to assign multiple roles to a teacher, with `coordinatorDepartments` accepted when `רכז/ת מחלקתי` is included
+**Plans**: TBD
+
+### Phase 44: Settings UI
+**Goal**: Tenant admins can manage staff roles and customize the permission matrix from a visual interface in conservatory settings
+**Depends on**: Phase 43 (backend APIs for role assignment and permission configuration must exist)
+**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06
+**Success Criteria** (what must be TRUE):
+  1. Settings page shows a "roles and permissions" tab with a table of all staff members, their current roles, and an edit button per row
+  2. Clicking edit opens a modal with role checkboxes -- selecting `רכז/ת מחלקתי` reveals a department multi-select dropdown populated from INSTRUMENT_DEPARTMENTS
+  3. Permission matrix editor shows a role dropdown, a domains-by-actions grid, and scope indicators (all/department/own) -- changes save to the backend
+  4. "Reset to Default" button per role restores hardcoded defaults and refreshes the grid
+  5. Admin-only domains (settings, roles) appear visually locked for non-admin roles and cannot be toggled
+**Plans**: TBD
+
+### Phase 45: Migration & Verification
+**Goal**: Existing tenants have rolePermissions populated and the complete RBAC system is verified end-to-end
+**Depends on**: Phase 43 (safeguards must be in place before running migration), Phase 44 (UI should be complete for full verification)
+**Requirements**: SAFE-03
+**Success Criteria** (what must be TRUE):
+  1. Running the migration script populates `rolePermissions` with hardcoded defaults on all existing tenant documents that lack the field
+  2. The migration is idempotent -- running it twice does not overwrite previously customized permissions
+  3. After migration, existing teachers with role `מנהל` retain full access and existing teachers with role `מורה` retain own-scoped access to their students and schedule
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 31 -> 32 -> 33 -> 34 -> 35 -> 36
+Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 31. Room Data Foundation | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
-| 32. Room Schedule API & Conflict Detection | v1.6 | 2/2 | ✓ Complete | 2026-03-03 |
-| 33. Read-Only Room Grid UI | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
-| 34. Grid Interaction | v1.6 | 3/3 | ✓ Complete | 2026-03-03 |
-| 35. Polish & Week Overview | v1.6 | 2/2 | ✓ Complete | 2026-03-03 |
-| 36. Seed Teacher Schedule Data | v1.6 | 1/1 | ✓ Complete | 2026-03-03 |
+| 39. Role & Permission Foundation | v1.7 | 0/2 | Planned | - |
+| 40. Permission Engine & Middleware | v1.7 | 0/TBD | Not started | - |
+| 41. Route Migration | v1.7 | 0/TBD | Not started | - |
+| 42. Admin Provisioning | v1.7 | 0/TBD | Not started | - |
+| 43. Permission Configuration API & Safeguards | v1.7 | 0/TBD | Not started | - |
+| 44. Settings UI | v1.7 | 0/TBD | Not started | - |
+| 45. Migration & Verification | v1.7 | 0/TBD | Not started | - |
 
-**Previous milestones:** 30 phases, 66 plans across 6 milestones (all shipped)
-
-### Phase 37: Room Schedule UX Fixes & Conflict Prevention
-
-**Goal:** Improve room schedule grid usability with larger readable cells, conflict prevention at scheduling time, a fullscreen route, and dual-format PDF export
-**Depends on:** Phase 36
-**Plans:** 9 plans (4 original + 5 gap closure)
-**Success Criteria** (what must be TRUE):
-  1. Each cell shows 3 lines of info (teacher, student, time) without needing to hover, with accent borders per type
-  2. Conflicts are prevented at scheduling time: create dialog pre-checks and DnD visual feedback (green/red)
-  3. A fullscreen route at /room-schedule/fullscreen renders the grid without sidebar/header
-  4. PDF export supports grid-style visual and tabular formats, week PDF with 6 pages, filter-aware output
-  5. Filter toggles have clear on/off visual states; seed data has zero intentional conflicts
-
-Plans:
-- [x] 37-01-PLAN.md — Cell readability, visual polish, filter toggle states, and seed cleanup
-- [x] 37-02-PLAN.md — Conflict prevention: DnD visual feedback and create dialog pre-check
-- [x] 37-03-PLAN.md — Dedicated fullscreen route with no sidebar/header
-- [x] 37-04-PLAN.md — Dual PDF export (grid-style + tabular), week 6-page PDF, filter-aware export
-- [x] 37-05-PLAN.md — Gap fix: Seed data conflict-free room allocation + accent border prominence
-- [x] 37-06-PLAN.md — Gap fix: DnD optimistic update with silent reload (no page refresh)
-- [x] 37-07-PLAN.md — Gap fix: Create dialog placeholder + teacher conflict check
-- [x] 37-08-PLAN.md — Gap fix: Fullscreen UX overhaul (fill viewport, expand grid)
-- [x] 37-09-PLAN.md — Gap fix: PDF Hebrew font support for all exports
-
-### Phase 38: Single-Lesson Reschedule & Detail Modal
-
-**Goal:** Enable admins to click any activity cell to view/edit lesson details, drag individual lessons independently from their time block, and prevent conflicts at drop time
-**Depends on:** Phase 37
-**Plans:** 3 plans (2 original + 1 gap closure)
-**Success Criteria** (what must be TRUE):
-  1. Clicking an activity cell opens a detail modal showing teacher, student, room, day, time, and activity type
-  2. The detail modal allows editing time/day/room for timeBlock lessons (reschedule) and deleting a lesson
-  3. Dragging a single lesson (blockId_N with assigned student) moves only that lesson, not the entire time block
-  4. The backend reschedule-lesson endpoint atomically removes a lesson from its source block, creates a new block at the target, and assigns the lesson to it
-  5. Client-side drops are blocked when the target cell has a conflict (no API call made)
-  6. Room schedule activity data includes lessonId, studentId, duration, and blockId for each lesson activity
-
-Plans:
-- [ ] 38-01-PLAN.md — Enhanced activity data with lesson metadata + rescheduleLesson backend endpoint
-- [ ] 38-02-PLAN.md — ActivityDetailModal, click-to-view wiring, DnD handler fork for lesson-level reschedule
-- [ ] 38-03-PLAN.md — Gap fix: Client-side conflict guard in handleDragEnd before API calls
+**Previous milestones:** 38 phases, 92+ plans across 7 milestones (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-04 -- Phase 38 gap closure plan added (3 plans total)*
+*Last updated: 2026-03-05 -- Phase 39 planned (2 plans, 2 waves)*
