@@ -243,6 +243,23 @@ Plans:
 - [x] 37-08-PLAN.md — Gap fix: Fullscreen UX overhaul (fill viewport, expand grid)
 - [x] 37-09-PLAN.md — Gap fix: PDF Hebrew font support for all exports
 
+### Phase 38: Single-Lesson Reschedule & Detail Modal
+
+**Goal:** Enable admins to click any activity cell to view/edit lesson details, drag individual lessons independently from their time block, and prevent conflicts at drop time
+**Depends on:** Phase 37
+**Plans:** 2 plans
+**Success Criteria** (what must be TRUE):
+  1. Clicking an activity cell opens a detail modal showing teacher, student, room, day, time, and activity type
+  2. The detail modal allows editing time/day/room for timeBlock lessons (reschedule) and deleting a lesson
+  3. Dragging a single lesson (blockId_N with assigned student) moves only that lesson, not the entire time block
+  4. The backend reschedule-lesson endpoint atomically removes a lesson from its source block, creates a new block at the target, and assigns the lesson to it
+  5. Client-side drops are blocked when the target cell has a conflict (no API call made)
+  6. Room schedule activity data includes lessonId, studentId, duration, and blockId for each lesson activity
+
+Plans:
+- [ ] 38-01-PLAN.md — Enhanced activity data with lesson metadata + rescheduleLesson backend endpoint
+- [ ] 38-02-PLAN.md — ActivityDetailModal, click-to-view wiring, DnD handler fork for lesson-level reschedule
+
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-04 -- Phase 37 COMPLETE (9/9 plans, all gap closures verified)*
+*Last updated: 2026-03-04 -- Phase 38 planned (2 plans in 2 waves)*
