@@ -84,3 +84,55 @@ export function validateMoveBody(body) {
 
   return value;
 }
+
+// ─── Reschedule Lesson Validation ─────────────────────────────────────────────
+
+const rescheduleBodySchema = Joi.object({
+  teacherId: Joi.string().required()
+    .messages({ 'any.required': 'teacherId is required' }),
+  sourceBlockId: Joi.string().required()
+    .messages({ 'any.required': 'sourceBlockId is required' }),
+  lessonId: Joi.string().required()
+    .messages({ 'any.required': 'lessonId is required' }),
+  targetRoom: Joi.string().required()
+    .messages({ 'any.required': 'targetRoom is required' }),
+  targetDay: Joi.number().integer().min(0).max(5).required()
+    .messages({
+      'number.base': 'targetDay must be a number (0-5)',
+      'number.integer': 'targetDay must be an integer (0-5)',
+      'number.min': 'targetDay must be between 0 (Sunday) and 5 (Friday)',
+      'number.max': 'targetDay must be between 0 (Sunday) and 5 (Friday)',
+      'any.required': 'targetDay is required',
+    }),
+  targetStartTime: Joi.string().pattern(TIME_PATTERN).required()
+    .messages({
+      'string.pattern.base': 'targetStartTime must be in HH:MM format',
+      'any.required': 'targetStartTime is required',
+    }),
+  targetEndTime: Joi.string().pattern(TIME_PATTERN).required()
+    .messages({
+      'string.pattern.base': 'targetEndTime must be in HH:MM format',
+      'any.required': 'targetEndTime is required',
+    }),
+});
+
+/**
+ * Validate reschedule-lesson request body.
+ * @param {object} body - The request body
+ * @returns {object} Validated body
+ * @throws {Error} If validation fails
+ */
+export function validateRescheduleBody(body) {
+  const { error, value } = rescheduleBodySchema.validate(body, { abortEarly: false });
+  if (error) {
+    const message = error.details.map(d => d.message).join('; ');
+    throw new Error(message);
+  }
+
+  // Custom validation: startTime must be before endTime
+  if (timeToMinutes(value.targetStartTime) >= timeToMinutes(value.targetEndTime)) {
+    throw new Error('targetStartTime must be before targetEndTime');
+  }
+
+  return value;
+}

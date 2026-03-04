@@ -13,6 +13,7 @@ import { requireTenantId } from '../../middleware/tenant.middleware.js';
 import { doTimesOverlap, timeToMinutes } from '../../utils/timeUtils.js';
 import { ObjectId } from 'mongodb';
 import { VALID_DAYS } from '../../config/constants.js';
+import { timeBlockService } from '../schedule/time-block.service.js';
 
 // ─── Day Mapping ─────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ const DAY_NAMES = VALID_DAYS; // ['ראשון', 'שני', 'שלישי', 'רבי�
 export const roomScheduleService = {
   getRoomSchedule,
   moveActivity,
+  rescheduleLesson,
 };
 
 /**
@@ -293,6 +295,177 @@ async function moveActivity(moveData, options = {}) {
 
   // Step 4: Return fresh schedule
   return getRoomSchedule(numericDay, options);
+}
+
+/**
+ * Reschedule a single lesson from one time block to a new block at a different
+ * room/day/time. Atomically removes the lesson from the source block, creates
+ * a new block at the target, assigns the lesson there, and cleans up empty
+ * source blocks.
+ *
+ * @param {object} rescheduleData - Validated reschedule request body
+ * @param {object} options - { context: { tenantId, schoolYearId } }
+ * @returns {Promise<object>} Updated room schedule for the target day
+ */
+async function rescheduleLesson(rescheduleData, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+  const { teacherId, sourceBlockId, lessonId, targetRoom, targetDay, targetStartTime, targetEndTime } = rescheduleData;
+
+  // 1. Find source teacher, block, and lesson to get studentId and duration
+  const teacherCollection = await getCollection('teacher');
+  const teacher = await teacherCollection.findOne({
+    _id: ObjectId.createFromHexString(teacherId),
+    tenantId,
+  });
+
+  if (!teacher) {
+    const err = new Error('Teacher not found');
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  const sourceBlock = (teacher.teaching?.timeBlocks || []).find(
+    (b) => b._id && b._id.toString() === sourceBlockId
+  );
+
+  if (!sourceBlock) {
+    const err = new Error('Source time block not found');
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  const lesson = (sourceBlock.assignedLessons || []).find(
+    (l) => l._id && l._id.toString() === lessonId && l.isActive !== false
+  );
+
+  if (!lesson) {
+    const err = new Error('Lesson not found in source block');
+    err.code = 'NOT_FOUND';
+    throw err;
+  }
+
+  // 2. Extract lesson details
+  const studentId = lesson.studentId;
+  const lessonDuration = lesson.duration || (timeToMinutes(targetEndTime) - timeToMinutes(targetStartTime));
+
+  // 3. Convert targetDay to Hebrew day name
+  const hebrewDay = DAY_NAMES[targetDay];
+
+  // 4. Conflict pre-check at target room/time
+  const schedule = await getRoomSchedule(targetDay, options);
+  const allActivities = [
+    ...schedule.rooms.flatMap((r) => r.activities),
+    ...schedule.unassigned,
+  ];
+
+  // Filter to target room activities, excluding the source lesson being moved
+  const activitiesInTargetRoom = allActivities.filter((a) => {
+    // Exclude the lesson being moved (match by lessonId field or by blockId prefix)
+    if (a.source === 'timeBlock') {
+      if (a.lessonId === lessonId) return false;
+      if (a.id === sourceBlockId || a.id.startsWith(`${sourceBlockId}_`)) {
+        // Only exclude the specific lesson, not sibling lessons in the same block
+        if (a.lessonId === lessonId) return false;
+      }
+    }
+    return a.room === targetRoom;
+  });
+
+  const conflicts = [];
+  for (const activity of activitiesInTargetRoom) {
+    if (
+      activity.startTime && activity.endTime &&
+      doTimesOverlap(targetStartTime, targetEndTime, activity.startTime, activity.endTime)
+    ) {
+      conflicts.push({
+        id: activity.id,
+        source: activity.source,
+        teacherName: activity.teacherName,
+        startTime: activity.startTime,
+        endTime: activity.endTime,
+      });
+    }
+  }
+
+  if (conflicts.length > 0) {
+    const err = new Error('Conflict detected at target room/time');
+    err.code = 'CONFLICT';
+    err.conflictsWith = conflicts;
+    throw err;
+  }
+
+  // 5. Remove lesson from source block
+  try {
+    await timeBlockService.removeLessonFromBlock(teacherId, sourceBlockId, lessonId, options);
+  } catch (removeErr) {
+    console.error(`Error removing lesson from source block: ${removeErr.message}`);
+    const err = new Error(`Failed to remove lesson from source block: ${removeErr.message}`);
+    err.code = 'INTERNAL';
+    throw err;
+  }
+
+  // 6. Create target block
+  let newBlockId;
+  try {
+    const createResult = await timeBlockService.createTimeBlock(teacherId, {
+      day: hebrewDay,
+      startTime: targetStartTime,
+      endTime: targetEndTime,
+      location: targetRoom,
+    }, options);
+    newBlockId = createResult.timeBlock._id.toString();
+  } catch (createErr) {
+    console.error(`Error creating target block: ${createErr.message}`);
+    const err = new Error(`Failed to create target block: ${createErr.message}`);
+    err.code = 'INTERNAL';
+    throw err;
+  }
+
+  // 7. Assign lesson to new block
+  try {
+    await timeBlockService.assignLessonToBlock({
+      teacherId,
+      studentId,
+      timeBlockId: newBlockId,
+      startTime: targetStartTime,
+      duration: lessonDuration,
+    }, options);
+  } catch (assignErr) {
+    console.error(`Error assigning lesson to target block: ${assignErr.message}`);
+    const err = new Error(`Failed to assign lesson to target block: ${assignErr.message}`);
+    err.code = 'INTERNAL';
+    throw err;
+  }
+
+  // 8. Cleanup: check if source block has remaining active lessons
+  try {
+    const updatedTeacher = await teacherCollection.findOne({
+      _id: ObjectId.createFromHexString(teacherId),
+      tenantId,
+    });
+
+    if (updatedTeacher) {
+      const updatedSourceBlock = (updatedTeacher.teaching?.timeBlocks || []).find(
+        (b) => b._id && b._id.toString() === sourceBlockId
+      );
+
+      if (updatedSourceBlock) {
+        const remainingActive = (updatedSourceBlock.assignedLessons || []).filter(
+          (l) => l.isActive !== false
+        );
+
+        if (remainingActive.length === 0) {
+          await timeBlockService.deleteTimeBlock(teacherId, sourceBlockId, options);
+        }
+      }
+    }
+  } catch (cleanupErr) {
+    // Non-fatal: log but don't fail the reschedule
+    console.error(`Warning: source block cleanup failed: ${cleanupErr.message}`);
+  }
+
+  // 9. Return fresh schedule for target day
+  return getRoomSchedule(targetDay, options);
 }
 
 // ─── Source Queries ───────────────────────────────────────────────────────────

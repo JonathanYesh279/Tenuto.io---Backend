@@ -1,9 +1,10 @@
 import { roomScheduleService } from './room-schedule.service.js';
-import { validateDayQuery, validateMoveBody } from './room-schedule.validation.js';
+import { validateDayQuery, validateMoveBody, validateRescheduleBody } from './room-schedule.validation.js';
 
 export const roomScheduleController = {
   getRoomSchedule,
   moveActivity,
+  rescheduleLesson,
 };
 
 async function getRoomSchedule(req, res) {
@@ -68,5 +69,41 @@ async function moveActivity(req, res) {
       return res.status(403).json({ error: 'Tenant context required' });
     }
     res.status(500).json({ error: 'Failed to move activity' });
+  }
+}
+
+async function rescheduleLesson(req, res) {
+  try {
+    // Validate request body
+    let validated;
+    try {
+      validated = validateRescheduleBody(req.body);
+    } catch (validationErr) {
+      return res.status(400).json({ error: validationErr.message });
+    }
+
+    const result = await roomScheduleService.rescheduleLesson(validated, {
+      context: {
+        ...req.context,
+        schoolYearId: req.schoolYear?._id?.toString() || req.context?.schoolYearId,
+      },
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    if (err.code === 'CONFLICT') {
+      return res.status(409).json({
+        error: 'Conflict detected',
+        conflicts: err.conflictsWith,
+      });
+    }
+    if (err.code === 'NOT_FOUND') {
+      return res.status(404).json({ error: err.message });
+    }
+    console.error(`Error rescheduling lesson: ${err.message}`);
+    if (err.message.includes('TENANT_GUARD')) {
+      return res.status(403).json({ error: 'Tenant context required' });
+    }
+    res.status(500).json({ error: 'Failed to reschedule lesson' });
   }
 }
