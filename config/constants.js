@@ -104,12 +104,28 @@ export const TEACHING_SUBJECTS = [
   'אחר',
 ];
 
-export const TEACHER_ROLES = ['מורה', 'ניצוח', 'מדריך הרכב', 'מנהל', 'תאוריה', 'מגמה', 'ליווי פסנתר', 'הלחנה'];
+export const TEACHER_ROLES = [
+  // Admin tier
+  'מנהל', 'סגן מנהל', 'מזכירות',
+  // Coordinator tier
+  'רכז/ת כללי', 'רכז/ת מחלקתי',
+  // Teaching tier
+  'מורה', 'ניצוח', 'מדריך הרכב', 'תאוריה', 'ליווי פסנתר', 'הלחנה', 'מורה מגמה',
+  // View-only
+  'צפייה בלבד',
+];
+
+/** Admin-tier roles — identical full-access permissions, locked from downgrade */
+export const ADMIN_TIER_ROLES = ['מנהל', 'סגן מנהל', 'מזכירות'];
+
+/** Coordinator-tier roles — elevated access with possible department scoping */
+export const COORDINATOR_ROLES = ['רכז/ת כללי', 'רכז/ת מחלקתי'];
 
 /** Mapping of old role names to new ones (for migration and backward compatibility) */
 export const ROLE_RENAME_MAP = {
   'מנצח': 'ניצוח',
   'מורה תאוריה': 'תאוריה',
+  'מגמה': 'מורה מגמה',
 };
 
 /** Mapping of Ministry hour column names to internal field names */
