@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 37 — Room Schedule UX Fixes & Conflict Prevention
+**Current focus:** Phase 38 — Single-Lesson Reschedule & Detail Modal
 
 ## Current Position
 
-Phase: 37 (Room Schedule UX Fixes & Conflict Prevention)
-Plan: 9 of 9 in current phase (ALL PLANS COMPLETE)
-Status: Phase 37 COMPLETE
-Last activity: 2026-03-04 — Phase 37 Plan 09 executed (PDF Hebrew font fix, final gap closure)
+Phase: 38 (Single-Lesson Reschedule & Detail Modal)
+Plan: 1 of 2 in current phase
+Status: Plan 38-01 complete, 38-02 remaining
+Last activity: 2026-03-04 — Completed 38-01 (backend API for lesson metadata + reschedule)
 
-Progress: [##############] 9/9 plans (Phase 37 COMPLETE)
+Progress: [=======       ] 1/2 plans (Phase 38)
 
 ## Performance Metrics
 
@@ -124,10 +124,14 @@ Progress: [##############] 9/9 plans (Phase 37 COMPLETE)
 - 37-08: Grid columns 140px min in fullscreen (vs 120px normal) for wider time slots
 - 37-09: Existing Reisinger-Yonatan TTF reused for PDF Hebrew rendering (no new font download)
 - 37-09: Fetch-and-cache pattern: font base64 cached in module scope across multiple PDF exports
+- 38-01: Conflict exclusion by lessonId field rather than blockId prefix to avoid masking sibling lessons
+- 38-01: Empty block cleanup is non-fatal: logged but does not fail the reschedule operation
+- 38-01: Duration fallback: uses targetEndTime - targetStartTime when lesson.duration is null
 
 ### Roadmap Evolution
 
 - Phase 37 added: Room Schedule UX Fixes & Conflict Prevention (fullscreen mode, larger cells, teacher/student label clarity, functional activity type filters, PDF export fix, stronger color coding, conflict prevention at scheduling time)
+- Phase 38 added: Single-Lesson Reschedule & Detail Modal (click-to-view lesson detail modal, single-lesson drag-and-drop independent from block, backend reschedule-lesson endpoint, client-side conflict prevention for drops)
 
 ### Pending Todos
 
@@ -163,9 +167,10 @@ None.
 | 37    | 07   | 4min     | 1     | 1     |
 | 37    | 08   | 3min     | 1     | 3     |
 | 37    | 09   | 5min     | 2     | 2     |
+| 38    | 01   | 10min    | 2     | 4     |
 
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 37-09-PLAN.md (Phase 37 COMPLETE - all 9 plans finished)
-Resume: Phase 37 complete. Ready for next milestone planning or UAT verification.
+Stopped at: Completed 38-01-PLAN.md
+Resume: Execute 38-02-PLAN.md (frontend detail modal + lesson drag-and-drop).
