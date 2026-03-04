@@ -379,6 +379,10 @@ async function getTimeBlockActivities(tenantId, hebrewDay, numericDay) {
           teacherId: row.teacherId,
           label: studentName || '\u05E9\u05D9\u05E2\u05D5\u05E8 \u05E4\u05E8\u05D8\u05D9', // שיעור פרטי
           activityType: '\u05E9\u05D9\u05E2\u05D5\u05E8 \u05E4\u05E8\u05D8\u05D9', // שיעור פרטי
+          lessonId: lesson._id ? lesson._id.toString() : null,
+          studentId: lesson.studentId || null,
+          duration: lesson.duration || null,
+          blockId,
           hasConflict: false,
           conflictGroupId: null,
         });
@@ -396,6 +400,10 @@ async function getTimeBlockActivities(tenantId, hebrewDay, numericDay) {
         teacherId: row.teacherId,
         label: '\u05E9\u05D9\u05E2\u05D5\u05E8 \u05E4\u05E8\u05D8\u05D9', // שיעור פרטי
         activityType: '\u05E9\u05D9\u05E2\u05D5\u05E8 \u05E4\u05E8\u05D8\u05D9', // שיעור פרטי
+        lessonId: null,
+        studentId: null,
+        duration: null,
+        blockId,
         hasConflict: false,
         conflictGroupId: null,
       });
