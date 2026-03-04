@@ -247,7 +247,7 @@ Plans:
 
 **Goal:** Enable admins to click any activity cell to view/edit lesson details, drag individual lessons independently from their time block, and prevent conflicts at drop time
 **Depends on:** Phase 37
-**Plans:** 2 plans
+**Plans:** 3 plans (2 original + 1 gap closure)
 **Success Criteria** (what must be TRUE):
   1. Clicking an activity cell opens a detail modal showing teacher, student, room, day, time, and activity type
   2. The detail modal allows editing time/day/room for timeBlock lessons (reschedule) and deleting a lesson
@@ -259,7 +259,8 @@ Plans:
 Plans:
 - [ ] 38-01-PLAN.md — Enhanced activity data with lesson metadata + rescheduleLesson backend endpoint
 - [ ] 38-02-PLAN.md — ActivityDetailModal, click-to-view wiring, DnD handler fork for lesson-level reschedule
+- [ ] 38-03-PLAN.md — Gap fix: Client-side conflict guard in handleDragEnd before API calls
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-04 -- Phase 38 planned (2 plans in 2 waves)*
+*Last updated: 2026-03-04 -- Phase 38 gap closure plan added (3 plans total)*
