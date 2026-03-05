@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-Phase: 39 of 45 (Role & Permission Foundation) — COMPLETE
-Plan: —
-Status: Phase 39 verified, ready to plan Phase 40
-Last activity: 2026-03-05 — Phase 39 complete (2/2 plans, verified 5/5 must-haves)
+Phase: 40 of 45 (Permission Engine & Middleware)
+Plan: 01 complete
+Status: 40-01 complete, ready for next plan
+Last activity: 2026-03-05 — Plan 40-01 complete (2/2 tasks, requirePermission + buildScopedFilter)
 
-Progress: [█░░░░░░░░░] 14%
+Progress: [██░░░░░░░░] 28%
 
 ## Performance Metrics
 
@@ -45,6 +45,10 @@ Progress: [█░░░░░░░░░] 14%
 - 39-02: isAdminTier helper kept private in auth.middleware (not exported)
 - 39-02: buildContext queries tenant for rolePermissions separately (small indexed projection)
 - 39-02: DB errors on rolePermissions fetch silently fall back to defaults (no 500)
+- 40-01: requirePermission checks LOCKED_DOMAINS before effectivePermissions (non-admins blocked from settings/roles regardless of tenant customization)
+- 40-01: buildScopedFilter department scope filters students by personalInfo.instrument via getInstrumentsByDepartment
+- 40-01: canAccessStudent returns true for department scope (list filtering handled by buildScopedFilter)
+- 40-01: Empty coordinatorDepartments with department scope falls back to own-scope behavior
 
 ### Pending Todos
 
@@ -58,9 +62,10 @@ None.
 |-------|------|----------|-------|-------|
 | 39-01 | RBAC constants | 3min | 2 | 4 |
 | 39-02 | Middleware permissions | 2min | 1 | 3 |
+| 40-01 | Permission engine middleware | 2min | 2 | 2 |
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Phase 39 complete and verified (5/5 must-haves passed)
-Resume: Run `/gsd:plan-phase 40` to plan the Permission Engine & Middleware phase
+Stopped at: Completed 40-01-PLAN.md (requirePermission middleware + buildScopedFilter department scope)
+Resume: Execute next plan in Phase 40 or run `/gsd:plan-phase 40` for remaining plans
