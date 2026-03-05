@@ -51,3 +51,12 @@ export const reportingTenantDetailParamsSchema = Joi.object({
 export const impersonationStartSchema = Joi.object({
   tenantId: Joi.string().hex().length(24).required(),
 });
+
+export const createTenantWithAdminSchema = Joi.object({
+  name: Joi.string().trim().required(),
+  slug: Joi.string().trim().lowercase().pattern(/^[a-z0-9-]+$/).required(),
+  city: Joi.string().trim().required(),
+  adminFirstName: Joi.string().trim().required(),
+  adminLastName: Joi.string().trim().required(),
+  adminEmail: Joi.string().email().required(),
+});

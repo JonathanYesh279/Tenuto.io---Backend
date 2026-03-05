@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { getCollection } from '../../services/mongoDB.service.js';
+import { getCollection, getDB, withTransaction } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { createLogger } from '../../services/logger.service.js';
 import { COLLECTIONS, AUDIT_ACTIONS } from '../../config/constants.js';
@@ -10,7 +10,10 @@ import {
   updateSuperAdminSchema,
   updateSubscriptionSchema,
   impersonationStartSchema,
+  createTenantWithAdminSchema,
 } from './super-admin.validation.js';
+import { DEFAULT_ROLE_PERMISSIONS } from '../../config/permissions.js';
+import { DEFAULT_PASSWORD } from '../../services/invitationConfig.js';
 import { auditTrailService } from '../../services/auditTrail.service.js';
 import { tenantPurgeService } from '../../services/tenantPurge.service.js';
 
@@ -47,6 +50,7 @@ export const superAdminService = {
   getReportingMinistryStatus,
   startImpersonation,
   stopImpersonation,
+  createTenantWithAdmin,
 };
 
 async function login(email, password) {
@@ -1032,6 +1036,106 @@ async function stopImpersonation(sessionId, superAdminId) {
   log.info({ superAdminId, sessionId }, 'Impersonation session ended');
 
   return { success: true, message: 'Impersonation session ended' };
+}
+
+// ─── Tenant + Admin Provisioning ─────────────────────────────────────────────
+
+async function createTenantWithAdmin(data) {
+  const { error, value } = createTenantWithAdminSchema.validate(data, { abortEarly: false });
+  if (error) throw error;
+
+  const result = await withTransaction(async (session) => {
+    const db = getDB();
+
+    // Check slug uniqueness
+    const existingTenant = await db.collection(COLLECTIONS.TENANT).findOne(
+      { slug: value.slug },
+      { session }
+    );
+    if (existingTenant) {
+      throw new Error(`Tenant with slug "${value.slug}" already exists`);
+    }
+
+    // Deep clone frozen DEFAULT_ROLE_PERMISSIONS
+    const rolePermissions = JSON.parse(JSON.stringify(DEFAULT_ROLE_PERMISSIONS));
+
+    const tenantDoc = {
+      name: value.name,
+      slug: value.slug,
+      city: value.city,
+      director: { name: null, teacherId: null },
+      ministryInfo: { institutionCode: null, districtName: null },
+      settings: { lessonDurations: [30, 45, 60], schoolStartMonth: 9, rooms: [] },
+      rolePermissions,
+      subscription: {
+        plan: 'basic',
+        startDate: new Date(),
+        endDate: null,
+        isActive: true,
+        maxTeachers: 50,
+        maxStudents: 500,
+      },
+      conservatoryProfile: {},
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const tenantResult = await db.collection(COLLECTIONS.TENANT).insertOne(tenantDoc, { session });
+    const tenantId = tenantResult.insertedId.toString();
+
+    // Hash default password
+    const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+
+    const adminTeacherDoc = {
+      tenantId,
+      personalInfo: {
+        firstName: value.adminFirstName,
+        lastName: value.adminLastName,
+        email: value.adminEmail,
+        phone: '',
+        address: '',
+        instrument: '',
+        idNumber: '',
+      },
+      credentials: {
+        email: value.adminEmail,
+        password: hashedPassword,
+        requiresPasswordChange: true,
+        tokenVersion: 0,
+        refreshToken: null,
+        invitationMode: 'DEFAULT_PASSWORD',
+        passwordSetAt: new Date(),
+      },
+      roles: ['מנהל'],
+      teaching: { timeBlocks: [] },
+      conducting: { orchestraIds: [] },
+      ensemblesIds: [],
+      schoolYears: [],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await db.collection(COLLECTIONS.TEACHER).insertOne(adminTeacherDoc, { session });
+
+    return {
+      tenant: { _id: tenantResult.insertedId, ...tenantDoc },
+      adminTeacher: {
+        _id: adminTeacherDoc._id,
+        email: value.adminEmail,
+        firstName: value.adminFirstName,
+        lastName: value.adminLastName,
+      },
+    };
+  });
+
+  log.info(
+    { tenantId: result.tenant._id.toString(), adminEmail: result.adminTeacher.email },
+    'Tenant created with admin'
+  );
+
+  return result;
 }
 
 // --- Reporting Index Initialization (internal, not exported) ---
