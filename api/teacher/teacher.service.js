@@ -11,6 +11,7 @@ import { invitationConfig } from '../../services/invitationConfig.js';
 import crypto from 'crypto';
 import { buildScopedFilter } from '../../utils/queryScoping.js';
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
+import { TEACHER_ROLES, ADMIN_TIER_ROLES, INSTRUMENT_DEPARTMENTS } from '../../config/constants.js';
 
 export const teacherService = {
   getTeachers,
@@ -28,6 +29,7 @@ export const teacherService = {
   updateTimeBlock,
   deleteTimeBlock,
   getTimeBlocks,
+  updateTeacherRoles,
 };
 
 async function getTeachers(filterBy = {}, page = 1, limit = 0, options = {}) {
@@ -1232,6 +1234,73 @@ async function deleteTimeBlock(teacherId, timeBlockId, options = {}) {
     console.error(`Error deleting time block: ${err.message}`);
     throw err;
   }
+}
+
+// ─── Role Assignment ──────────────────────────────────────────────────────────
+
+async function updateTeacherRoles(teacherId, { roles, coordinatorDepartments }, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+
+  // 1. Validate roles
+  const invalidRoles = roles.filter(r => !TEACHER_ROLES.includes(r));
+  if (invalidRoles.length > 0) {
+    throw Object.assign(
+      new Error(`Invalid roles: ${invalidRoles.join(', ')}. Valid roles are: ${TEACHER_ROLES.join(', ')}`),
+      { code: 'INVALID_ROLES' }
+    );
+  }
+
+  // 2. Validate coordinatorDepartments
+  if (roles.includes('רכז/ת מחלקתי') && Array.isArray(coordinatorDepartments)) {
+    const invalidDepts = coordinatorDepartments.filter(d => !INSTRUMENT_DEPARTMENTS.includes(d));
+    if (invalidDepts.length > 0) {
+      throw Object.assign(
+        new Error(`Invalid coordinator departments: ${invalidDepts.join(', ')}`),
+        { code: 'INVALID_DEPARTMENTS' }
+      );
+    }
+  } else {
+    // Clear coordinatorDepartments if role not present
+    coordinatorDepartments = [];
+  }
+
+  const collection = await getCollection('teacher');
+  const teacherObjectId = ObjectId.createFromHexString(teacherId);
+
+  // 3. Load existing teacher
+  const teacher = await collection.findOne({ _id: teacherObjectId, tenantId });
+  if (!teacher) {
+    throw new Error('Teacher not found');
+  }
+
+  // 4. SAFE-01 -- Last admin prevention
+  const hadAdminRole = (teacher.roles || []).some(r => ADMIN_TIER_ROLES.includes(r));
+  const willHaveAdminRole = roles.some(r => ADMIN_TIER_ROLES.includes(r));
+
+  if (hadAdminRole && !willHaveAdminRole) {
+    const otherAdminCount = await collection.countDocuments({
+      tenantId,
+      isActive: true,
+      roles: { $in: ADMIN_TIER_ROLES },
+      _id: { $ne: teacherObjectId },
+    });
+
+    if (otherAdminCount === 0) {
+      throw Object.assign(
+        new Error('Cannot remove admin role: this is the last admin for this tenant'),
+        { code: 'LAST_ADMIN' }
+      );
+    }
+  }
+
+  // 5. Update
+  await collection.updateOne(
+    { _id: teacherObjectId },
+    { $set: { roles, coordinatorDepartments, updatedAt: new Date() } }
+  );
+
+  // 6. Return
+  return { roles, coordinatorDepartments };
 }
 
 // Helper function to calculate duration from times
