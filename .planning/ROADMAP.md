@@ -148,7 +148,9 @@ Plans:
   3. A department coordinator viewing students sees only students whose any instrument falls within their `coordinatorDepartments` -- `buildScopedFilter` adds the instrument-based filter automatically
   4. `settings` and `roles` domains return 403 for any non-admin-tier role, regardless of tenant rolePermissions customization
   5. `req.context` includes `coordinatorDepartments` (array) and `isCoordinator` (boolean) for downstream use
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 40-01-PLAN.md — requirePermission middleware and buildScopedFilter department scope extension
 
 ### Phase 41: Route Migration
 **Goal**: Every route in the application uses `requirePermission(domain, action)` instead of `requireAuth(roles[])`, with no change in externally observable access patterns for existing roles
@@ -214,7 +216,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 39. Role & Permission Foundation | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 40. Permission Engine & Middleware | v1.7 | 0/TBD | Not started | - |
+| 40. Permission Engine & Middleware | v1.7 | 0/1 | Not started | - |
 | 41. Route Migration | v1.7 | 0/TBD | Not started | - |
 | 42. Admin Provisioning | v1.7 | 0/TBD | Not started | - |
 | 43. Permission Configuration API & Safeguards | v1.7 | 0/TBD | Not started | - |
@@ -225,4 +227,4 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 39 complete (2/2 plans, verified)*
+*Last updated: 2026-03-05 -- Phase 40 planned (1 plan)*

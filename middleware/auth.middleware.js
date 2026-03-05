@@ -3,6 +3,7 @@ import { getCollection } from '../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { createLogger } from '../services/logger.service.js';
 import { ADMIN_TIER_ROLES } from '../config/constants.js';
+import { LOCKED_DOMAINS, DOMAIN_ACTIONS } from '../config/permissions.js';
 
 const log = createLogger('auth.middleware');
 
@@ -177,6 +178,81 @@ export function requireAuth(roles) {
         success: false,
         error: 'Authorization failed',
         code: 'AUTH_FAILED'
+      });
+    }
+  };
+}
+
+/**
+ * Permission-based middleware factory (RBAC Phase 40).
+ * Gates a route by checking effectivePermissions[domain][action] on req.context.
+ * Sets req.permissionScope to 'all', 'department', or 'own' on success.
+ *
+ * Must run AFTER authenticateToken + buildContext (which populates req.context.effectivePermissions).
+ * Does NOT replace requireAuth -- both coexist during Phase 41 migration.
+ *
+ * @param {string} domain - permission domain (e.g. 'students', 'schedules', 'settings')
+ * @param {string} action - permission action (e.g. 'view', 'create', 'update', 'delete')
+ * @returns {Function} Express middleware
+ */
+export function requirePermission(domain, action) {
+  return async (req, res, next) => {
+    try {
+      // 1. Check authentication
+      if (!req.teacher) {
+        log.debug({ path: req.path }, 'requirePermission: no teacher in request');
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+          code: 'AUTH_REQUIRED',
+        });
+      }
+
+      // 2. Check permission context exists (buildContext must have run)
+      if (!req.context?.effectivePermissions) {
+        log.error({ path: req.path, userId: req.teacher._id?.toString() }, 'requirePermission: effectivePermissions missing from context');
+        return res.status(500).json({
+          success: false,
+          error: 'Permission context not available',
+          code: 'PERMISSION_CONTEXT_MISSING',
+        });
+      }
+
+      // 3. Locked domain enforcement -- non-admins can NEVER access locked domains
+      //    regardless of tenant rolePermissions customization
+      if (LOCKED_DOMAINS.includes(domain) && !req.context.isAdmin) {
+        log.debug({ domain, userId: req.context.userId, roles: req.context.userRoles }, 'requirePermission: locked domain access denied');
+        return res.status(403).json({
+          success: false,
+          error: `Access to '${domain}' is restricted to admin roles`,
+          code: 'LOCKED_DOMAIN',
+          domain,
+        });
+      }
+
+      // 4. Read scope from effectivePermissions
+      const scope = req.context.effectivePermissions[domain]?.[action];
+      if (!scope) {
+        log.debug({ domain, action, userId: req.context.userId, roles: req.context.userRoles }, 'requirePermission: insufficient permissions');
+        return res.status(403).json({
+          success: false,
+          error: 'Insufficient permissions',
+          code: 'INSUFFICIENT_PERMISSIONS',
+          domain,
+          action,
+          required: `${domain}.${action}`,
+        });
+      }
+
+      // 5. Authorized -- set scope and continue
+      req.permissionScope = scope;
+      next();
+    } catch (err) {
+      log.error({ err: err.message, domain, action, path: req.path }, 'requirePermission: unexpected error');
+      return res.status(500).json({
+        success: false,
+        error: 'Permission check failed',
+        code: 'PERMISSION_CHECK_FAILED',
       });
     }
   };
