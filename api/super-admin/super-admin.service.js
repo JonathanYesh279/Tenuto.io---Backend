@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { getCollection, getDB, withTransaction } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { createLogger } from '../../services/logger.service.js';
-import { COLLECTIONS, AUDIT_ACTIONS } from '../../config/constants.js';
+import { COLLECTIONS, AUDIT_ACTIONS, ADMIN_TIER_ROLES } from '../../config/constants.js';
 import {
   superAdminLoginSchema,
   createSuperAdminSchema,
@@ -11,6 +11,7 @@ import {
   updateSubscriptionSchema,
   impersonationStartSchema,
   createTenantWithAdminSchema,
+  updateTenantAdminSchema,
 } from './super-admin.validation.js';
 import { DEFAULT_ROLE_PERMISSIONS } from '../../config/permissions.js';
 import { DEFAULT_PASSWORD } from '../../services/invitationConfig.js';
@@ -51,16 +52,21 @@ export const superAdminService = {
   startImpersonation,
   stopImpersonation,
   createTenantWithAdmin,
+  getTenantAdmins,
+  getAllTenantAdmins,
+  updateTenantAdmin,
+  resetTenantAdminPassword,
 };
 
 async function login(email, password) {
   const { error } = superAdminLoginSchema.validate({ email, password });
   if (error) throw new Error(error.details[0].message);
 
-  log.info({ email }, 'Super admin login attempt');
+  const normalizedEmail = email.toLowerCase();
+  log.info({ email: normalizedEmail }, 'Super admin login attempt');
 
   const collection = await getCollection(COLLECTIONS.SUPER_ADMIN);
-  const admin = await collection.findOne({ email, isActive: true });
+  const admin = await collection.findOne({ email: normalizedEmail, isActive: true });
 
   if (!admin) {
     throw new Error('Invalid email or password');
@@ -953,17 +959,17 @@ async function startImpersonation(tenantId, superAdminId) {
     throw new Error('Cannot impersonate a deactivated tenant');
   }
 
-  // Find an active admin teacher for this tenant
+  // Find an active admin-tier teacher for this tenant
   const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
   const tid = tenant._id.toString();
   const adminTeacher = await teacherCollection.findOne({
     tenantId: tid,
-    roles: 'מנהל',
+    roles: { $in: ADMIN_TIER_ROLES },
     isActive: true,
   });
 
   if (!adminTeacher) {
-    throw new Error('No active admin found for this tenant');
+    throw new Error('No active admin found for this tenant. Create an admin teacher first via tenant management.');
   }
 
   const sessionId = new ObjectId().toString();
@@ -1087,19 +1093,21 @@ async function createTenantWithAdmin(data) {
     // Hash default password
     const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
 
+    const adminEmail = value.adminEmail.toLowerCase();
+
     const adminTeacherDoc = {
       tenantId,
       personalInfo: {
         firstName: value.adminFirstName,
         lastName: value.adminLastName,
-        email: value.adminEmail,
+        email: adminEmail,
         phone: '',
         address: '',
         instrument: '',
         idNumber: '',
       },
       credentials: {
-        email: value.adminEmail,
+        email: adminEmail,
         password: hashedPassword,
         requiresPasswordChange: true,
         tokenVersion: 0,
@@ -1136,6 +1144,161 @@ async function createTenantWithAdmin(data) {
   );
 
   return result;
+}
+
+// ─── Tenant Admin Management ─────────────────────────────────────────────────
+
+const TENANT_ADMIN_PROJECTION = {
+  'credentials.password': 0,
+  'credentials.refreshToken': 0,
+  'credentials.tokenVersion': 0,
+};
+
+async function getTenantAdmins(tenantId) {
+  const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
+
+  const admins = await teacherCollection
+    .find(
+      { tenantId, roles: { $in: ADMIN_TIER_ROLES }, isActive: true },
+      { projection: TENANT_ADMIN_PROJECTION }
+    )
+    .sort({ 'personalInfo.firstName': 1 })
+    .toArray();
+
+  return admins;
+}
+
+async function getAllTenantAdmins() {
+  const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
+  const tenantCollection = await getCollection(COLLECTIONS.TENANT);
+
+  const admins = await teacherCollection
+    .find(
+      { roles: { $in: ADMIN_TIER_ROLES }, isActive: true },
+      { projection: TENANT_ADMIN_PROJECTION }
+    )
+    .toArray();
+
+  // Batch-lookup tenants by unique tenantIds
+  const uniqueTenantIds = [...new Set(admins.map((a) => a.tenantId))];
+  const tenants = await tenantCollection
+    .find(
+      { _id: { $in: uniqueTenantIds.map((id) => ObjectId.createFromHexString(id)) } },
+      { projection: { name: 1, slug: 1 } }
+    )
+    .toArray();
+
+  const tenantMap = new Map(tenants.map((t) => [t._id.toString(), t]));
+
+  // Merge tenant info and sort
+  const result = admins.map((admin) => {
+    const tenant = tenantMap.get(admin.tenantId);
+    return {
+      ...admin,
+      tenantName: tenant?.name || 'Unknown',
+      tenantSlug: tenant?.slug || '',
+    };
+  });
+
+  result.sort((a, b) => {
+    const nameCompare = (a.tenantName || '').localeCompare(b.tenantName || '');
+    if (nameCompare !== 0) return nameCompare;
+    return (a.personalInfo?.firstName || '').localeCompare(b.personalInfo?.firstName || '');
+  });
+
+  return result;
+}
+
+async function updateTenantAdmin(tenantId, adminId, data) {
+  const { error, value } = updateTenantAdminSchema.validate(data, { abortEarly: false });
+  if (error) throw error;
+
+  const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
+
+  // Find the admin teacher
+  const existing = await teacherCollection.findOne({
+    _id: ObjectId.createFromHexString(adminId),
+    tenantId,
+    roles: { $in: ADMIN_TIER_ROLES },
+  });
+
+  if (!existing) {
+    const err = new Error('Admin teacher not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const setFields = { updatedAt: new Date() };
+
+  if (value.firstName !== undefined) {
+    setFields['personalInfo.firstName'] = value.firstName;
+  }
+  if (value.lastName !== undefined) {
+    setFields['personalInfo.lastName'] = value.lastName;
+  }
+  if (value.email !== undefined) {
+    const newEmail = value.email.toLowerCase();
+
+    // Check email uniqueness within tenant
+    const emailConflict = await teacherCollection.findOne({
+      tenantId,
+      'credentials.email': newEmail,
+      _id: { $ne: ObjectId.createFromHexString(adminId) },
+    });
+
+    if (emailConflict) {
+      const err = new Error('Email already exists for another teacher in this tenant');
+      err.status = 409;
+      throw err;
+    }
+
+    setFields['personalInfo.email'] = newEmail;
+    setFields['credentials.email'] = newEmail;
+  }
+
+  const updated = await teacherCollection.findOneAndUpdate(
+    { _id: ObjectId.createFromHexString(adminId) },
+    { $set: setFields },
+    { returnDocument: 'after', projection: TENANT_ADMIN_PROJECTION }
+  );
+
+  log.info({ tenantId, adminId, changes: Object.keys(value) }, 'Tenant admin updated');
+
+  return updated;
+}
+
+async function resetTenantAdminPassword(tenantId, adminId) {
+  const teacherCollection = await getCollection(COLLECTIONS.TEACHER);
+
+  const existing = await teacherCollection.findOne({
+    _id: ObjectId.createFromHexString(adminId),
+    tenantId,
+    roles: { $in: ADMIN_TIER_ROLES },
+  });
+
+  if (!existing) {
+    const err = new Error('Admin teacher not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, SALT_ROUNDS);
+
+  await teacherCollection.updateOne(
+    { _id: ObjectId.createFromHexString(adminId) },
+    {
+      $set: {
+        'credentials.password': hashedPassword,
+        'credentials.requiresPasswordChange': true,
+        'credentials.passwordSetAt': new Date(),
+        updatedAt: new Date(),
+      },
+    }
+  );
+
+  log.info({ tenantId, adminId }, 'Tenant admin password reset to default');
+
+  return { success: true, message: 'Password reset to default' };
 }
 
 // --- Reporting Index Initialization (internal, not exported) ---

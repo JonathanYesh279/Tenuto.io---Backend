@@ -52,6 +52,12 @@ export const impersonationStartSchema = Joi.object({
   tenantId: Joi.string().hex().length(24).required(),
 });
 
+export const updateTenantAdminSchema = Joi.object({
+  firstName: Joi.string().trim(),
+  lastName: Joi.string().trim(),
+  email: Joi.string().email(),
+}).min(1);
+
 export const createTenantWithAdminSchema = Joi.object({
   name: Joi.string().trim().required(),
   slug: Joi.string().trim().lowercase().pattern(/^[a-z0-9-]+$/).required(),
