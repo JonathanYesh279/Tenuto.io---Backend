@@ -116,7 +116,7 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 - [x] **Phase 39: Role & Permission Foundation** — Constants, data model, and hardcoded defaults (completed 2026-03-05)
 - [x] **Phase 40: Permission Engine & Middleware** — requirePermission, buildContext extension, department-scoped filtering (completed 2026-03-05)
 - [x] **Phase 41: Route Migration** — Migrate all routes from requireAuth(roles[]) to requirePermission(domain, action) (completed 2026-03-05)
-- [ ] **Phase 42: Admin Provisioning** — Tenant creation with inline admin account in a transaction
+- [x] **Phase 42: Admin Provisioning** — Tenant creation with inline admin account in a transaction (completed 2026-03-05)
 - [ ] **Phase 43: Permission Configuration API & Safeguards** — Admin customization endpoints with lockout prevention
 - [ ] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor
 - [ ] **Phase 45: Migration & Verification** — Migration script for existing tenants and end-to-end verification
@@ -223,7 +223,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 | 39. Role & Permission Foundation | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 40. Permission Engine & Middleware | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
 | 41. Route Migration | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 42. Admin Provisioning | v1.7 | 0/1 | Not started | - |
+| 42. Admin Provisioning | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
 | 43. Permission Configuration API & Safeguards | v1.7 | 0/TBD | Not started | - |
 | 44. Settings UI | v1.7 | 0/TBD | Not started | - |
 | 45. Migration & Verification | v1.7 | 0/TBD | Not started | - |
@@ -232,4 +232,4 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 42 planned (1 plan, admin provisioning)*
+*Last updated: 2026-03-05 -- Phase 42 complete (admin provisioning)*
