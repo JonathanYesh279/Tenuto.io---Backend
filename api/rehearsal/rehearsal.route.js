@@ -1,6 +1,6 @@
 import express from 'express'
 import { rehearsalController } from './rehearsal.controller.js'
-import { requireAuth } from '../../middleware/auth.middleware.js'
+import { requirePermission } from '../../middleware/auth.middleware.js'
 import {
   formatRehearsalResponse,
   formatAttendanceResponse
@@ -9,19 +9,19 @@ import { validateRoomExists } from '../../middleware/roomValidation.js'
 
 const router = express.Router()
 
-router.get('/', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), formatRehearsalResponse(), rehearsalController.getRehearsals)
-router.get('/orchestra/:orchestraId', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), formatRehearsalResponse(), rehearsalController.getOrchestraRehearsals)
-router.get('/:id', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), formatRehearsalResponse(), rehearsalController.getRehearsalById)
+router.get('/', requirePermission('rehearsals', 'view'), formatRehearsalResponse(), rehearsalController.getRehearsals)
+router.get('/orchestra/:orchestraId', requirePermission('rehearsals', 'view'), formatRehearsalResponse(), rehearsalController.getOrchestraRehearsals)
+router.get('/:id', requirePermission('rehearsals', 'view'), formatRehearsalResponse(), rehearsalController.getRehearsalById)
 
-router.post('/', requireAuth(['מנצח', 'מנהל']), validateRoomExists, rehearsalController.addRehearsal)
-router.put('/:id', requireAuth(['מנצח', 'מנהל']), validateRoomExists, rehearsalController.updateRehearsal)
-router.delete('/:id', requireAuth(['מנצח', 'מנהל']), rehearsalController.removeRehearsal)
+router.post('/', requirePermission('rehearsals', 'create'), validateRoomExists, rehearsalController.addRehearsal)
+router.put('/:id', requirePermission('rehearsals', 'update'), validateRoomExists, rehearsalController.updateRehearsal)
+router.delete('/:id', requirePermission('rehearsals', 'delete'), rehearsalController.removeRehearsal)
 
-router.put('/:rehearsalId/attendance', requireAuth(['מנצח', 'מנהל']), formatAttendanceResponse(), rehearsalController.updateAttendance)
+router.put('/:rehearsalId/attendance', requirePermission('rehearsals', 'update'), formatAttendanceResponse(), rehearsalController.updateAttendance)
 
-router.post('/bulk', requireAuth(['מנהל', 'מנצח']), rehearsalController.bulkCreateRehearsals)
-router.delete('/orchestra/:orchestraId', requireAuth(['מנהל', 'מנצח']), rehearsalController.bulkDeleteRehearsalsByOrchestra)
-router.delete('/orchestra/:orchestraId/date-range', requireAuth(['מנהל', 'מנצח']), rehearsalController.bulkDeleteRehearsalsByDateRange)
-router.put('/orchestra/:orchestraId', requireAuth(['מנהל', 'מנצח']), rehearsalController.bulkUpdateRehearsalsByOrchestra)
+router.post('/bulk', requirePermission('rehearsals', 'create'), rehearsalController.bulkCreateRehearsals)
+router.delete('/orchestra/:orchestraId', requirePermission('rehearsals', 'delete'), rehearsalController.bulkDeleteRehearsalsByOrchestra)
+router.delete('/orchestra/:orchestraId/date-range', requirePermission('rehearsals', 'delete'), rehearsalController.bulkDeleteRehearsalsByDateRange)
+router.put('/orchestra/:orchestraId', requirePermission('rehearsals', 'update'), rehearsalController.bulkUpdateRehearsalsByOrchestra)
 
 export default router

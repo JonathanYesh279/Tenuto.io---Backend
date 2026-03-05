@@ -1,23 +1,23 @@
 import express from 'express'
 import { orchestraController } from './orchestra.controller.js'
-import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requirePermission } from '../../middleware/auth.middleware.js';
 import { validateRoomExists } from '../../middleware/roomValidation.js';
 
 const router = express.Router()
 
-router.get('/', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), orchestraController.getOrchestras)
-router.get('/:id', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), orchestraController.getOrchestraById)
+router.get('/', requirePermission('orchestras', 'view'), orchestraController.getOrchestras)
+router.get('/:id', requirePermission('orchestras', 'view'), orchestraController.getOrchestraById)
 
-router.post('/', requireAuth(['מנהל']), validateRoomExists, orchestraController.addOrchestra)
-router.put('/:id', requireAuth(['מנהל', 'מנצח']), validateRoomExists, orchestraController.updateOrchestra)
-router.delete('/:id', requireAuth(['מנהל']), orchestraController.removeOrchestra)
+router.post('/', requirePermission('orchestras', 'create'), validateRoomExists, orchestraController.addOrchestra)
+router.put('/:id', requirePermission('orchestras', 'update'), validateRoomExists, orchestraController.updateOrchestra)
+router.delete('/:id', requirePermission('orchestras', 'delete'), orchestraController.removeOrchestra)
 
-router.post('/:id/members', requireAuth(['מנהל', 'מנצח', 'מדריך הרכב']), orchestraController.addMember)
-router.delete('/:id/members/:studentId', requireAuth(['מנהל', 'מנצח', 'מדריך הרכב']), orchestraController.removeMember)
+router.post('/:id/members', requirePermission('orchestras', 'update'), orchestraController.addMember)
+router.delete('/:id/members/:studentId', requirePermission('orchestras', 'update'), orchestraController.removeMember)
 
-router.get('/:id/rehearsals/:rehearsalId/attendance', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), orchestraController.getRehearsalAttendance)
-router.put('/:id/rehearsals/:rehearsalId/attendance', requireAuth(['מנצח', 'מנהל']), orchestraController.updateRehearsalAttendance)
+router.get('/:id/rehearsals/:rehearsalId/attendance', requirePermission('rehearsals', 'view'), orchestraController.getRehearsalAttendance)
+router.put('/:id/rehearsals/:rehearsalId/attendance', requirePermission('rehearsals', 'update'), orchestraController.updateRehearsalAttendance)
 
-router.get('/:orchestraId/student/:studentId/attendance', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), orchestraController.getStudentAttendanceStats)
+router.get('/:orchestraId/student/:studentId/attendance', requirePermission('orchestras', 'view'), orchestraController.getStudentAttendanceStats)
 
 export default router

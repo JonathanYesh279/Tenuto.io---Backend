@@ -2,7 +2,7 @@ import express from 'express'
 import path from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
-import { requireAuth } from '../../middleware/auth.middleware.js'
+import { requirePermission } from '../../middleware/auth.middleware.js'
 import { STORAGE_MODE, streamFileFromS3 } from '../../services/fileStorage.service.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -12,7 +12,7 @@ const UPLOAD_DIR = path.join(path.dirname(path.dirname(__dirname)), 'uploads')
 const router = express.Router()
 
 // Serve files
-router.get('/:filename', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל']), serveFile)
+router.get('/:filename', requirePermission('students', 'view'), serveFile)
 
 async function serveFile(req, res, next) {
   try {

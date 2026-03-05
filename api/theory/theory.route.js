@@ -1,6 +1,6 @@
 import express from 'express';
 import { theoryController } from './theory.controller.js';
-import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requirePermission } from '../../middleware/auth.middleware.js';
 import {
   validateBulkCreate,
   validateSingleCreate,
@@ -33,29 +33,29 @@ const router = express.Router();
 // Add toast helpers to all routes
 router.use(addToastHelpers);
 
-// GET routes - All authenticated users can view theory lessons
-router.get('/', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל', 'מורה תאוריה']), formatLessonResponse(), theoryController.getTheoryLessons);
-router.get('/category/:category', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל', 'מורה תאוריה']), formatLessonResponse(), theoryController.getTheoryLessonsByCategory);
-router.get('/teacher/:teacherId', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל', 'מורה תאוריה']), formatLessonResponse(), theoryController.getTheoryLessonsByTeacher);
-router.get('/student/:studentId/stats', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל', 'מורה תאוריה']), formatAttendanceResponse(), theoryController.getStudentTheoryAttendanceStats);
-router.get('/:id', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל', 'מורה תאוריה']), formatLessonResponse(), theoryController.getTheoryLessonById);
-router.get('/:id/attendance', requireAuth(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל', 'מורה תאוריה']), formatAttendanceResponse(), theoryController.getTheoryAttendance);
+// GET routes - All authenticated users with theory view permission
+router.get('/', requirePermission('theory', 'view'), formatLessonResponse(), theoryController.getTheoryLessons);
+router.get('/category/:category', requirePermission('theory', 'view'), formatLessonResponse(), theoryController.getTheoryLessonsByCategory);
+router.get('/teacher/:teacherId', requirePermission('theory', 'view'), formatLessonResponse(), theoryController.getTheoryLessonsByTeacher);
+router.get('/student/:studentId/stats', requirePermission('theory', 'view'), formatAttendanceResponse(), theoryController.getStudentTheoryAttendanceStats);
+router.get('/:id', requirePermission('theory', 'view'), formatLessonResponse(), theoryController.getTheoryLessonById);
+router.get('/:id/attendance', requirePermission('theory', 'view'), formatAttendanceResponse(), theoryController.getTheoryAttendance);
 
-// POST routes - Only admin and theory instructors can create
-router.post('/', requireAuth(['מנהל', 'מורה תאוריה']), monitorValidationErrors, validateLessonDate, ...validateSingleCreate, monitorLessonOperations, theoryController.addTheoryLesson);
-router.post('/bulk-create', requireAuth(['מנהל', 'מורה תאוריה']), monitorValidationErrors, validateBulkLessonDates, ...validateBulkCreate, monitorBulkOperations, theoryController.bulkCreateTheoryLessons);
-router.post('/:id/student', requireAuth(['מנהל', 'מורה תאוריה']), validateObjectId('id'), theoryController.addStudentToTheory);
+// POST routes - Only users with theory create permission
+router.post('/', requirePermission('theory', 'create'), monitorValidationErrors, validateLessonDate, ...validateSingleCreate, monitorLessonOperations, theoryController.addTheoryLesson);
+router.post('/bulk-create', requirePermission('theory', 'create'), monitorValidationErrors, validateBulkLessonDates, ...validateBulkCreate, monitorBulkOperations, theoryController.bulkCreateTheoryLessons);
+router.post('/:id/student', requirePermission('theory', 'create'), validateObjectId('id'), theoryController.addStudentToTheory);
 
-// PUT routes - Only admin and theory instructors can update
-router.put('/:id', requireAuth(['מנהל', 'מורה תאוריה']), monitorValidationErrors, ...validateUpdate, monitorLessonOperations, theoryController.updateTheoryLesson);
-router.put('/:id/attendance', requireAuth(['מנהל', 'מורה תאוריה']), monitorValidationErrors, validateObjectId('id'), validateAttendanceDate, monitorAttendanceOperations, theoryController.updateTheoryAttendance);
+// PUT routes - Only users with theory update permission
+router.put('/:id', requirePermission('theory', 'update'), monitorValidationErrors, ...validateUpdate, monitorLessonOperations, theoryController.updateTheoryLesson);
+router.put('/:id/attendance', requirePermission('theory', 'update'), monitorValidationErrors, validateObjectId('id'), validateAttendanceDate, monitorAttendanceOperations, theoryController.updateTheoryAttendance);
 
-// DELETE routes - Only admin and theory instructors can delete
-router.delete('/bulk-delete-by-date', requireAuth(['מנהל', 'מורה תאוריה']), theoryController.bulkDeleteTheoryLessonsByDate);
-router.delete('/bulk-delete-by-category/:category', requireAuth(['מנהל', 'מורה תאוריה']), theoryController.bulkDeleteTheoryLessonsByCategory);
-router.delete('/bulk-delete-by-teacher/:teacherId', requireAuth(['מנהל', 'מורה תאוריה', 'מורה']), validateObjectId('teacherId'), theoryController.bulkDeleteTheoryLessonsByTeacher);
-router.delete('/:id', requireAuth(['מנהל', 'מורה תאוריה']), validateObjectId('id'), theoryController.removeTheoryLesson);
-router.delete('/:id/student/:studentId', requireAuth(['מנהל', 'מורה תאוריה']), validateObjectId('id'), validateObjectId('studentId'), theoryController.removeStudentFromTheory);
+// DELETE routes - Only users with theory delete permission
+router.delete('/bulk-delete-by-date', requirePermission('theory', 'delete'), theoryController.bulkDeleteTheoryLessonsByDate);
+router.delete('/bulk-delete-by-category/:category', requirePermission('theory', 'delete'), theoryController.bulkDeleteTheoryLessonsByCategory);
+router.delete('/bulk-delete-by-teacher/:teacherId', requirePermission('theory', 'delete'), validateObjectId('teacherId'), theoryController.bulkDeleteTheoryLessonsByTeacher);
+router.delete('/:id', requirePermission('theory', 'delete'), validateObjectId('id'), theoryController.removeTheoryLesson);
+router.delete('/:id/student/:studentId', requirePermission('theory', 'delete'), validateObjectId('id'), validateObjectId('studentId'), theoryController.removeStudentFromTheory);
 
 // Error handling middleware - must be last
 router.use(theoryLessonErrorHandler);
