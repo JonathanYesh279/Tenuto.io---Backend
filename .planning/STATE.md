@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-Phase: 40 of 45 (Permission Engine & Middleware) — COMPLETE
-Plan: —
-Status: Phase 40 verified, ready to plan Phase 41
-Last activity: 2026-03-05 — Phase 40 complete (1/1 plans, verified 5/5 must-haves)
+Phase: 41 of 45 (Route Migration)
+Plan: 01 of 01 — COMPLETE
+Status: Plan 41-01 complete (7 core route files migrated to requirePermission)
+Last activity: 2026-03-05 — Plan 41-01 complete (3 tasks, 9 files modified)
 
-Progress: [██░░░░░░░░] 28%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
@@ -49,6 +49,10 @@ Progress: [██░░░░░░░░] 28%
 - 40-01: buildScopedFilter department scope filters students by personalInfo.instrument via getInstrumentsByDepartment
 - 40-01: canAccessStudent returns true for department scope (list filtering handled by buildScopedFilter)
 - 40-01: Empty coordinatorDepartments with department scope falls back to own-scope behavior
+- 41-01: Permission matrix expanded before route migration to prevent 403 regressions
+- 41-01: Role normalization in buildContext only -- teacher.roles never mutated
+- 41-01: Bagrut and file routes use 'students' domain (student data)
+- 41-01: Teacher schedule/lesson routes use 'schedules' domain (not 'teachers')
 
 ### Pending Todos
 
@@ -63,9 +67,10 @@ None.
 | 39-01 | RBAC constants | 3min | 2 | 4 |
 | 39-02 | Middleware permissions | 2min | 1 | 3 |
 | 40-01 | Permission engine middleware | 2min | 2 | 2 |
+| 41-01 | Core route migration | 6min | 3 | 9 |
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Phase 40 complete and verified (5/5 must-haves passed)
-Resume: Run `/gsd:plan-phase 41` to plan the Route Migration phase
+Stopped at: Completed 41-01-PLAN.md (core route migration)
+Resume: Continue with remaining Phase 41 plans or next phase
