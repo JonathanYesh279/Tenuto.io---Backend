@@ -175,7 +175,9 @@ Plans:
   2. Submitting the form creates both the tenant document and the admin teacher document in a single MongoDB transaction -- if either fails, neither is created
   3. The created admin teacher has `roles: ['מנהל']`, a hashed default password, and `requiresPasswordChange: true`
   4. The created tenant document has `rolePermissions` populated with the hardcoded defaults from Phase 39
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 42-01-PLAN.md — Transactional tenant + admin creation with validation and audit
 
 ### Phase 43: Permission Configuration API & Safeguards
 **Goal**: Tenant admins can customize their permission matrix per role and assign roles to staff, with safeguards preventing admin lockout
@@ -221,7 +223,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 | 39. Role & Permission Foundation | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 40. Permission Engine & Middleware | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
 | 41. Route Migration | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 42. Admin Provisioning | v1.7 | 0/TBD | Not started | - |
+| 42. Admin Provisioning | v1.7 | 0/1 | Not started | - |
 | 43. Permission Configuration API & Safeguards | v1.7 | 0/TBD | Not started | - |
 | 44. Settings UI | v1.7 | 0/TBD | Not started | - |
 | 45. Migration & Verification | v1.7 | 0/TBD | Not started | - |
@@ -230,4 +232,4 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 41 complete (2 plans, route migration done)*
+*Last updated: 2026-03-05 -- Phase 42 planned (1 plan, admin provisioning)*
