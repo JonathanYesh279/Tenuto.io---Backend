@@ -34,6 +34,10 @@ export const superAdminController = {
   getReportingMinistryStatus,
   startImpersonation,
   stopImpersonation,
+  getTenantAdmins,
+  getAllTenantAdmins,
+  updateTenantAdmin,
+  resetTenantAdminPassword,
 };
 
 async function login(req, res) {
@@ -408,5 +412,50 @@ async function stopImpersonation(req, res) {
   } catch (err) {
     log.error({ err: err.message }, 'Error stopping impersonation');
     res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ─── Tenant Admin Management Endpoints ──────────────────────────────────────
+
+async function getTenantAdmins(req, res) {
+  try {
+    const admins = await superAdminService.getTenantAdmins(req.params.id);
+    res.json({ success: true, data: admins });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error getting tenant admins');
+    const status = err.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function getAllTenantAdmins(req, res) {
+  try {
+    const admins = await superAdminService.getAllTenantAdmins();
+    res.json({ success: true, data: admins });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error getting all tenant admins');
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function updateTenantAdmin(req, res) {
+  try {
+    const admin = await superAdminService.updateTenantAdmin(req.params.id, req.params.adminId, req.body);
+    res.json({ success: true, data: admin });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error updating tenant admin');
+    const status = err.status || (err.message.includes('not found') ? 404 : err.message.includes('already exists') ? 409 : 400);
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function resetTenantAdminPassword(req, res) {
+  try {
+    const result = await superAdminService.resetTenantAdminPassword(req.params.id, req.params.adminId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error resetting tenant admin password');
+    const status = err.status || (err.message.includes('not found') ? 404 : 500);
+    res.status(status).json({ success: false, error: err.message });
   }
 }

@@ -23,6 +23,12 @@ router.post('/auth/logout', superAdminController.logout);
 router.post('/impersonate/:tenantId', superAdminController.startImpersonation);
 router.post('/stop-impersonation', superAdminController.stopImpersonation);
 
+// Tenant admin management (must be before /tenants/:id to avoid param collision)
+router.get('/tenant-admins', superAdminController.getAllTenantAdmins);
+router.get('/tenants/:id/admins', superAdminController.getTenantAdmins);
+router.put('/tenants/:id/admins/:adminId', superAdminController.updateTenantAdmin);
+router.post('/tenants/:id/admins/:adminId/reset-password', superAdminController.resetTenantAdminPassword);
+
 // Tenant management
 router.get('/tenants', superAdminController.getTenants);
 router.get('/tenants/:id', superAdminController.getTenantById);
