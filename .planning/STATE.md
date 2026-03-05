@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 41 — Route Migration (v1.7)
+**Current focus:** Phase 42 — Admin Provisioning (v1.7)
 
 ## Current Position
 
-Phase: 41 of 45 (Route Migration)
-Plan: 02 of 02 — COMPLETE
-Status: Phase 41 complete (all route files migrated to requirePermission, PERM-06 done)
-Last activity: 2026-03-05 — Plan 41-02 complete (2 tasks, 15 files modified)
+Phase: 42 of 45 (Admin Provisioning)
+Plan: 01 of 01 — COMPLETE
+Status: Phase 42-01 complete (atomic tenant+admin creation via MongoDB transaction)
+Last activity: 2026-03-05 — Plan 42-01 complete (2 tasks, 3 files modified)
 
-Progress: [████░░░░░░] 40%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -58,6 +58,9 @@ Progress: [████░░░░░░] 40%
 - 41-02: Room-schedule uses locked 'settings' domain to preserve admin-only access
 - 41-02: Destructive admin operations use 'settings.update' (settings domain has no 'delete' action)
 - 41-02: Auth admin routes chain buildContext inline since /api/auth mounted without it in server.js
+- 42-01: Deep clone DEFAULT_ROLE_PERMISSIONS via JSON.parse/stringify for tenant rolePermissions
+- 42-01: No cross-tenant email uniqueness check for brand new tenant (compound index is tenantId + email)
+- 42-01: Admin teacher gets invitationMode DEFAULT_PASSWORD with requiresPasswordChange: true
 
 ### Pending Todos
 
@@ -74,9 +77,10 @@ None.
 | 40-01 | Permission engine middleware | 2min | 2 | 2 |
 | 41-01 | Core route migration | 6min | 3 | 9 |
 | 41-02 | Remaining route migration | 3min | 2 | 15 |
+| 42-01 | Tenant+admin provisioning | 3min | 2 | 3 |
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 41-02-PLAN.md (remaining route migration, PERM-06 complete)
-Resume: Continue with Phase 42 or next milestone phase
+Stopped at: Completed 42-01-PLAN.md (atomic tenant+admin provisioning, PROV-01 through PROV-04)
+Resume: Continue with Phase 43 or next milestone phase
