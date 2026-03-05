@@ -94,6 +94,12 @@ None.
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Forced password change flow after admin password reset | 2026-03-06 | 4f3ff9c | [1-forced-password-change](./quick/1-forced-password-change-flow-after-admin-/) |
+
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 39-01 | RBAC constants | 3min | 2 | 4 |
