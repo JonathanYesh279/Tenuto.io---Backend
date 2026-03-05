@@ -161,14 +161,15 @@ async function getTenantById(req, res) {
 
 async function createTenant(req, res) {
   try {
-    const tenant = await tenantService.createTenant(req.body);
+    const result = await superAdminService.createTenantWithAdmin(req.body);
 
     await auditTrailService.logAction(AUDIT_ACTIONS.TENANT_CREATED, req.superAdmin._id.toString(), {
-      targetId: tenant._id.toString(),
-      tenantName: tenant.name,
+      targetId: result.tenant._id.toString(),
+      tenantName: result.tenant.name,
+      adminEmail: result.adminTeacher.email,
     });
 
-    res.status(201).json({ success: true, data: tenant });
+    res.status(201).json({ success: true, data: result });
   } catch (err) {
     log.error({ err: err.message }, 'Error creating tenant');
     const status = err.message.includes('already exists') ? 409 : 400;
