@@ -1,7 +1,7 @@
 import { createLogger } from '../services/logger.service.js';
 import { getCollection } from '../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
-import { ADMIN_TIER_ROLES, COORDINATOR_ROLES } from '../config/constants.js';
+import { ADMIN_TIER_ROLES, COORDINATOR_ROLES, ROLE_RENAME_MAP } from '../config/constants.js';
 import { DEFAULT_ROLE_PERMISSIONS, resolveEffectivePermissions } from '../config/permissions.js';
 
 const log = createLogger('tenant.middleware');
@@ -72,7 +72,10 @@ export async function buildContext(req, res, next) {
       }
     }
 
-    const teacherRoles = teacher.roles || [];
+    // Normalize legacy role names (e.g. 'מורה תאוריה' -> 'תאוריה') for permission resolution.
+    // Does NOT mutate the teacher document -- only normalizes for this request's context.
+    const rawRoles = teacher.roles || [];
+    const teacherRoles = rawRoles.map(r => ROLE_RENAME_MAP[r] || r);
     const effectivePermissions = resolveEffectivePermissions(teacherRoles, rolePermissions);
 
     // Coordinator detection
