@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 40 — Permission Engine & Middleware (v1.7)
+**Current focus:** Phase 41 — Route Migration (v1.7)
 
 ## Current Position
 
-Phase: 40 of 45 (Permission Engine & Middleware)
-Plan: 01 complete
-Status: 40-01 complete, ready for next plan
-Last activity: 2026-03-05 — Plan 40-01 complete (2/2 tasks, requirePermission + buildScopedFilter)
+Phase: 40 of 45 (Permission Engine & Middleware) — COMPLETE
+Plan: —
+Status: Phase 40 verified, ready to plan Phase 41
+Last activity: 2026-03-05 — Phase 40 complete (1/1 plans, verified 5/5 must-haves)
 
 Progress: [██░░░░░░░░] 28%
 
@@ -67,5 +67,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 40-01-PLAN.md (requirePermission middleware + buildScopedFilter department scope)
-Resume: Execute next plan in Phase 40 or run `/gsd:plan-phase 40` for remaining plans
+Stopped at: Phase 40 complete and verified (5/5 must-haves passed)
+Resume: Run `/gsd:plan-phase 41` to plan the Route Migration phase

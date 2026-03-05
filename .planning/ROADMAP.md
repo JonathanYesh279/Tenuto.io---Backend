@@ -114,7 +114,7 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 **Design doc:** `docs/plans/2026-03-05-rbac-admin-provisioning-design.md`
 
 - [x] **Phase 39: Role & Permission Foundation** — Constants, data model, and hardcoded defaults (completed 2026-03-05)
-- [ ] **Phase 40: Permission Engine & Middleware** — requirePermission, buildContext extension, department-scoped filtering
+- [x] **Phase 40: Permission Engine & Middleware** — requirePermission, buildContext extension, department-scoped filtering (completed 2026-03-05)
 - [ ] **Phase 41: Route Migration** — Migrate all routes from requireAuth(roles[]) to requirePermission(domain, action)
 - [ ] **Phase 42: Admin Provisioning** — Tenant creation with inline admin account in a transaction
 - [ ] **Phase 43: Permission Configuration API & Safeguards** — Admin customization endpoints with lockout prevention
@@ -216,7 +216,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 39. Role & Permission Foundation | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 40. Permission Engine & Middleware | v1.7 | 0/1 | Not started | - |
+| 40. Permission Engine & Middleware | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
 | 41. Route Migration | v1.7 | 0/TBD | Not started | - |
 | 42. Admin Provisioning | v1.7 | 0/TBD | Not started | - |
 | 43. Permission Configuration API & Safeguards | v1.7 | 0/TBD | Not started | - |
@@ -227,4 +227,4 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 40 planned (1 plan)*
+*Last updated: 2026-03-05 -- Phase 40 complete (1/1 plans, verified 5/5 must-haves)*
