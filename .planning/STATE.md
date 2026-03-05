@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 42 — Admin Provisioning (v1.7)
+**Current focus:** Phase 43 — Permission Configuration API & Safeguards (v1.7)
 
 ## Current Position
 
-Phase: 42 of 45 (Admin Provisioning)
+Phase: 43 of 45 (Permission Configuration API & Safeguards)
 Plan: 01 of 01 — COMPLETE
-Status: Phase 42-01 complete (atomic tenant+admin creation via MongoDB transaction)
-Last activity: 2026-03-05 — Plan 42-01 complete (2 tasks, 3 files modified)
+Status: Phase 43-01 complete (permission configuration API with SAFE-02 admin lockout prevention)
+Last activity: 2026-03-05 — Plan 43-01 complete (2 tasks, 4 files modified)
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
@@ -61,6 +61,9 @@ Progress: [█████░░░░░] 50%
 - 42-01: Deep clone DEFAULT_ROLE_PERMISSIONS via JSON.parse/stringify for tenant rolePermissions
 - 42-01: No cross-tenant email uniqueness check for brand new tenant (compound index is tenantId + email)
 - 42-01: Admin teacher gets invitationMode DEFAULT_PASSWORD with requiresPasswordChange: true
+- 43-01: Admin-tier roles always return defaults on reset (no DB write needed)
+- 43-01: getRolePermissions includes teacher list for UI role assignment context
+- 43-01: LOCKED_DOMAINS double-checked in service layer (defense in depth beyond validateRolePermissions)
 
 ### Pending Todos
 
@@ -78,9 +81,10 @@ None.
 | 41-01 | Core route migration | 6min | 3 | 9 |
 | 41-02 | Remaining route migration | 3min | 2 | 15 |
 | 42-01 | Tenant+admin provisioning | 3min | 2 | 3 |
+| 43-01 | Permission config API | 2min | 2 | 4 |
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 42-01-PLAN.md (atomic tenant+admin provisioning, PROV-01 through PROV-04)
-Resume: Continue with Phase 43 or next milestone phase
+Stopped at: Completed 43-01-PLAN.md (permission configuration API with SAFE-02 and LOCKED_DOMAINS enforcement)
+Resume: Continue with Phase 44 or next milestone phase
