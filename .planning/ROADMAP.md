@@ -9,7 +9,7 @@
 - [x] **v1.4 Ensemble Import** — Phases 23-26 (shipped 2026-02-28)
 - [x] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (shipped 2026-03-02)
 - [x] **v1.6 Room & Hours Management Table** — Phases 31-38 (shipped 2026-03-04)
-- [ ] **v1.7 RBAC & Admin Provisioning** — Phases 39-45 (in progress)
+- [x] **v1.7 RBAC & Admin Provisioning** — Phases 39-45 (shipped 2026-03-06)
 
 ## Phases
 
@@ -119,7 +119,7 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 - [x] **Phase 42: Admin Provisioning** — Tenant creation with inline admin account in a transaction (completed 2026-03-05)
 - [x] **Phase 43: Permission Configuration API & Safeguards** — Admin customization endpoints with lockout prevention (completed 2026-03-05)
 - [x] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor (completed 2026-03-05)
-- [ ] **Phase 45: Super Admin Tenant Admin Management** — Dedicated super admin page for viewing and managing tenant admin accounts
+- [x] **Phase 45: Super Admin Tenant Admin Management** — Dedicated super admin page for viewing and managing tenant admin accounts (completed 2026-03-06)
 
 ## Phase Details
 
@@ -215,8 +215,8 @@ Plans:
 **Depends on**: Phase 42 (admin provisioning creates admin accounts that this phase manages)
 **Plans:** 2 plans
 Plans:
-- [ ] 45-01-PLAN.md — Backend API for tenant admin listing, update, and password reset
-- [ ] 45-02-PLAN.md — Frontend tenant admin management page with edit and reset actions
+- [x] 45-01-PLAN.md — Backend API for tenant admin listing, update, and password reset
+- [x] 45-02-PLAN.md — Frontend tenant admin management page with edit and reset actions
 
 ## Progress
 
@@ -231,7 +231,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 | 42. Admin Provisioning | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
 | 43. Permission Configuration API & Safeguards | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 44. Settings UI | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 45. Super Admin Tenant Admin Management | v1.7 | 0/2 | Not started | - |
+| 45. Super Admin Tenant Admin Management | v1.7 | 2/2 | ✓ Complete | 2026-03-06 |
 
 **Previous milestones:** 38 phases, 92+ plans across 7 milestones (all shipped)
 

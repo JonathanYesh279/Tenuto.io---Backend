@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 45 — Super Admin Tenant Admin Management
+**Current focus:** v1.7 RBAC & Admin Provisioning — COMPLETE
 
 ## Current Position
 
