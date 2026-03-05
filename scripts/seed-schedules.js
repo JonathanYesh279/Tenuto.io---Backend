@@ -24,7 +24,12 @@ dotenv.config();
 // ─── Configuration ───────────────────────────────────────────────────────────
 
 const DB_NAME = process.env.MONGODB_NAME || 'Tenuto-DB';
-const TENANT_ID_STR = 'dev-conservatory-001';
+
+// Accept --tenant <id> from CLI, default to dev-conservatory-001
+const tenantArgIdx = process.argv.indexOf('--tenant');
+const TENANT_ID_STR = tenantArgIdx !== -1 && process.argv[tenantArgIdx + 1]
+  ? process.argv[tenantArgIdx + 1]
+  : 'dev-conservatory-001';
 
 const VALID_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי'];
 
@@ -62,15 +67,60 @@ function pickDuration() {
   return 60;
 }
 
+// ─── Room Scheduler (prevents room conflicts across teachers) ────────────────
+
+class RoomScheduler {
+  constructor() {
+    // day -> location -> sorted array of { startMin, endMin }
+    this.bookings = new Map();
+  }
+
+  /**
+   * Check if a room is free on a given day for the time range.
+   */
+  isFree(day, location, startMin, endMin) {
+    const key = `${day}::${location}`;
+    const slots = this.bookings.get(key);
+    if (!slots || slots.length === 0) return true;
+    for (const s of slots) {
+      if (startMin < s.endMin && endMin > s.startMin) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Book a room. Returns true if successful, false if conflict.
+   */
+  book(day, location, startMin, endMin) {
+    if (!this.isFree(day, location, startMin, endMin)) return false;
+    const key = `${day}::${location}`;
+    if (!this.bookings.has(key)) this.bookings.set(key, []);
+    this.bookings.get(key).push({ startMin, endMin });
+    return true;
+  }
+
+  /**
+   * Find a free room for a given day and time range.
+   * Shuffles locations to spread usage.
+   */
+  findFreeRoom(day, startMin, endMin) {
+    const shuffled = [...LOCATIONS].sort(() => Math.random() - 0.5);
+    for (const loc of shuffled) {
+      if (this.isFree(day, loc, startMin, endMin)) return loc;
+    }
+    return null;
+  }
+}
+
 // ─── Phase A: Rebuild Teacher Time Blocks ────────────────────────────────────
 
-function generateTimeBlocks() {
+function generateTimeBlocks(roomScheduler) {
   const blockCount = randInt(2, 4);
   const blocks = [];
   const usedDays = new Set();
 
   for (let i = 0; i < blockCount; i++) {
-    // Pick unique day
+    // Pick unique day for this teacher
     let day = pick(VALID_DAYS);
     let attempts = 0;
     while (usedDays.has(day) && attempts < 10) { day = pick(VALID_DAYS); attempts++; }
@@ -91,7 +141,14 @@ function generateTimeBlocks() {
     const startMin = pick([0, 30]);
     const startTotalMin = startHour * 60 + startMin;
     const endTotalMin = startTotalMin + spanHours * 60;
-    const location = pick(LOCATIONS);
+
+    // Find a room that is free for this entire block on this day
+    const location = roomScheduler.findFreeRoom(day, startTotalMin, endTotalMin);
+    if (!location) {
+      // Skip this block if no room available (very unlikely with 26 locations)
+      continue;
+    }
+    roomScheduler.book(day, location, startTotalMin, endTotalMin);
 
     blocks.push({
       _id: new ObjectId(),
@@ -121,13 +178,16 @@ async function phaseA(db) {
     .project({ _id: 1 })
     .toArray();
 
+  // Shared room scheduler to prevent room conflicts across all teachers
+  const roomScheduler = new RoomScheduler();
+
   // Generate new blocks for each teacher
   const ops = teachers.map(t => ({
     updateOne: {
       filter: { _id: t._id },
       update: {
         $set: {
-          'teaching.timeBlocks': generateTimeBlocks(),
+          'teaching.timeBlocks': generateTimeBlocks(roomScheduler),
           updatedAt: new Date(),
         },
       },
@@ -184,6 +244,7 @@ async function phaseB(db) {
 
   let assignedCount = 0;
   let overflowCount = 0;
+  let skippedCount = 0;
 
   for (const [teacherId, studs] of teacherStudents) {
     const teacher = teacherMap.get(teacherId);
@@ -213,9 +274,8 @@ async function phaseB(db) {
         const student = studs[studentIdx];
         const duration = pickDuration();
 
-        // Check if lesson fits in block
-        if (bs.cursor + duration > blockEndMin + 15) {
-          // Slight overflow tolerance (15 min) for seed data
+        // Check if lesson fits in block (no overflow allowed)
+        if (bs.cursor + duration > blockEndMin) {
           break;
         }
 
@@ -239,14 +299,20 @@ async function phaseB(db) {
       }
     }
 
-    // Handle remaining students: force into 30-min slots in the largest block
+    // Handle remaining students: only assign if there's actual remaining capacity
     while (studentIdx < studs.length) {
       // Find block with most remaining capacity
-      let bestSlot = blockSlots[0];
+      let bestSlot = null;
+      let bestRemaining = 0;
       for (const bs of blockSlots) {
         const remaining = timeToMinutes(bs.block.endTime) - bs.cursor;
-        const bestRemaining = timeToMinutes(bestSlot.block.endTime) - bestSlot.cursor;
-        if (remaining > bestRemaining) bestSlot = bs;
+        if (remaining > bestRemaining) { bestSlot = bs; bestRemaining = remaining; }
+      }
+
+      // If no block has room for even a 30-min lesson, stop assigning
+      if (!bestSlot || bestRemaining < 30) {
+        skippedCount += studs.length - studentIdx;
+        break;
       }
 
       const student = studs[studentIdx];
@@ -349,7 +415,7 @@ async function phaseB(db) {
   }
 
   const elapsed = Math.round(performance.now() - t0);
-  console.log(`    ${assignedCount} students assigned (${overflowCount} overflow) (${elapsed}ms)`);
+  console.log(`    ${assignedCount} students assigned (${overflowCount} overflow, ${skippedCount} skipped — no capacity) (${elapsed}ms)`);
 
   return lessonRefs;
 }
@@ -471,8 +537,7 @@ async function verify(db) {
       if (blockRange && a.time) {
         const lessonStart = timeToMinutes(a.time);
         const lessonEnd = lessonStart + (a.duration || 0);
-        // Allow 15 min overflow tolerance (same as seed)
-        if (lessonStart < blockRange.startMin || lessonEnd > blockRange.endMin + 15) {
+        if (lessonStart < blockRange.startMin || lessonEnd > blockRange.endMin) {
           timeMismatch++;
         }
       }
@@ -520,6 +585,7 @@ async function main() {
     console.log(`\n  ${line}`);
     console.log('    TENUTO.IO — SCHEDULE SEEDER');
     console.log(`    Database: ${DB_NAME}`);
+    console.log(`    Tenant: ${TENANT_ID_STR}`);
     if (verifyOnly) console.log('    Mode: VERIFY ONLY');
     console.log(`  ${line}\n`);
 

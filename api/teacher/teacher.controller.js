@@ -354,7 +354,7 @@ async function getTeacherLessons(req, res, next) {
     };
 
     // Verify permission (teachers can only view their own lessons unless admin)
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!(req.context?.isAdmin || req.isAdmin) && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         success: false,
         error: 'You are not authorized to view lessons for this teacher',
@@ -412,7 +412,7 @@ async function getTeacherWeeklySchedule(req, res, next) {
     };
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!(req.context?.isAdmin || req.isAdmin) && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         success: false,
         error: 'You are not authorized to view this teacher\'s schedule',
@@ -454,7 +454,7 @@ async function getTeacherDaySchedule(req, res, next) {
     const { teacherId, day } = req.params;
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!(req.context?.isAdmin || req.isAdmin) && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         success: false,
         error: 'You are not authorized to view this teacher\'s schedule',
@@ -500,7 +500,7 @@ async function getTeacherLessonStats(req, res, next) {
     const { teacherId } = req.params;
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!(req.context?.isAdmin || req.isAdmin) && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         success: false,
         error: 'You are not authorized to view this teacher\'s statistics',
@@ -544,8 +544,9 @@ async function getTeacherStudentsWithLessons(req, res, next) {
   try {
     const { teacherId } = req.params;
 
-    // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    // Verify permission (use req.context.isAdmin from buildContext, not legacy req.isAdmin)
+    const isAdmin = req.context?.isAdmin || req.isAdmin;
+    if (!isAdmin && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         success: false,
         error: 'You are not authorized to view this teacher\'s students',
@@ -554,7 +555,7 @@ async function getTeacherStudentsWithLessons(req, res, next) {
     }
 
     console.log(`👥 Getting students with lessons for teacher ${teacherId}`);
-    
+
     const students = await teacherLessonsService.getTeacherStudentsWithLessons(teacherId, { context: req.context });
 
     res.json({
@@ -591,7 +592,7 @@ async function validateTeacherLessonData(req, res, next) {
     const { teacherId } = req.params;
 
     // Only allow admin or the teacher themselves to validate
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!(req.context?.isAdmin || req.isAdmin) && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         success: false,
         error: 'You are not authorized to validate this teacher\'s lesson data',
