@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 41 of 45 (Route Migration)
-Plan: 01 of 01 — COMPLETE
-Status: Plan 41-01 complete (7 core route files migrated to requirePermission)
-Last activity: 2026-03-05 — Plan 41-01 complete (3 tasks, 9 files modified)
+Plan: 02 of 02 — COMPLETE
+Status: Phase 41 complete (all route files migrated to requirePermission, PERM-06 done)
+Last activity: 2026-03-05 — Plan 41-02 complete (2 tasks, 15 files modified)
 
-Progress: [███░░░░░░░] 30%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
@@ -53,6 +53,11 @@ Progress: [███░░░░░░░] 30%
 - 41-01: Role normalization in buildContext only -- teacher.roles never mutated
 - 41-01: Bagrut and file routes use 'students' domain (student data)
 - 41-01: Teacher schedule/lesson routes use 'schedules' domain (not 'teachers')
+- 41-02: School-year GET routes use 'schedules' domain (not locked 'settings') to preserve teacher/conductor access
+- 41-02: Hours-summary teacher self-view uses 'schedules' domain (not 'reports') since teachers have no reports permission
+- 41-02: Room-schedule uses locked 'settings' domain to preserve admin-only access
+- 41-02: Destructive admin operations use 'settings.update' (settings domain has no 'delete' action)
+- 41-02: Auth admin routes chain buildContext inline since /api/auth mounted without it in server.js
 
 ### Pending Todos
 
@@ -68,9 +73,10 @@ None.
 | 39-02 | Middleware permissions | 2min | 1 | 3 |
 | 40-01 | Permission engine middleware | 2min | 2 | 2 |
 | 41-01 | Core route migration | 6min | 3 | 9 |
+| 41-02 | Remaining route migration | 3min | 2 | 15 |
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 41-01-PLAN.md (core route migration)
-Resume: Continue with remaining Phase 41 plans or next phase
+Stopped at: Completed 41-02-PLAN.md (remaining route migration, PERM-06 complete)
+Resume: Continue with Phase 42 or next milestone phase
