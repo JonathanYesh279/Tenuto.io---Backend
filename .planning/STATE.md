@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 44 of 45 (Settings UI)
-Plan: 01 of 01 — COMPLETE
-Status: Phase 44 complete (tabbed Settings page with staff role management UI)
-Last activity: 2026-03-05 — Plan 44-01 complete (2 tasks, 5 files modified)
+Plan: 02 of 02 — COMPLETE
+Status: Phase 44 complete (Settings UI with staff roles + permission matrix editor)
+Last activity: 2026-03-05 — Plan 44-02 complete (2 tasks, 2 files modified)
 
 Progress: [███████░░░] 64%
 
@@ -70,6 +70,9 @@ Progress: [███████░░░] 64%
 - 44-01: Save button moved inside general TabsContent (not relevant for roles tab)
 - 44-01: Role badges colored by tier (admin=red, coordinator=blue, teaching=green, view-only=gray)
 - 44-01: Department coordinator section uses distinct blue background for visual separation
+- 44-02: Used Lock icon instead of LockSimple (not available in installed phosphor-icons)
+- 44-02: All unique actions shown as columns with dash for non-applicable domain-action pairs
+- 44-02: Scope cycling uses local state clone with dirty tracking for save enablement
 
 ### Pending Todos
 
@@ -90,9 +93,10 @@ None.
 | 43-01 | Permission config API | 2min | 2 | 4 |
 | 43-02 | Role assignment endpoint | 3min | 2 | 3 |
 | 44-01 | Settings UI staff roles | 13min | 2 | 5 |
+| 44-02 | Permission matrix editor | 6min | 2 | 2 |
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 44-01-PLAN.md (Settings UI with staff role management)
+Stopped at: Completed 44-02-PLAN.md (Permission matrix editor)
 Resume: Phase 44 complete — continue with Phase 45 or next milestone phase
