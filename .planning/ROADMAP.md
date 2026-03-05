@@ -115,7 +115,7 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 
 - [x] **Phase 39: Role & Permission Foundation** — Constants, data model, and hardcoded defaults (completed 2026-03-05)
 - [x] **Phase 40: Permission Engine & Middleware** — requirePermission, buildContext extension, department-scoped filtering (completed 2026-03-05)
-- [ ] **Phase 41: Route Migration** — Migrate all routes from requireAuth(roles[]) to requirePermission(domain, action)
+- [x] **Phase 41: Route Migration** — Migrate all routes from requireAuth(roles[]) to requirePermission(domain, action) (completed 2026-03-05)
 - [ ] **Phase 42: Admin Provisioning** — Tenant creation with inline admin account in a transaction
 - [ ] **Phase 43: Permission Configuration API & Safeguards** — Admin customization endpoints with lockout prevention
 - [ ] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor
@@ -163,8 +163,8 @@ Plans:
   4. Super admin routes remain unchanged (they use `requireSuperAdmin`, not `requireAuth`)
 **Plans:** 2 plans
 Plans:
-- [ ] 41-01-PLAN.md — Core domain routes (student, teacher, orchestra, rehearsal, theory, bagrut, file)
-- [ ] 41-02-PLAN.md — Schedule, reports, admin, and settings routes
+- [x] 41-01-PLAN.md — Core domain routes (student, teacher, orchestra, rehearsal, theory, bagrut, file)
+- [x] 41-02-PLAN.md — Schedule, reports, admin, and settings routes
 
 ### Phase 42: Admin Provisioning
 **Goal**: Super admin can create a new tenant with its first admin account in a single step -- no chicken-and-egg problem
@@ -220,7 +220,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 |-------|-----------|----------------|--------|-----------|
 | 39. Role & Permission Foundation | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 40. Permission Engine & Middleware | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
-| 41. Route Migration | v1.7 | 0/2 | Not started | - |
+| 41. Route Migration | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 42. Admin Provisioning | v1.7 | 0/TBD | Not started | - |
 | 43. Permission Configuration API & Safeguards | v1.7 | 0/TBD | Not started | - |
 | 44. Settings UI | v1.7 | 0/TBD | Not started | - |
@@ -230,4 +230,4 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 41 planned (2 plans in 1 wave)*
+*Last updated: 2026-03-05 -- Phase 41 complete (2 plans, route migration done)*
