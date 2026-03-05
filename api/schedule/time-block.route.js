@@ -1,47 +1,43 @@
 import express from 'express';
-import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requirePermission } from '../../middleware/auth.middleware.js';
 import { timeBlockController } from './time-block.controller.js';
 
 const router = express.Router();
-
-// Route protection middleware
-const teacherAuthMiddleware = requireAuth(['מורה', 'מנהל']);
-const adminAuthMiddleware = requireAuth(['מנהל']);
 
 // Time Block Management Routes
 
 // POST create new time block for teacher
 router.post(
   '/teacher/:teacherId/time-block',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'create'),
   timeBlockController.createTimeBlock
 );
 
 // PUT update existing time block
 router.put(
   '/teacher/:teacherId/time-block/:blockId',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'update'),
   timeBlockController.updateTimeBlock
 );
 
 // DELETE time block
 router.delete(
   '/teacher/:teacherId/time-block/:blockId',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'delete'),
   timeBlockController.deleteTimeBlock
 );
 
 // GET all time blocks for teacher
 router.get(
   '/teacher/:teacherId/time-blocks',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'view'),
   timeBlockController.getTeacherTimeBlocks
 );
 
 // GET teacher's complete schedule with time blocks
 router.get(
   '/teacher/:teacherId/schedule-with-blocks',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'view'),
   timeBlockController.getTeacherScheduleWithBlocks
 );
 
@@ -50,28 +46,28 @@ router.get(
 // GET available lesson slots for specific duration
 router.get(
   '/teacher/:teacherId/available-slots',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'view'),
   timeBlockController.getAvailableSlots
 );
 
 // POST find optimal lesson slot for student preferences
 router.post(
   '/teacher/:teacherId/find-optimal-slot',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'view'),
   timeBlockController.findOptimalSlot
 );
 
 // POST assign lesson to time block
 router.post(
   '/assign-lesson',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'create'),
   timeBlockController.assignLessonToBlock
 );
 
 // DELETE remove lesson from time block
 router.delete(
   '/lesson/:teacherId/:timeBlockId/:lessonId',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'delete'),
   timeBlockController.removeLessonFromBlock
 );
 
@@ -80,7 +76,7 @@ router.delete(
 // POST get lesson options across multiple teachers
 router.post(
   '/lesson-options',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'view'),
   timeBlockController.getLessonScheduleOptions
 );
 
@@ -89,7 +85,7 @@ router.post(
 // GET block utilization statistics for teacher
 router.get(
   '/teacher/:teacherId/utilization-stats',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'view'),
   timeBlockController.getBlockUtilizationStats
 );
 

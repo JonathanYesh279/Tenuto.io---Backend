@@ -1,64 +1,60 @@
 import express from 'express';
-import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requirePermission } from '../../middleware/auth.middleware.js';
 import { scheduleController } from './schedule.controller.js';
 import timeBlockRoutes from './time-block.route.js';
 
 const router = express.Router();
 
-// Route protection middleware
-const teacherAuthMiddleware = requireAuth(['מורה', 'מנהל']);
-const adminAuthMiddleware = requireAuth(['מנהל']);
-
 // POST repair all relationships (admin only)
 router.post(
   '/repair',
-  adminAuthMiddleware,
+  requirePermission('schedules', 'update'),
   scheduleController.repairRelationships
 );
 
 // GET validate schedule integrity (admin only)
 router.get(
   '/validate',
-  adminAuthMiddleware,
+  requirePermission('schedules', 'view'),
   scheduleController.validateIntegrity
 );
 
 // POST assign student to teacher (without schedule)
 router.post(
   '/teacher/:teacherId/assign-student',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'create'),
   scheduleController.assignStudentToTeacher
 );
 
 // DELETE remove student from teacher
 router.delete(
   '/teacher/:teacherId/students/:studentId',
-  teacherAuthMiddleware,
+  requirePermission('schedules', 'delete'),
   scheduleController.removeStudentFromTeacher
 );
 
 // Migration routes (admin only)
 router.post(
   '/migrate-to-time-blocks',
-  adminAuthMiddleware,
+  requirePermission('settings', 'update'),
   scheduleController.migrateToTimeBlocks
 );
 
 router.post(
   '/migration-backup',
-  adminAuthMiddleware,
+  requirePermission('settings', 'update'),
   scheduleController.createMigrationBackup
 );
 
 router.post(
   '/rollback-migration',
-  adminAuthMiddleware,
+  requirePermission('settings', 'update'),
   scheduleController.rollbackTimeBlockMigration
 );
 
 router.get(
   '/migration-report',
-  adminAuthMiddleware,
+  requirePermission('settings', 'view'),
   scheduleController.getMigrationReport
 );
 
