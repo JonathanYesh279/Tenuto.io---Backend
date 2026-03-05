@@ -27,6 +27,8 @@ export const teacherController = {
   createTimeBlock,
   updateTimeBlock,
   deleteTimeBlock,
+  // Role assignment
+  updateTeacherRoles,
 }
 
 async function getTeachers(req, res, next) {
@@ -809,6 +811,42 @@ async function deleteTimeBlock(req, res, next) {
       });
     }
 
+    next(err);
+  }
+}
+
+// ===== ROLE ASSIGNMENT =====
+
+async function updateTeacherRoles(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { roles, coordinatorDepartments } = req.body;
+
+    if (!Array.isArray(roles) || roles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'roles must be a non-empty array',
+        code: 'INVALID_ROLES',
+      });
+    }
+
+    const result = await teacherService.updateTeacherRoles(id, { roles, coordinatorDepartments }, { context: req.context });
+    res.json({ success: true, data: result });
+  } catch (err) {
+    if (err.code === 'LAST_ADMIN') {
+      return res.status(400).json({
+        success: false,
+        error: err.message,
+        code: 'LAST_ADMIN',
+      });
+    }
+    if (err.code === 'INVALID_ROLES' || err.code === 'INVALID_DEPARTMENTS') {
+      return res.status(400).json({
+        success: false,
+        error: err.message,
+        code: err.code,
+      });
+    }
     next(err);
   }
 }

@@ -25,6 +25,7 @@ router.get('/role/:role', requirePermission('teachers', 'view'), teacherControll
 
 router.post('/', requirePermission('teachers', 'create'), teacherController.addTeacher)
 router.post('/:id/schedule', requirePermission('schedules', 'update'), teacherController.updateTeacherSchedule)
+router.put('/:id/roles', requirePermission('roles', 'assign'), teacherController.updateTeacherRoles)
 router.put('/:id', requirePermission('teachers', 'update'), teacherController.updateTeacher)
 router.delete('/:id', requirePermission('teachers', 'delete'), teacherController.removeTeacher)
 
