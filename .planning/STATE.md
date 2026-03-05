@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 43 — Permission Configuration API & Safeguards (v1.7)
+**Current focus:** Phase 44 — Settings UI (v1.7)
 
 ## Current Position
 
-Phase: 43 of 45 (Permission Configuration API & Safeguards)
-Plan: 02 of 02 — COMPLETE
-Status: Phase 43 complete (permission config API + role assignment endpoint with SAFE-01/SAFE-02)
-Last activity: 2026-03-05 — Plan 43-02 complete (2 tasks, 3 files modified)
+Phase: 44 of 45 (Settings UI)
+Plan: 01 of 01 — COMPLETE
+Status: Phase 44 complete (tabbed Settings page with staff role management UI)
+Last activity: 2026-03-05 — Plan 44-01 complete (2 tasks, 5 files modified)
 
-Progress: [██████░░░░] 57%
+Progress: [███████░░░] 64%
 
 ## Performance Metrics
 
@@ -67,6 +67,9 @@ Progress: [██████░░░░] 57%
 - 43-02: SAFE-01 uses countDocuments with ADMIN_TIER_ROLES $in query for last-admin check
 - 43-02: coordinatorDepartments forced to [] when department coordinator role not in roles array
 - 43-02: Custom error codes (LAST_ADMIN, INVALID_ROLES, INVALID_DEPARTMENTS) for structured client handling
+- 44-01: Save button moved inside general TabsContent (not relevant for roles tab)
+- 44-01: Role badges colored by tier (admin=red, coordinator=blue, teaching=green, view-only=gray)
+- 44-01: Department coordinator section uses distinct blue background for visual separation
 
 ### Pending Todos
 
@@ -86,9 +89,10 @@ None.
 | 42-01 | Tenant+admin provisioning | 3min | 2 | 3 |
 | 43-01 | Permission config API | 2min | 2 | 4 |
 | 43-02 | Role assignment endpoint | 3min | 2 | 3 |
+| 44-01 | Settings UI staff roles | 13min | 2 | 5 |
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 43-02-PLAN.md (role assignment endpoint with SAFE-01 last-admin prevention)
-Resume: Phase 43 complete — continue with Phase 44 or next milestone phase
+Stopped at: Completed 44-01-PLAN.md (Settings UI with staff role management)
+Resume: Phase 44 complete — continue with Phase 45 or next milestone phase
