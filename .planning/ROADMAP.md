@@ -204,7 +204,11 @@ Plans:
   3. Permission matrix editor shows a role dropdown, a domains-by-actions grid, and scope indicators (all/department/own) -- changes save to the backend
   4. "Reset to Default" button per role restores hardcoded defaults and refreshes the grid
   5. Admin-only domains (settings, roles) appear visually locked for non-admin roles and cannot be toggled
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 44-01-PLAN.md — RBAC constants, API service, and staff role assignment UI (UI-01, UI-02, UI-03)
+- [ ] 44-02-PLAN.md — Permission matrix editor with scope cycling and reset (UI-04, UI-05, UI-06)
+- [ ] 44-03-PLAN.md — Visual verification checkpoint
 
 ### Phase 45: Migration & Verification
 **Goal**: Existing tenants have rolePermissions populated and the complete RBAC system is verified end-to-end
@@ -228,11 +232,11 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 | 41. Route Migration | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 42. Admin Provisioning | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
 | 43. Permission Configuration API & Safeguards | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 44. Settings UI | v1.7 | 0/TBD | Not started | - |
+| 44. Settings UI | v1.7 | 0/3 | In progress | - |
 | 45. Migration & Verification | v1.7 | 0/TBD | Not started | - |
 
 **Previous milestones:** 38 phases, 92+ plans across 7 milestones (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 43 complete (permission configuration API & safeguards)*
+*Last updated: 2026-03-05 -- Phase 44 planned (3 plans for Settings UI)*
