@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { importController } from './import.controller.js';
-import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requirePermission } from '../../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -22,14 +22,14 @@ const importUpload = multer({
 // Preview (dry run) — upload, parse, match, show changes
 router.post(
   '/teachers/preview',
-  requireAuth(['מנהל']),
+  requirePermission('settings', 'update'),
   importUpload.single('file'),
   importController.previewTeacherImport
 );
 
 router.post(
   '/students/preview',
-  requireAuth(['מנהל']),
+  requirePermission('settings', 'update'),
   importUpload.single('file'),
   importController.previewStudentImport
 );
@@ -37,7 +37,7 @@ router.post(
 // Conservatory profile preview (form-style Excel, not tabular)
 router.post(
   '/conservatory/preview',
-  requireAuth(['מנהל']),
+  requirePermission('settings', 'update'),
   importUpload.single('file'),
   importController.previewConservatoryImport
 );
@@ -45,7 +45,7 @@ router.post(
 // Ensemble preview (tabular sheet with cell color detection)
 router.post(
   '/ensembles/preview',
-  requireAuth(['מנהל']),
+  requirePermission('settings', 'update'),
   importUpload.single('file'),
   importController.previewEnsembleImport
 );
@@ -53,14 +53,14 @@ router.post(
 // Execute — apply the previewed import by importLogId
 router.post(
   '/execute/:importLogId',
-  requireAuth(['מנהל']),
+  requirePermission('settings', 'update'),
   importController.executeImport
 );
 
 // Repair already-imported teachers with missing/null properties
 router.post(
   '/repair-imported-teachers',
-  requireAuth(['מנהל']),
+  requirePermission('settings', 'update'),
   importController.repairImportedTeachers
 );
 

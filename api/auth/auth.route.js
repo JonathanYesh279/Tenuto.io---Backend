@@ -1,7 +1,8 @@
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { authController } from './auth.controller.js'
-import { authenticateToken, requireAuth } from '../../middleware/auth.middleware.js'
+import { authenticateToken, requirePermission } from '../../middleware/auth.middleware.js'
+import { buildContext } from '../../middleware/tenant.middleware.js'
 
 const router = express.Router()
 
@@ -19,12 +20,13 @@ if (process.env.NODE_ENV !== 'production') {
   router.post('/init-admin', authController.initAdmin);
 }
 
-// Admin-only routes
-router.post('/migrate-users', authenticateToken, requireAuth(['מנהל']), authController.migrateExistingUsers);
-router.post('/migrate-invitations', authenticateToken, requireAuth(['מנהל']), authController.migratePendingInvitations);
-router.get('/invitation-stats', authenticateToken, requireAuth(['מנהל']), authController.getInvitationModeStats);
-router.get('/check-teacher/:email', authenticateToken, requireAuth(['מנהל']), authController.checkTeacherByEmail);
-router.delete('/remove-teacher/:email', authenticateToken, requireAuth(['מנהל']), authController.removeTeacherByEmail);
+// Admin-only routes — chain authenticateToken + buildContext + requirePermission
+// (buildContext needed because /api/auth is mounted without it in server.js)
+router.post('/migrate-users', authenticateToken, buildContext, requirePermission('settings', 'update'), authController.migrateExistingUsers);
+router.post('/migrate-invitations', authenticateToken, buildContext, requirePermission('settings', 'update'), authController.migratePendingInvitations);
+router.get('/invitation-stats', authenticateToken, buildContext, requirePermission('settings', 'view'), authController.getInvitationModeStats);
+router.get('/check-teacher/:email', authenticateToken, buildContext, requirePermission('teachers', 'view'), authController.checkTeacherByEmail);
+router.delete('/remove-teacher/:email', authenticateToken, buildContext, requirePermission('teachers', 'delete'), authController.removeTeacherByEmail);
 
 // Public routes
 router.post('/login', loginLimiter, authController.login)

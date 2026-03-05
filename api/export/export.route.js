@@ -1,16 +1,16 @@
 import express from 'express';
 import { exportController } from './export.controller.js';
-import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requirePermission } from '../../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 // Completion status — how much data is filled for Ministry reporting
-router.get('/status', requireAuth(['מנהל']), exportController.getCompletionStatus);
+router.get('/status', requirePermission('reports', 'view'), exportController.getCompletionStatus);
 
 // Cross-validation — check hours consistency across sheets
-router.get('/validate', requireAuth(['מנהל']), exportController.crossValidate);
+router.get('/validate', requirePermission('reports', 'view'), exportController.crossValidate);
 
 // Download full Ministry report package (6-sheet Excel)
-router.get('/download', requireAuth(['מנהל']), exportController.downloadFullReport);
+router.get('/download', requirePermission('reports', 'export'), exportController.downloadFullReport);
 
 export default router;

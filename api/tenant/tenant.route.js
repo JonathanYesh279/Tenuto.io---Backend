@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { tenantController } from './tenant.controller.js';
-import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requirePermission } from '../../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -19,17 +19,17 @@ const roomUpload = multer({
   },
 });
 
-router.get('/', requireAuth(['מנהל']), tenantController.getTenants);
-router.get('/:id', requireAuth(['מנהל']), tenantController.getTenantById);
-router.post('/', requireAuth(['מנהל']), tenantController.createTenant);
-router.put('/:id', requireAuth(['מנהל']), tenantController.updateTenant);
+router.get('/', requirePermission('settings', 'view'), tenantController.getTenants);
+router.get('/:id', requirePermission('settings', 'view'), tenantController.getTenantById);
+router.post('/', requirePermission('settings', 'update'), tenantController.createTenant);
+router.put('/:id', requirePermission('settings', 'update'), tenantController.updateTenant);
 
 // Room management routes
 // IMPORTANT: /import must be BEFORE /:roomId to prevent Express treating "import" as a roomId
-router.get('/:id/rooms', requireAuth(['מנהל']), tenantController.getRooms);
-router.post('/:id/rooms/import', requireAuth(['מנהל']), roomUpload.single('file'), tenantController.importRooms);
-router.post('/:id/rooms', requireAuth(['מנהל']), tenantController.addRoom);
-router.put('/:id/rooms/:roomId', requireAuth(['מנהל']), tenantController.updateRoom);
-router.put('/:id/rooms/:roomId/deactivate', requireAuth(['מנהל']), tenantController.deactivateRoom);
+router.get('/:id/rooms', requirePermission('settings', 'view'), tenantController.getRooms);
+router.post('/:id/rooms/import', requirePermission('settings', 'update'), roomUpload.single('file'), tenantController.importRooms);
+router.post('/:id/rooms', requirePermission('settings', 'update'), tenantController.addRoom);
+router.put('/:id/rooms/:roomId', requirePermission('settings', 'update'), tenantController.updateRoom);
+router.put('/:id/rooms/:roomId/deactivate', requirePermission('settings', 'update'), tenantController.deactivateRoom);
 
 export default router;

@@ -1,18 +1,15 @@
 /**
  * Admin Consistency Validation Routes
- * 
+ *
  * Routes for admin endpoints to validate and maintain teacher-student
  * lesson data consistency.
  */
 
 import express from 'express';
-import { requireAuth } from '../../middleware/auth.middleware.js';
+import { requirePermission } from '../../middleware/auth.middleware.js';
 import { consistencyValidationController } from './consistency-validation.controller.js';
 
 const router = express.Router();
-
-// All routes require admin authentication
-const adminAuth = requireAuth(['מנהל']);
 
 // ===== VALIDATION ENDPOINTS =====
 
@@ -20,8 +17,8 @@ const adminAuth = requireAuth(['מנהל']);
  * Validate teacher-student synchronization across the system
  * POST /api/admin/validate-teacher-student-sync
  */
-router.post('/validate-teacher-student-sync', 
-  adminAuth, 
+router.post('/validate-teacher-student-sync',
+  requirePermission('settings', 'view'),
   consistencyValidationController.validateTeacherStudentSync
 );
 
@@ -29,8 +26,8 @@ router.post('/validate-teacher-student-sync',
  * Get comprehensive system consistency report
  * GET /api/admin/system-consistency-report
  */
-router.get('/system-consistency-report', 
-  adminAuth, 
+router.get('/system-consistency-report',
+  requirePermission('settings', 'view'),
   consistencyValidationController.getSystemConsistencyReport
 );
 
@@ -38,8 +35,8 @@ router.get('/system-consistency-report',
  * Validate lesson data for all teachers
  * POST /api/admin/validate-all-teacher-lessons?limit=50
  */
-router.post('/validate-all-teacher-lessons', 
-  adminAuth, 
+router.post('/validate-all-teacher-lessons',
+  requirePermission('settings', 'view'),
   consistencyValidationController.validateAllTeacherLessons
 );
 
@@ -47,8 +44,8 @@ router.post('/validate-all-teacher-lessons',
  * Get data integrity statistics
  * GET /api/admin/data-integrity-stats
  */
-router.get('/data-integrity-stats', 
-  adminAuth, 
+router.get('/data-integrity-stats',
+  requirePermission('settings', 'view'),
   consistencyValidationController.getDataIntegrityStats
 );
 
@@ -59,8 +56,8 @@ router.get('/data-integrity-stats',
  * POST /api/admin/repair-data-inconsistencies
  * Body: { dryRun: boolean, repairTypes: string[] }
  */
-router.post('/repair-data-inconsistencies', 
-  adminAuth, 
+router.post('/repair-data-inconsistencies',
+  requirePermission('settings', 'update'),
   consistencyValidationController.repairDataInconsistencies
 );
 
@@ -70,8 +67,8 @@ router.post('/repair-data-inconsistencies',
  * Perform comprehensive health check
  * GET /api/admin/health-check
  */
-router.get('/health-check', 
-  adminAuth, 
+router.get('/health-check',
+  requirePermission('settings', 'view'),
   consistencyValidationController.performHealthCheck
 );
 
