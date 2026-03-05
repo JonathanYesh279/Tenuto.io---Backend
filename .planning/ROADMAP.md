@@ -161,7 +161,10 @@ Plans:
   2. An admin (`מנהל`) can still access every endpoint they could before migration (no regressions)
   3. A regular teacher (`מורה`) can still access their own students and schedule but cannot access admin endpoints (settings, teacher management)
   4. Super admin routes remain unchanged (they use `requireSuperAdmin`, not `requireAuth`)
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 41-01-PLAN.md — Core domain routes (student, teacher, orchestra, rehearsal, theory, bagrut, file)
+- [ ] 41-02-PLAN.md — Schedule, reports, admin, and settings routes
 
 ### Phase 42: Admin Provisioning
 **Goal**: Super admin can create a new tenant with its first admin account in a single step -- no chicken-and-egg problem
@@ -217,7 +220,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 |-------|-----------|----------------|--------|-----------|
 | 39. Role & Permission Foundation | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 40. Permission Engine & Middleware | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
-| 41. Route Migration | v1.7 | 0/TBD | Not started | - |
+| 41. Route Migration | v1.7 | 0/2 | Not started | - |
 | 42. Admin Provisioning | v1.7 | 0/TBD | Not started | - |
 | 43. Permission Configuration API & Safeguards | v1.7 | 0/TBD | Not started | - |
 | 44. Settings UI | v1.7 | 0/TBD | Not started | - |
@@ -227,4 +230,4 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 40 complete (1/1 plans, verified 5/5 must-haves)*
+*Last updated: 2026-03-05 -- Phase 41 planned (2 plans in 1 wave)*
