@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Phase 44 — Settings UI (v1.7)
+**Current focus:** Phase 45 — Super Admin Tenant Admin Management
 
 ## Current Position
 
-Phase: 44 of 45 (Settings UI)
-Plan: 02 of 02 — COMPLETE
-Status: Phase 44 complete (Settings UI with staff roles + permission matrix editor)
-Last activity: 2026-03-05 — Plan 44-02 complete (2 tasks, 2 files modified)
+Phase: 45 of 45 (Super Admin Tenant Admin Management)
+Plan: 1 of 1 — COMPLETE
+Status: Phase 45 complete
+Last activity: 2026-03-06 — Completed 45-01 (Tenant Admin Management API)
 
-Progress: [███████░░░] 64%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -73,10 +73,19 @@ Progress: [███████░░░] 64%
 - 44-02: Used Lock icon instead of LockSimple (not available in installed phosphor-icons)
 - 44-02: All unique actions shown as columns with dash for non-applicable domain-action pairs
 - 44-02: Scope cycling uses local state clone with dirty tracking for save enablement
+- 45-01: TENANT_ADMIN_PROJECTION as reusable projection constant for all tenant admin queries
+- 45-01: Batch tenant lookup in getAllTenantAdmins instead of $lookup aggregation for simplicity
+- 45-01: Email update syncs both personalInfo.email and credentials.email
+- 45-01: Password reset uses DEFAULT_PASSWORD from invitationConfig with requiresPasswordChange: true
 
 ### Pending Todos
 
 None.
+
+### Roadmap Evolution
+
+- Phase 45 added: Super Admin Tenant Admin Management (dedicated page for viewing/managing tenant admin accounts)
+- Original Phase 45 (Migration & Verification) removed — middleware fallback makes migration unnecessary
 
 ### Blockers/Concerns
 
@@ -94,9 +103,10 @@ None.
 | 43-02 | Role assignment endpoint | 3min | 2 | 3 |
 | 44-01 | Settings UI staff roles | 13min | 2 | 5 |
 | 44-02 | Permission matrix editor | 6min | 2 | 2 |
+| 45-01 | Tenant admin management API | 2min | 2 | 4 |
 
 ## Session Continuity
 
-Last session: 2026-03-05
-Stopped at: Completed 44-02-PLAN.md (Permission matrix editor)
-Resume: Phase 44 complete — continue with Phase 45 or next milestone phase
+Last session: 2026-03-06
+Stopped at: Completed 45-01-PLAN.md (Phase 45 complete)
+Resume: Phase 45 complete. Ready for next milestone planning.
