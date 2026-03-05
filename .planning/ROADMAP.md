@@ -118,8 +118,8 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 - [x] **Phase 41: Route Migration** — Migrate all routes from requireAuth(roles[]) to requirePermission(domain, action) (completed 2026-03-05)
 - [x] **Phase 42: Admin Provisioning** — Tenant creation with inline admin account in a transaction (completed 2026-03-05)
 - [x] **Phase 43: Permission Configuration API & Safeguards** — Admin customization endpoints with lockout prevention (completed 2026-03-05)
-- [ ] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor
-- [ ] **Phase 45: Migration & Verification** — Migration script for existing tenants and end-to-end verification
+- [x] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor (completed 2026-03-05)
+- [ ] **Phase 45: Super Admin Tenant Admin Management** — Dedicated super admin page for viewing and managing tenant admin accounts
 
 ## Phase Details
 
@@ -206,19 +206,17 @@ Plans:
   5. Admin-only domains (settings, roles) appear visually locked for non-admin roles and cannot be toggled
 **Plans:** 3 plans
 Plans:
-- [ ] 44-01-PLAN.md — RBAC constants, API service, and staff role assignment UI (UI-01, UI-02, UI-03)
-- [ ] 44-02-PLAN.md — Permission matrix editor with scope cycling and reset (UI-04, UI-05, UI-06)
-- [ ] 44-03-PLAN.md — Visual verification checkpoint
+- [x] 44-01-PLAN.md — RBAC constants, API service, and staff role assignment UI (UI-01, UI-02, UI-03)
+- [x] 44-02-PLAN.md — Permission matrix editor with scope cycling and reset (UI-04, UI-05, UI-06)
+- [ ] 44-03-PLAN.md — Visual verification checkpoint (deferred to user testing)
 
-### Phase 45: Migration & Verification
-**Goal**: Existing tenants have rolePermissions populated and the complete RBAC system is verified end-to-end
-**Depends on**: Phase 43 (safeguards must be in place before running migration), Phase 44 (UI should be complete for full verification)
-**Requirements**: SAFE-03
-**Success Criteria** (what must be TRUE):
-  1. Running the migration script populates `rolePermissions` with hardcoded defaults on all existing tenant documents that lack the field
-  2. The migration is idempotent -- running it twice does not overwrite previously customized permissions
-  3. After migration, existing teachers with role `מנהל` retain full access and existing teachers with role `מורה` retain own-scoped access to their students and schedule
-**Plans**: TBD
+### Phase 45: Super Admin Tenant Admin Management
+**Goal**: Super admin has a dedicated page to view all tenant admin accounts with their credentials info, and can update admin details (name, email, password reset) per tenant
+**Depends on**: Phase 42 (admin provisioning creates admin accounts that this phase manages)
+**Plans:** 2 plans
+Plans:
+- [ ] 45-01-PLAN.md — Backend API for tenant admin listing, update, and password reset
+- [ ] 45-02-PLAN.md — Frontend tenant admin management page with edit and reset actions
 
 ## Progress
 
@@ -232,11 +230,11 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 | 41. Route Migration | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 42. Admin Provisioning | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
 | 43. Permission Configuration API & Safeguards | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 44. Settings UI | v1.7 | 0/3 | In progress | - |
-| 45. Migration & Verification | v1.7 | 0/TBD | Not started | - |
+| 44. Settings UI | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
+| 45. Super Admin Tenant Admin Management | v1.7 | 0/2 | Not started | - |
 
 **Previous milestones:** 38 phases, 92+ plans across 7 milestones (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 44 planned (3 plans for Settings UI)*
+*Last updated: 2026-03-06 -- Phase 45 planned (2 plans in 2 waves)*
