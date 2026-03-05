@@ -150,7 +150,7 @@ Plans:
   5. `req.context` includes `coordinatorDepartments` (array) and `isCoordinator` (boolean) for downstream use
 **Plans:** 1 plan
 Plans:
-- [ ] 40-01-PLAN.md — requirePermission middleware and buildScopedFilter department scope extension
+- [x] 40-01-PLAN.md — requirePermission middleware and buildScopedFilter department scope extension
 
 ### Phase 41: Route Migration
 **Goal**: Every route in the application uses `requirePermission(domain, action)` instead of `requireAuth(roles[])`, with no change in externally observable access patterns for existing roles
@@ -177,7 +177,7 @@ Plans:
   4. The created tenant document has `rolePermissions` populated with the hardcoded defaults from Phase 39
 **Plans:** 1 plan
 Plans:
-- [ ] 42-01-PLAN.md — Transactional tenant + admin creation with validation and audit
+- [x] 42-01-PLAN.md — Transactional tenant + admin creation with validation and audit
 
 ### Phase 43: Permission Configuration API & Safeguards
 **Goal**: Tenant admins can customize their permission matrix per role and assign roles to staff, with safeguards preventing admin lockout
@@ -189,7 +189,10 @@ Plans:
   3. Attempting to remove the last `מנהל` role from a tenant returns an error and the role is not removed
   4. Attempting to downgrade `מנהל` permissions (reduce scope or remove domain access) returns an error and the permissions are unchanged
   5. PUT to `/api/teacher/:id/roles` allows admin to assign multiple roles to a teacher, with `coordinatorDepartments` accepted when `רכז/ת מחלקתי` is included
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 43-01-PLAN.md — Permission configuration API (settings/roles endpoints with admin safeguards)
+- [ ] 43-02-PLAN.md — Teacher role assignment endpoint with last-admin prevention
 
 ### Phase 44: Settings UI
 **Goal**: Tenant admins can manage staff roles and customize the permission matrix from a visual interface in conservatory settings
@@ -224,7 +227,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 | 40. Permission Engine & Middleware | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
 | 41. Route Migration | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 42. Admin Provisioning | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
-| 43. Permission Configuration API & Safeguards | v1.7 | 0/TBD | Not started | - |
+| 43. Permission Configuration API & Safeguards | v1.7 | 0/2 | Not started | - |
 | 44. Settings UI | v1.7 | 0/TBD | Not started | - |
 | 45. Migration & Verification | v1.7 | 0/TBD | Not started | - |
 
@@ -232,4 +235,4 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-05 -- Phase 42 complete (admin provisioning)*
+*Last updated: 2026-03-05 -- Phase 43 planned (permission configuration API & safeguards)*
