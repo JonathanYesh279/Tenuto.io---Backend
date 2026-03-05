@@ -97,8 +97,12 @@ export const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
 
   // ── Teaching Tier ───────────────────────────────────────────────────────
   'מורה': Object.freeze({
-    students:   Object.freeze({ view: 'own', update: 'own' }),
+    students:   Object.freeze({ view: 'own', create: 'own', update: 'own', delete: 'own' }),
     schedules:  Object.freeze({ view: 'own', create: 'own', update: 'own', delete: 'own' }),
+    teachers:   Object.freeze({ view: 'own' }),
+    orchestras: Object.freeze({ view: 'own' }),
+    rehearsals: Object.freeze({ view: 'own' }),
+    theory:     Object.freeze({ view: 'own' }),
   }),
 
   'ניצוח': Object.freeze({
@@ -106,6 +110,8 @@ export const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
     schedules:  Object.freeze({ view: 'own', create: 'own', update: 'own', delete: 'own' }),
     orchestras: Object.freeze({ view: 'own', create: 'own', update: 'own', delete: 'own' }),
     rehearsals: Object.freeze({ view: 'own', create: 'own', update: 'own', delete: 'own' }),
+    teachers:   Object.freeze({ view: 'own' }),
+    theory:     Object.freeze({ view: 'own' }),
   }),
 
   'מדריך הרכב': Object.freeze({
@@ -113,6 +119,8 @@ export const DEFAULT_ROLE_PERMISSIONS = Object.freeze({
     schedules:  Object.freeze({ view: 'own', create: 'own', update: 'own', delete: 'own' }),
     orchestras: Object.freeze({ view: 'own', update: 'own' }),
     rehearsals: Object.freeze({ view: 'own', create: 'own', update: 'own', delete: 'own' }),
+    teachers:   Object.freeze({ view: 'own' }),
+    theory:     Object.freeze({ view: 'own' }),
   }),
 
   'תאוריה': Object.freeze({
