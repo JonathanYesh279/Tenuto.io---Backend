@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-Phase: 45 of 45 (Super Admin Tenant Admin Management)
-Plan: 2 of 2 — COMPLETE
-Status: Phase 45 complete
-Last activity: 2026-03-06 — Completed 45-02 (Tenant Admin Management Frontend)
+Phase: 46 of 46 (Bagrut UI/UX Alignment)
+Plan: 1 of 1 — COMPLETE
+Status: Phase 46 complete
+Last activity: 2026-03-06 — Completed 46-01 (Bagrut List Page Modernization)
 
 Progress: [██████████] 100%
 
@@ -80,15 +80,20 @@ Progress: [██████████] 100%
 - 45-02: Table layout for dense admin listing (not cards)
 - 45-02: KeyIcon for password reset button (intuitive affordance)
 - 45-02: Role badge colors match 44-01 tier coloring (admin=red, coordinator=blue, teaching=green)
+- 46-01: Removed Card wrapper around filters since FilterPanel provides its own border/background
+- 46-01: Removed duplicate isCompleted filter (redundant with status filter)
+- 46-01: Used bagrutSource instead of bagruts for conservatory options (teacher view correctness)
+- 46-01: Age filter uses birthDate or dateOfBirth field from student personalInfo
 
 ### Pending Todos
 
-None.
+- **[Future DevOps milestone]** Configure email service for forgot-password flow: set SendGrid/Gmail credentials, FRONTEND_URL, FROM_EMAIL in production .env. Code is complete — just needs deployment config. Also consider: rate limiting on auth endpoints, separate token secret for password resets, multi-tenant support in ForgotPassword form.
 
 ### Roadmap Evolution
 
 - Phase 45 added: Super Admin Tenant Admin Management (dedicated page for viewing/managing tenant admin accounts)
 - Original Phase 45 (Migration & Verification) removed — middleware fallback makes migration unnecessary
+- Phase 46 added: Bagrut UI/UX Alignment — upgrade bagrut pages to modern FilterPanel + SearchInput patterns, add grade and age filters
 
 ### Blockers/Concerns
 
@@ -114,9 +119,10 @@ None.
 | 44-02 | Permission matrix editor | 6min | 2 | 2 |
 | 45-01 | Tenant admin management API | 2min | 2 | 4 |
 | 45-02 | Tenant admin management UI | 2min | 2 | 3 |
+| 46-01 | Bagrut list page modernization | 4min | 2 | 1 |
 
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed quick-1 (Forced Password Change Flow)
-Resume: Quick task 1 complete. Forced password change frontend flow implemented.
+Stopped at: Completed 46-01 (Bagrut List Page Modernization)
+Resume: Phase 46 complete. Bagrut list page modernized with FilterPanel, SearchInput, and URL param persistence.
