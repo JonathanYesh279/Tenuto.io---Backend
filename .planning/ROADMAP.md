@@ -133,7 +133,7 @@ See: `.planning/milestones/v1.7-ROADMAP.md` for full details.
 - [x] **Phase 49: Report Infrastructure** - Registry, orchestrator, permissions, filters, and generator contract — completed 2026-03-06
 - [x] **Phase 50: Teacher Workforce Generators** - 4 teacher reports leveraging hours_summary service — completed 2026-03-07
 - [x] **Phase 51: Student Activity Generators** - 4 student reports leveraging attendance analytics — completed 2026-03-07
-- [ ] **Phase 52: Institutional + Ministry Generators** - 4 institutional reports leveraging export service
+- [x] **Phase 52: Institutional + Ministry Generators** - 4 institutional reports leveraging export service — completed 2026-03-07
 - [ ] **Phase 53: Department + Schedule Generators** - 5 department/schedule reports
 - [ ] **Phase 54: Export Engines** - Excel and PDF shaping and rendering pipelines
 - [ ] **Phase 55: Dashboard + Catalog API** - KPI dashboard endpoint, alerts, and report catalog
@@ -199,8 +199,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 52-01-PLAN.md — Year-over-Year Comparison + Import History generators
-- [ ] 52-02-PLAN.md — Ministry Readiness Audit + Data Quality generators
+- [x] 52-01-PLAN.md — Year-over-Year Comparison + Import History generators
+- [x] 52-02-PLAN.md — Ministry Readiness Audit + Data Quality generators
 
 ### Phase 53: Department + Schedule Generators
 **Goal**: Administrators can analyze department-level metrics, compare departments, review room utilization, and examine schedule density
@@ -279,4 +279,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 51 complete (4 student activity generators)*
+*Last updated: 2026-03-07 — Phase 52 complete (4 institutional/ministry generators)*
