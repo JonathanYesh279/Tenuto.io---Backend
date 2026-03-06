@@ -120,7 +120,7 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 - [x] **Phase 43: Permission Configuration API & Safeguards** — Admin customization endpoints with lockout prevention (completed 2026-03-05)
 - [x] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor (completed 2026-03-05)
 - [x] **Phase 45: Super Admin Tenant Admin Management** — Dedicated super admin page for viewing and managing tenant admin accounts (completed 2026-03-06)
-- [ ] **Phase 46: Bagrut UI/UX Alignment** — Upgrade bagrut pages to modern FilterPanel + SearchInput patterns matching other pages, add grade and age filters
+- [x] **Phase 46: Bagrut UI/UX Alignment** — Upgrade bagrut pages to modern FilterPanel + SearchInput patterns matching other pages, add grade and age filters (completed 2026-03-06)
 
 ## Phase Details
 
@@ -232,7 +232,7 @@ Plans:
   7. TableSkeleton used for loading states instead of spinner
 **Plans:** 1 plan
 Plans:
-- [ ] 46-01-PLAN.md — Modernize Bagrut list with SearchInput, FilterPanel, grade/age filters, and URL persistence
+- [x] 46-01-PLAN.md — Modernize Bagrut list with SearchInput, FilterPanel, grade/age filters, and URL persistence
 
 ## Progress
 
@@ -248,7 +248,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46
 | 43. Permission Configuration API & Safeguards | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 44. Settings UI | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 45. Super Admin Tenant Admin Management | v1.7 | 2/2 | ✓ Complete | 2026-03-06 |
-| 46. Bagrut UI/UX Alignment | v1.7 | 0/1 | Planned | — |
+| 46. Bagrut UI/UX Alignment | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
 
 **Previous milestones:** 38 phases, 92+ plans across 7 milestones (all shipped)
 
