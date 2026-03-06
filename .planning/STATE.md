@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 52 of 56 (Institutional + Ministry Generators)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-07 — Phase 51 verified (8/8 must-haves), 4 student activity generators complete
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-03-07 — Plan 52-01 complete (2 institutional generators)
 
 Progress: [████░░░░░░] 37%
 
@@ -23,6 +23,7 @@ Progress: [████░░░░░░] 37%
 **v1.8 (50-02):** 2min, 2 tasks, 2 files
 **v1.8 (51-01):** 1min, 2 tasks, 2 files
 **v1.8 (51-02):** 2min, 2 tasks, 2 files
+**v1.8 (52-01):** 1min, 2 tasks, 2 files
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -53,6 +54,8 @@ Progress: [████░░░░░░] 37%
 - **[51-02]** Attendance: query activity_attendance directly for bulk aggregation (not analytics service)
 - **[51-02]** Trend: 10-record window, split recent-5 vs older-5, 10% threshold for improving/declining
 - **[51-02]** Orchestra membership: build full map from all orchestras even when filtering by orchestraId
+- **[52-01]** Year-over-year metrics from hours_summary + orchestra (year-scoped) + student (tenant-wide)
+- **[52-01]** Institutional generators return empty for 'own' scope (not meaningful per-teacher)
 
 ### Pending Todos
 
@@ -65,5 +68,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Phase 51 complete and verified (8/8 must-haves)
-Resume: Run `/gsd:plan-phase 52` to plan Institutional + Ministry Generators
+Stopped at: Completed 52-01-PLAN.md (2 institutional generators)
+Resume: Execute 52-02-PLAN.md for ministry report generators
