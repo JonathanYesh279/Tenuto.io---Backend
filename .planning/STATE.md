@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 51 of 56 (Student Activity Generators)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-07 — Phase 50 verified (8/8 must-haves), 4 teacher generators complete
+Plan: 1 of TBD in current phase
+Status: Executing
+Last activity: 2026-03-07 — Plan 51-01 complete (2 student generators)
 
 Progress: [███░░░░░░░] 25%
 
@@ -21,6 +21,7 @@ Progress: [███░░░░░░░] 25%
 **All milestones:** 50 phases, 112 plans across 8 milestones
 **v1.8 (50-01):** 2min, 2 tasks, 2 files
 **v1.8 (50-02):** 2min, 2 tasks, 2 files
+**v1.8 (51-01):** 1min, 2 tasks, 2 files
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -45,6 +46,9 @@ Progress: [███░░░░░░░] 25%
 - **[50-02]** Salary projection uses hardcoded MoE reference rates with classification x degree matrix
 - **[50-02]** Monthly = weekly * 4.33, annual = monthly * 10 (school year convention)
 - **[50-02]** Roster queries teacher collection directly (not hours_summary) for complete listing
+- **[51-01]** Primary instrument resolved from instrumentProgress with isPrimary flag, fallback to first entry
+- **[51-01]** Assignments generator: one row per active assignment, unassigned students get single placeholder row
+- **[51-01]** Bulk teacher fetch pattern: collect IDs from assignments, single $in query, build lookup map
 
 ### Pending Todos
 
@@ -57,5 +61,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Phase 50 complete and verified (8/8 must-haves)
-Resume: Run `/gsd:plan-phase 51` to plan Student Activity Generators
+Stopped at: Completed 51-01-PLAN.md (student enrollment + teacher assignments generators)
+Resume: Continue with next plan in phase 51 or run `/gsd:execute-phase 51` for remaining plans
