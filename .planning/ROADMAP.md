@@ -229,8 +229,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 54-01: TBD
-- [ ] 54-02: TBD
+- [ ] 54-01-PLAN.md — Excel export engine + route wiring
+- [ ] 54-02-PLAN.md — PDF export engine with conservatory header/footer
 
 ### Phase 55: Dashboard + Catalog API
 **Goal**: Administrators see a KPI dashboard with trend indicators, actionable alerts, and a categorized report catalog on the reports page
