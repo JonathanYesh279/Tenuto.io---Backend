@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-Phase: 47 of 48 (Department Scope Wiring & Route Migration)
+Phase: 48 of 48 (v1.7 Bug Fixes & Polish)
 Plan: 1 of 1 — COMPLETE
-Status: Phase 47 complete
-Last activity: 2026-03-06 — Completed 47-01 (Department Scope Wiring & Route Migration)
+Status: Phase 48 complete — v1.7 milestone SHIPPED
+Last activity: 2026-03-06 — Completed 48-01 (v1.7 Bug Fixes & Polish)
 
-Progress: [█████████░] 98%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -125,9 +125,10 @@ None.
 | 45-02 | Tenant admin management UI | 2min | 2 | 3 |
 | 46-01 | Bagrut list page modernization | 4min | 2 | 1 |
 | 47-01 | Dept scope wiring + route migration | 2min | 2 | 14 |
+| 48-01 | v1.7 bug fixes & polish | 1min | 2 | 2 |
 
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 47-01 (Department Scope Wiring & Route Migration)
-Resume: Phase 47 complete. All 6 controller/service pairs wire req.permissionScope to buildScopedFilter. Both attendance route files gated with requirePermission. PERM-06 complete.
+Stopped at: Completed 48-01 (v1.7 Bug Fixes & Polish)
+Resume: Phase 48 complete. v1.7 milestone SHIPPED. All known bugs resolved: null-safe teacherProfile in Bagruts.tsx, ROLE_COLORS updated to match 13 current TEACHER_ROLES.
