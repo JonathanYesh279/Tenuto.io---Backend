@@ -199,7 +199,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 52-01: TBD
+- [ ] 52-01-PLAN.md — Year-over-Year Comparison + Import History generators
+- [ ] 52-02-PLAN.md — Ministry Readiness Audit + Data Quality generators
 
 ### Phase 53: Department + Schedule Generators
 **Goal**: Administrators can analyze department-level metrics, compare departments, review room utilization, and examine schedule density
