@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 49 of 56 (Report Infrastructure)
-Plan: 1 of 2 in current phase (49-01 complete)
-Status: In progress
-Last activity: 2026-03-06 — Plan 49-01 (Report Foundation) complete
+Phase: 49 of 56 (Report Infrastructure) -- COMPLETE
+Plan: 2 of 2 in current phase (49-02 complete)
+Status: Phase 49 complete
+Last activity: 2026-03-06 — Plan 49-02 (Report Orchestrator, Routes, Permissions) complete
 
-Progress: [█░░░░░░░░░] ~5%
+Progress: [██░░░░░░░░] ~12%
 
 ## Performance Metrics
 
@@ -35,6 +35,9 @@ Progress: [█░░░░░░░░░] ~5%
 - **[49-01]** Generator plugin convention: `{id}.generator.js` default export with id/name/category/roles/generate
 - **[49-01]** Scope builder returns typed scope objects (all/department/own) so generators are role-unaware
 - **[49-01]** Underscore-prefixed generators skipped in production (dev/test stubs only)
+- **[49-02]** Report-specific params validated against generator.params with type coercion and allowed-values
+- **[49-02]** Sorting in-memory after generator returns, before pagination slice
+- **[49-02]** loadGenerators() called on startup after MongoDB init
 
 ### Pending Todos
 
@@ -47,5 +50,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 49-01-PLAN.md (Report Foundation)
-Resume: Execute plan 49-02 (Report Orchestrator, Routes, Permissions)
+Stopped at: Completed 49-02-PLAN.md (Report Orchestrator, Routes, Permissions)
+Resume: Execute phase 50 (Teacher Reports)
