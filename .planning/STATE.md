@@ -10,15 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 50 of 56 (Teacher Workforce Generators)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-03-06 — Phase 49 verified (5/5 must-haves), report infrastructure complete
+Plan: 1 of 1 in current phase
+Status: Plan 50-01 complete
+Last activity: 2026-03-06 — 50-01 Teacher Workforce Generators complete (2 tasks, 2 files)
 
-Progress: [██░░░░░░░░] 12%
+Progress: [██░░░░░░░░] 14%
 
 ## Performance Metrics
 
-**All milestones:** 49 phases, 109 plans across 8 milestones
+**All milestones:** 50 phases, 110 plans across 8 milestones
+**v1.8 (50-01):** 2min, 2 tasks, 2 files
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -38,6 +39,8 @@ Progress: [██░░░░░░░░] 12%
 - **[49-02]** Report-specific params validated against generator.params with type coercion and allowed-values
 - **[49-02]** Sorting in-memory after generator returns, before pagination slice
 - **[49-02]** loadGenerators() called on startup after MongoDB init
+- **[50-01]** Hours data sourced from pre-computed hours_summary collection, not calculated on-the-fly
+- **[50-01]** Department filtering resolves teacher instruments to departments via getInstrumentDepartment()
 
 ### Pending Todos
 
@@ -50,5 +53,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Phase 49 complete and verified (5/5 must-haves)
-Resume: Run `/gsd:plan-phase 50` to plan Teacher Workforce Generators
+Stopped at: Completed 50-01-PLAN.md (Teacher Workforce Generators)
+Resume: Run `/gsd:execute-phase 50` for next plan, or `/gsd:plan-phase 51` if phase 50 is done
