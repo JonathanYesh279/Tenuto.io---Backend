@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.8 Admin Report Generator — Phase 51 (Student Activity Generators)
+**Current focus:** v1.8 Admin Report Generator — Phase 52 (Institutional + Ministry Generators)
 
 ## Current Position
 
-Phase: 51 of 56 (Student Activity Generators)
-Plan: 2 of TBD in current phase
-Status: Executing
-Last activity: 2026-03-07 — Plan 51-02 complete (attendance + orchestra participation generators)
+Phase: 52 of 56 (Institutional + Ministry Generators)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-03-07 — Phase 51 verified (8/8 must-haves), 4 student activity generators complete
 
-Progress: [███░░░░░░░] 25%
+Progress: [████░░░░░░] 37%
 
 ## Performance Metrics
 
@@ -65,5 +65,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 51-02-PLAN.md (student attendance + orchestra participation generators)
-Resume: Continue with next plan in phase 51 or run `/gsd:execute-phase 51` for remaining plans
+Stopped at: Phase 51 complete and verified (8/8 must-haves)
+Resume: Run `/gsd:plan-phase 52` to plan Institutional + Ministry Generators

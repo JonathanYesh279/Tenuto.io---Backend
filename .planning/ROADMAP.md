@@ -132,7 +132,7 @@ See: `.planning/milestones/v1.7-ROADMAP.md` for full details.
 
 - [x] **Phase 49: Report Infrastructure** - Registry, orchestrator, permissions, filters, and generator contract — completed 2026-03-06
 - [x] **Phase 50: Teacher Workforce Generators** - 4 teacher reports leveraging hours_summary service — completed 2026-03-07
-- [ ] **Phase 51: Student Activity Generators** - 4 student reports leveraging attendance analytics
+- [x] **Phase 51: Student Activity Generators** - 4 student reports leveraging attendance analytics — completed 2026-03-07
 - [ ] **Phase 52: Institutional + Ministry Generators** - 4 institutional reports leveraging export service
 - [ ] **Phase 53: Department + Schedule Generators** - 5 department/schedule reports
 - [ ] **Phase 54: Export Engines** - Excel and PDF shaping and rendering pipelines
@@ -169,8 +169,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 50-01-PLAN.md — Teacher Hours Summary + Workload Distribution generators
-- [ ] 50-02-PLAN.md — Teacher Salary Projection + Teacher Roster generators
+- [x] 50-01-PLAN.md — Teacher Hours Summary + Workload Distribution generators
+- [x] 50-02-PLAN.md — Teacher Salary Projection + Teacher Roster generators
 
 ### Phase 51: Student Activity Generators
 **Goal**: Administrators can view student-focused reports covering enrollment, attendance, teacher assignments, and orchestra participation
@@ -184,8 +184,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 51-01-PLAN.md � Student Enrollment Status + Student-Teacher Assignments generators
-- [ ] 51-02-PLAN.md � Student Attendance + Orchestra Participation generators
+- [x] 51-01-PLAN.md — Student Enrollment Status + Student-Teacher Assignments generators
+- [x] 51-02-PLAN.md — Student Attendance + Orchestra Participation generators
 
 ### Phase 52: Institutional + Ministry Generators
 **Goal**: Administrators can audit institutional data quality, track Ministry readiness, review import history, and compare metrics across school years
@@ -278,4 +278,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 50 complete (4 teacher generators)*
+*Last updated: 2026-03-07 — Phase 51 complete (4 student activity generators)*
