@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 51 of 56 (Student Activity Generators)
-Plan: 1 of TBD in current phase
+Plan: 2 of TBD in current phase
 Status: Executing
-Last activity: 2026-03-07 — Plan 51-01 complete (2 student generators)
+Last activity: 2026-03-07 — Plan 51-02 complete (attendance + orchestra participation generators)
 
 Progress: [███░░░░░░░] 25%
 
@@ -22,6 +22,7 @@ Progress: [███░░░░░░░] 25%
 **v1.8 (50-01):** 2min, 2 tasks, 2 files
 **v1.8 (50-02):** 2min, 2 tasks, 2 files
 **v1.8 (51-01):** 1min, 2 tasks, 2 files
+**v1.8 (51-02):** 2min, 2 tasks, 2 files
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -49,6 +50,9 @@ Progress: [███░░░░░░░] 25%
 - **[51-01]** Primary instrument resolved from instrumentProgress with isPrimary flag, fallback to first entry
 - **[51-01]** Assignments generator: one row per active assignment, unassigned students get single placeholder row
 - **[51-01]** Bulk teacher fetch pattern: collect IDs from assignments, single $in query, build lookup map
+- **[51-02]** Attendance: query activity_attendance directly for bulk aggregation (not analytics service)
+- **[51-02]** Trend: 10-record window, split recent-5 vs older-5, 10% threshold for improving/declining
+- **[51-02]** Orchestra membership: build full map from all orchestras even when filtering by orchestraId
 
 ### Pending Todos
 
@@ -61,5 +65,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 51-01-PLAN.md (student enrollment + teacher assignments generators)
+Stopped at: Completed 51-02-PLAN.md (student attendance + orchestra participation generators)
 Resume: Continue with next plan in phase 51 or run `/gsd:execute-phase 51` for remaining plans
