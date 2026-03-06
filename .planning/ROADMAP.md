@@ -181,10 +181,11 @@ Plans:
   2. Student Attendance report shows per-student or per-activity attendance rates with trend data using attendance analytics service
   3. Student-Teacher Assignments report shows who studies with whom and identifies unassigned students
   4. Orchestra Participation report shows enrollment across orchestras and highlights membership overlap
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 51-01: TBD
+- [ ] 51-01-PLAN.md — Student Enrollment Status + Student-Teacher Assignments generators
+- [ ] 51-02-PLAN.md — Student Attendance + Orchestra Participation generators
 
 ### Phase 52: Institutional + Ministry Generators
 **Goal**: Administrators can audit institutional data quality, track Ministry readiness, review import history, and compare metrics across school years
@@ -195,7 +196,7 @@ Plans:
   2. Ministry Readiness Audit report shows completion percentage, lists missing required fields, and surfaces cross-validation errors using existing export service getCompletionStatus
   3. Data Quality report identifies anomalies: students without teachers, teachers without students, incomplete student records, stale data
   4. Import History report shows import log entries with status, success/failure rates, and last import dates per import type
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 52-01: TBD
@@ -210,7 +211,7 @@ Plans:
   3. Room Utilization report shows per-room occupancy percentage, peak hours, and available time slots
   4. Teacher Schedule Density report shows time-block coverage per teacher with gap analysis
   5. Orchestra/Theory Schedule report shows the weekly ensemble and theory class schedule with teacher and room assignments
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 53-01: TBD
@@ -223,7 +224,7 @@ Plans:
   1. GET /api/reports/:reportId/export/excel returns a downloadable .xlsx file with Hebrew column headers, proper number/date formatting, and a summary row
   2. GET /api/reports/:reportId/export/pdf returns a downloadable PDF with conservatory header/footer, page breaks, and readable table layout
   3. Excel and PDF exports use separate shaping logic from screen display (different column selection, grouping, or formatting per format)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 54-01: TBD
@@ -238,7 +239,7 @@ Plans:
   2. Dashboard response includes alerts for anomalies (teachers without students, stale imports, data quality issues)
   3. GET /api/reports/registry returns report catalog organized into 4 categories (Teacher, Student, Institutional, Department/Schedule) filtered by user permissions
   4. Each KPI card's drillTo field maps to a valid reportId that the frontend can navigate to
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 55-01: TBD
@@ -253,7 +254,7 @@ Plans:
   3. DefaultTableRenderer renders any report from the columns/rows contract with sortable columns and pagination controls
   4. Custom renderers enhance key reports (teacher hours chart visualization, Ministry readiness gauge) beyond the default table
   5. Year comparison toggle on supported reports shows side-by-side current vs comparison year metrics
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 56-01: TBD
