@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-Phase: 46 of 46 (Bagrut UI/UX Alignment)
+Phase: 47 of 48 (Department Scope Wiring & Route Migration)
 Plan: 1 of 1 — COMPLETE
-Status: Phase 46 complete
-Last activity: 2026-03-06 — Completed 46-01 (Bagrut List Page Modernization)
+Status: Phase 47 complete
+Last activity: 2026-03-06 — Completed 47-01 (Department Scope Wiring & Route Migration)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 98%
 
 ## Performance Metrics
 
@@ -84,6 +84,10 @@ Progress: [██████████] 100%
 - 46-01: Removed duplicate isCompleted filter (redundant with status filter)
 - 46-01: Used bagrutSource instead of bagruts for conservatory options (teacher view correctness)
 - 46-01: Age filter uses birthDate or dateOfBirth field from student personalInfo
+- 47-01: Student-specific attendance routes use 'students' domain (consistent with student.route.js)
+- 47-01: Analytics/aggregate routes use 'reports' domain (consistent with Phase 41 past-activities pattern)
+- 47-01: Teacher schedule attendance uses 'schedules' domain (consistent with Phase 41 hours-summary self-view)
+- 47-01: Export attendance report uses 'reports.export' action
 
 ### Pending Todos
 
@@ -120,9 +124,10 @@ None.
 | 45-01 | Tenant admin management API | 2min | 2 | 4 |
 | 45-02 | Tenant admin management UI | 2min | 2 | 3 |
 | 46-01 | Bagrut list page modernization | 4min | 2 | 1 |
+| 47-01 | Dept scope wiring + route migration | 2min | 2 | 14 |
 
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 46-01 (Bagrut List Page Modernization)
-Resume: Phase 46 complete. Bagrut list page modernized with FilterPanel, SearchInput, and URL param persistence.
+Stopped at: Completed 47-01 (Department Scope Wiring & Route Migration)
+Resume: Phase 47 complete. All 6 controller/service pairs wire req.permissionScope to buildScopedFilter. Both attendance route files gated with requirePermission. PERM-06 complete.
