@@ -131,7 +131,7 @@ See: `.planning/milestones/v1.7-ROADMAP.md` for full details.
 **Milestone Goal:** Build a management control center with KPI dashboard, drill-down navigation, categorized report catalog, and Excel/PDF export for conservatory administrators.
 
 - [x] **Phase 49: Report Infrastructure** - Registry, orchestrator, permissions, filters, and generator contract — completed 2026-03-06
-- [ ] **Phase 50: Teacher Workforce Generators** - 4 teacher reports leveraging hours_summary service
+- [x] **Phase 50: Teacher Workforce Generators** - 4 teacher reports leveraging hours_summary service — completed 2026-03-07
 - [ ] **Phase 51: Student Activity Generators** - 4 student reports leveraging attendance analytics
 - [ ] **Phase 52: Institutional + Ministry Generators** - 4 institutional reports leveraging export service
 - [ ] **Phase 53: Department + Schedule Generators** - 5 department/schedule reports
@@ -277,4 +277,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-06 — Phase 50 planned (2 plans)*
+*Last updated: 2026-03-07 — Phase 50 complete (4 teacher generators)*
