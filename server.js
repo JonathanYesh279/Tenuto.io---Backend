@@ -44,6 +44,8 @@ import exportRoutes from './api/export/export.route.js';
 import roomScheduleRoutes from './api/room-schedule/room-schedule.route.js';
 import superAdminRoutes from './api/super-admin/super-admin.route.js';
 import rolesRoutes from './api/settings/roles.route.js';
+import reportRoutes from './api/reports/report.route.js';
+import { loadGenerators } from './api/reports/report.registry.js';
 import { cascadeSystemInitializer } from './services/cascadeSystemInitializer.js';
 import { errorHandler } from './middleware/error.handler.js';
 
@@ -350,6 +352,16 @@ app.use(
   stripTenantId,
   rolesRoutes
 );
+app.use(
+  '/api/reports',
+  authenticateToken,
+  enrichImpersonationContext,
+  buildContext,
+  enforceTenant,
+  stripTenantId,
+  addSchoolYearToRequest,
+  reportRoutes
+);
 // Super admin routes (auth handled internally)
 app.use('/api/super-admin', superAdminRoutes);
 
@@ -493,6 +505,9 @@ logger.info({ env: process.env.NODE_ENV || 'development', storageMode: process.e
     // Initialize MongoDB with connection string
     await initializeMongoDB(process.env.MONGODB_URI);
     logger.info('MongoDB initialized successfully');
+
+    // Load report generators
+    await loadGenerators();
 
     // Start the server
     await startServer();
