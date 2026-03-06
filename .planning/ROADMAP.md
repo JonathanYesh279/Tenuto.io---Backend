@@ -134,7 +134,7 @@ See: `.planning/milestones/v1.7-ROADMAP.md` for full details.
 - [x] **Phase 50: Teacher Workforce Generators** - 4 teacher reports leveraging hours_summary service — completed 2026-03-07
 - [x] **Phase 51: Student Activity Generators** - 4 student reports leveraging attendance analytics — completed 2026-03-07
 - [x] **Phase 52: Institutional + Ministry Generators** - 4 institutional reports leveraging export service — completed 2026-03-07
-- [ ] **Phase 53: Department + Schedule Generators** - 5 department/schedule reports
+- [x] **Phase 53: Department + Schedule Generators** - 5 department/schedule reports — completed 2026-03-07
 - [ ] **Phase 54: Export Engines** - Excel and PDF shaping and rendering pipelines
 - [ ] **Phase 55: Dashboard + Catalog API** - KPI dashboard endpoint, alerts, and report catalog
 - [ ] **Phase 56: Frontend Reports UI** - ReportsPage, ReportViewerShell, renderers, year comparison
@@ -215,8 +215,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 53-01-PLAN.md — Department Overview + Department Comparison generators
-- [ ] 53-02-PLAN.md — Room Utilization + Teacher Schedule Density + Orchestra/Theory Schedule generators
+- [x] 53-01-PLAN.md — Department Overview + Department Comparison generators
+- [x] 53-02-PLAN.md — Room Utilization + Teacher Schedule Density + Orchestra/Theory Schedule generators
 
 ### Phase 54: Export Engines
 **Goal**: Administrators can export any report as a formatted Excel workbook or PDF document with appropriate data shaping per format
@@ -280,4 +280,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 53 planned (5 department/schedule generators)*
+*Last updated: 2026-03-07 — Phase 53 complete (5 department/schedule generators)*
