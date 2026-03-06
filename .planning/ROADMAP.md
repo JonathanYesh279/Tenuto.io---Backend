@@ -215,7 +215,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 53-01: TBD
+- [ ] 53-01-PLAN.md — Department Overview + Department Comparison generators
+- [ ] 53-02-PLAN.md — Room Utilization + Teacher Schedule Density + Orchestra/Theory Schedule generators
 
 ### Phase 54: Export Engines
 **Goal**: Administrators can export any report as a formatted Excel workbook or PDF document with appropriate data shaping per format
@@ -279,4 +280,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 52 complete (4 institutional/ministry generators)*
+*Last updated: 2026-03-07 — Phase 53 planned (5 department/schedule generators)*
