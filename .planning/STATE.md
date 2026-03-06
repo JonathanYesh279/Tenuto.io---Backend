@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 53 of 56 (Registration & Wiring)
-Plan: 1 of 2 in current phase
+Plan: 2 of 2 in current phase
 Status: Ready
-Last activity: 2026-03-07 — Phase 52 complete (4 institutional/ministry generators)
+Last activity: 2026-03-07 — Plan 53-01 complete (2 department generators)
 
-Progress: [████░░░░░░] 43%
+Progress: [████░░░░░░] 46%
 
 ## Performance Metrics
 
@@ -25,6 +25,7 @@ Progress: [████░░░░░░] 43%
 **v1.8 (51-02):** 2min, 2 tasks, 2 files
 **v1.8 (52-01):** 1min, 2 tasks, 2 files
 **v1.8 (52-02):** 3min, 2 tasks, 2 files
+**v1.8 (53-01):** 1min, 2 tasks, 2 files
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -60,6 +61,9 @@ Progress: [████░░░░░░] 43%
 - **[52-02]** Ministry audit delegates to exportService rather than reimplementing completion logic
 - **[52-02]** Data quality generator queries collections directly for anomaly detection
 - **[52-02]** Empty orchestras category also flags missing conductors
+- **[53-01]** Teachers with multiple instruments counted in each corresponding department
+- **[53-01]** Orchestra count column in overview set to 0 (no reliable orchestra-to-department mapping)
+- **[53-01]** Percentage distribution uses filtered department totals for accurate within-scope distribution
 
 ### Pending Todos
 
@@ -72,5 +76,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 52-02-PLAN.md (ministry readiness + data quality generators)
-Resume: Execute phase 53 (registration & wiring)
+Stopped at: Completed 53-01-PLAN.md (department overview + comparison generators)
+Resume: Execute 53-02 (schedule generators)
