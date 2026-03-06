@@ -177,6 +177,7 @@ scripts/anonymize/name-map.json
 
 # Reports and test result JSON files
 reports/
+!api/reports/
 response.json
 test-results-*.json
 
