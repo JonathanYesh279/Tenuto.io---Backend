@@ -166,10 +166,11 @@ Plans:
   2. Teacher Workload Distribution report compares workloads across teachers and identifies overloaded or underutilized teachers
   3. Teacher Salary Projection report multiplies hours by rate by classification/degree to produce per-teacher salary estimates
   4. Teacher Roster report lists active/inactive teachers with qualifications, instruments, roles, and contact information
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 50-01: TBD
+- [ ] 50-01-PLAN.md — Teacher Hours Summary + Workload Distribution generators
+- [ ] 50-02-PLAN.md — Teacher Salary Projection + Teacher Roster generators
 
 ### Phase 51: Student Activity Generators
 **Goal**: Administrators can view student-focused reports covering enrollment, attendance, teacher assignments, and orchestra participation
@@ -276,4 +277,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-06 — Phase 49 complete (2 plans executed)*
+*Last updated: 2026-03-06 — Phase 50 planned (2 plans)*
