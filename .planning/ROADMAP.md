@@ -9,7 +9,7 @@
 - [x] **v1.4 Ensemble Import** — Phases 23-26 (shipped 2026-02-28)
 - [x] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (shipped 2026-03-02)
 - [x] **v1.6 Room & Hours Management Table** — Phases 31-38 (shipped 2026-03-04)
-- [ ] **v1.7 RBAC & Admin Provisioning** — Phases 39-46
+- [ ] **v1.7 RBAC & Admin Provisioning** — Phases 39-48
 
 ## Phases
 
@@ -121,6 +121,8 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 - [x] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor (completed 2026-03-05)
 - [x] **Phase 45: Super Admin Tenant Admin Management** — Dedicated super admin page for viewing and managing tenant admin accounts (completed 2026-03-06)
 - [x] **Phase 46: Bagrut UI/UX Alignment** — Upgrade bagrut pages to modern FilterPanel + SearchInput patterns matching other pages, add grade and age filters (completed 2026-03-06)
+- [ ] **Phase 47: Department Scope Wiring & Route Migration** — Wire req.permissionScope through controllers/services to buildScopedFilter, migrate remaining routes to requirePermission
+- [ ] **Phase 48: v1.7 Bug Fixes & Polish** — Fix teacherProfile crash, console.log cleanup, sidebar nav link, ROLE_COLORS
 
 ## Phase Details
 
@@ -234,10 +236,33 @@ Plans:
 Plans:
 - [x] 46-01-PLAN.md — Modernize Bagrut list with SearchInput, FilterPanel, grade/age filters, and URL persistence
 
+### Phase 47: Department Scope Wiring & Route Migration
+**Goal**: Department coordinators actually see department-scoped data, and all route files use requirePermission
+**Depends on**: Phase 40 (buildScopedFilter department scope code), Phase 41 (route migration pattern)
+**Requirements**: PERM-05, PERM-06
+**Gap Closure:** Closes gaps from v1.7 audit
+**Success Criteria** (what must be TRUE):
+  1. Controllers pass `req.permissionScope` to service layer, services forward it as 4th arg to `buildScopedFilter`
+  2. A department coordinator querying students sees only students with instruments in their departments (not all students, not only their own)
+  3. `analytics/attendance.routes.js` and `schedule/attendance.routes.js` use `requirePermission(domain, action)` on all routes
+  4. No route file in the codebase uses `requireAuth` (except super admin routes using `requireSuperAdmin`)
+**Plans:** TBD
+
+### Phase 48: v1.7 Bug Fixes & Polish
+**Goal**: Fix remaining bugs and tech debt from v1.7 audit — teacher-role bagrut crash, debug logs, navigation, cosmetics
+**Depends on**: Phase 46 (Bagruts.tsx), Phase 45 (TenantAdminManagementPage)
+**Gap Closure:** Closes tech debt from v1.7 audit
+**Success Criteria** (what must be TRUE):
+  1. Teacher-role users can load the bagrut list page without ReferenceError (teacherProfile fix)
+  2. No `console.log` debugging statements in Bagruts.tsx
+  3. Super admin sidebar includes navigation link to `/tenant-admins`
+  4. `ROLE_COLORS` in TenantAdminManagementPage.tsx uses current role names
+**Plans:** TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46
+Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46 -> 47 -> 48
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -249,8 +274,10 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46
 | 44. Settings UI | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 45. Super Admin Tenant Admin Management | v1.7 | 2/2 | ✓ Complete | 2026-03-06 |
 | 46. Bagrut UI/UX Alignment | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
+| 47. Department Scope Wiring & Route Migration | v1.7 | 0/0 | Pending | — |
+| 48. v1.7 Bug Fixes & Polish | v1.7 | 0/0 | Pending | — |
 
-**Previous milestones:** 38 phases, 92+ plans across 7 milestones (all shipped)
+**Previous milestones:** 38 phases, 92+ plans across 7 milestones (pre-v1.7) (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
