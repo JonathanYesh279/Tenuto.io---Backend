@@ -10,16 +10,17 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 50 of 56 (Teacher Workforce Generators)
-Plan: 1 of 1 in current phase
-Status: Plan 50-01 complete
-Last activity: 2026-03-06 — 50-01 Teacher Workforce Generators complete (2 tasks, 2 files)
+Plan: 2 of 2 in current phase
+Status: Plan 50-02 complete — phase 50 done
+Last activity: 2026-03-06 — 50-02 Salary Projection & Roster generators (2 tasks, 2 files)
 
-Progress: [██░░░░░░░░] 14%
+Progress: [███░░░░░░░] 28%
 
 ## Performance Metrics
 
-**All milestones:** 50 phases, 110 plans across 8 milestones
+**All milestones:** 50 phases, 112 plans across 8 milestones
 **v1.8 (50-01):** 2min, 2 tasks, 2 files
+**v1.8 (50-02):** 2min, 2 tasks, 2 files
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -41,6 +42,9 @@ Progress: [██░░░░░░░░] 14%
 - **[49-02]** loadGenerators() called on startup after MongoDB init
 - **[50-01]** Hours data sourced from pre-computed hours_summary collection, not calculated on-the-fly
 - **[50-01]** Department filtering resolves teacher instruments to departments via getInstrumentDepartment()
+- **[50-02]** Salary projection uses hardcoded MoE reference rates with classification x degree matrix
+- **[50-02]** Monthly = weekly * 4.33, annual = monthly * 10 (school year convention)
+- **[50-02]** Roster queries teacher collection directly (not hours_summary) for complete listing
 
 ### Pending Todos
 
@@ -53,5 +57,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 50-01-PLAN.md (Teacher Workforce Generators)
-Resume: Run `/gsd:execute-phase 50` for next plan, or `/gsd:plan-phase 51` if phase 50 is done
+Stopped at: Completed 50-02-PLAN.md (Teacher Workforce Generators — phase complete)
+Resume: Run `/gsd:plan-phase 51` for next phase
