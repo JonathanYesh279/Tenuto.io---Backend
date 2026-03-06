@@ -121,7 +121,7 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 - [x] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor (completed 2026-03-05)
 - [x] **Phase 45: Super Admin Tenant Admin Management** — Dedicated super admin page for viewing and managing tenant admin accounts (completed 2026-03-06)
 - [x] **Phase 46: Bagrut UI/UX Alignment** — Upgrade bagrut pages to modern FilterPanel + SearchInput patterns matching other pages, add grade and age filters (completed 2026-03-06)
-- [ ] **Phase 47: Department Scope Wiring & Route Migration** — Wire req.permissionScope through controllers/services to buildScopedFilter, migrate remaining routes to requirePermission
+- [x] **Phase 47: Department Scope Wiring & Route Migration** — Wire req.permissionScope through controllers/services to buildScopedFilter, migrate remaining routes to requirePermission (completed 2026-03-06)
 - [ ] **Phase 48: v1.7 Bug Fixes & Polish** — Fix teacherProfile crash, console.log cleanup, sidebar nav link, ROLE_COLORS
 
 ## Phase Details
@@ -248,7 +248,7 @@ Plans:
   4. No route file in the codebase uses `requireAuth` (except super admin routes using `requireSuperAdmin`)
 **Plans:** 1 plan
 Plans:
-- [ ] 47-01-PLAN.md — Wire scope through controllers/services and add requirePermission to attendance routes
+- [x] 47-01-PLAN.md — Wire scope through controllers/services and add requirePermission to attendance routes
 
 ### Phase 48: v1.7 Bug Fixes & Polish
 **Goal**: Fix remaining bugs and tech debt from v1.7 audit — teacher-role bagrut crash, debug logs, navigation, cosmetics
@@ -276,11 +276,11 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46 ->
 | 44. Settings UI | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 45. Super Admin Tenant Admin Management | v1.7 | 2/2 | ✓ Complete | 2026-03-06 |
 | 46. Bagrut UI/UX Alignment | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
-| 47. Department Scope Wiring & Route Migration | v1.7 | 0/1 | Pending | — |
+| 47. Department Scope Wiring & Route Migration | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
 | 48. v1.7 Bug Fixes & Polish | v1.7 | 0/0 | Pending | — |
 
 **Previous milestones:** 38 phases, 92+ plans across 7 milestones (pre-v1.7) (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-06 -- Phase 47 planned (Department Scope Wiring & Route Migration)*
+*Last updated: 2026-03-06 -- Phase 47 complete (Department Scope Wiring & Route Migration)*
