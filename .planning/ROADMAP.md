@@ -9,7 +9,7 @@
 - [x] **v1.4 Ensemble Import** — Phases 23-26 (shipped 2026-02-28)
 - [x] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (shipped 2026-03-02)
 - [x] **v1.6 Room & Hours Management Table** — Phases 31-38 (shipped 2026-03-04)
-- [x] **v1.7 RBAC & Admin Provisioning** — Phases 39-45 (shipped 2026-03-06)
+- [ ] **v1.7 RBAC & Admin Provisioning** — Phases 39-46
 
 ## Phases
 
@@ -120,6 +120,7 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 - [x] **Phase 43: Permission Configuration API & Safeguards** — Admin customization endpoints with lockout prevention (completed 2026-03-05)
 - [x] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor (completed 2026-03-05)
 - [x] **Phase 45: Super Admin Tenant Admin Management** — Dedicated super admin page for viewing and managing tenant admin accounts (completed 2026-03-06)
+- [ ] **Phase 46: Bagrut UI/UX Alignment** — Upgrade bagrut pages to modern FilterPanel + SearchInput patterns matching other pages, add grade and age filters
 
 ## Phase Details
 
@@ -218,10 +219,25 @@ Plans:
 - [x] 45-01-PLAN.md — Backend API for tenant admin listing, update, and password reset
 - [x] 45-02-PLAN.md — Frontend tenant admin management page with edit and reset actions
 
+### Phase 46: Bagrut UI/UX Alignment
+**Goal**: Bagrut pages use the same modern FilterPanel, SearchInput, EmptyState/ErrorState, and TableSkeleton patterns as Students/Teachers/Orchestras pages, with new grade and age filters
+**Depends on**: Phase 44 (modern component patterns must exist)
+**Success Criteria** (what must be TRUE):
+  1. Bagrut list page uses FilterPanel component instead of inline `<select>` dropdowns
+  2. SearchInput component replaces the basic `<input>` search field
+  3. New "student grade" (כיתה) filter allows filtering bagruts by student class/grade level
+  4. New "student age" filter allows filtering bagruts by student age range
+  5. Filters persist in URL search params (useSearchParams) so they survive page refresh
+  6. EmptyState and ErrorState components replace custom inline empty/error markup
+  7. TableSkeleton used for loading states instead of spinner
+**Plans:** 1 plan
+Plans:
+- [ ] 46-01-PLAN.md — Modernize Bagrut list with SearchInput, FilterPanel, grade/age filters, and URL persistence
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
+Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -232,9 +248,10 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45
 | 43. Permission Configuration API & Safeguards | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 44. Settings UI | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 45. Super Admin Tenant Admin Management | v1.7 | 2/2 | ✓ Complete | 2026-03-06 |
+| 46. Bagrut UI/UX Alignment | v1.7 | 0/1 | Planned | — |
 
 **Previous milestones:** 38 phases, 92+ plans across 7 milestones (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-06 -- Phase 45 planned (2 plans in 2 waves)*
+*Last updated: 2026-03-06 -- Phase 46 added (Bagrut UI/UX Alignment)*
