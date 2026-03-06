@@ -10,6 +10,7 @@
 - [x] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (shipped 2026-03-02)
 - [x] **v1.6 Room & Hours Management Table** — Phases 31-38 (shipped 2026-03-04)
 - [x] **v1.7 RBAC & Admin Provisioning** — Phases 39-48 (shipped 2026-03-06)
+- [ ] **v1.8 Admin Report Generator** — Phases 49-56 (in progress)
 
 ## Phases
 
@@ -107,182 +108,172 @@ See: `.planning/milestones/v1.6-ROADMAP.md` for full details.
 
 </details>
 
-## v1.7 RBAC & Admin Provisioning
+<details>
+<summary>v1.7 RBAC & Admin Provisioning (Phases 39-48) — SHIPPED 2026-03-06</summary>
 
-**Milestone Goal:** Give conservatory admins granular role-based access control with department-scoped coordinators, and fix the missing admin-creation step in tenant provisioning.
+- [x] Phase 39: Role & Permission Foundation (2/2 plans) — completed 2026-03-05
+- [x] Phase 40: Permission Engine & Middleware (1/1 plan) — completed 2026-03-05
+- [x] Phase 41: Route Migration (2/2 plans) — completed 2026-03-05
+- [x] Phase 42: Admin Provisioning (1/1 plan) — completed 2026-03-05
+- [x] Phase 43: Permission Configuration API & Safeguards (2/2 plans) — completed 2026-03-05
+- [x] Phase 44: Settings UI (2/2 plans) — completed 2026-03-05
+- [x] Phase 45: Super Admin Tenant Admin Management (2/2 plans) — completed 2026-03-06
+- [x] Phase 46: Bagrut UI/UX Alignment (1/1 plan) — completed 2026-03-06
+- [x] Phase 47: Department Scope Wiring & Route Migration (1/1 plan) — completed 2026-03-06
+- [x] Phase 48: v1.7 Bug Fixes & Polish (1/1 plan) — completed 2026-03-06
 
-**Design doc:** `docs/plans/2026-03-05-rbac-admin-provisioning-design.md`
+See: `.planning/milestones/v1.7-ROADMAP.md` for full details.
 
-- [x] **Phase 39: Role & Permission Foundation** — Constants, data model, and hardcoded defaults (completed 2026-03-05)
-- [x] **Phase 40: Permission Engine & Middleware** — requirePermission, buildContext extension, department-scoped filtering (completed 2026-03-05)
-- [x] **Phase 41: Route Migration** — Migrate all routes from requireAuth(roles[]) to requirePermission(domain, action) (completed 2026-03-05)
-- [x] **Phase 42: Admin Provisioning** — Tenant creation with inline admin account in a transaction (completed 2026-03-05)
-- [x] **Phase 43: Permission Configuration API & Safeguards** — Admin customization endpoints with lockout prevention (completed 2026-03-05)
-- [x] **Phase 44: Settings UI** — Staff role assignment table and permission matrix editor (completed 2026-03-05)
-- [x] **Phase 45: Super Admin Tenant Admin Management** — Dedicated super admin page for viewing and managing tenant admin accounts (completed 2026-03-06)
-- [x] **Phase 46: Bagrut UI/UX Alignment** — Upgrade bagrut pages to modern FilterPanel + SearchInput patterns matching other pages, add grade and age filters (completed 2026-03-06)
-- [x] **Phase 47: Department Scope Wiring & Route Migration** — Wire req.permissionScope through controllers/services to buildScopedFilter, migrate remaining routes to requirePermission (completed 2026-03-06)
-- [x] **Phase 48: v1.7 Bug Fixes & Polish** — Fix teacherProfile crash, console.log cleanup, sidebar nav link, ROLE_COLORS (completed 2026-03-06)
+</details>
+
+### v1.8 Admin Report Generator (In Progress)
+
+**Milestone Goal:** Build a management control center with KPI dashboard, drill-down navigation, categorized report catalog, and Excel/PDF export for conservatory administrators.
+
+- [ ] **Phase 49: Report Infrastructure** - Registry, orchestrator, permissions, filters, and generator contract
+- [ ] **Phase 50: Teacher Workforce Generators** - 4 teacher reports leveraging hours_summary service
+- [ ] **Phase 51: Student Activity Generators** - 4 student reports leveraging attendance analytics
+- [ ] **Phase 52: Institutional + Ministry Generators** - 4 institutional reports leveraging export service
+- [ ] **Phase 53: Department + Schedule Generators** - 5 department/schedule reports
+- [ ] **Phase 54: Export Engines** - Excel and PDF shaping and rendering pipelines
+- [ ] **Phase 55: Dashboard + Catalog API** - KPI dashboard endpoint, alerts, and report catalog
+- [ ] **Phase 56: Frontend Reports UI** - ReportsPage, ReportViewerShell, renderers, year comparison
 
 ## Phase Details
 
-### Phase 39: Role & Permission Foundation
-**Goal**: The system has a complete, typed vocabulary of roles, permission domains, actions, and scopes -- with hardcoded defaults that any phase can reference
-**Depends on**: Nothing (first phase of v1.7)
-**Requirements**: ROLE-01, ROLE-02, ROLE-05, PERM-02, CONF-01, CONF-02
+### Phase 49: Report Infrastructure
+**Goal**: Administrators can request any report through a unified API with consistent pagination, sorting, filtering, and role-based data scoping
+**Depends on**: Nothing (first phase of v1.8)
+**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06
 **Success Criteria** (what must be TRUE):
-  1. `TEACHER_ROLES` array includes all 13 roles (3 admin-tier, 2 coordinator, 7 teaching, 1 view-only) and the teacher Joi schema accepts them
-  2. `ADMIN_TIER_ROLES` and `COORDINATOR_ROLES` subsets are exported and usable as guards in any module
-  3. `DEFAULT_ROLE_PERMISSIONS` constant defines the complete domain/action/scope matrix for all 13 roles, with admin-tier roles having identical full-access permissions
-  4. Tenant schema accepts an optional `rolePermissions` field, and when missing, middleware code can fall back to `DEFAULT_ROLE_PERMISSIONS` without error
-  5. `PERMISSION_DOMAINS` and `PERMISSION_ACTIONS` constants enumerate all 9 domains and their valid actions
+  1. GET /api/reports/registry returns a list of available reports filtered by the requesting user's role and permissions
+  2. GET /api/reports/:reportId validates parameters, applies filters, runs the generator, and returns { metadata, columns, rows, summary } matching the strict contract
+  3. Report responses support server-driven pagination (page, limit) and sorting (sortBy, sortOrder) with correct totalCount in metadata
+  4. Report data is automatically scoped by role: admins see all data, coordinators see their department(s), teachers see only their own data
+  5. Reports accept a schoolYearId parameter and can return year-over-year comparison data when a comparison year is specified
 **Plans:** 2 plans
-Plans:
-- [x] 39-01-PLAN.md — Role constants, permission vocabulary, and DEFAULT_ROLE_PERMISSIONS matrix
-- [x] 39-02-PLAN.md — Admin-tier middleware awareness and buildContext permission resolution
 
-### Phase 40: Permission Engine & Middleware
-**Goal**: Every request carries resolved effective permissions on `req.context`, and `requirePermission(domain, action)` can gate any route with scope-aware filtering -- including department-scoped coordinators
-**Depends on**: Phase 39 (role constants and DEFAULT_ROLE_PERMISSIONS must exist)
-**Requirements**: PERM-01, PERM-03, PERM-04, PERM-05, ROLE-03, ROLE-04, CONF-05
+Plans:
+- [ ] 49-01-PLAN.md — Contract, registry, scope builder, and stub generator
+- [ ] 49-02-PLAN.md — Orchestrator, controller, routes, and server.js mount
+
+### Phase 50: Teacher Workforce Generators
+**Goal**: Administrators can view detailed teacher workforce reports covering hours, workload distribution, salary projections, and roster information
+**Depends on**: Phase 49
+**Requirements**: TCHR-01, TCHR-02, TCHR-03, TCHR-04
 **Success Criteria** (what must be TRUE):
-  1. `buildContext` resolves the union of all teacher roles into `req.context.effectivePermissions` -- a teacher with roles `['מורה', 'רכז/ת מחלקתי']` gets the most permissive scope per domain/action
-  2. `requirePermission('students', 'view')` returns 403 for a teacher without that permission, and sets `req.permissionScope` to `'all'`, `'department'`, or `'own'` for authorized teachers
-  3. A department coordinator viewing students sees only students whose any instrument falls within their `coordinatorDepartments` -- `buildScopedFilter` adds the instrument-based filter automatically
-  4. `settings` and `roles` domains return 403 for any non-admin-tier role, regardless of tenant rolePermissions customization
-  5. `req.context` includes `coordinatorDepartments` (array) and `isCoordinator` (boolean) for downstream use
-**Plans:** 1 plan
-Plans:
-- [x] 40-01-PLAN.md — requirePermission middleware and buildScopedFilter department scope extension
+  1. Teacher Hours Summary report shows weekly hours per teacher with breakdown by category (private lessons, orchestra, theory, admin) using hours_summary collection data
+  2. Teacher Workload Distribution report compares workloads across teachers and identifies overloaded or underutilized teachers
+  3. Teacher Salary Projection report multiplies hours by rate by classification/degree to produce per-teacher salary estimates
+  4. Teacher Roster report lists active/inactive teachers with qualifications, instruments, roles, and contact information
+**Plans**: TBD
 
-### Phase 41: Route Migration
-**Goal**: Every route in the application uses `requirePermission(domain, action)` instead of `requireAuth(roles[])`, with no change in externally observable access patterns for existing roles
-**Depends on**: Phase 40 (requirePermission middleware must be functional)
-**Requirements**: PERM-06
+Plans:
+- [ ] 50-01: TBD
+
+### Phase 51: Student Activity Generators
+**Goal**: Administrators can view student-focused reports covering enrollment, attendance, teacher assignments, and orchestra participation
+**Depends on**: Phase 49
+**Requirements**: STUD-01, STUD-02, STUD-03, STUD-04
 **Success Criteria** (what must be TRUE):
-  1. No route file imports or calls `requireAuth` -- all replaced with `requirePermission(domain, action)`
-  2. An admin (`מנהל`) can still access every endpoint they could before migration (no regressions)
-  3. A regular teacher (`מורה`) can still access their own students and schedule but cannot access admin endpoints (settings, teacher management)
-  4. Super admin routes remain unchanged (they use `requireSuperAdmin`, not `requireAuth`)
-**Plans:** 2 plans
-Plans:
-- [x] 41-01-PLAN.md — Core domain routes (student, teacher, orchestra, rehearsal, theory, bagrut, file)
-- [x] 41-02-PLAN.md — Schedule, reports, admin, and settings routes
+  1. Student Enrollment Status report shows active/inactive counts broken down by instrument and class distribution
+  2. Student Attendance report shows per-student or per-activity attendance rates with trend data using attendance analytics service
+  3. Student-Teacher Assignments report shows who studies with whom and identifies unassigned students
+  4. Orchestra Participation report shows enrollment across orchestras and highlights membership overlap
+**Plans**: TBD
 
-### Phase 42: Admin Provisioning
-**Goal**: Super admin can create a new tenant with its first admin account in a single step -- no chicken-and-egg problem
-**Depends on**: Phase 39 (DEFAULT_ROLE_PERMISSIONS needed for PROV-04)
-**Requirements**: PROV-01, PROV-02, PROV-03, PROV-04
+Plans:
+- [ ] 51-01: TBD
+
+### Phase 52: Institutional + Ministry Generators
+**Goal**: Administrators can audit institutional data quality, track Ministry readiness, review import history, and compare metrics across school years
+**Depends on**: Phase 49
+**Requirements**: INST-01, INST-02, INST-03, INST-04
 **Success Criteria** (what must be TRUE):
-  1. Super admin tenant creation form includes admin account fields (firstName, lastName, email) alongside tenant fields (name, slug, city)
-  2. Submitting the form creates both the tenant document and the admin teacher document in a single MongoDB transaction -- if either fails, neither is created
-  3. The created admin teacher has `roles: ['מנהל']`, a hashed default password, and `requiresPasswordChange: true`
-  4. The created tenant document has `rolePermissions` populated with the hardcoded defaults from Phase 39
-**Plans:** 1 plan
-Plans:
-- [x] 42-01-PLAN.md — Transactional tenant + admin creation with validation and audit
+  1. Year-over-Year Comparison report shows growth/decline in key metrics (student count, teacher count, hours, orchestras) between two selected school years
+  2. Ministry Readiness Audit report shows completion percentage, lists missing required fields, and surfaces cross-validation errors using existing export service getCompletionStatus
+  3. Data Quality report identifies anomalies: students without teachers, teachers without students, incomplete student records, stale data
+  4. Import History report shows import log entries with status, success/failure rates, and last import dates per import type
+**Plans**: TBD
 
-### Phase 43: Permission Configuration API & Safeguards
-**Goal**: Tenant admins can customize their permission matrix per role and assign roles to staff, with safeguards preventing admin lockout
-**Depends on**: Phase 40 (permission engine must resolve permissions), Phase 41 (routes must use requirePermission)
-**Requirements**: CONF-03, CONF-04, SAFE-01, SAFE-02
+Plans:
+- [ ] 52-01: TBD
+
+### Phase 53: Department + Schedule Generators
+**Goal**: Administrators can analyze department-level metrics, compare departments, review room utilization, and examine schedule density
+**Depends on**: Phase 49
+**Requirements**: DEPT-01, DEPT-02, DEPT-03, DEPT-04, DEPT-05
 **Success Criteria** (what must be TRUE):
-  1. Admin can PUT to `/api/settings/roles/:roleName` to customize a role's permissions, and the changes take effect on next request from teachers with that role
-  2. Admin can POST to `/api/settings/roles/:roleName/reset` to restore a role's permissions to the hardcoded defaults
-  3. Attempting to remove the last `מנהל` role from a tenant returns an error and the role is not removed
-  4. Attempting to downgrade `מנהל` permissions (reduce scope or remove domain access) returns an error and the permissions are unchanged
-  5. PUT to `/api/teacher/:id/roles` allows admin to assign multiple roles to a teacher, with `coordinatorDepartments` accepted when `רכז/ת מחלקתי` is included
-**Plans:** 2 plans
-Plans:
-- [x] 43-01-PLAN.md — Permission configuration API (settings/roles endpoints with admin safeguards)
-- [x] 43-02-PLAN.md — Teacher role assignment endpoint with last-admin prevention
+  1. Department Overview report shows per-department counts of students, teachers, total hours, and orchestras
+  2. Department Comparison report presents side-by-side metrics across all 9 instrument departments
+  3. Room Utilization report shows per-room occupancy percentage, peak hours, and available time slots
+  4. Teacher Schedule Density report shows time-block coverage per teacher with gap analysis
+  5. Orchestra/Theory Schedule report shows the weekly ensemble and theory class schedule with teacher and room assignments
+**Plans**: TBD
 
-### Phase 44: Settings UI
-**Goal**: Tenant admins can manage staff roles and customize the permission matrix from a visual interface in conservatory settings
-**Depends on**: Phase 43 (backend APIs for role assignment and permission configuration must exist)
-**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06
+Plans:
+- [ ] 53-01: TBD
+
+### Phase 54: Export Engines
+**Goal**: Administrators can export any report as a formatted Excel workbook or PDF document with appropriate data shaping per format
+**Depends on**: Phase 49 (infrastructure), at least one generator phase (50-53)
+**Requirements**: EXPO-01, EXPO-02, EXPO-03
 **Success Criteria** (what must be TRUE):
-  1. Settings page shows a "roles and permissions" tab with a table of all staff members, their current roles, and an edit button per row
-  2. Clicking edit opens a modal with role checkboxes -- selecting `רכז/ת מחלקתי` reveals a department multi-select dropdown populated from INSTRUMENT_DEPARTMENTS
-  3. Permission matrix editor shows a role dropdown, a domains-by-actions grid, and scope indicators (all/department/own) -- changes save to the backend
-  4. "Reset to Default" button per role restores hardcoded defaults and refreshes the grid
-  5. Admin-only domains (settings, roles) appear visually locked for non-admin roles and cannot be toggled
-**Plans:** 3 plans
-Plans:
-- [x] 44-01-PLAN.md — RBAC constants, API service, and staff role assignment UI (UI-01, UI-02, UI-03)
-- [x] 44-02-PLAN.md — Permission matrix editor with scope cycling and reset (UI-04, UI-05, UI-06)
-- [ ] 44-03-PLAN.md — Visual verification checkpoint (deferred to user testing)
+  1. GET /api/reports/:reportId/export/excel returns a downloadable .xlsx file with Hebrew column headers, proper number/date formatting, and a summary row
+  2. GET /api/reports/:reportId/export/pdf returns a downloadable PDF with conservatory header/footer, page breaks, and readable table layout
+  3. Excel and PDF exports use separate shaping logic from screen display (different column selection, grouping, or formatting per format)
+**Plans**: TBD
 
-### Phase 45: Super Admin Tenant Admin Management
-**Goal**: Super admin has a dedicated page to view all tenant admin accounts with their credentials info, and can update admin details (name, email, password reset) per tenant
-**Depends on**: Phase 42 (admin provisioning creates admin accounts that this phase manages)
-**Plans:** 2 plans
 Plans:
-- [x] 45-01-PLAN.md — Backend API for tenant admin listing, update, and password reset
-- [x] 45-02-PLAN.md — Frontend tenant admin management page with edit and reset actions
+- [ ] 54-01: TBD
+- [ ] 54-02: TBD
 
-### Phase 46: Bagrut UI/UX Alignment
-**Goal**: Bagrut pages use the same modern FilterPanel, SearchInput, EmptyState/ErrorState, and TableSkeleton patterns as Students/Teachers/Orchestras pages, with new grade and age filters
-**Depends on**: Phase 44 (modern component patterns must exist)
+### Phase 55: Dashboard + Catalog API
+**Goal**: Administrators see a KPI dashboard with trend indicators, actionable alerts, and a categorized report catalog on the reports page
+**Depends on**: Phases 50-53 (generators exist for KPIs to aggregate)
+**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, CATL-01, CATL-02, CATL-03
 **Success Criteria** (what must be TRUE):
-  1. Bagrut list page uses FilterPanel component instead of inline `<select>` dropdowns
-  2. SearchInput component replaces the basic `<input>` search field
-  3. New "student grade" (כיתה) filter allows filtering bagruts by student class/grade level
-  4. New "student age" filter allows filtering bagruts by student age range
-  5. Filters persist in URL search params (useSearchParams) so they survive page refresh
-  6. EmptyState and ErrorState components replace custom inline empty/error markup
-  7. TableSkeleton used for loading states instead of spinner
-**Plans:** 1 plan
-Plans:
-- [x] 46-01-PLAN.md — Modernize Bagrut list with SearchInput, FilterPanel, grade/age filters, and URL persistence
+  1. GET /api/reports/dashboard returns KPI cards with current values, trend deltas from comparison period, and drillTo report IDs
+  2. Dashboard response includes alerts for anomalies (teachers without students, stale imports, data quality issues)
+  3. GET /api/reports/registry returns report catalog organized into 4 categories (Teacher, Student, Institutional, Department/Schedule) filtered by user permissions
+  4. Each KPI card's drillTo field maps to a valid reportId that the frontend can navigate to
+**Plans**: TBD
 
-### Phase 47: Department Scope Wiring & Route Migration
-**Goal**: Department coordinators actually see department-scoped data, and all route files use requirePermission
-**Depends on**: Phase 40 (buildScopedFilter department scope code), Phase 41 (route migration pattern)
-**Requirements**: PERM-05, PERM-06
-**Gap Closure:** Closes gaps from v1.7 audit
-**Success Criteria** (what must be TRUE):
-  1. Controllers pass `req.permissionScope` to service layer, services forward it as 4th arg to `buildScopedFilter`
-  2. A department coordinator querying students sees only students with instruments in their departments (not all students, not only their own)
-  3. `analytics/attendance.routes.js` and `schedule/attendance.routes.js` use `requirePermission(domain, action)` on all routes
-  4. No route file in the codebase uses `requireAuth` (except super admin routes using `requireSuperAdmin`)
-**Plans:** 1 plan
 Plans:
-- [x] 47-01-PLAN.md — Wire scope through controllers/services and add requirePermission to attendance routes
+- [ ] 55-01: TBD
 
-### Phase 48: v1.7 Bug Fixes & Polish
-**Goal**: Fix remaining bugs and tech debt from v1.7 audit — teacher-role bagrut crash, debug logs, navigation, cosmetics
-**Depends on**: Phase 46 (Bagruts.tsx), Phase 45 (TenantAdminManagementPage)
-**Gap Closure:** Closes tech debt from v1.7 audit
+### Phase 56: Frontend Reports UI
+**Goal**: Users can access the full reports experience: dashboard with drill-down, report catalog, filtered report viewing, year comparison, and export buttons
+**Depends on**: Phases 54, 55 (backend complete)
+**Requirements**: FEND-01, FEND-02, FEND-03, FEND-04, FEND-05
 **Success Criteria** (what must be TRUE):
-  1. Teacher-role users can load the bagrut list page without ReferenceError (teacherProfile fix)
-  2. No `console.log` debugging statements in Bagruts.tsx
-  3. Super admin sidebar includes navigation link to `/tenant-admins`
-  4. `ROLE_COLORS` in TenantAdminManagementPage.tsx uses current role names
-**Plans:** 1 plan
+  1. ReportsPage displays a KPI dashboard section at the top and a categorized report catalog section below it
+  2. Clicking a KPI card or catalog card navigates to ReportViewerShell showing the report with a shared filters bar, data content area, and export buttons (Excel/PDF)
+  3. DefaultTableRenderer renders any report from the columns/rows contract with sortable columns and pagination controls
+  4. Custom renderers enhance key reports (teacher hours chart visualization, Ministry readiness gauge) beyond the default table
+  5. Year comparison toggle on supported reports shows side-by-side current vs comparison year metrics
+**Plans**: TBD
+
 Plans:
-- [x] 48-01-PLAN.md — Fix teacherProfile crash and update ROLE_COLORS to current role names
+- [ ] 56-01: TBD
+- [ ] 56-02: TBD
 
 ## Progress
 
-**Execution Order:**
-Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46 -> 47 -> 48
+| Phase Range | Milestone | Phases | Plans | Status |
+|-------------|-----------|--------|-------|--------|
+| 1-9 | v1.0 Multi-Tenant Architecture Hardening | 9 | 25 | Shipped 2026-02-24 |
+| 10-14 | v1.1 Super Admin Platform Management | 5 | 13 | Shipped 2026-02-26 |
+| 15-19 | v1.2 Student Import Enhancement | 5 | 8 | Shipped 2026-02-27 |
+| 20-22 | v1.3 Conservatory Information Import | 3 | 3 | Shipped 2026-02-28 |
+| 23-26 | v1.4 Ensemble Import | 4 | 6 | Shipped 2026-02-28 |
+| 27-30 | v1.5 Privacy Compliance Foundation | 4 | 11 | Shipped 2026-03-02 |
+| 31-38 | v1.6 Room & Hours Management Table | 8 | 26 | Shipped 2026-03-04 |
+| 39-48 | v1.7 RBAC & Admin Provisioning | 10 | 15 | Shipped 2026-03-06 |
+| 49-56 | v1.8 Admin Report Generator | 8 | TBD | In progress |
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 39. Role & Permission Foundation | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 40. Permission Engine & Middleware | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
-| 41. Route Migration | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 42. Admin Provisioning | v1.7 | 1/1 | ✓ Complete | 2026-03-05 |
-| 43. Permission Configuration API & Safeguards | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 44. Settings UI | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
-| 45. Super Admin Tenant Admin Management | v1.7 | 2/2 | ✓ Complete | 2026-03-06 |
-| 46. Bagrut UI/UX Alignment | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
-| 47. Department Scope Wiring & Route Migration | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
-| 48. v1.7 Bug Fixes & Polish | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
-
-**Previous milestones:** 38 phases, 92+ plans across 7 milestones (pre-v1.7) (all shipped)
+**Total: 56 phases, 107+ plans across 9 milestones (8 shipped, 1 in progress)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-06 -- Phase 48 complete (v1.7 Bug Fixes & Polish)*
+*Last updated: 2026-03-06 — Phase 49 planned (2 plans)*
