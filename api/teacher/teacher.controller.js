@@ -48,7 +48,7 @@ async function getTeachers(req, res, next) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 0; // 0 means no pagination (return all)
 
-    const result = await teacherService.getTeachers(filterBy, page, limit, { context: req.context });
+    const result = await teacherService.getTeachers(filterBy, page, limit, { context: req.context, scope: req.permissionScope });
     res.json(result);
   } catch (err) {
     next(err)

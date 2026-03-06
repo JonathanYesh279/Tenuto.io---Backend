@@ -23,7 +23,7 @@ async function getRehearsals(req, res, next) {
       toDate: req.query.toDate,
     }
 
-    const rehearsals = await rehearsalService.getRehearsals(filterBy, { context: req.context })
+    const rehearsals = await rehearsalService.getRehearsals(filterBy, { context: req.context, scope: req.permissionScope })
     res.json(rehearsals)
   } catch (err) {
     next(err)

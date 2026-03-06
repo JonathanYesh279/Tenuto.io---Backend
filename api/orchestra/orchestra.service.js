@@ -22,10 +22,10 @@ export const orchestraService = {
 
 async function getOrchestras(filterBy = {}, options = {}) {
   try {
-    const { context } = options
+    const { context, scope } = options
     requireTenantId(context?.tenantId)
     const collection = await getCollection('orchestra')
-    const criteria = buildScopedFilter('orchestra', _buildCriteria(filterBy), context)
+    const criteria = buildScopedFilter('orchestra', _buildCriteria(filterBy), context, scope)
 
     const orchestras = await collection.aggregate([
       { $match: criteria },

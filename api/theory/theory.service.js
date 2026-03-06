@@ -49,7 +49,7 @@ export const theoryService = {
 
 async function getTheoryLessons(filterBy = {}, paginationOptions = {}, options = {}) {
   try {
-    const { context } = options;
+    const { context, scope } = options;
     requireTenantId(context?.tenantId);
 
     console.log('🔍 Theory Service: Getting theory lessons with filters:', JSON.stringify(filterBy, null, 2));
@@ -64,7 +64,7 @@ async function getTheoryLessons(filterBy = {}, paginationOptions = {}, options =
     // }
 
     const collection = await getCollection('theory_lesson');
-    const criteria = buildScopedFilter('theory_lesson', createLessonFilterQuery(filterBy), context);
+    const criteria = buildScopedFilter('theory_lesson', createLessonFilterQuery(filterBy), context, scope);
 
     console.log('🔎 Theory Service: Built query criteria:', JSON.stringify(criteria, null, 2));
 

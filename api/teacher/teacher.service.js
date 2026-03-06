@@ -34,7 +34,7 @@ export const teacherService = {
 
 async function getTeachers(filterBy = {}, page = 1, limit = 0, options = {}) {
   try {
-    const { context } = options;
+    const { context, scope } = options;
     const tenantId = requireTenantId(context?.tenantId);
 
     // If filtering by studentId, resolve to teacher IDs via teacherAssignments
@@ -55,7 +55,7 @@ async function getTeachers(filterBy = {}, page = 1, limit = 0, options = {}) {
     }
 
     const collection = await getCollection('teacher');
-    const criteria = buildScopedFilter('teacher', _buildCriteria(filterBy), context);
+    const criteria = buildScopedFilter('teacher', _buildCriteria(filterBy), context, scope);
 
     // If limit is 0 or not provided, return all teachers (backward compatibility)
     if (limit === 0) {

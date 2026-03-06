@@ -24,7 +24,7 @@ async function getOrchestras(req, res, next) {
       showInActive: req.query.showInactive === 'true',
       ids: req.query.ids // Add support for batch fetching by IDs
     }
-    const orchestras = await orchestraService.getOrchestras(filterBy, { context: req.context })
+    const orchestras = await orchestraService.getOrchestras(filterBy, { context: req.context, scope: req.permissionScope })
     res.json(orchestras)
   } catch (err) {
     next(err)

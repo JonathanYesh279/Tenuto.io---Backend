@@ -50,10 +50,10 @@ export const bagrutService = {
 
 async function getBagruts(filterBy = {}, options = {}) {
   try {
-    const { context } = options
+    const { context, scope } = options
     requireTenantId(context?.tenantId)
     const collection = await getCollection('bagrut')
-    const criteria = buildScopedFilter('bagrut', _buildCriteria(filterBy), context)
+    const criteria = buildScopedFilter('bagrut', _buildCriteria(filterBy), context, scope)
 
     const bagrut = await collection.find(criteria).toArray()
 

@@ -25,14 +25,14 @@ export const studentService = {
 
 async function getStudents(filterBy = {}, page = 1, limit = 0, options = {}) {
   try {
-    const { context } = options;
+    const { context, scope } = options;
     requireTenantId(context?.tenantId);
     const collection = await getCollection('student');
 
     const criteria = _buildCriteria(filterBy);
 
     // Role-based scoping via buildScopedFilter (context is now mandatory)
-    Object.assign(criteria, buildScopedFilter('student', {}, context));
+    Object.assign(criteria, buildScopedFilter('student', {}, context, scope));
 
     // If limit is 0 or not provided, return all students (backward compatibility)
     if (limit === 0) {

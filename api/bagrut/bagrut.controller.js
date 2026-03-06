@@ -34,7 +34,7 @@ async function getBagruts(req, res, next) {
       showInactive: req.query.showInactive === 'true',
     }
 
-    const bagruts = await bagrutService.getBagruts(filterBy, { context: req.context })
+    const bagruts = await bagrutService.getBagruts(filterBy, { context: req.context, scope: req.permissionScope })
     res.json(bagruts)
   } catch (err) {
     next(err)

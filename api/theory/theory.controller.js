@@ -71,7 +71,7 @@ async function getTheoryLessons(req, res, next) {
     console.log('🔧 Theory Controller: Built filter object:', JSON.stringify(filterBy, null, 2));
     console.log('📄 Theory Controller: Pagination options:', JSON.stringify(paginationOptions, null, 2));
 
-    const result = await theoryService.getTheoryLessons(filterBy, paginationOptions, { context: req.context });
+    const result = await theoryService.getTheoryLessons(filterBy, paginationOptions, { context: req.context, scope: req.permissionScope });
     const { data: theoryLessons, pagination } = result;
 
     // Validate and sanitize lesson data before sending to frontend

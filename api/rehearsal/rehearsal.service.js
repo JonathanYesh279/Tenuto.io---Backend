@@ -37,10 +37,10 @@ export const rehearsalService = {
 
 async function getRehearsals(filterBy = {}, options = {}) {
   try {
-    const { context } = options;
+    const { context, scope } = options;
     requireTenantId(context?.tenantId);
     const collection = await getCollection('rehearsal');
-    const criteria = buildScopedFilter('rehearsal', _buildCriteria(filterBy), context);
+    const criteria = buildScopedFilter('rehearsal', _buildCriteria(filterBy), context, scope);
 
     const rehearsal = await collection
       .find(criteria)

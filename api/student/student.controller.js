@@ -27,7 +27,7 @@ async function getStudents(req, res, next) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 0; // 0 means no pagination (return all)
 
-    const result = await studentService.getStudents(filterBy, page, limit, { context: req.context });
+    const result = await studentService.getStudents(filterBy, page, limit, { context: req.context, scope: req.permissionScope });
     res.json(result);
   } catch (err) {
     next(err);
@@ -39,7 +39,7 @@ async function getStudentById(req, res, next) {
     const { id } = req.params;
 
     // IDOR prevention via pre-loaded scopes (no extra DB query)
-    if (!canAccessStudent(id, req.context)) {
+    if (!canAccessStudent(id, req.context, req.permissionScope)) {
       return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
     }
 
