@@ -246,7 +246,9 @@ Plans:
   2. A department coordinator querying students sees only students with instruments in their departments (not all students, not only their own)
   3. `analytics/attendance.routes.js` and `schedule/attendance.routes.js` use `requirePermission(domain, action)` on all routes
   4. No route file in the codebase uses `requireAuth` (except super admin routes using `requireSuperAdmin`)
-**Plans:** TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 47-01-PLAN.md — Wire scope through controllers/services and add requirePermission to attendance routes
 
 ### Phase 48: v1.7 Bug Fixes & Polish
 **Goal**: Fix remaining bugs and tech debt from v1.7 audit — teacher-role bagrut crash, debug logs, navigation, cosmetics
@@ -274,11 +276,11 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46 ->
 | 44. Settings UI | v1.7 | 2/2 | ✓ Complete | 2026-03-05 |
 | 45. Super Admin Tenant Admin Management | v1.7 | 2/2 | ✓ Complete | 2026-03-06 |
 | 46. Bagrut UI/UX Alignment | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
-| 47. Department Scope Wiring & Route Migration | v1.7 | 0/0 | Pending | — |
+| 47. Department Scope Wiring & Route Migration | v1.7 | 0/1 | Pending | — |
 | 48. v1.7 Bug Fixes & Polish | v1.7 | 0/0 | Pending | — |
 
 **Previous milestones:** 38 phases, 92+ plans across 7 milestones (pre-v1.7) (all shipped)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-06 -- Phase 46 added (Bagrut UI/UX Alignment)*
+*Last updated: 2026-03-06 -- Phase 47 planned (Department Scope Wiring & Route Migration)*
