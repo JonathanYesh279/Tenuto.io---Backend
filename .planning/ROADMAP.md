@@ -259,7 +259,9 @@ Plans:
   2. No `console.log` debugging statements in Bagruts.tsx
   3. Super admin sidebar includes navigation link to `/tenant-admins`
   4. `ROLE_COLORS` in TenantAdminManagementPage.tsx uses current role names
-**Plans:** TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 48-01-PLAN.md — Fix teacherProfile crash and update ROLE_COLORS to current role names
 
 ## Progress
 
@@ -277,7 +279,7 @@ Phases execute in numeric order: 39 -> 40 -> 41 -> 42 -> 43 -> 44 -> 45 -> 46 ->
 | 45. Super Admin Tenant Admin Management | v1.7 | 2/2 | ✓ Complete | 2026-03-06 |
 | 46. Bagrut UI/UX Alignment | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
 | 47. Department Scope Wiring & Route Migration | v1.7 | 1/1 | ✓ Complete | 2026-03-06 |
-| 48. v1.7 Bug Fixes & Polish | v1.7 | 0/0 | Pending | — |
+| 48. v1.7 Bug Fixes & Polish | v1.7 | 0/1 | Pending | — |
 
 **Previous milestones:** 38 phases, 92+ plans across 7 milestones (pre-v1.7) (all shipped)
 
