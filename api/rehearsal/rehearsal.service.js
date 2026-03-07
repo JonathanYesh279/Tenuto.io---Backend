@@ -439,6 +439,32 @@ async function bulkCreateRehearsals(data, teacherId, isAdmin = false, options = 
 
     console.log(`Generated ${utcDates.length} dates for rehearsals`);
 
+    // Pre-validate all dates for conflicts before inserting any
+    console.log(`Validating ${utcDates.length} dates for conflicts...`);
+    const dateConflicts = [];
+    for (const utcDate of utcDates) {
+      const conflicts = await checkRehearsalConflicts(
+        { date: utcDate, startTime, endTime, location, groupId: orchestraId },
+        { context: options.context }
+      );
+      if (conflicts.hasConflicts) {
+        dateConflicts.push({
+          date: formatDate(utcDate, 'YYYY-MM-DD'),
+          roomConflicts: conflicts.roomConflicts,
+          teacherConflicts: conflicts.teacherConflicts,
+        });
+      }
+    }
+
+    if (dateConflicts.length > 0) {
+      const err = new Error('Scheduling conflicts detected for bulk creation');
+      err.code = 'BULK_CONFLICT';
+      err.dateConflicts = dateConflicts;
+      err.totalDates = utcDates.length;
+      err.conflictingDates = dateConflicts.length;
+      throw err;
+    }
+
     // Create rehearsal documents with proper timezone handling
     const currentTime = now();
     const rehearsals = utcDates.map((utcDate) => ({
