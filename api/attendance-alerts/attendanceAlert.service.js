@@ -245,7 +245,7 @@ async function getAttendanceDashboard(options = {}) {
     const presentCount = records.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
     const totalRecords = records.length;
     const averageAttendanceRate =
-      totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100 * 100) / 100 : 100;
+      totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100 * 100) / 100 : null;
 
     overallPresent += presentCount;
     overallTotal += totalRecords;
