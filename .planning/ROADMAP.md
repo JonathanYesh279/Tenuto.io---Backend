@@ -277,8 +277,11 @@ Plans:
   3. Visual 15-minute snap indicator lines appear during drag-over in day view
   4. No console.log statements in rehearsal bulk delete handler
 
+**Plans:** 1 plan
+
+Note: Success criteria #1 (conflict error preservation) already fixed in commit 7798df8. Success criteria #3 (snap indicators) already implemented in RehearsalCalendar.tsx. Only #2 and #4 need work.
 Plans:
-- [ ] 64-01-PLAN.md — Conflict error preservation, field name fix, snap indicators, console.log cleanup
+- [ ] 64-01-PLAN.md — Fix attendance history dots field name mismatch + remove console.log from bulk delete
 
 ## Progress
 
