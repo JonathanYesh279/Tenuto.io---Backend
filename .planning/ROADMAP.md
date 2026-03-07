@@ -147,7 +147,7 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 
 **Milestone Goal:** Fix rehearsal-orchestra bidirectional data flow bugs, add room/time/teacher conflict detection for rehearsals, refactor attendance to a single source of truth with transactional safety, deliver modern attendance-taking UX with smart suggestions, build an interactive rehearsal calendar, and provide attendance analytics with configurable alerting.
 
-- [ ] **Phase 57: Rehearsal-Orchestra Data Flow** — Transactional sync and cascade cleanup between rehearsals and orchestras
+- [x] **Phase 57: Rehearsal-Orchestra Data Flow** — Transactional sync and cascade cleanup between rehearsals and orchestras — completed 2026-03-07
 - [ ] **Phase 58: Conflict Detection Engine** — Room, time, and teacher conflict detection for rehearsal scheduling
 - [ ] **Phase 59: Attendance Data Layer** — Single source of truth with transactional writes, membership validation, and three statuses
 - [ ] **Phase 60: Attendance UX** — Quick toggle list with smart suggestions, auto-save, batch operations, and per-student notes
@@ -164,11 +164,11 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
   2. Deleting a rehearsal atomically removes its ID from the parent orchestra's rehearsalIds array
   3. Deleting or deactivating an orchestra removes or archives all associated rehearsals with no orphan references remaining
   4. If a transaction fails mid-operation, neither the rehearsal nor the orchestra reference is left in an inconsistent state
-**Plans:** 2 plans
+**Plans:** 2/2 complete
 
 Plans:
-- [ ] 57-01-PLAN.md — Transactional rehearsal CRUD with atomic orchestra.rehearsalIds sync
-- [ ] 57-02-PLAN.md — Orchestra cascade deactivation to rehearsals + transactional orchestra mutations
+- [x] 57-01-PLAN.md — Transactional rehearsal CRUD with atomic orchestra.rehearsalIds sync
+- [x] 57-02-PLAN.md — Orchestra cascade deactivation to rehearsals + transactional orchestra mutations
 
 #### Phase 58: Conflict Detection Engine
 **Goal**: Users are warned about scheduling conflicts before they create double-booked rehearsals
@@ -281,4 +281,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 57 planned (2 plans)*
+*Last updated: 2026-03-07 — Phase 57 complete (2/2 plans verified)*
