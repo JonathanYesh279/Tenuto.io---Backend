@@ -1,4 +1,4 @@
-import { getCollection } from '../../services/mongoDB.service.js'
+import { getCollection, withTransaction } from '../../services/mongoDB.service.js'
 import { validateOrchestra } from './orchestra.validation.js'
 import { ObjectId } from 'mongodb'
 import { createLogger } from '../../services/logger.service.js'
@@ -336,59 +336,70 @@ async function updateOrchestra(orchestraId, orchestraToUpdate, teacherId, isAdmi
 async function removeOrchestra(orchestraId, teacherId, isAdmin = false, userRoles = [], options = {}) {
   try {
     const tenantId = requireTenantId(options.context?.tenantId)
-    const collection = await getCollection('orchestra');
-    const orchestra = await getOrchestraById(orchestraId, options);
+    const orchestra = await getOrchestraById(orchestraId, options)
 
     // Only admin can delete orchestras
     if (!isAdmin) {
-      throw new Error('Not authorized to modify this orchestra');
+      throw new Error('Not authorized to modify this orchestra')
     }
 
-    const teacherCollection = await getCollection('teacher');
-    if (
-      !teacherCollection ||
-      typeof teacherCollection.updateOne !== 'function'
-    ) {
-      throw new Error(
-        'Teacher collection not available or updateOne method not found'
-      );
-    }
+    const result = await withTransaction(async (session) => {
+      // 1. Teacher conducting cleanup
+      const teacherCollection = await getCollection('teacher')
+      await teacherCollection.updateOne(
+        { _id: ObjectId.createFromHexString(orchestra.conductorId), tenantId },
+        { $pull: { 'conducting.orchestraIds': orchestraId } },
+        { session }
+      )
 
-    await teacherCollection.updateOne(
-      { _id: ObjectId.createFromHexString(orchestra.conductorId), tenantId },
-      {
-        $pull: { 'conducting.orchestraIds': orchestraId },
+      // 2. Student enrollment cleanup
+      const studentCollection = await getCollection('student')
+      await studentCollection.updateMany(
+        { 'enrollments.orchestraIds': orchestraId, tenantId },
+        { $pull: { 'enrollments.orchestraIds': orchestraId } },
+        { session }
+      )
+
+      // 3. Hard-delete all rehearsals for this orchestra
+      const rehearsalCollection = await getCollection('rehearsal')
+      const rehearsals = await rehearsalCollection.find(
+        { groupId: orchestraId, tenantId },
+        { session }
+      ).toArray()
+      const rehearsalIds = rehearsals.map(r => r._id.toString())
+
+      await rehearsalCollection.deleteMany(
+        { groupId: orchestraId, tenantId },
+        { session }
+      )
+
+      // 4. Delete associated attendance records for those rehearsals
+      if (rehearsalIds.length > 0) {
+        const activityCollection = await getCollection('activity_attendance')
+        await activityCollection.deleteMany(
+          { sessionId: { $in: rehearsalIds }, activityType: 'תזמורת', tenantId },
+          { session }
+        )
       }
-    );
 
-    const studentCollection = await getCollection('student');
-    if (
-      !studentCollection ||
-      typeof studentCollection.updateMany !== 'function'
-    ) {
-      throw new Error(
-        'Student collection not available or updateMany method not found'
-      );
-    }
+      logger.info({ orchestraId, deletedRehearsals: rehearsalIds.length }, 'Cascade deleted rehearsals for deactivated orchestra')
 
-    await studentCollection.updateMany(
-      { 'enrollments.orchestraIds': orchestraId, tenantId },
-      {
-        $pull: { 'enrollments.orchestraIds': orchestraId },
-      }
-    );
+      // 5. Deactivate orchestra and clear rehearsalIds
+      const collection = await getCollection('orchestra')
+      const updatedOrchestra = await collection.findOneAndUpdate(
+        { _id: ObjectId.createFromHexString(orchestraId), tenantId },
+        { $set: { isActive: false, rehearsalIds: [] } },
+        { returnDocument: 'after', session }
+      )
 
-    const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(orchestraId), tenantId },
-      { $set: { isActive: false } },
-      { returnDocument: 'after' }
-    );
+      if (!updatedOrchestra) throw new Error(`Orchestra with id ${orchestraId} not found`)
+      return updatedOrchestra
+    })
 
-    if (!result) throw new Error(`Orchestra with id ${orchestraId} not found`);
-    return result;
+    return result
   } catch (err) {
-    logger.error({ orchestraId, err: err.message }, 'Error in removeOrchestra');
-    throw new Error(`Error in orchestraService.removeOrchestra: ${err}`);
+    logger.error({ orchestraId, err: err.message }, 'Error in removeOrchestra')
+    throw new Error(`Error in orchestraService.removeOrchestra: ${err}`)
   }
 }
 
