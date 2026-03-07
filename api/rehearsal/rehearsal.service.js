@@ -430,73 +430,53 @@ async function bulkCreateRehearsals(data, teacherId, isAdmin = false, options = 
     }
 
     // Get rehearsal collection
-    let rehearsalCollection;
-    try {
-      rehearsalCollection = await getCollection('rehearsal');
-      if (!rehearsalCollection) {
-        throw new Error('Rehearsal collection is undefined');
-      }
-    } catch (dbErr) {
-      console.error(`Failed to get rehearsal collection: ${dbErr}`);
-      throw new Error(
-        `Database error: Failed to access rehearsal collection - ${dbErr.message}`
-      );
+    const rehearsalCollection = await getCollection('rehearsal');
+    if (!rehearsalCollection) {
+      throw new Error('Database error: Failed to access rehearsal collection');
     }
 
-    const result = { insertedCount: 0, rehearsalIds: [] };
+    // Insert all batches + update orchestra atomically
+    const result = await withTransaction(async (session) => {
+      const txResult = { insertedCount: 0, rehearsalIds: [] };
 
-    // Insert rehearsals in batches
-    const batchSize = 100;
-    for (let i = 0; i < rehearsals.length; i += batchSize) {
-      try {
+      // Insert rehearsals in batches
+      const batchSize = 100;
+      for (let i = 0; i < rehearsals.length; i += batchSize) {
         const batch = rehearsals.slice(i, i + batchSize);
         console.log(
           `Inserting batch ${i / batchSize + 1} with ${batch.length} rehearsals`
         );
 
-        const batchResult = await rehearsalCollection.insertMany(batch);
+        const batchResult = await rehearsalCollection.insertMany(batch, { session });
         console.log(`Batch inserted with result:`, batchResult);
 
-        result.insertedCount += batchResult.insertedCount;
+        txResult.insertedCount += batchResult.insertedCount;
         const batchIds = Object.values(batchResult.insertedIds).map((id) =>
           id.toString()
         );
-        result.rehearsalIds = [...result.rehearsalIds, ...batchIds];
-      } catch (batchErr) {
-        console.error(`Error inserting batch: ${batchErr}`);
-        throw new Error(
-          `Failed to insert rehearsal batch: ${batchErr.message}`
-        );
+        txResult.rehearsalIds = [...txResult.rehearsalIds, ...batchIds];
       }
-    }
 
-    // Update orchestra with new rehearsal IDs
-    if (result.rehearsalIds.length > 0) {
-      try {
+      // Update orchestra with new rehearsal IDs
+      if (txResult.rehearsalIds.length > 0) {
         const orchestraCollection = await getCollection('orchestra');
-        if (orchestraCollection) {
-          console.log(
-            `Updating orchestra ${orchestraId} with ${result.rehearsalIds.length} new rehearsal IDs`
-          );
-
-          const updateResult = await orchestraCollection.updateOne(
-            { _id: ObjectId.createFromHexString(orchestraId), tenantId },
-            { $push: { rehearsalIds: { $each: result.rehearsalIds } } }
-          );
-
-          console.log(`Orchestra update result:`, updateResult);
-        } else {
-          console.warn(
-            'Orchestra collection not available, skipping orchestra update'
-          );
+        if (!orchestraCollection) {
+          throw new Error('Database error: Failed to access orchestra collection');
         }
-      } catch (updateErr) {
-        // Log the error but don't fail the entire operation
-        console.error(
-          `Failed to update orchestra with rehearsal IDs: ${updateErr}`
+
+        console.log(
+          `Updating orchestra ${orchestraId} with ${txResult.rehearsalIds.length} new rehearsal IDs`
+        );
+
+        await orchestraCollection.updateOne(
+          { _id: ObjectId.createFromHexString(orchestraId), tenantId },
+          { $push: { rehearsalIds: { $each: txResult.rehearsalIds } } },
+          { session }
         );
       }
-    }
+
+      return txResult;
+    });
 
     console.log(`Successfully created ${result.insertedCount} rehearsals`);
     return result;
@@ -548,77 +528,35 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
 
     const rehearsalIds = rehearsals.map(r => r._id.toString());
 
-    let deletedCount = 0;
+    // Use transaction for atomic data consistency
+    const deletedCount = await withTransaction(async (session) => {
+      // Delete all rehearsals for this orchestra (tenant-scoped)
+      const deleteResult = await rehearsalCollection.deleteMany(
+        { groupId: orchestraId, tenantId },
+        { session }
+      );
 
-    // Use transaction for data consistency
-    const client = rehearsalCollection.client || rehearsalCollection.s?.client;
-    if (client) {
-      const session = client.startSession();
-
-      try {
-        await session.withTransaction(async () => {
-          // Delete all rehearsals for this orchestra (tenant-scoped)
-          const deleteResult = await rehearsalCollection.deleteMany(
-            { groupId: orchestraId, tenantId },
-            { session }
-          );
-
-          deletedCount = deleteResult.deletedCount;
-
-          // Clean up attendance records if collection exists
-          if (activityCollection && rehearsalIds.length > 0) {
-            await activityCollection.deleteMany(
-              {
-                sessionId: { $in: rehearsalIds },
-                activityType: 'תזמורת',
-                tenantId
-              },
-              { session }
-            );
-          }
-
-          // Update orchestra to remove rehearsal IDs
-          await orchestraCollection.updateOne(
-            { _id: ObjectId.createFromHexString(orchestraId), tenantId },
-            { $set: { rehearsalIds: [] } },
-            { session }
-          );
-        });
-      } finally {
-        await session.endSession();
-      }
-    } else {
-      // Fallback without transaction if session not available
-      const deleteResult = await rehearsalCollection.deleteMany({
-        groupId: orchestraId,
-        tenantId
-      });
-
-      deletedCount = deleteResult.deletedCount;
-
-      // Clean up attendance records
+      // Clean up attendance records if collection exists
       if (activityCollection && rehearsalIds.length > 0) {
-        try {
-          await activityCollection.deleteMany({
+        await activityCollection.deleteMany(
+          {
             sessionId: { $in: rehearsalIds },
             activityType: 'תזמורת',
             tenantId
-          });
-        } catch (attendanceErr) {
-          console.warn(`Failed to delete attendance records: ${attendanceErr.message}`);
-        }
+          },
+          { session }
+        );
       }
 
-      // Update orchestra
-      try {
-        await orchestraCollection.updateOne(
-          { _id: ObjectId.createFromHexString(orchestraId), tenantId },
-          { $set: { rehearsalIds: [] } }
-        );
-      } catch (orchestraErr) {
-        console.warn(`Failed to update orchestra: ${orchestraErr.message}`);
-      }
-    }
+      // Update orchestra to remove rehearsal IDs
+      await orchestraCollection.updateOne(
+        { _id: ObjectId.createFromHexString(orchestraId), tenantId },
+        { $set: { rehearsalIds: [] } },
+        { session }
+      );
+
+      return deleteResult.deletedCount;
+    });
 
     // Logging
     console.log(`User ${userId} deleted ${deletedCount} rehearsals for orchestra ${orchestraId}`);
@@ -697,83 +635,40 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
     const rehearsalsToDelete = await rehearsalCollection.find(deleteQuery).toArray();
     const rehearsalIds = rehearsalsToDelete.map(r => r._id.toString());
 
-    let deletedCount = 0;
+    // Use transaction for atomic data consistency
+    const deletedCount = await withTransaction(async (session) => {
+      // Delete rehearsals in the date range for this orchestra
+      const deleteResult = await rehearsalCollection.deleteMany(
+        deleteQuery,
+        { session }
+      );
 
-    // Use transaction for data consistency
-    const client = rehearsalCollection.client || rehearsalCollection.s?.client;
-    if (client) {
-      const session = client.startSession();
-
-      try {
-        await session.withTransaction(async () => {
-          // Delete rehearsals in the date range for this orchestra
-          const deleteResult = await rehearsalCollection.deleteMany(
-            deleteQuery,
-            { session }
-          );
-
-          deletedCount = deleteResult.deletedCount;
-
-          // Clean up attendance records if collection exists
-          if (activityCollection && rehearsalIds.length > 0) {
-            await activityCollection.deleteMany(
-              {
-                sessionId: { $in: rehearsalIds },
-                activityType: 'תזמורת',
-                tenantId
-              },
-              { session }
-            );
-          }
-
-          // Update orchestra to remove deleted rehearsal IDs
-          if (rehearsalIds.length > 0) {
-            await orchestraCollection.updateOne(
-              { _id: ObjectId.createFromHexString(orchestraId), tenantId },
-              {
-                $pull: { rehearsalIds: { $in: rehearsalIds } },
-                $set: { lastModified: toUTC(now()) }
-              },
-              { session }
-            );
-          }
-        });
-      } finally {
-        await session.endSession();
-      }
-    } else {
-      // Fallback without transaction if session not available
-      const deleteResult = await rehearsalCollection.deleteMany(deleteQuery);
-      deletedCount = deleteResult.deletedCount;
-
-      // Clean up attendance records
+      // Clean up attendance records if collection exists
       if (activityCollection && rehearsalIds.length > 0) {
-        try {
-          await activityCollection.deleteMany({
+        await activityCollection.deleteMany(
+          {
             sessionId: { $in: rehearsalIds },
             activityType: 'תזמורת',
             tenantId
-          });
-        } catch (attendanceErr) {
-          console.warn(`Failed to delete attendance records: ${attendanceErr.message}`);
-        }
+          },
+          { session }
+        );
       }
 
-      // Update orchestra
+      // Update orchestra to remove deleted rehearsal IDs
       if (rehearsalIds.length > 0) {
-        try {
-          await orchestraCollection.updateOne(
-            { _id: ObjectId.createFromHexString(orchestraId), tenantId },
-            {
-              $pull: { rehearsalIds: { $in: rehearsalIds } },
-              $set: { lastModified: toUTC(now()) }
-            }
-          );
-        } catch (orchestraErr) {
-          console.warn(`Failed to update orchestra: ${orchestraErr.message}`);
-        }
+        await orchestraCollection.updateOne(
+          { _id: ObjectId.createFromHexString(orchestraId), tenantId },
+          {
+            $pull: { rehearsalIds: { $in: rehearsalIds } },
+            $set: { lastModified: toUTC(now()) }
+          },
+          { session }
+        );
       }
-    }
+
+      return deleteResult.deletedCount;
+    });
 
     // Logging
     console.log(`User ${userId} deleted ${deletedCount} rehearsals for orchestra ${orchestraId} in date range ${startDate} to ${endDate}`);
@@ -846,53 +741,24 @@ async function bulkUpdateRehearsalsByOrchestra(orchestraId, updateData, userId, 
       updatedAt: toUTC(now())
     };
 
-    let updatedCount = 0;
-
-    // Use transaction for data consistency
-    const client = rehearsalCollection.client || rehearsalCollection.s?.client;
-    if (client) {
-      const session = client.startSession();
-
-      try {
-        await session.withTransaction(async () => {
-          // Update all rehearsals for this orchestra (tenant-scoped)
-          const updateResult = await rehearsalCollection.updateMany(
-            { groupId: orchestraId, tenantId },
-            { $set: updateObject },
-            { session }
-          );
-
-          updatedCount = updateResult.modifiedCount;
-
-          // Update orchestra's last modified timestamp
-          await orchestraCollection.updateOne(
-            { _id: ObjectId.createFromHexString(orchestraId), tenantId },
-            { $set: { lastModified: toUTC(now()) } },
-            { session }
-          );
-        });
-      } finally {
-        await session.endSession();
-      }
-    } else {
-      // Fallback without transaction if session not available
+    // Use transaction for atomic data consistency
+    const updatedCount = await withTransaction(async (session) => {
+      // Update all rehearsals for this orchestra (tenant-scoped)
       const updateResult = await rehearsalCollection.updateMany(
         { groupId: orchestraId, tenantId },
-        { $set: updateObject }
+        { $set: updateObject },
+        { session }
       );
 
-      updatedCount = updateResult.modifiedCount;
+      // Update orchestra's last modified timestamp
+      await orchestraCollection.updateOne(
+        { _id: ObjectId.createFromHexString(orchestraId), tenantId },
+        { $set: { lastModified: toUTC(now()) } },
+        { session }
+      );
 
-      // Update orchestra
-      try {
-        await orchestraCollection.updateOne(
-          { _id: ObjectId.createFromHexString(orchestraId), tenantId },
-          { $set: { lastModified: toUTC(now()) } }
-        );
-      } catch (orchestraErr) {
-        console.warn(`Failed to update orchestra: ${orchestraErr.message}`);
-      }
-    }
+      return updateResult.modifiedCount;
+    });
 
     // Logging
     console.log(`User ${userId} updated ${updatedCount} rehearsals for orchestra ${orchestraId}`);
