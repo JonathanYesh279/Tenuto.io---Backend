@@ -260,8 +260,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 56-01: TBD
-- [ ] 56-02: TBD
+- [ ] 56-01-PLAN.md — Reports page with KPI dashboard, catalog, DefaultTableRenderer, and routing
+- [ ] 56-02-PLAN.md — ReportViewerShell with filters, export, custom renderers, year comparison
 
 ## Progress
 
@@ -275,10 +275,10 @@ Plans:
 | 27-30 | v1.5 Privacy Compliance Foundation | 4 | 11 | Shipped 2026-03-02 |
 | 31-38 | v1.6 Room & Hours Management Table | 8 | 26 | Shipped 2026-03-04 |
 | 39-48 | v1.7 RBAC & Admin Provisioning | 10 | 15 | Shipped 2026-03-06 |
-| 49-56 | v1.8 Admin Report Generator | 8 | TBD | In progress |
+| 49-56 | v1.8 Admin Report Generator | 8 | 16 | In progress |
 
-**Total: 56 phases, 107+ plans across 9 milestones (8 shipped, 1 in progress)**
+**Total: 56 phases, 119 plans across 9 milestones (8 shipped, 1 in progress)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 55 complete (Dashboard + Catalog API)*
+*Last updated: 2026-03-07 — Phase 56 planned (Frontend Reports UI)
