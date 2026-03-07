@@ -19,7 +19,8 @@ export const orchestraService = {
   removeMember,
   updateRehearsalAttendance,
   getRehearsalAttendance,
-  getStudentAttendanceStats
+  getStudentAttendanceStats,
+  getMemberAttendanceRates
 }
 
 async function getOrchestras(filterBy = {}, options = {}) {
@@ -607,6 +608,91 @@ async function getStudentAttendanceStats(orchestraId, studentId, options = {}) {
   } catch (err) {
     logger.error({ orchestraId, studentId, err: err.message }, 'Error in getStudentAttendanceStats')
     throw new Error(`Error in orchestraService.getStudentAttendanceStats: ${err}`)
+  }
+}
+
+async function getMemberAttendanceRates(orchestraId, options = {}) {
+  try {
+    const tenantId = requireTenantId(options.context?.tenantId)
+
+    // Load orchestra to get memberIds
+    const orchestraCollection = await getCollection('orchestra')
+    const orchestra = await orchestraCollection.findOne({
+      _id: ObjectId.createFromHexString(orchestraId),
+      tenantId
+    })
+
+    if (!orchestra) throw new Error(`Orchestra with id ${orchestraId} not found`)
+
+    const memberIds = orchestra.memberIds || []
+
+    if (memberIds.length === 0) {
+      return []
+    }
+
+    // Aggregate attendance stats per student from activity_attendance
+    const activityCollection = await getCollection('activity_attendance')
+    const stats = await activityCollection.aggregate([
+      {
+        $match: {
+          groupId: orchestraId,
+          tenantId,
+          isArchived: { $ne: true }
+        }
+      },
+      {
+        $group: {
+          _id: '$studentId',
+          totalRehearsals: { $sum: 1 },
+          attended: {
+            $sum: {
+              $cond: [{ $in: ['$status', MINISTRY_PRESENT_STATUSES] }, 1, 0]
+            }
+          },
+          late: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'איחור'] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]).toArray()
+
+    // Build a lookup map from aggregation results
+    const statsMap = new Map()
+    for (const s of stats) {
+      statsMap.set(s._id, s)
+    }
+
+    // Build result for every member, including those with zero records
+    const result = memberIds.map(memberId => {
+      const s = statsMap.get(memberId)
+      const totalRehearsals = s ? s.totalRehearsals : 0
+      const attended = s ? s.attended : 0
+      const late = s ? s.late : 0
+      const attendanceRate = totalRehearsals ? (attended / totalRehearsals) * 100 : 0
+
+      let suggestion = null
+      if (attendanceRate > 80) {
+        suggestion = 'likelyPresent'
+      } else if (attendanceRate < 50 && totalRehearsals >= 3) {
+        suggestion = 'frequentAbsent'
+      }
+
+      return {
+        studentId: memberId,
+        totalRehearsals,
+        attended,
+        late,
+        attendanceRate,
+        suggestion
+      }
+    })
+
+    return result
+  } catch (err) {
+    logger.error({ orchestraId, err: err.message }, 'Error in getMemberAttendanceRates')
+    throw new Error(`Error in orchestraService.getMemberAttendanceRates: ${err}`)
   }
 }
 
