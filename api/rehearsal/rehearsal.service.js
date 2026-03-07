@@ -195,6 +195,7 @@ async function addRehearsal(rehearsalToAdd, teacherId, isAdmin = false, options 
       ...value,
     };
   } catch (err) {
+    if (err.code === 'CONFLICT') throw err;
     console.error(`Failed to add rehearsal: ${err}`);
     throw new Error(`Failed to add rehearsal: ${err}`);
   }
@@ -286,6 +287,7 @@ async function updateRehearsal(
     if (!result) throw new Error(`Rehearsal with id ${rehearsalId} not found`);
     return result;
   } catch (err) {
+    if (err.code === 'CONFLICT') throw err;
     console.error(`Failed to update rehearsal: ${err}`);
     throw new Error(`Failed to update rehearsal: ${err}`);
   }
