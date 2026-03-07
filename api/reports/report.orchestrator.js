@@ -157,7 +157,8 @@ export const reportOrchestrator = {
 
     // --- Parse shared params ---
     const page = parseIntParam(queryParams.page, 1, 1);
-    const limit = parseIntParam(queryParams.limit, 50, 1, 500);
+    const limitMax = queryParams._export ? 100000 : 500;
+    const limit = parseIntParam(queryParams.limit, 50, 1, limitMax);
     const sortBy = queryParams.sortBy || null;
     const sortOrder = queryParams.sortOrder === 'desc' ? 'desc' : 'asc';
     const schoolYearId = queryParams.schoolYearId || context.schoolYearId || null;

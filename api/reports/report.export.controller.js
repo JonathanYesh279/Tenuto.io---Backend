@@ -45,7 +45,7 @@ export const reportExportController = {
       // Generate report with all rows (unpaginated)
       const result = await reportOrchestrator.generateReport(
         reportId,
-        { ...req.query, limit: '99999', page: '1' },
+        { ...req.query, limit: '99999', page: '1', _export: true },
         req.context
       );
 
@@ -107,7 +107,7 @@ export const reportExportController = {
       // Generate report with all rows (unpaginated)
       const result = await reportOrchestrator.generateReport(
         reportId,
-        { ...req.query, limit: '99999', page: '1' },
+        { ...req.query, limit: '99999', page: '1', _export: true },
         req.context
       );
 
@@ -120,7 +120,8 @@ export const reportExportController = {
       };
 
       // Fetch conservatory name from tenant doc
-      const tenant = await getCollection('tenant').findOne(
+      const tenantCol = await getCollection('tenant');
+      const tenant = await tenantCol.findOne(
         { _id: new ObjectId(req.context.tenantId) },
         { projection: { name: 1 } }
       );
