@@ -10,7 +10,7 @@
 - [x] **v1.5 Privacy Compliance Foundation** — Phases 27-30 (shipped 2026-03-02)
 - [x] **v1.6 Room & Hours Management Table** — Phases 31-38 (shipped 2026-03-04)
 - [x] **v1.7 RBAC & Admin Provisioning** — Phases 39-48 (shipped 2026-03-06)
-- [ ] **v1.8 Admin Report Generator** — Phases 49-56 (in progress)
+- [x] **v1.8 Admin Report Generator** — Phases 49-56 (shipped 2026-03-07)
 
 ## Phases
 
@@ -126,7 +126,7 @@ See: `.planning/milestones/v1.7-ROADMAP.md` for full details.
 
 </details>
 
-### v1.8 Admin Report Generator (In Progress)
+### v1.8 Admin Report Generator (Shipped 2026-03-07)
 
 **Milestone Goal:** Build a management control center with KPI dashboard, drill-down navigation, categorized report catalog, and Excel/PDF export for conservatory administrators.
 
@@ -137,7 +137,7 @@ See: `.planning/milestones/v1.7-ROADMAP.md` for full details.
 - [x] **Phase 53: Department + Schedule Generators** - 5 department/schedule reports — completed 2026-03-07
 - [x] **Phase 54: Export Engines** - Excel and PDF shaping and rendering pipelines — completed 2026-03-07
 - [x] **Phase 55: Dashboard + Catalog API** - KPI dashboard endpoint, alerts, and report catalog — completed 2026-03-07
-- [ ] **Phase 56: Frontend Reports UI** - ReportsPage, ReportViewerShell, renderers, year comparison
+- [x] **Phase 56: Frontend Reports UI** - ReportsPage, ReportViewerShell, renderers, year comparison — completed 2026-03-07
 
 ## Phase Details
 
@@ -260,8 +260,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 56-01-PLAN.md — Reports page with KPI dashboard, catalog, DefaultTableRenderer, and routing
-- [ ] 56-02-PLAN.md — ReportViewerShell with filters, export, custom renderers, year comparison
+- [x] 56-01-PLAN.md — Reports page with KPI dashboard, catalog, DefaultTableRenderer, and routing
+- [x] 56-02-PLAN.md — ReportViewerShell with filters, export, custom renderers, year comparison
 
 ## Progress
 
@@ -275,10 +275,10 @@ Plans:
 | 27-30 | v1.5 Privacy Compliance Foundation | 4 | 11 | Shipped 2026-03-02 |
 | 31-38 | v1.6 Room & Hours Management Table | 8 | 26 | Shipped 2026-03-04 |
 | 39-48 | v1.7 RBAC & Admin Provisioning | 10 | 15 | Shipped 2026-03-06 |
-| 49-56 | v1.8 Admin Report Generator | 8 | 16 | In progress |
+| 49-56 | v1.8 Admin Report Generator | 8 | 16 | Shipped 2026-03-07 |
 
-**Total: 56 phases, 119 plans across 9 milestones (8 shipped, 1 in progress)**
+**Total: 56 phases, 119 plans across 9 milestones (9 shipped)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 56 planned (Frontend Reports UI)
+*Last updated: 2026-03-07 — Phase 56 complete, v1.8 milestone shipped
