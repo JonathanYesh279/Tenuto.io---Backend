@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 62
+**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 63
 
 ## Current Position
 
-Phase: 62 of 63 (Rehearsal Calendar UX)
-Plan: 3/3 complete
-Status: Phase 62 verified — 8/8 must-haves passed
-Last activity: 2026-03-07 — Gap closure complete, re-verified 8/8
+Phase: 63 of 63 (Attendance Alerts Dashboard)
+Plan: 1/1 complete
+Status: Plan 63-01 complete — backend API with 4 endpoints
+Last activity: 2026-03-07 — Attendance alerts backend shipped
 
-Progress: [█████████░] ~86% (v1.9)
+Progress: [██████████] ~100% (v1.9)
 
 ## Performance Metrics
 
@@ -69,6 +69,9 @@ Progress: [█████████░] ~86% (v1.9)
 - **[62-02]** Attendance badges shown on all past rehearsals regardless of card variant (minimal, compact, full)
 - **[62-03]** Check initialData?.groupId (not !!initialData) to distinguish pre-fill create mode from edit mode
 - **[62-03]** Use Hebrew type values in activity type filter to match existing rehearsal.type field
+- **[63-01]** Tenant settings.attendanceAlerts defaults to null; service falls back to DEFAULT_ATTENDANCE_ALERT_SETTINGS
+- **[63-01]** Flagging uses MINISTRY_PRESENT_STATUSES for consistent present counting (late = present)
+- **[63-01]** Dashboard deduplicates flagged students across orchestras by studentId
 
 ### Blockers/Concerns
 
@@ -77,5 +80,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Phase 62 verified after gap closure (8/8 must-haves)
-Resume: /gsd:plan-phase 63
+Stopped at: Completed 63-01-PLAN.md (attendance alerts backend)
+Resume: Phase 63 complete, verify and push
