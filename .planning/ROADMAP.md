@@ -244,7 +244,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 55-01: TBD
+- [ ] 55-01-PLAN.md — Dashboard KPI service, trends, alerts, and route wiring
+- [ ] 55-02-PLAN.md — Catalog API with 4-category grouping
 
 ### Phase 56: Frontend Reports UI
 **Goal**: Users can access the full reports experience: dashboard with drill-down, report catalog, filtered report viewing, year comparison, and export buttons
