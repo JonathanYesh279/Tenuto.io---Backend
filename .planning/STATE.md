@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 63 of 63 (Attendance Alerts Dashboard)
-Plan: 1/1 complete
-Status: Plan 63-01 complete — backend API with 4 endpoints
-Last activity: 2026-03-07 — Attendance alerts backend shipped
+Plan: 2/2 complete
+Status: Plan 63-02 complete — frontend dashboard, attendance tab, and flagged badges (awaiting human verification)
+Last activity: 2026-03-07 — Attendance alerts frontend shipped
 
 Progress: [██████████] ~100% (v1.9)
 
@@ -72,6 +72,9 @@ Progress: [██████████] ~100% (v1.9)
 - **[63-01]** Tenant settings.attendanceAlerts defaults to null; service falls back to DEFAULT_ATTENDANCE_ALERT_SETTINGS
 - **[63-01]** Flagging uses MINISTRY_PRESENT_STATUSES for consistent present counting (late = present)
 - **[63-01]** Dashboard deduplicates flagged students across orchestras by studentId
+- **[63-02]** Updated admin sidebar attendance link to /attendance-dashboard instead of /teachers
+- **[63-02]** Replaced 684-line chart.js AttendanceTab with 283-line API-based version
+- **[63-02]** Flagged student fetch is non-blocking -- member list renders even if flagging API fails
 
 ### Blockers/Concerns
 
@@ -80,5 +83,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 63-01-PLAN.md (attendance alerts backend)
-Resume: Phase 63 complete, verify and push
+Stopped at: Completed 63-02-PLAN.md (attendance alerts frontend — awaiting human verification)
+Resume: Verify attendance dashboard UI, then push
