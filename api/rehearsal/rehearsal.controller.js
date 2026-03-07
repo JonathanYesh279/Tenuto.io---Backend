@@ -87,6 +87,13 @@ async function addRehearsal(req, res, next) {
     )
     res.status(201).json(addedRehearsal)
   } catch (err) {
+    if (err.code === 'CONFLICT' || err.message?.includes('Scheduling conflict')) {
+      return res.status(409).json({
+        error: 'Scheduling conflict detected',
+        conflicts: err.conflicts,
+      })
+    }
+
     if (err.message.includes('Not authorized')) {
       return res.status(403).json({ error: err.message })
     }
@@ -112,6 +119,13 @@ async function updateRehearsal(req, res, next) {
 
     res.json(updatedRehearsal)
   } catch (err) {
+    if (err.code === 'CONFLICT' || err.message?.includes('Scheduling conflict')) {
+      return res.status(409).json({
+        error: 'Scheduling conflict detected',
+        conflicts: err.conflicts,
+      })
+    }
+
     if (err.message === 'Not authorized to modify this rehearsal') {
       return res.status(403).json({ error: err.message })
     }

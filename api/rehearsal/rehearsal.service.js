@@ -20,6 +20,7 @@ import {
 } from '../../utils/dateHelpers.js';
 import { buildScopedFilter } from '../../utils/queryScoping.js';
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
+import { checkRehearsalConflicts } from '../../services/rehearsalConflictService.js';
 
 export const rehearsalService = {
   getRehearsals,
@@ -139,6 +140,18 @@ async function addRehearsal(rehearsalToAdd, teacherId, isAdmin = false, options 
       value.dayOfWeek = getDayOfWeek(rehearsalDate);
     }
 
+    // Check for scheduling conflicts before inserting
+    const conflicts = await checkRehearsalConflicts(
+      { date: rehearsalDate, startTime: value.startTime, endTime: value.endTime, location: value.location, groupId: value.groupId },
+      { context: options.context }
+    );
+    if (conflicts.hasConflicts) {
+      const err = new Error('Scheduling conflict detected');
+      err.code = 'CONFLICT';
+      err.conflicts = conflicts;
+      throw err;
+    }
+
     // Set creation timestamps using timezone-aware current time
     const currentTime = now();
     value.createdAt = toUTC(currentTime);
@@ -237,6 +250,26 @@ async function updateRehearsal(
           `Teacher with id ${teacherId} is not the conductor of the orchestra`
         );
       }
+    }
+
+    // Check for scheduling conflicts before updating
+    const existing = await getRehearsalById(rehearsalId, options);
+    const mergedData = {
+      date: value.date || existing.date,
+      startTime: value.startTime || existing.startTime,
+      endTime: value.endTime || existing.endTime,
+      location: value.location || existing.location,
+      groupId: value.groupId || existing.groupId,
+    };
+    const conflicts = await checkRehearsalConflicts(
+      mergedData,
+      { context: options.context, excludeRehearsalId: rehearsalId }
+    );
+    if (conflicts.hasConflicts) {
+      const err = new Error('Scheduling conflict detected');
+      err.code = 'CONFLICT';
+      err.conflicts = conflicts;
+      throw err;
     }
 
     const collection = await getCollection('rehearsal');
