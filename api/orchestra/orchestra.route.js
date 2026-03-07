@@ -15,6 +15,8 @@ router.delete('/:id', requirePermission('orchestras', 'delete'), orchestraContro
 router.post('/:id/members', requirePermission('orchestras', 'update'), orchestraController.addMember)
 router.delete('/:id/members/:studentId', requirePermission('orchestras', 'update'), orchestraController.removeMember)
 
+router.get('/:id/member-attendance-rates', requirePermission('rehearsals', 'view'), orchestraController.getMemberAttendanceRates)
+
 router.get('/:id/rehearsals/:rehearsalId/attendance', requirePermission('rehearsals', 'view'), orchestraController.getRehearsalAttendance)
 router.put('/:id/rehearsals/:rehearsalId/attendance', requirePermission('rehearsals', 'update'), orchestraController.updateRehearsalAttendance)
 

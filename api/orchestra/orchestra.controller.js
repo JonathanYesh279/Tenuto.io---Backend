@@ -10,7 +10,8 @@ export const orchestraController = {
   removeMember,
   updateRehearsalAttendance,
   getRehearsalAttendance,
-  getStudentAttendanceStats
+  getStudentAttendanceStats,
+  getMemberAttendanceRates
 }
 
 async function getOrchestras(req, res, next) {
@@ -198,6 +199,16 @@ async function getStudentAttendanceStats(req, res, next) {
     const stats = await orchestraService.getStudentAttendanceStats(orchestraId, studentId, { context: req.context })
     res.json(stats)
   } catch(err) {
+    next(err)
+  }
+}
+
+async function getMemberAttendanceRates(req, res, next) {
+  try {
+    const { id } = req.params
+    const rates = await orchestraService.getMemberAttendanceRates(id, { context: req.context })
+    res.json(rates)
+  } catch (err) {
     next(err)
   }
 }
