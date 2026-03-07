@@ -126,142 +126,21 @@ See: `.planning/milestones/v1.7-ROADMAP.md` for full details.
 
 </details>
 
-### v1.8 Admin Report Generator (Shipped 2026-03-07)
+<details>
+<summary>v1.8 Admin Report Generator (Phases 49-56) — SHIPPED 2026-03-07</summary>
 
-**Milestone Goal:** Build a management control center with KPI dashboard, drill-down navigation, categorized report catalog, and Excel/PDF export for conservatory administrators.
+- [x] Phase 49: Report Infrastructure (2/2 plans) — completed 2026-03-06
+- [x] Phase 50: Teacher Workforce Generators (2/2 plans) — completed 2026-03-07
+- [x] Phase 51: Student Activity Generators (2/2 plans) — completed 2026-03-07
+- [x] Phase 52: Institutional + Ministry Generators (2/2 plans) — completed 2026-03-07
+- [x] Phase 53: Department + Schedule Generators (2/2 plans) — completed 2026-03-07
+- [x] Phase 54: Export Engines (2/2 plans) — completed 2026-03-07
+- [x] Phase 55: Dashboard + Catalog API (2/2 plans) — completed 2026-03-07
+- [x] Phase 56: Frontend Reports UI (2/2 plans) — completed 2026-03-07
 
-- [x] **Phase 49: Report Infrastructure** - Registry, orchestrator, permissions, filters, and generator contract — completed 2026-03-06
-- [x] **Phase 50: Teacher Workforce Generators** - 4 teacher reports leveraging hours_summary service — completed 2026-03-07
-- [x] **Phase 51: Student Activity Generators** - 4 student reports leveraging attendance analytics — completed 2026-03-07
-- [x] **Phase 52: Institutional + Ministry Generators** - 4 institutional reports leveraging export service — completed 2026-03-07
-- [x] **Phase 53: Department + Schedule Generators** - 5 department/schedule reports — completed 2026-03-07
-- [x] **Phase 54: Export Engines** - Excel and PDF shaping and rendering pipelines — completed 2026-03-07
-- [x] **Phase 55: Dashboard + Catalog API** - KPI dashboard endpoint, alerts, and report catalog — completed 2026-03-07
-- [x] **Phase 56: Frontend Reports UI** - ReportsPage, ReportViewerShell, renderers, year comparison — completed 2026-03-07
+See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 
-## Phase Details
-
-### Phase 49: Report Infrastructure
-**Goal**: Administrators can request any report through a unified API with consistent pagination, sorting, filtering, and role-based data scoping
-**Depends on**: Nothing (first phase of v1.8)
-**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06
-**Success Criteria** (what must be TRUE):
-  1. GET /api/reports/registry returns a list of available reports filtered by the requesting user's role and permissions
-  2. GET /api/reports/:reportId validates parameters, applies filters, runs the generator, and returns { metadata, columns, rows, summary } matching the strict contract
-  3. Report responses support server-driven pagination (page, limit) and sorting (sortBy, sortOrder) with correct totalCount in metadata
-  4. Report data is automatically scoped by role: admins see all data, coordinators see their department(s), teachers see only their own data
-  5. Reports accept a schoolYearId parameter and can return year-over-year comparison data when a comparison year is specified
-**Plans:** 2 plans
-
-Plans:
-- [x] 49-01-PLAN.md — Contract, registry, scope builder, and stub generator
-- [x] 49-02-PLAN.md — Orchestrator, controller, routes, and server.js mount
-
-### Phase 50: Teacher Workforce Generators
-**Goal**: Administrators can view detailed teacher workforce reports covering hours, workload distribution, salary projections, and roster information
-**Depends on**: Phase 49
-**Requirements**: TCHR-01, TCHR-02, TCHR-03, TCHR-04
-**Success Criteria** (what must be TRUE):
-  1. Teacher Hours Summary report shows weekly hours per teacher with breakdown by category (private lessons, orchestra, theory, admin) using hours_summary collection data
-  2. Teacher Workload Distribution report compares workloads across teachers and identifies overloaded or underutilized teachers
-  3. Teacher Salary Projection report multiplies hours by rate by classification/degree to produce per-teacher salary estimates
-  4. Teacher Roster report lists active/inactive teachers with qualifications, instruments, roles, and contact information
-**Plans:** 2 plans
-
-Plans:
-- [x] 50-01-PLAN.md — Teacher Hours Summary + Workload Distribution generators
-- [x] 50-02-PLAN.md — Teacher Salary Projection + Teacher Roster generators
-
-### Phase 51: Student Activity Generators
-**Goal**: Administrators can view student-focused reports covering enrollment, attendance, teacher assignments, and orchestra participation
-**Depends on**: Phase 49
-**Requirements**: STUD-01, STUD-02, STUD-03, STUD-04
-**Success Criteria** (what must be TRUE):
-  1. Student Enrollment Status report shows active/inactive counts broken down by instrument and class distribution
-  2. Student Attendance report shows per-student or per-activity attendance rates with trend data using attendance analytics service
-  3. Student-Teacher Assignments report shows who studies with whom and identifies unassigned students
-  4. Orchestra Participation report shows enrollment across orchestras and highlights membership overlap
-**Plans**: 2 plans
-
-Plans:
-- [x] 51-01-PLAN.md — Student Enrollment Status + Student-Teacher Assignments generators
-- [x] 51-02-PLAN.md — Student Attendance + Orchestra Participation generators
-
-### Phase 52: Institutional + Ministry Generators
-**Goal**: Administrators can audit institutional data quality, track Ministry readiness, review import history, and compare metrics across school years
-**Depends on**: Phase 49
-**Requirements**: INST-01, INST-02, INST-03, INST-04
-**Success Criteria** (what must be TRUE):
-  1. Year-over-Year Comparison report shows growth/decline in key metrics (student count, teacher count, hours, orchestras) between two selected school years
-  2. Ministry Readiness Audit report shows completion percentage, lists missing required fields, and surfaces cross-validation errors using existing export service getCompletionStatus
-  3. Data Quality report identifies anomalies: students without teachers, teachers without students, incomplete student records, stale data
-  4. Import History report shows import log entries with status, success/failure rates, and last import dates per import type
-**Plans**: 2 plans
-
-Plans:
-- [x] 52-01-PLAN.md — Year-over-Year Comparison + Import History generators
-- [x] 52-02-PLAN.md — Ministry Readiness Audit + Data Quality generators
-
-### Phase 53: Department + Schedule Generators
-**Goal**: Administrators can analyze department-level metrics, compare departments, review room utilization, and examine schedule density
-**Depends on**: Phase 49
-**Requirements**: DEPT-01, DEPT-02, DEPT-03, DEPT-04, DEPT-05
-**Success Criteria** (what must be TRUE):
-  1. Department Overview report shows per-department counts of students, teachers, total hours, and orchestras
-  2. Department Comparison report presents side-by-side metrics across all 9 instrument departments
-  3. Room Utilization report shows per-room occupancy percentage, peak hours, and available time slots
-  4. Teacher Schedule Density report shows time-block coverage per teacher with gap analysis
-  5. Orchestra/Theory Schedule report shows the weekly ensemble and theory class schedule with teacher and room assignments
-**Plans**: 2 plans
-
-Plans:
-- [x] 53-01-PLAN.md — Department Overview + Department Comparison generators
-- [x] 53-02-PLAN.md — Room Utilization + Teacher Schedule Density + Orchestra/Theory Schedule generators
-
-### Phase 54: Export Engines
-**Goal**: Administrators can export any report as a formatted Excel workbook or PDF document with appropriate data shaping per format
-**Depends on**: Phase 49 (infrastructure), at least one generator phase (50-53)
-**Requirements**: EXPO-01, EXPO-02, EXPO-03
-**Success Criteria** (what must be TRUE):
-  1. GET /api/reports/:reportId/export/excel returns a downloadable .xlsx file with Hebrew column headers, proper number/date formatting, and a summary row
-  2. GET /api/reports/:reportId/export/pdf returns a downloadable PDF with conservatory header/footer, page breaks, and readable table layout
-  3. Excel and PDF exports use separate shaping logic from screen display (different column selection, grouping, or formatting per format)
-**Plans**: 2 plans
-
-Plans:
-- [x] 54-01-PLAN.md — Excel export engine + route wiring
-- [x] 54-02-PLAN.md — PDF export engine with conservatory header/footer
-
-### Phase 55: Dashboard + Catalog API
-**Goal**: Administrators see a KPI dashboard with trend indicators, actionable alerts, and a categorized report catalog on the reports page
-**Depends on**: Phases 50-53 (generators exist for KPIs to aggregate)
-**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, CATL-01, CATL-02, CATL-03
-**Success Criteria** (what must be TRUE):
-  1. GET /api/reports/dashboard returns KPI cards with current values, trend deltas from comparison period, and drillTo report IDs
-  2. Dashboard response includes alerts for anomalies (teachers without students, stale imports, data quality issues)
-  3. GET /api/reports/registry returns report catalog organized into 4 categories (Teacher, Student, Institutional, Department/Schedule) filtered by user permissions
-  4. Each KPI card's drillTo field maps to a valid reportId that the frontend can navigate to
-**Plans**: 2 plans
-
-Plans:
-- [x] 55-01-PLAN.md — Dashboard KPI service, trends, alerts, and route wiring
-- [x] 55-02-PLAN.md — Catalog API with 4-category grouping
-
-### Phase 56: Frontend Reports UI
-**Goal**: Users can access the full reports experience: dashboard with drill-down, report catalog, filtered report viewing, year comparison, and export buttons
-**Depends on**: Phases 54, 55 (backend complete)
-**Requirements**: FEND-01, FEND-02, FEND-03, FEND-04, FEND-05
-**Success Criteria** (what must be TRUE):
-  1. ReportsPage displays a KPI dashboard section at the top and a categorized report catalog section below it
-  2. Clicking a KPI card or catalog card navigates to ReportViewerShell showing the report with a shared filters bar, data content area, and export buttons (Excel/PDF)
-  3. DefaultTableRenderer renders any report from the columns/rows contract with sortable columns and pagination controls
-  4. Custom renderers enhance key reports (teacher hours chart visualization, Ministry readiness gauge) beyond the default table
-  5. Year comparison toggle on supported reports shows side-by-side current vs comparison year metrics
-**Plans**: 2 plans
-
-Plans:
-- [x] 56-01-PLAN.md — Reports page with KPI dashboard, catalog, DefaultTableRenderer, and routing
-- [x] 56-02-PLAN.md — ReportViewerShell with filters, export, custom renderers, year comparison
+</details>
 
 ## Progress
 
