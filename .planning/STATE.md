@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 62 of 63 (Rehearsal Calendar UX)
-Plan: 1/2 complete
-Status: Executing phase 62
-Last activity: 2026-03-07 — Completed 62-01-PLAN.md (1/2 plans)
+Plan: 2/2 complete
+Status: Phase 62 complete
+Last activity: 2026-03-07 — Completed 62-02-PLAN.md (2/2 plans)
 
-Progress: [████████░░] ~79% (v1.9)
+Progress: [█████████░] ~86% (v1.9)
 
 ## Performance Metrics
 
@@ -64,6 +64,9 @@ Progress: [████████░░] ~79% (v1.9)
 - **[62-01]** Day view shows 07:00-22:00 with 60px per hour for clear time-slot visibility
 - **[62-01]** Pre-fill uses existing initialData prop without groupId to avoid triggering edit mode
 - **[62-01]** Week view drag changes date only; day view drag changes both date and time
+- **[62-02]** Group rehearsals by date for O(n) conflict detection instead of O(n^2) pairwise comparison
+- **[62-02]** Conflict badges use ring-2 + WarningIcon overlay for visibility on colored card backgrounds
+- **[62-02]** Attendance badges shown on all past rehearsals regardless of card variant (minimal, compact, full)
 
 ### Blockers/Concerns
 
@@ -72,5 +75,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 62-01-PLAN.md
-Resume: /gsd:execute-phase 62 (plan 02 remaining)
+Stopped at: Completed 62-02-PLAN.md (phase 62 complete)
+Resume: /gsd:execute-phase 63
