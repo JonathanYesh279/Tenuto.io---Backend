@@ -227,31 +227,23 @@ async function addOrchestra(orchestraToAdd, options = {}) {
       value.schoolYearId = currentSchoolYear._id.toString();
     }
 
-    // Insert into orchestra collection
-    const collection = await getCollection('orchestra');
-    const result = await collection.insertOne(value);
+    const inserted = await withTransaction(async (session) => {
+      // Insert into orchestra collection
+      const collection = await getCollection('orchestra');
+      const result = await collection.insertOne(value, { session });
 
-    // Get teacher collection explicitly and check if it's valid
-    const teacherCollection = await getCollection('teacher');
-    if (
-      !teacherCollection ||
-      typeof teacherCollection.updateOne !== 'function'
-    ) {
-      logger.error('Teacher collection is not valid');
-      throw new Error(
-        'Database connection issue: Cannot access teacher collection'
+      // Update teacher conducting record (scoped by tenantId)
+      const teacherCollection = await getCollection('teacher');
+      await teacherCollection.updateOne(
+        { _id: ObjectId.createFromHexString(value.conductorId), tenantId },
+        { $push: { 'conducting.orchestraIds': result.insertedId.toString() } },
+        { session }
       );
-    }
 
-    // Update teacher record (scoped by tenantId)
-    await teacherCollection.updateOne(
-      { _id: ObjectId.createFromHexString(value.conductorId), tenantId },
-      {
-        $push: { 'conducting.orchestraIds': result.insertedId.toString() },
-      }
-    );
+      return { _id: result.insertedId, ...value };
+    })
 
-    return { _id: result.insertedId, ...value };
+    return inserted;
   } catch (err) {
     logger.error({ err: err.message }, 'Error in addOrchestra');
     throw new Error(`Error in orchestraService.addOrchestra: ${err}`);
@@ -277,24 +269,6 @@ async function updateOrchestra(orchestraId, orchestraToUpdate, teacherId, isAdmi
       throw new Error('Not authorized to modify this orchestra')
     }
 
-    if (existingOrchestra.conductorId !== value.conductorId) {
-      const teacherCollection = await getCollection('teacher')
-
-      await teacherCollection.updateOne(
-        { _id: ObjectId.createFromHexString(existingOrchestra.conductorId), tenantId },
-        {
-          $pull: { 'conducting.orchestraIds': orchestraId }
-        }
-      )
-
-      await teacherCollection.updateOne(
-        { _id: ObjectId.createFromHexString(value.conductorId), tenantId },
-        {
-          $push: { 'conducting.orchestraIds': orchestraId }
-        }
-      )
-    }
-
     // ALWAYS preserve memberIds and rehearsalIds from the existing document.
     // These arrays are only modified through their dedicated endpoints
     // (addMember/removeMember for members, rehearsal service for rehearsals).
@@ -317,13 +291,35 @@ async function updateOrchestra(orchestraId, orchestraToUpdate, teacherId, isAdmi
     // Add lastModified timestamp
     updateValue.lastModified = new Date()
 
-    const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(orchestraId), tenantId },
-      { $set: updateValue },
-      { returnDocument: 'after' }
-    )
+    const conductorChanged = existingOrchestra.conductorId !== value.conductorId
 
-    if (!result) throw new Error(`Orchestra with id ${orchestraId} not found`)
+    await withTransaction(async (session) => {
+      // Handle conductor change atomically
+      if (conductorChanged) {
+        const teacherCollection = await getCollection('teacher')
+
+        await teacherCollection.updateOne(
+          { _id: ObjectId.createFromHexString(existingOrchestra.conductorId), tenantId },
+          { $pull: { 'conducting.orchestraIds': orchestraId } },
+          { session }
+        )
+
+        await teacherCollection.updateOne(
+          { _id: ObjectId.createFromHexString(value.conductorId), tenantId },
+          { $push: { 'conducting.orchestraIds': orchestraId } },
+          { session }
+        )
+      }
+
+      const result = await collection.findOneAndUpdate(
+        { _id: ObjectId.createFromHexString(orchestraId), tenantId },
+        { $set: updateValue },
+        { returnDocument: 'after', session }
+      )
+
+      if (!result) throw new Error(`Orchestra with id ${orchestraId} not found`)
+      return result
+    })
 
     // Return populated orchestra with full member data
     return await getOrchestraById(orchestraId, options)
