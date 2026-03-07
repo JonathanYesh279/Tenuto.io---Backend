@@ -850,102 +850,117 @@ async function updateAttendance(
     const { error, value } = validateAttendance(attendanceData);
     if (error) throw error;
 
-    const { present, absent } = value;
+    const { records } = value;
 
     // Load the rehearsal to get details (tenant-scoped via getRehearsalById)
     const rehearsal = await getRehearsalById(rehearsalId, options);
 
+    // Load orchestra for authorization and membership validation
+    const orchestraCollection = await getCollection('orchestra');
+    if (!orchestraCollection) {
+      throw new Error('Database error: Failed to access orchestra collection');
+    }
+
+    const orchestra = await orchestraCollection.findOne({
+      _id: ObjectId.createFromHexString(rehearsal.groupId),
+      tenantId,
+    });
+
+    if (!orchestra) {
+      throw new Error(`Orchestra with id ${rehearsal.groupId} not found`);
+    }
+
+    // Authorization check: admin or conductor
     if (!isAdmin) {
-      // Check if teacher has permissions for this orchestra
-      const orchestraCollection = await getCollection('orchestra');
-      if (!orchestraCollection) {
-        throw new Error(
-          'Database error: Failed to access orchestra collection'
-        );
-      }
-
-      const orchestra = await orchestraCollection.findOne({
-        _id: ObjectId.createFromHexString(rehearsal.groupId),
-        conductorId: teacherId.toString(),
-        tenantId,
-      });
-
-      if (!orchestra) {
-        throw new Error(
-          'Not authorized to update attendance for this rehearsal'
-        );
+      if (orchestra.conductorId !== teacherId.toString()) {
+        throw new Error('Not authorized to update attendance for this rehearsal');
       }
     }
 
-    const collection = await getCollection('rehearsal');
-    if (!collection) {
+    // Membership validation: every studentId must be in orchestra.memberIds
+    const memberIdSet = new Set((orchestra.memberIds || []).map(id => id.toString()));
+    const nonMemberIds = records
+      .map(r => r.studentId)
+      .filter(sid => !memberIdSet.has(sid));
+
+    if (nonMemberIds.length > 0) {
+      const err = new Error('Students not in orchestra membership');
+      err.code = 'MEMBERSHIP_VALIDATION';
+      err.invalidStudentIds = nonMemberIds;
+      throw err;
+    }
+
+    // Build attendance cache (denormalized for rehearsal document)
+    const attendanceCache = {
+      present: records.filter(r => r.status === 'הגיע/ה').map(r => r.studentId),
+      absent: records.filter(r => r.status === 'לא הגיע/ה').map(r => r.studentId),
+      late: records.filter(r => r.status === 'איחור').map(r => r.studentId),
+    };
+
+    // Build activity_attendance documents (canonical source)
+    const currentTime = toUTC(now());
+    const activityDocs = records.map(record => ({
+      studentId: record.studentId,
+      activityType: rehearsal.type, // 'תזמורת' or 'הרכב'
+      groupId: rehearsal.groupId,
+      sessionId: rehearsalId,
+      date: rehearsal.date,
+      status: record.status,
+      notes: record.notes || '',
+      teacherId: teacherId.toString(),
+      tenantId,
+      createdAt: currentTime,
+    }));
+
+    // Get collections before transaction
+    const rehearsalCollection = await getCollection('rehearsal');
+    if (!rehearsalCollection) {
       throw new Error('Database error: Failed to access rehearsal collection');
     }
-
-    const result = await collection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(rehearsalId), tenantId },
-      {
-        $set: {
-          attendance: {
-            present,
-            absent,
-          },
-          updatedAt: toUTC(now()),
-        },
-      },
-      { returnDocument: 'after' }
-    );
-
-    if (!result) throw new Error(`Rehearsal with id ${rehearsalId} not found`);
-
-    try {
-      const activityCollection = await getCollection('activity_attendance');
-      if (activityCollection) {
-        // Delete existing attendance records (tenant-scoped)
-        await activityCollection.deleteMany({
-          sessionId: rehearsalId,
-          activityType: 'תזמורת',
-          tenantId,
-        });
-
-        // Create new attendance records
-        const presentPromises = present.map((studentId) =>
-          activityCollection.insertOne({
-            studentId,
-            activityType: 'תזמורת',
-            groupId: rehearsal.groupId,
-            sessionId: rehearsalId,
-            date: rehearsal.date,
-            status: 'הגיע/ה',
-            notes: '',
-            tenantId,
-            createdAt: toUTC(now()),
-          })
-        );
-
-        const absentPromises = absent.map((studentId) =>
-          activityCollection.insertOne({
-            studentId,
-            activityType: 'תזמורת',
-            groupId: rehearsal.groupId,
-            sessionId: rehearsalId,
-            date: rehearsal.date,
-            status: 'לא הגיע/ה',
-            notes: '',
-            tenantId,
-            createdAt: toUTC(now()),
-          })
-        );
-
-        await Promise.all([...presentPromises, ...absentPromises]);
-      }
-    } catch (activityErr) {
-      // Log but don't fail if activity records couldn't be created
-      console.warn(`Could not create activity records: ${activityErr.message}`);
+    const activityCollection = await getCollection('activity_attendance');
+    if (!activityCollection) {
+      throw new Error('Database error: Failed to access activity_attendance collection');
     }
+
+    // Transactional write: all three operations are atomic
+    const result = await withTransaction(async (session) => {
+      // 1. Delete existing activity_attendance records for this session
+      await activityCollection.deleteMany(
+        {
+          sessionId: rehearsalId,
+          activityType: rehearsal.type,
+          tenantId,
+        },
+        { session }
+      );
+
+      // 2. Insert new activity_attendance records (canonical source)
+      if (activityDocs.length > 0) {
+        await activityCollection.insertMany(activityDocs, { session });
+      }
+
+      // 3. Update rehearsal.attendance cache (derived from canonical)
+      const updatedRehearsal = await rehearsalCollection.findOneAndUpdate(
+        { _id: ObjectId.createFromHexString(rehearsalId), tenantId },
+        {
+          $set: {
+            attendance: attendanceCache,
+            updatedAt: currentTime,
+          },
+        },
+        { returnDocument: 'after', session }
+      );
+
+      if (!updatedRehearsal) {
+        throw new Error(`Rehearsal with id ${rehearsalId} not found`);
+      }
+
+      return updatedRehearsal;
+    });
 
     return result;
   } catch (err) {
+    if (err.code === 'MEMBERSHIP_VALIDATION') throw err;
     console.error(`Error updating attendance ${rehearsalId}: ${err.message}`);
     throw new Error(`Error updating attendance ${rehearsalId}: ${err.message}`);
   }

@@ -256,16 +256,23 @@ async function updateAttendance(req, res, next) {
     const teacherId = req.loggedinUser?._id || req.teacher._id
     const isAdmin = req.loggedinUser?.roles?.includes('מנהל') || req.teacher.roles.includes('מנהל')
 
-    const updateRehearsal = await rehearsalService.updateAttendance(
+    const updatedRehearsal = await rehearsalService.updateAttendance(
       rehearsalId,
       attendanceData,
       teacherId,
       isAdmin,
       { context: req.context }
     )
-    res.json(updateRehearsal)
+    res.json(updatedRehearsal)
   } catch (err) {
-    if (err.message === 'Not authorized to modify this rehearsal') {
+    if (err.code === 'MEMBERSHIP_VALIDATION') {
+      return res.status(400).json({
+        error: 'Membership validation failed',
+        invalidStudentIds: err.invalidStudentIds,
+      })
+    }
+
+    if (err.message?.includes('Not authorized')) {
       return res.status(403).json({ error: err.message })
     }
 
