@@ -151,7 +151,7 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 - [x] **Phase 58: Conflict Detection Engine** — Room, time, and teacher conflict detection for rehearsal scheduling — completed 2026-03-07
 - [x] **Phase 59: Attendance Data Layer** — Single source of truth with transactional writes, membership validation, and three statuses — completed 2026-03-07
 - [x] **Phase 60: Attendance UX** — Quick toggle list with smart suggestions, auto-save, batch operations, and per-student notes — completed 2026-03-07
-- [ ] **Phase 61: Orchestra Detail & Rehearsal Integration UI** — Orchestra detail page shows accurate linked rehearsals
+- [x] **Phase 61: Orchestra Detail & Rehearsal Integration UI** — Orchestra detail page shows accurate linked rehearsals — completed 2026-03-07
 - [ ] **Phase 62: Rehearsal Calendar UX** — Interactive calendar with drag-and-drop, conflict indicators, filtering, and bulk creation wizard
 - [ ] **Phase 63: Attendance Alerts & Dashboard** — Configurable thresholds, auto-flagging, per-orchestra analytics, and student profile widgets
 
@@ -225,10 +225,10 @@ Plans:
   1. Orchestra detail page lists all linked rehearsals with correct date, time, room, and attendance status
   2. Rehearsals that were deleted no longer appear in the orchestra's rehearsal list (no ghost entries)
   3. Conductor can navigate from orchestra detail to a specific rehearsal's attendance view
-**Plans:** 1 plan
+**Plans:** 1/1 complete
 
 Plans:
-- [ ] 61-01-PLAN.md — Update ScheduleTab with 3-status attendance display and in-app navigation to rehearsal/attendance views
+- [x] 61-01-PLAN.md — Update ScheduleTab with 3-status attendance display and in-app navigation to rehearsal/attendance views
 
 #### Phase 62: Rehearsal Calendar UX
 **Goal**: Users manage rehearsals through an interactive calendar with visual conflict feedback and bulk creation
