@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 57 of 63 (Rehearsal-Orchestra Data Flow)
-Plan: 01 complete, ready for 02
+Plan: 02 complete, ready for 03
 Status: Executing
-Last activity: 2026-03-07 — 57-01 complete (atomic rehearsal-orchestra sync)
+Last activity: 2026-03-07 — 57-02 complete (orchestra cascade deactivation)
 
-Progress: [█░░░░░░░░░] ~5% (v1.9)
+Progress: [██░░░░░░░░] ~10% (v1.9)
 
 ## Performance Metrics
 
@@ -40,6 +40,8 @@ Progress: [█░░░░░░░░░] ~5% (v1.9)
 - **[57-01]** Use withTransaction utility for all rehearsal write operations instead of manual session management
 - **[57-01]** Remove all non-transactional fallback code paths -- withTransaction always has client
 - **[57-01]** Remove all silent error swallowing on orchestra sync -- transaction atomicity handles failures
+- **[57-02]** Hard-delete rehearsals on orchestra deactivation (consistent with removeRehearsal pattern)
+- **[57-02]** All orchestra mutation functions (add, update, remove) wrapped in withTransaction
 
 ### Blockers/Concerns
 
@@ -48,5 +50,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 57-01-PLAN.md (atomic rehearsal-orchestra sync)
-Resume: /gsd:execute-phase 57 (plan 02)
+Stopped at: Completed 57-02-PLAN.md (orchestra cascade deactivation)
+Resume: /gsd:execute-phase 57 (plan 03)
