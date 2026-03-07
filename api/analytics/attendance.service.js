@@ -1,6 +1,7 @@
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
+import { MINISTRY_PRESENT_STATUSES } from '../../config/constants.js';
 
 export const attendanceAnalyticsService = {
   getStudentAttendanceStats,
@@ -53,7 +54,7 @@ async function getStudentAttendanceStats(studentId, options = {}) {
     if (includeOrchestra) activityTypes.push('תזמורת');
 
     // Build time filter
-    const timeFilter = { studentId, tenantId };
+    const timeFilter = { studentId, tenantId, isArchived: { $ne: true } };
     if (startDate || endDate) {
       timeFilter.date = {};
       if (startDate) timeFilter.date.$gte = new Date(startDate);
@@ -73,12 +74,14 @@ async function getStudentAttendanceStats(studentId, options = {}) {
     const statsByActivity = {};
     activityTypes.forEach(activityType => {
       const records = currentPeriodRecords.filter(r => r.activityType === activityType);
-      const attended = records.filter(r => r.status === 'הגיע/ה').length;
+      const attended = records.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+      const late = records.filter(r => r.status === 'איחור').length;
       const total = records.length;
-      
+
       statsByActivity[activityType] = {
         totalLessons: total,
-        attended: attended,
+        attended,
+        late,
         missed: records.filter(r => r.status === 'לא הגיע/ה').length,
         cancelled: records.filter(r => r.status === 'cancelled').length,
         attendanceRate: total > 0 ? (attended / total * 100).toFixed(2) : 0,
@@ -88,7 +91,8 @@ async function getStudentAttendanceStats(studentId, options = {}) {
 
     // Overall statistics
     const totalLessons = currentPeriodRecords.length;
-    const totalAttended = currentPeriodRecords.filter(r => r.status === 'הגיע/ה').length;
+    const totalAttended = currentPeriodRecords.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+    const totalLate = currentPeriodRecords.filter(r => r.status === 'איחור').length;
     const overallRate = totalLessons > 0 ? (totalAttended / totalLessons * 100).toFixed(2) : 0;
 
     const result = {
@@ -101,6 +105,7 @@ async function getStudentAttendanceStats(studentId, options = {}) {
       overall: {
         totalLessons,
         totalAttended,
+        totalLate,
         totalMissed: currentPeriodRecords.filter(r => r.status === 'לא הגיע/ה').length,
         totalCancelled: currentPeriodRecords.filter(r => r.status === 'cancelled').length,
         attendanceRate: parseFloat(overallRate)
@@ -163,7 +168,8 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
     const filter = {
       teacherId,
       tenantId,
-      activityType: 'שיעור פרטי'
+      activityType: 'שיעור פרטי',
+      isArchived: { $ne: true }
     };
 
     if (startDate || endDate) {
@@ -180,7 +186,8 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
 
     // Overall statistics
     const totalLessons = records.length;
-    const attendedLessons = records.filter(r => r.status === 'הגיע/ה').length;
+    const attendedLessons = records.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+    const lateLessons = records.filter(r => r.status === 'איחור').length;
     const overallRate = totalLessons > 0 ? (attendedLessons / totalLessons * 100).toFixed(2) : 0;
 
     const analytics = {
@@ -194,6 +201,7 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
       overall: {
         totalLessons,
         attendedLessons,
+        lateLessons,
         missedLessons: records.filter(r => r.status === 'לא הגיע/ה').length,
         cancelledLessons: records.filter(r => r.status === 'cancelled').length,
         attendanceRate: parseFloat(overallRate),
@@ -216,7 +224,8 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
 
       analytics.studentBreakdown = studentIds.map(studentId => {
         const studentRecords = records.filter(r => r.studentId === studentId);
-        const attended = studentRecords.filter(r => r.status === 'הגיע/ה').length;
+        const attended = studentRecords.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+        const late = studentRecords.filter(r => r.status === 'איחור').length;
         const total = studentRecords.length;
 
         return {
@@ -224,6 +233,7 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
           studentName: studentLookup[studentId],
           totalLessons: total,
           attendedLessons: attended,
+          lateLessons: late,
           missedLessons: studentRecords.filter(r => r.status === 'לא הגיע/ה').length,
           attendanceRate: total > 0 ? (attended / total * 100).toFixed(2) : 0,
           recentTrend: calculateRecentTrend(studentRecords.slice(0, 5))
@@ -266,7 +276,7 @@ async function getOverallAttendanceReport(options = {}) {
     const activityCollection = await getCollection('activity_attendance');
 
     // Build time filter
-    const filter = { tenantId };
+    const filter = { tenantId, isArchived: { $ne: true } };
     if (startDate || endDate) {
       filter.date = {};
       if (startDate) filter.date.$gte = new Date(startDate);
@@ -281,7 +291,8 @@ async function getOverallAttendanceReport(options = {}) {
 
     // Overall system statistics
     const totalLessons = records.length;
-    const attendedLessons = records.filter(r => r.status === 'הגיע/ה').length;
+    const attendedLessons = records.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+    const lateLessons = records.filter(r => r.status === 'איחור').length;
     const overallRate = totalLessons > 0 ? (attendedLessons / totalLessons * 100).toFixed(2) : 0;
 
     const report = {
@@ -292,6 +303,7 @@ async function getOverallAttendanceReport(options = {}) {
       overall: {
         totalLessons,
         attendedLessons,
+        lateLessons,
         missedLessons: records.filter(r => r.status === 'לא הגיע/ה').length,
         cancelledLessons: records.filter(r => r.status === 'cancelled').length,
         attendanceRate: parseFloat(overallRate),
@@ -363,7 +375,8 @@ async function getAttendanceTrends(options = {}) {
     const filter = {
       tenantId,
       date: { $gte: startDate, $lte: endDate },
-      activityType
+      activityType,
+      isArchived: { $ne: true }
     };
 
     if (teacherId) filter.teacherId = teacherId;
@@ -418,6 +431,7 @@ async function getAttendanceComparison(comparisonOptions = {}) {
       baselineData = await activityCollection
         .find({
           tenantId,
+          isArchived: { $ne: true },
           date: {
             $gte: new Date(baseline.startDate),
             $lte: new Date(baseline.endDate)
@@ -428,6 +442,7 @@ async function getAttendanceComparison(comparisonOptions = {}) {
       comparisonData = await activityCollection
         .find({
           tenantId,
+          isArchived: { $ne: true },
           date: {
             $gte: new Date(comparison.startDate),
             $lte: new Date(comparison.endDate)
@@ -619,12 +634,12 @@ async function exportAttendanceReport(reportOptions = {}) {
 // Helper functions
 function calculateRecentTrend(records) {
   if (records.length < 3) return 'insufficient_data';
-  
+
   const recent = records.slice(0, 3);
   const older = records.slice(3, 6);
-  
-  const recentRate = recent.filter(r => r.status === 'הגיע/ה').length / recent.length;
-  const olderRate = older.length > 0 ? older.filter(r => r.status === 'הגיע/ה').length / older.length : recentRate;
+
+  const recentRate = recent.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length / recent.length;
+  const olderRate = older.length > 0 ? older.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length / older.length : recentRate;
   
   if (recentRate > olderRate + 0.1) return 'improving';
   if (recentRate < olderRate - 0.1) return 'declining';
@@ -642,10 +657,12 @@ function getAttendanceByWeekday(records) {
       return hebrewDay === day;
     });
     
-    const attended = dayRecords.filter(r => r.status === 'הגיע/ה').length;
+    const attended = dayRecords.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+    const late = dayRecords.filter(r => r.status === 'איחור').length;
     weekdayStats[day] = {
       total: dayRecords.length,
       attended,
+      late,
       rate: dayRecords.length > 0 ? (attended / dayRecords.length * 100).toFixed(2) : 0
     };
   });
@@ -663,15 +680,17 @@ function getAttendanceByMonth(records) {
       monthlyStats[monthKey] = {
         total: 0,
         attended: 0,
+        late: 0,
         missed: 0,
         cancelled: 0
       };
     }
-    
+
     monthlyStats[monthKey].total++;
-    if (record.status === 'הגיע/ה') monthlyStats[monthKey].attended++;
-    else if (record.status === 'לא הגיע/ה') monthlyStats[monthKey].missed++;
-    else if (record.status === 'cancelled') monthlyStats[monthKey].cancelled++;
+    if (MINISTRY_PRESENT_STATUSES.includes(record.status)) monthlyStats[monthKey].attended++;
+    if (record.status === 'איחור') monthlyStats[monthKey].late++;
+    if (record.status === 'לא הגיע/ה') monthlyStats[monthKey].missed++;
+    if (record.status === 'cancelled') monthlyStats[monthKey].cancelled++;
   });
   
   // Calculate rates
@@ -693,15 +712,17 @@ function getStatsByGroup(records, groupField) {
       groupStats[groupValue] = {
         total: 0,
         attended: 0,
+        late: 0,
         missed: 0,
         cancelled: 0
       };
     }
-    
+
     groupStats[groupValue].total++;
-    if (record.status === 'הגיע/ה') groupStats[groupValue].attended++;
-    else if (record.status === 'לא הגיע/ה') groupStats[groupValue].missed++;
-    else if (record.status === 'cancelled') groupStats[groupValue].cancelled++;
+    if (MINISTRY_PRESENT_STATUSES.includes(record.status)) groupStats[groupValue].attended++;
+    if (record.status === 'איחור') groupStats[groupValue].late++;
+    if (record.status === 'לא הגיע/ה') groupStats[groupValue].missed++;
+    if (record.status === 'cancelled') groupStats[groupValue].cancelled++;
   });
   
   // Calculate rates
@@ -715,11 +736,13 @@ function getStatsByGroup(records, groupField) {
 
 function calculateStatsForRecords(records) {
   const total = records.length;
-  const attended = records.filter(r => r.status === 'הגיע/ה').length;
-  
+  const attended = records.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+  const late = records.filter(r => r.status === 'איחור').length;
+
   return {
     totalLessons: total,
     attendedLessons: attended,
+    lateLessons: late,
     missedLessons: records.filter(r => r.status === 'לא הגיע/ה').length,
     cancelledLessons: records.filter(r => r.status === 'cancelled').length,
     attendanceRate: total > 0 ? (attended / total * 100).toFixed(2) : 0
@@ -740,7 +763,7 @@ function calculateWeeklyTrends(records) {
     }
     
     weeklyData[weekKey].total++;
-    if (record.status === 'הגיע/ה') weeklyData[weekKey].attended++;
+    if (MINISTRY_PRESENT_STATUSES.includes(record.status)) weeklyData[weekKey].attended++;
   });
   
   return Object.entries(weeklyData).map(([week, data]) => ({
@@ -812,12 +835,13 @@ async function getComparisonPeriodStats(studentId, activityTypes, startDate, end
       studentId,
       tenantId,
       activityType: { $in: activityTypes },
-      date: { $gte: prevStart, $lte: prevEnd }
+      date: { $gte: prevStart, $lte: prevEnd },
+      isArchived: { $ne: true }
     })
     .toArray();
-  
+
   const total = prevRecords.length;
-  const attended = prevRecords.filter(r => r.status === 'הגיע/ה').length;
+  const attended = prevRecords.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
   
   return {
     period: { startDate: prevStart, endDate: prevEnd },
@@ -843,7 +867,8 @@ async function getSystemComparisonData(startDate, endDate, tenantId) {
   const prevRecords = await activityCollection
     .find({
       tenantId,
-      date: { $gte: prevStart, $lte: prevEnd }
+      date: { $gte: prevStart, $lte: prevEnd },
+      isArchived: { $ne: true }
     })
     .toArray();
   

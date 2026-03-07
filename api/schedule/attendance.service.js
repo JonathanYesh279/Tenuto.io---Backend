@@ -1,6 +1,7 @@
 import { getCollection } from '../../services/mongoDB.service.js';
 import { ObjectId } from 'mongodb';
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
+import { MINISTRY_PRESENT_STATUSES } from '../../config/constants.js';
 
 export const attendanceService = {
   getStudentPrivateLessonStats,
@@ -21,7 +22,8 @@ async function getStudentPrivateLessonStats(studentId, teacherId = null, options
     const filter = {
       studentId,
       tenantId,
-      activityType: 'שיעור פרטי'
+      activityType: 'שיעור פרטי',
+      isArchived: { $ne: true }
     };
 
     if (teacherId) {
@@ -34,7 +36,8 @@ async function getStudentPrivateLessonStats(studentId, teacherId = null, options
       .toArray();
 
     const totalLessons = attendanceRecords.length;
-    const attendedLessons = attendanceRecords.filter(r => r.status === 'הגיע/ה').length;
+    const attendedLessons = attendanceRecords.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+    const lateLessons = attendanceRecords.filter(r => r.status === 'איחור').length;
     const missedLessons = attendanceRecords.filter(r => r.status === 'לא הגיע/ה').length;
     const cancelledLessons = attendanceRecords.filter(r => r.status === 'cancelled').length;
 
@@ -45,6 +48,7 @@ async function getStudentPrivateLessonStats(studentId, teacherId = null, options
       teacherId,
       totalLessons,
       attendedLessons,
+      lateLessons,
       missedLessons,
       cancelledLessons,
       attendanceRate: parseFloat(attendanceRate),
@@ -70,7 +74,8 @@ async function getTeacherAttendanceOverview(teacherId, dateRange = {}, options =
     const filter = {
       teacherId,
       tenantId,
-      activityType: 'שיעור פרטי'
+      activityType: 'שיעור פרטי',
+      isArchived: { $ne: true }
     };
 
     if (dateRange.startDate || dateRange.endDate) {
@@ -99,20 +104,23 @@ async function getTeacherAttendanceOverview(teacherId, dateRange = {}, options =
     const studentStats = {};
     studentIds.forEach(studentId => {
       const studentRecords = attendanceRecords.filter(r => r.studentId === studentId);
-      const attended = studentRecords.filter(r => r.status === 'הגיע/ה').length;
+      const attended = studentRecords.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+      const late = studentRecords.filter(r => r.status === 'איחור').length;
       const total = studentRecords.length;
 
       studentStats[studentId] = {
         studentName: studentLookup[studentId],
         totalLessons: total,
         attendedLessons: attended,
+        lateLessons: late,
         missedLessons: studentRecords.filter(r => r.status === 'לא הגיע/ה').length,
         attendanceRate: total > 0 ? (attended / total * 100).toFixed(2) : 0
       };
     });
 
     const totalLessons = attendanceRecords.length;
-    const attendedLessons = attendanceRecords.filter(r => r.status === 'הגיע/ה').length;
+    const attendedLessons = attendanceRecords.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+    const lateLessons = attendanceRecords.filter(r => r.status === 'איחור').length;
     const overallAttendanceRate = totalLessons > 0 ? (attendedLessons / totalLessons * 100).toFixed(2) : 0;
 
     return {
@@ -121,6 +129,7 @@ async function getTeacherAttendanceOverview(teacherId, dateRange = {}, options =
       overallStats: {
         totalLessons,
         attendedLessons,
+        lateLessons,
         missedLessons: attendanceRecords.filter(r => r.status === 'לא הגיע/ה').length,
         cancelledLessons: attendanceRecords.filter(r => r.status === 'cancelled').length,
         attendanceRate: parseFloat(overallAttendanceRate)
@@ -147,7 +156,8 @@ async function getStudentAttendanceHistory(studentId, options = {}) {
     const filter = {
       studentId,
       tenantId,
-      activityType: 'שיעור פרטי'
+      activityType: 'שיעור פרטי',
+      isArchived: { $ne: true }
     };
 
     if (options.teacherId) {

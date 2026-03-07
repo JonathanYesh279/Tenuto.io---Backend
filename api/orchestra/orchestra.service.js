@@ -571,11 +571,13 @@ async function getStudentAttendanceStats(orchestraId, studentId, options = {}) {
       groupId: orchestraId,
       studentId,
       activityType: 'תזמורת',
-      tenantId
+      tenantId,
+      isArchived: { $ne: true }
     }).toArray()
 
     const totalRehearsals = attendanceRecords.length
-    const attended = attendanceRecords.filter(record => record.status === 'הגיע/ה').length
+    const attended = attendanceRecords.filter(record => MINISTRY_PRESENT_STATUSES.includes(record.status)).length
+    const late = attendanceRecords.filter(record => record.status === 'איחור').length
     const attendanceRate = totalRehearsals ? (attended / totalRehearsals) * 100 : 0
 
     const recentHistory = attendanceRecords
@@ -591,6 +593,7 @@ async function getStudentAttendanceStats(orchestraId, studentId, options = {}) {
     const result = {
       totalRehearsals,
       attended,
+      late,
       attendanceRate,
       recentHistory,
     }

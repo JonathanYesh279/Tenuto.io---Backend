@@ -8,7 +8,7 @@
  * Data source: student collection + activity_attendance collection.
  */
 
-import { getInstrumentsByDepartment } from '../../../config/constants.js';
+import { getInstrumentsByDepartment, MINISTRY_PRESENT_STATUSES } from '../../../config/constants.js';
 
 export default {
   id: 'student-attendance',
@@ -88,6 +88,7 @@ export default {
     const attendanceFilter = {
       tenantId: scope.tenantId,
       studentId: { $in: studentIdStrings },
+      isArchived: { $ne: true },
     };
     if (params.activityType && params.activityType !== 'all') {
       attendanceFilter.activityType = params.activityType;
@@ -112,7 +113,8 @@ export default {
       const sid = student._id.toString();
       const records = attendanceByStudent.get(sid) || [];
       const total = records.length;
-      const attended = records.filter((r) => r.status === 'הגיע/ה').length;
+      const attended = records.filter((r) => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
+      const late = records.filter((r) => r.status === 'איחור').length;
       const missed = records.filter((r) => r.status === 'לא הגיע/ה').length;
       const attendanceRate = total > 0 ? Math.round((attended / total) * 10000) / 100 : 0;
       const trend = calculateTrend(records);
@@ -179,8 +181,8 @@ function calculateTrend(records) {
     return 'אין מספיק נתונים';
   }
 
-  const recentRate = recent5.filter((r) => r.status === 'הגיע/ה').length / recent5.length * 100;
-  const olderRate = older5.filter((r) => r.status === 'הגיע/ה').length / older5.length * 100;
+  const recentRate = recent5.filter((r) => MINISTRY_PRESENT_STATUSES.includes(r.status)).length / recent5.length * 100;
+  const olderRate = older5.filter((r) => MINISTRY_PRESENT_STATUSES.includes(r.status)).length / older5.length * 100;
 
   if (recentRate > olderRate + 10) {
     return 'שיפור';
