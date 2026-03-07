@@ -1,4 +1,5 @@
 import { reportOrchestrator } from './report.orchestrator.js';
+import { getCatalog } from './report.registry.js';
 import { buildDashboard } from './report.dashboard.js';
 import { buildReportScope } from './report.scope.js';
 import { getCollection } from '../../services/mongoDB.service.js';
@@ -12,7 +13,8 @@ export const reportController = {
 async function getRegistry(req, res, next) {
   try {
     const reports = reportOrchestrator.getAvailableReports(req.context);
-    res.json({ reports });
+    const categories = getCatalog(req.context.userRoles);
+    res.json({ categories, reports });
   } catch (err) {
     next(err);
   }
