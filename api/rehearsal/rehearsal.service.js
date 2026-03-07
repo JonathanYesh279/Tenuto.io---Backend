@@ -1,5 +1,5 @@
 // api/rehearsal/rehearsal.service.js
-import { getCollection } from '../../services/mongoDB.service.js';
+import { getCollection, withTransaction } from '../../services/mongoDB.service.js';
 import {
   validateRehearsal,
   validateRehearsalUpdate,
@@ -144,42 +144,37 @@ async function addRehearsal(rehearsalToAdd, teacherId, isAdmin = false, options 
     value.createdAt = toUTC(currentTime);
     value.updatedAt = toUTC(currentTime);
 
-    // Insert rehearsal
+    // Insert rehearsal atomically with orchestra update
     const rehearsalCollection = await getCollection('rehearsal');
     if (!rehearsalCollection) {
       console.error('Failed to get rehearsal collection');
       throw new Error('Database error: Failed to access rehearsal collection');
     }
 
-    const result = await rehearsalCollection.insertOne(value);
-    console.log(
-      `Successfully inserted rehearsal with ID: ${result.insertedId}`
-    );
+    const result = await withTransaction(async (session) => {
+      const insertResult = await rehearsalCollection.insertOne(value, { session });
+      console.log(
+        `Successfully inserted rehearsal with ID: ${insertResult.insertedId}`
+      );
 
-    // Update orchestra if this is an orchestra rehearsal
-    if (value.type === 'תזמורת') {
-      try {
+      // Update orchestra if this is an orchestra rehearsal
+      if (value.type === 'תזמורת') {
         const orchestraCollection = await getCollection('orchestra');
         if (!orchestraCollection) {
-          console.error('Failed to get orchestra collection for updating');
           throw new Error(
             'Database error: Failed to access orchestra collection'
           );
         }
 
-        const updateResult = await orchestraCollection.updateOne(
+        await orchestraCollection.updateOne(
           { _id: ObjectId.createFromHexString(value.groupId), tenantId },
-          { $push: { rehearsalIds: result.insertedId.toString() } }
-        );
-
-        console.log(`Orchestra update result: ${JSON.stringify(updateResult)}`);
-      } catch (updateErr) {
-        // If the orchestra update fails, log it but don't fail the entire operation
-        console.error(
-          `Failed to update orchestra with rehearsal ID: ${updateErr}`
+          { $push: { rehearsalIds: insertResult.insertedId.toString() } },
+          { session }
         );
       }
-    }
+
+      return insertResult;
+    });
 
     return {
       _id: result.insertedId,
@@ -290,44 +285,46 @@ async function removeRehearsal(rehearsalId, teacherId, isAdmin = false, options 
         );
     }
 
-    // Remove from orchestra record
-    if (rehearsal.type === 'תזמורת') {
-      const orchestraCollection = await getCollection('orchestra');
-      if (orchestraCollection) {
-        await orchestraCollection.updateOne(
-          { _id: ObjectId.createFromHexString(rehearsal.groupId), tenantId },
-          { $pull: { rehearsalIds: rehearsalId } }
-        );
-      }
+    // Atomically: remove from orchestra, delete attendance, delete rehearsal
+    const collection = await getCollection('rehearsal');
+    if (!collection) {
+      throw new Error('Database error: Failed to access rehearsal collection');
     }
 
-    // Delete associated attendance records
-    try {
+    const result = await withTransaction(async (session) => {
+      // 1. Remove from orchestra record
+      if (rehearsal.type === 'תזמורת') {
+        const orchestraCollection = await getCollection('orchestra');
+        if (!orchestraCollection) {
+          throw new Error('Database error: Failed to access orchestra collection');
+        }
+        await orchestraCollection.updateOne(
+          { _id: ObjectId.createFromHexString(rehearsal.groupId), tenantId },
+          { $pull: { rehearsalIds: rehearsalId } },
+          { session }
+        );
+      }
+
+      // 2. Delete associated attendance records
       const activityCollection = await getCollection('activity_attendance');
       if (activityCollection) {
         await activityCollection.deleteMany({
           sessionId: rehearsalId,
           activityType: 'תזמורת',
           tenantId,
-        });
+        }, { session });
       }
-    } catch (attendanceErr) {
-      console.warn(
-        `Failed to delete attendance records: ${attendanceErr.message}`
+
+      // 3. Hard delete - actually remove the document
+      const deleteResult = await collection.findOneAndDelete(
+        { _id: ObjectId.createFromHexString(rehearsalId), tenantId },
+        { session }
       );
-    }
 
-    // Hard delete - actually remove the document
-    const collection = await getCollection('rehearsal');
-    if (!collection) {
-      throw new Error('Database error: Failed to access rehearsal collection');
-    }
+      if (!deleteResult) throw new Error(`Rehearsal with id ${rehearsalId} not found`);
 
-    const result = await collection.findOneAndDelete(
-      { _id: ObjectId.createFromHexString(rehearsalId), tenantId }
-    );
-
-    if (!result) throw new Error(`Rehearsal with id ${rehearsalId} not found`);
+      return deleteResult;
+    });
 
     return result;
   } catch (err) {
