@@ -65,11 +65,17 @@ async function evaluateFlaggedStudents(orchestraId, options = {}) {
     return [];
   }
 
-  // Fetch attendance records for all members in this orchestra
+  // Get rehearsal IDs for this orchestra to find matching attendance records
+  const rehearsalIds = orchestra.rehearsalIds || [];
+  if (rehearsalIds.length === 0) {
+    return [];
+  }
+
+  // Fetch attendance records for all members via rehearsal activityIds
   const activityCol = await getCollection(COLLECTIONS.ACTIVITY_ATTENDANCE);
   const records = await activityCol
     .find({
-      groupId: orchestraId,
+      activityId: { $in: rehearsalIds },
       studentId: { $in: memberIds },
       tenantId,
       isArchived: { $ne: true },
@@ -229,11 +235,13 @@ async function getAttendanceDashboard(options = {}) {
     const orchestraId = orchestra._id.toString();
     const memberCount = (orchestra.memberIds || []).length;
 
-    // Get attendance records for this orchestra
-    const orchestraFilter = { ...activityFilter, groupId: orchestraId };
-    const records = await activityCol.find(orchestraFilter).toArray();
+    // Get attendance records for this orchestra via its rehearsalIds
+    const rehearsalIds = orchestra.rehearsalIds || [];
+    const records = rehearsalIds.length > 0
+      ? await activityCol.find({ ...activityFilter, activityId: { $in: rehearsalIds } }).toArray()
+      : [];
 
-    const totalRehearsals = new Set(records.map(r => r.sessionId)).size;
+    const totalRehearsals = new Set(records.map(r => r.activityId)).size;
     const presentCount = records.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
     const totalRecords = records.length;
     const averageAttendanceRate =
@@ -300,7 +308,7 @@ async function getAttendanceDashboard(options = {}) {
     if (MINISTRY_PRESENT_STATUSES.includes(record.status)) {
       monthlyBuckets[monthKey].present++;
     }
-    monthlyBuckets[monthKey].sessions.add(record.sessionId);
+    monthlyBuckets[monthKey].sessions.add(record.activityId);
   }
 
   const monthlyTrends = Object.entries(monthlyBuckets)
@@ -351,7 +359,7 @@ async function getStudentAttendanceSummary(studentId, options = {}) {
     MINISTRY_PRESENT_STATUSES.includes(r.status)
   ).length;
   const lateCount = records.filter(r => r.status === 'איחור').length;
-  const absentCount = records.filter(r => r.status === 'לא הגיע/ה').length;
+  const absentCount = records.filter(r => !MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
   const attendanceRate =
     totalSessions > 0
       ? Math.round((attendedCount / totalSessions) * 100 * 100) / 100
@@ -371,7 +379,7 @@ async function getStudentAttendanceSummary(studentId, options = {}) {
   const recentHistory = records.slice(0, 10).map(r => ({
     date: r.date,
     activityType: r.activityType,
-    activityName: r.groupId || r.sessionId || null,
+    activityName: r.activityId || null,
     status: r.status,
   }));
 
