@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 59 of 63 (Attendance Data Layer)
-Plan: 01 complete
+Plan: 02 complete
 Status: Executing phase
-Last activity: 2026-03-07 — 59-01 complete (2/2 tasks, attendance data layer)
+Last activity: 2026-03-07 — 59-02 complete (2/2 tasks, attendance consumers & soft-delete)
 
-Progress: [███░░░░░░░] ~33% (v1.9)
+Progress: [████░░░░░░] ~40% (v1.9)
 
 ## Performance Metrics
 
@@ -50,6 +50,9 @@ Progress: [███░░░░░░░] ~33% (v1.9)
 - **[59-01]** Per-student records schema replaces old present/absent arrays for attendance input
 - **[59-01]** Membership validation rejects entire request if any student is not a member (no partial writes)
 - **[59-01]** activity_attendance uses rehearsal.type dynamically for activityType (supports both orchestra and ensemble)
+- **[59-02]** Soft-delete attendance records with isArchived:true instead of hard-delete on rehearsal removal
+- **[59-02]** Orchestra attendance write path delegates to canonical rehearsal.updateAttendance (no duplicate logic)
+- **[59-02]** Late (איחור) counts as present in all Ministry reporting and attendance rate calculations
 
 ### Blockers/Concerns
 
@@ -58,5 +61,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 59-01-PLAN.md (attendance data layer)
-Resume: /gsd:execute-phase 59 (plan 02)
+Stopped at: Completed 59-02-PLAN.md (attendance consumers & soft-delete)
+Resume: /gsd:execute-phase 59 (plan 03)
