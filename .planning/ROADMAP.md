@@ -136,7 +136,7 @@ See: `.planning/milestones/v1.7-ROADMAP.md` for full details.
 - [x] **Phase 52: Institutional + Ministry Generators** - 4 institutional reports leveraging export service — completed 2026-03-07
 - [x] **Phase 53: Department + Schedule Generators** - 5 department/schedule reports — completed 2026-03-07
 - [x] **Phase 54: Export Engines** - Excel and PDF shaping and rendering pipelines — completed 2026-03-07
-- [ ] **Phase 55: Dashboard + Catalog API** - KPI dashboard endpoint, alerts, and report catalog
+- [x] **Phase 55: Dashboard + Catalog API** - KPI dashboard endpoint, alerts, and report catalog — completed 2026-03-07
 - [ ] **Phase 56: Frontend Reports UI** - ReportsPage, ReportViewerShell, renderers, year comparison
 
 ## Phase Details
@@ -229,8 +229,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 54-01-PLAN.md — Excel export engine + route wiring
-- [ ] 54-02-PLAN.md — PDF export engine with conservatory header/footer
+- [x] 54-01-PLAN.md — Excel export engine + route wiring
+- [x] 54-02-PLAN.md — PDF export engine with conservatory header/footer
 
 ### Phase 55: Dashboard + Catalog API
 **Goal**: Administrators see a KPI dashboard with trend indicators, actionable alerts, and a categorized report catalog on the reports page
@@ -244,8 +244,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 55-01-PLAN.md — Dashboard KPI service, trends, alerts, and route wiring
-- [ ] 55-02-PLAN.md — Catalog API with 4-category grouping
+- [x] 55-01-PLAN.md — Dashboard KPI service, trends, alerts, and route wiring
+- [x] 55-02-PLAN.md — Catalog API with 4-category grouping
 
 ### Phase 56: Frontend Reports UI
 **Goal**: Users can access the full reports experience: dashboard with drill-down, report catalog, filtered report viewing, year comparison, and export buttons
@@ -281,4 +281,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 54 complete (Excel + PDF export engines)*
+*Last updated: 2026-03-07 — Phase 55 complete (Dashboard + Catalog API)*
