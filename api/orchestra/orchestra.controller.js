@@ -174,6 +174,9 @@ async function updateRehearsalAttendance(req, res, next) {
     if (err.message === 'Not authorized to modify this orchestra') {
       return res.status(403).json({ error: err.message })
     }
+    if (err.code === 'MEMBERSHIP_VALIDATION') {
+      return res.status(400).json({ error: err.message, code: err.code, invalidStudentIds: err.invalidStudentIds })
+    }
 
     next(err)
   }

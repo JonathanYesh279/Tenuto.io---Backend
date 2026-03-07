@@ -340,14 +340,24 @@ async function removeRehearsal(rehearsalId, teacherId, isAdmin = false, options 
         );
       }
 
-      // 2. Delete associated attendance records
+      // 2. Archive (soft-delete) associated attendance records
       const activityCollection = await getCollection('activity_attendance');
       if (activityCollection) {
-        await activityCollection.deleteMany({
-          sessionId: rehearsalId,
-          activityType: 'תזמורת',
-          tenantId,
-        }, { session });
+        await activityCollection.updateMany(
+          {
+            sessionId: rehearsalId,
+            activityType: rehearsal.type,
+            tenantId,
+          },
+          {
+            $set: {
+              isArchived: true,
+              archivedAt: toUTC(now()),
+              archivedReason: 'rehearsal_deleted',
+            }
+          },
+          { session }
+        );
       }
 
       // 3. Hard delete - actually remove the document
@@ -601,13 +611,20 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
         { session }
       );
 
-      // Clean up attendance records if collection exists
+      // Archive (soft-delete) attendance records if collection exists
       if (activityCollection && rehearsalIds.length > 0) {
-        await activityCollection.deleteMany(
+        await activityCollection.updateMany(
           {
             sessionId: { $in: rehearsalIds },
             activityType: 'תזמורת',
             tenantId
+          },
+          {
+            $set: {
+              isArchived: true,
+              archivedAt: toUTC(now()),
+              archivedReason: 'rehearsal_deleted',
+            }
           },
           { session }
         );
@@ -708,13 +725,20 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
         { session }
       );
 
-      // Clean up attendance records if collection exists
+      // Archive (soft-delete) attendance records if collection exists
       if (activityCollection && rehearsalIds.length > 0) {
-        await activityCollection.deleteMany(
+        await activityCollection.updateMany(
           {
             sessionId: { $in: rehearsalIds },
             activityType: 'תזמורת',
             tenantId
+          },
+          {
+            $set: {
+              isArchived: true,
+              archivedAt: toUTC(now()),
+              archivedReason: 'rehearsal_deleted',
+            }
           },
           { session }
         );

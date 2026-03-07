@@ -4,6 +4,8 @@ import { ObjectId } from 'mongodb'
 import { createLogger } from '../../services/logger.service.js'
 import { buildScopedFilter } from '../../utils/queryScoping.js'
 import { requireTenantId } from '../../middleware/tenant.middleware.js'
+import { rehearsalService } from '../rehearsal/rehearsal.service.js'
+import { MINISTRY_PRESENT_STATUSES } from '../../config/constants.js'
 
 const logger = createLogger('orchestraService')
 
@@ -369,11 +371,18 @@ async function removeOrchestra(orchestraId, teacherId, isAdmin = false, userRole
         { session }
       )
 
-      // 4. Delete associated attendance records for those rehearsals
+      // 4. Archive (soft-delete) associated attendance records for those rehearsals
       if (rehearsalIds.length > 0) {
         const activityCollection = await getCollection('activity_attendance')
-        await activityCollection.deleteMany(
+        await activityCollection.updateMany(
           { sessionId: { $in: rehearsalIds }, activityType: 'תזמורת', tenantId },
+          {
+            $set: {
+              isArchived: true,
+              archivedAt: new Date(),
+              archivedReason: 'orchestra_deleted',
+            }
+          },
           { session }
         )
       }
@@ -509,79 +518,27 @@ async function removeMember(orchestraId, studentId, teacherId, isAdmin = false, 
 
 async function updateRehearsalAttendance(rehearsalId, attendance, teacherId, isAdmin = false, userRoles = [], options = {}) {
   try {
-    const tenantId = requireTenantId(options.context?.tenantId)
-    const rehearsalCollection = await getCollection('rehearsal')
-    const rehearsal = await rehearsalCollection.findOne({
-      _id: ObjectId.createFromHexString(rehearsalId),
-      tenantId
-    })
-
-    if (!rehearsal) throw new Error(`Rehearsal with id ${rehearsalId} not found`)
-
-    const orchestra = await getOrchestraById(rehearsal.groupId, options)
-
-    // Check authorization: admin can always edit, conductor can edit only if they conduct this orchestra
-    const isConductor = userRoles.includes('מנצח')
-    const isEnsembleInstructor = userRoles.includes('מדריך הרכב')
-    const canEditBasedOnRole = isConductor || isEnsembleInstructor
-    const isAssignedConductor = orchestra.conductorId === teacherId.toString()
-
-    if (!isAdmin && !(canEditBasedOnRole && isAssignedConductor)) {
-      throw new Error('Not authorized to modify this orchestra')
+    // Convert from old format { present: [], absent: [] } to new format { records: [] }
+    // for backward compatibility with orchestra controller callers
+    let records;
+    if (attendance.records) {
+      // New format already
+      records = attendance.records;
+    } else {
+      // Old format: { present: string[], absent: string[] }
+      records = [
+        ...(attendance.present || []).map(id => ({ studentId: id, status: 'הגיע/ה', notes: '' })),
+        ...(attendance.absent || []).map(id => ({ studentId: id, status: 'לא הגיע/ה', notes: '' })),
+      ];
     }
 
-    const updatedRehearsal = await rehearsalCollection.findOneAndUpdate(
-      { _id: ObjectId.createFromHexString(rehearsalId), tenantId },
-      { $set: { attendance } },
-      { returnDocument: 'after' }
-    )
-
-    const activityCollection = await getCollection('activity_attendance')
-
-    const presentPromises = attendance.present.map(studentId =>
-      activityCollection.updateOne(
-        {
-          studentId,
-          sessionId: rehearsalId,
-          activityType: 'תזמורת',
-          tenantId,
-        },
-        {
-          $set: {
-            groupId: rehearsal.groupId,
-            date: rehearsal.date,
-            status: 'הגיע/ה',
-            tenantId,
-            createdAt: new Date(),
-          }
-        },
-        { upsert: true }
-      )
-    )
-
-    const absentPromises = attendance.absent.map(studentId =>
-      activityCollection.updateOne(
-          {
-            studentId,
-            sessionId: rehearsalId,
-            activityType: 'תזמורת',
-            tenantId,
-          },
-          {
-            $set: {
-              groupId: rehearsal.groupId,
-              date: rehearsal.date,
-              status: 'לא הגיע/ה',
-              tenantId,
-              createdAt: new Date(),
-            }
-          },
-          { upsert: true }
-      )
-    )
-
-    await Promise.all([...presentPromises, ...absentPromises])
-    return updatedRehearsal
+    return rehearsalService.updateAttendance(
+      rehearsalId,
+      { records },
+      teacherId,
+      isAdmin,
+      options
+    );
   } catch (err) {
     logger.error({ rehearsalId, err: err.message }, 'Error in updateRehearsalAttendance')
     throw new Error(`Error in orchestraService.updateRehearsalAttendance: ${err}`)
