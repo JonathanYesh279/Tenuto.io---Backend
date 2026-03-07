@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 60 of 63 (Attendance UX)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-07 — Phase 59 complete (2/2 plans, verified 5/5 must-haves)
+Plan: 1 of 3 complete
+Status: Executing
+Last activity: 2026-03-07 — Plan 60-01 complete (member attendance rates endpoint)
 
-Progress: [████░░░░░░] ~43% (v1.9)
+Progress: [█████░░░░░] ~48% (v1.9)
 
 ## Performance Metrics
 
@@ -53,6 +53,8 @@ Progress: [████░░░░░░] ~43% (v1.9)
 - **[59-02]** Soft-delete attendance records with isArchived:true instead of hard-delete on rehearsal removal
 - **[59-02]** Orchestra attendance write path delegates to canonical rehearsal.updateAttendance (no duplicate logic)
 - **[59-02]** Late (איחור) counts as present in all Ministry reporting and attendance rate calculations
+- **[60-01]** Minimum 3 rehearsals threshold before flagging frequentAbsent to avoid false positives on new members
+- **[60-01]** Reuse MINISTRY_PRESENT_STATUSES for present counting consistency with existing getStudentAttendanceStats
 
 ### Blockers/Concerns
 
@@ -61,5 +63,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Phase 59 complete — verified 5/5 must-haves
-Resume: /gsd:plan-phase 60
+Stopped at: Completed 60-01-PLAN.md (member attendance rates endpoint)
+Resume: /gsd:execute-phase 60-02
