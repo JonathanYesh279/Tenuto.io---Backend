@@ -195,11 +195,11 @@ Plans:
   3. Recording attendance for a student not in orchestra.memberIds is rejected with a clear error
   4. Deleting a rehearsal soft-deletes (archives) its attendance records rather than destroying them
   5. If the transaction writing to both activity_attendance and rehearsal.attendance fails, neither write persists
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 59-01: TBD
-- [ ] 59-02: TBD
+- [ ] 59-01-PLAN.md — Attendance validation, transactional writes, and membership validation
+- [ ] 59-02-PLAN.md — Soft-delete attendance on rehearsal deletion and consumer updates for late status
 
 #### Phase 60: Attendance UX
 **Goal**: Conductors can take attendance quickly and intuitively with smart defaults and auto-saving
@@ -281,4 +281,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 57 complete (2/2 plans verified)*
+*Last updated: 2026-03-07 — Phase 59 planned (2 plans)*
