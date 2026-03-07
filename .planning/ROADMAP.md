@@ -240,12 +240,11 @@ Plans:
   3. Clicking an empty time slot opens a quick-add rehearsal form pre-filled with the selected date and time
   4. Rehearsal cards on the calendar show orchestra name, time, room, and attendance status for past dates
   5. Calendar can be filtered by orchestra, conductor, room, or activity type
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 62-01: TBD
-- [ ] 62-02: TBD
-- [ ] 62-03: TBD
+- [ ] 62-01-PLAN.md — Day view, drag-and-drop rescheduling, and quick-add from empty time slots
+- [ ] 62-02-PLAN.md — Conflict indicators, attendance badges, and conductor filter
 
 #### Phase 63: Attendance Alerts & Dashboard
 **Goal**: Admins and conductors see attendance trends, flagged students, and configurable absence thresholds
@@ -256,7 +255,7 @@ Plans:
   2. Students exceeding the threshold are auto-flagged, and the flag is visible on their profile and in the conductor's orchestra member list as a warning badge
   3. Admin attendance dashboard shows per-orchestra attendance rates, trend charts over time, and a list of all flagged students
   4. Student detail page includes an attendance summary widget showing attendance rate, recent session history, and flag status
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
 - [ ] 63-01: TBD
@@ -281,4 +280,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 61 planned (1 plan)*
+*Last updated: 2026-03-07 — Phase 62 planned (2 plans)
