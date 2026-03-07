@@ -211,11 +211,11 @@ Plans:
   3. Changes auto-save after 1-2 seconds of idle time with a visible save confirmation indicator
   4. "Mark all present" and "Mark all absent" buttons update every student in the list at once
   5. Each student row has a notes field where the conductor can record absence reasons or late arrival details
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 60-01: TBD
-- [ ] 60-02: TBD
+- [ ] 60-01-PLAN.md — Batch member attendance rates endpoint for smart suggestions
+- [ ] 60-02-PLAN.md — Rewrite attendance UI with 4-status cycling, auto-save, notes, and smart suggestions
 
 #### Phase 61: Orchestra Detail & Rehearsal Integration UI
 **Goal**: Orchestra detail page accurately displays linked rehearsals with no stale or orphan references
@@ -281,4 +281,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 59 planned (2 plans)*
+*Last updated: 2026-03-07 — Phase 60 planned (2 plans)*
