@@ -225,10 +225,10 @@ Plans:
   1. Orchestra detail page lists all linked rehearsals with correct date, time, room, and attendance status
   2. Rehearsals that were deleted no longer appear in the orchestra's rehearsal list (no ghost entries)
   3. Conductor can navigate from orchestra detail to a specific rehearsal's attendance view
-**Plans**: TBD
+**Plans:** 1 plan
 
 Plans:
-- [ ] 61-01: TBD
+- [ ] 61-01-PLAN.md — Update ScheduleTab with 3-status attendance display and in-app navigation to rehearsal/attendance views
 
 #### Phase 62: Rehearsal Calendar UX
 **Goal**: Users manage rehearsals through an interactive calendar with visual conflict feedback and bulk creation
@@ -281,4 +281,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 60 planned (2 plans)*
+*Last updated: 2026-03-07 — Phase 61 planned (1 plan)*
