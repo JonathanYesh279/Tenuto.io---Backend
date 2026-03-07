@@ -541,6 +541,10 @@ async function bulkCreateRehearsals(data, teacherId, isAdmin = false, options = 
     return result;
   } catch (err) {
     console.error(`Failed to bulk create rehearsals: ${err}`);
+    // Preserve custom error properties (e.g., BULK_CONFLICT with dateConflicts)
+    if (err.code === 'BULK_CONFLICT') {
+      throw err;
+    }
     throw new Error(`Failed to bulk create rehearsals: ${err}`);
   }
 }

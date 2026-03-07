@@ -225,6 +225,23 @@ async function bulkCreateRehearsals(req, res) {
 
     res.json(result);
   } catch (err) {
+    if (err.code === 'BULK_CONFLICT') {
+      return res.status(409).json({
+        error: 'Scheduling conflicts detected',
+        message: `${err.conflictingDates} out of ${err.totalDates} dates have conflicts`,
+        dateConflicts: err.dateConflicts,
+        totalDates: err.totalDates,
+        conflictingDates: err.conflictingDates,
+      });
+    }
+
+    if (err.code === 'CONFLICT') {
+      return res.status(409).json({
+        error: 'Scheduling conflict detected',
+        conflicts: err.conflicts,
+      });
+    }
+
     console.error(`Error in bulk create rehearsals: ${err}`);
     res
       .status(500)
