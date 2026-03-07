@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 61
+**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 62
 
 ## Current Position
 
-Phase: 61 of 63 (Orchestra Detail & Rehearsal Integration UI)
-Plan: 1/1 complete
-Status: Phase 61 complete
-Last activity: 2026-03-07 — Phase 61 complete (1/1 plans)
+Phase: 62 of 63 (Rehearsal Calendar UX)
+Plan: 1/2 complete
+Status: Executing phase 62
+Last activity: 2026-03-07 — Completed 62-01-PLAN.md (1/2 plans)
 
-Progress: [███████░░░] ~71% (v1.9)
+Progress: [████████░░] ~79% (v1.9)
 
 ## Performance Metrics
 
@@ -60,6 +60,10 @@ Progress: [███████░░░] ~71% (v1.9)
 - **[60-02]** Attendance summary in details page now shows late count alongside present/absent
 - **[61-01]** Take Attendance button shown for all past rehearsals (not just those with existing attendance)
 - **[61-01]** preselectedOrchestraId passed via navigate state for Add Rehearsal button
+- **[62-01]** HTML5 native drag-and-drop (no library) for rehearsal rescheduling
+- **[62-01]** Day view shows 07:00-22:00 with 60px per hour for clear time-slot visibility
+- **[62-01]** Pre-fill uses existing initialData prop without groupId to avoid triggering edit mode
+- **[62-01]** Week view drag changes date only; day view drag changes both date and time
 
 ### Blockers/Concerns
 
@@ -68,5 +72,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 61-01-PLAN.md (Phase 61 complete)
-Resume: /gsd:plan-phase 62
+Stopped at: Completed 62-01-PLAN.md
+Resume: /gsd:execute-phase 62 (plan 02 remaining)
