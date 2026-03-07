@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 59 of 63 (Attendance Data Layer)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-07 — Phase 58 complete (2/2 plans, verified + gap fix)
+Plan: 01 complete
+Status: Executing phase
+Last activity: 2026-03-07 — 59-01 complete (2/2 tasks, attendance data layer)
 
-Progress: [██░░░░░░░░] ~29% (v1.9)
+Progress: [███░░░░░░░] ~33% (v1.9)
 
 ## Performance Metrics
 
@@ -47,6 +47,9 @@ Progress: [██░░░░░░░░] ~29% (v1.9)
 - **[58-01]** CONFLICT error code pattern with 409 HTTP response for scheduling conflicts
 - **[58-02]** Preserve BULK_CONFLICT error through service catch block (re-throw instead of wrapping)
 - **[58-02]** Sequential per-date conflict checks acceptable for typical 30-40 date bulk creation
+- **[59-01]** Per-student records schema replaces old present/absent arrays for attendance input
+- **[59-01]** Membership validation rejects entire request if any student is not a member (no partial writes)
+- **[59-01]** activity_attendance uses rehearsal.type dynamically for activityType (supports both orchestra and ensemble)
 
 ### Blockers/Concerns
 
@@ -55,5 +58,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Phase 58 complete — verified 4/4 must-haves (gap fix applied)
-Resume: /gsd:plan-phase 59
+Stopped at: Completed 59-01-PLAN.md (attendance data layer)
+Resume: /gsd:execute-phase 59 (plan 02)
