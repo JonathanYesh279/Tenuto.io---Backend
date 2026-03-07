@@ -5,6 +5,9 @@ import { requirePermission } from '../../middleware/auth.middleware.js';
 
 const router = express.Router();
 
+// Dashboard KPI overview
+router.get('/dashboard', requirePermission('reports', 'view'), reportController.getDashboard);
+
 // Get available reports catalog filtered by user role
 router.get('/registry', requirePermission('reports', 'view'), reportController.getRegistry);
 

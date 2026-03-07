@@ -1,14 +1,31 @@
 import { reportOrchestrator } from './report.orchestrator.js';
+import { buildDashboard } from './report.dashboard.js';
+import { buildReportScope } from './report.scope.js';
+import { getCollection } from '../../services/mongoDB.service.js';
 
 export const reportController = {
   getRegistry,
   getReport,
+  getDashboard,
 };
 
 async function getRegistry(req, res, next) {
   try {
     const reports = reportOrchestrator.getAvailableReports(req.context);
     res.json({ reports });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getDashboard(req, res, next) {
+  try {
+    const scope = buildReportScope(req.context);
+    const schoolYearId = req.query.schoolYearId || req.context.schoolYearId;
+    const { kpis, alerts } = await buildDashboard(scope, schoolYearId, {
+      services: { getCollection },
+    });
+    res.json({ kpis, alerts });
   } catch (err) {
     next(err);
   }
