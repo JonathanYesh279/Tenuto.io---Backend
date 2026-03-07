@@ -60,6 +60,26 @@ const TABLE = {
 };
 
 /**
+ * Converts a logical Hebrew string to visual order for LTR rendering.
+ * PDFKit places glyphs left-to-right, so Hebrew text must be reversed.
+ * Embedded LTR sequences (numbers, Latin, punctuation) are preserved.
+ */
+const HEBREW_RANGE = /[\u0590-\u05FF]/;
+
+function prepareRtlText(text) {
+  if (!text || typeof text !== 'string') return text || '';
+
+  // If no Hebrew characters, return as-is (pure numbers/English/dates)
+  if (!HEBREW_RANGE.test(text)) return text;
+
+  // Reverse the entire string for RTL visual ordering
+  const reversed = [...text].reverse().join('');
+
+  // Un-reverse embedded LTR sequences (digits, decimal points, colons, commas, %, ₪)
+  return reversed.replace(/[\d.,:%/₪]+/g, match => [...match].reverse().join(''));
+}
+
+/**
  * Format a cell value for PDF display.
  */
 function formatValue(value, type) {
@@ -122,7 +142,7 @@ function drawHeader(doc, conservatoryName, reportName, generatedAt) {
     .font('Hebrew')
     .fontSize(14)
     .fillColor(COLORS.textPrimary)
-    .text(conservatoryName, PAGE.margins.left, y, {
+    .text(prepareRtlText(conservatoryName), PAGE.margins.left, y, {
       width: USABLE_WIDTH,
       align: 'right',
     });
@@ -130,7 +150,7 @@ function drawHeader(doc, conservatoryName, reportName, generatedAt) {
   // Report title
   doc
     .fontSize(12)
-    .text(reportName, PAGE.margins.left, y + 18, {
+    .text(prepareRtlText(reportName), PAGE.margins.left, y + 18, {
       width: USABLE_WIDTH,
       align: 'right',
     });
@@ -177,7 +197,7 @@ function drawFooter(doc, pageNum, totalPages) {
     .fontSize(8)
     .fillColor(COLORS.textSecondary)
     .text(
-      `עמוד ${pageNum} מתוך ${totalPages}`,
+      prepareRtlText(`עמוד ${pageNum} מתוך ${totalPages}`),
       PAGE.margins.left,
       y,
       {
@@ -204,7 +224,7 @@ function drawTableHeader(doc, columns, colWidths, y) {
 
   for (let i = 0; i < columns.length; i++) {
     doc.text(
-      columns[i].label,
+      prepareRtlText(columns[i].label),
       currentX + 4,
       y + 7,
       {
@@ -239,7 +259,7 @@ function drawDataRow(doc, row, columns, colWidths, y, isOdd) {
     const value = formatValue(row[col.key], col.type);
 
     doc.text(
-      value,
+      prepareRtlText(value),
       currentX + 4,
       y + 5,
       {
@@ -272,9 +292,9 @@ function drawSummary(doc, summary, y) {
     .rect(x, y, USABLE_WIDTH, rowHeight)
     .fill(COLORS.summaryBg);
 
-  // Build summary text
+  // Build summary text — prepare each item individually for RTL
   const summaryText = summary.items
-    .map(item => `${item.label}: ${formatValue(item.value, item.type)}`)
+    .map(item => prepareRtlText(`${item.label}: ${formatValue(item.value, item.type)}`))
     .join('    ');
 
   doc
