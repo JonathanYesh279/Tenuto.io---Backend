@@ -256,11 +256,14 @@ Plans:
   2. Students exceeding the threshold are auto-flagged, and the flag is visible on their profile and in the conductor's orchestra member list as a warning badge
   3. Admin attendance dashboard shows per-orchestra attendance rates, trend charts over time, and a list of all flagged students
   4. Student detail page includes an attendance summary widget showing attendance rate, recent session history, and flag status
-**Plans:** 2 plans
+**Plans:** 5 plans
 
 Plans:
-- [ ] 63-01-PLAN.md — Tenant threshold settings, auto-flagging service, dashboard & summary APIs
-- [ ] 63-02-PLAN.md — Admin dashboard page, student attendance widget, conductor warning badges
+- [x] 63-01-PLAN.md — Tenant threshold settings, auto-flagging service, dashboard & summary APIs
+- [x] 63-02-PLAN.md — Admin dashboard page, student attendance widget, conductor warning badges
+- [ ] 63-03-PLAN.md — Gap closure: Calendar visual redesign with animations, side panel, and drag improvements
+- [ ] 63-04-PLAN.md — Gap closure: Attendance marking UX overhaul with grouping, tap-to-cycle, and auto-save
+- [ ] 63-05-PLAN.md — Gap closure: Dashboard polish with Recharts, sorting, filtering, and drill-down
 
 ## Progress
 
@@ -277,8 +280,8 @@ Plans:
 | 49-56 | v1.8 Admin Report Generator | 8 | 16 | Shipped 2026-03-07 |
 | 57-63 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 7 | TBD | In progress |
 
-**Total: 63 phases (56 shipped, 7 planned), 119+ plans across 10 milestones (9 shipped)**
+**Total: 63 phases (56 shipped, 7 in progress), 122+ plans across 10 milestones (9 shipped)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 63 planned (2 plans)
+*Last updated: 2026-03-07 — Phase 63 gap closure plans added (3 new plans, 5 total)
