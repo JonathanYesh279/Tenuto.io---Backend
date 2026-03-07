@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** Planning next milestone
+**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 57
 
 ## Current Position
 
-Phase: 56 of 56
-Plan: 2 of 2
-Status: v1.8 Milestone Complete
-Last activity: 2026-03-07 — v1.8 Admin Report Generator shipped
+Phase: 57 of 63 (Rehearsal-Orchestra Data Flow)
+Plan: 01 complete, ready for 02
+Status: Executing
+Last activity: 2026-03-07 — 57-01 complete (atomic rehearsal-orchestra sync)
 
-Progress: [##########] 100% (all milestones shipped)
+Progress: [█░░░░░░░░░] ~5% (v1.9)
 
 ## Performance Metrics
 
@@ -35,6 +35,12 @@ Progress: [##########] 100% (all milestones shipped)
 
 - **[Future DevOps milestone]** Configure email service for forgot-password flow: set SendGrid/Gmail credentials, FRONTEND_URL, FROM_EMAIL in production .env. Code is complete — just needs deployment config.
 
+### Decisions
+
+- **[57-01]** Use withTransaction utility for all rehearsal write operations instead of manual session management
+- **[57-01]** Remove all non-transactional fallback code paths -- withTransaction always has client
+- **[57-01]** Remove all silent error swallowing on orchestra sync -- transaction atomicity handles failures
+
 ### Blockers/Concerns
 
 None.
@@ -42,5 +48,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: v1.8 milestone archived
-Resume: Start next milestone with /gsd:new-milestone
+Stopped at: Completed 57-01-PLAN.md (atomic rehearsal-orchestra sync)
+Resume: /gsd:execute-phase 57 (plan 02)
