@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 59
+**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 60
 
 ## Current Position
 
-Phase: 59 of 63 (Attendance Data Layer)
-Plan: 02 complete
-Status: Executing phase
-Last activity: 2026-03-07 — 59-02 complete (2/2 tasks, attendance consumers & soft-delete)
+Phase: 60 of 63 (Attendance UX)
+Plan: —
+Status: Ready to plan
+Last activity: 2026-03-07 — Phase 59 complete (2/2 plans, verified 5/5 must-haves)
 
-Progress: [████░░░░░░] ~40% (v1.9)
+Progress: [████░░░░░░] ~43% (v1.9)
 
 ## Performance Metrics
 
@@ -61,5 +61,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 59-02-PLAN.md (attendance consumers & soft-delete)
-Resume: /gsd:execute-phase 59 (plan 03)
+Stopped at: Phase 59 complete — verified 5/5 must-haves
+Resume: /gsd:plan-phase 60

@@ -149,7 +149,7 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 
 - [x] **Phase 57: Rehearsal-Orchestra Data Flow** — Transactional sync and cascade cleanup between rehearsals and orchestras — completed 2026-03-07
 - [x] **Phase 58: Conflict Detection Engine** — Room, time, and teacher conflict detection for rehearsal scheduling — completed 2026-03-07
-- [ ] **Phase 59: Attendance Data Layer** — Single source of truth with transactional writes, membership validation, and three statuses
+- [x] **Phase 59: Attendance Data Layer** — Single source of truth with transactional writes, membership validation, and three statuses — completed 2026-03-07
 - [ ] **Phase 60: Attendance UX** — Quick toggle list with smart suggestions, auto-save, batch operations, and per-student notes
 - [ ] **Phase 61: Orchestra Detail & Rehearsal Integration UI** — Orchestra detail page shows accurate linked rehearsals
 - [ ] **Phase 62: Rehearsal Calendar UX** — Interactive calendar with drag-and-drop, conflict indicators, filtering, and bulk creation wizard
@@ -195,11 +195,11 @@ Plans:
   3. Recording attendance for a student not in orchestra.memberIds is rejected with a clear error
   4. Deleting a rehearsal soft-deletes (archives) its attendance records rather than destroying them
   5. If the transaction writing to both activity_attendance and rehearsal.attendance fails, neither write persists
-**Plans:** 2 plans
+**Plans:** 2/2 complete
 
 Plans:
-- [ ] 59-01-PLAN.md — Attendance validation, transactional writes, and membership validation
-- [ ] 59-02-PLAN.md — Soft-delete attendance on rehearsal deletion and consumer updates for late status
+- [x] 59-01-PLAN.md — Attendance validation, transactional writes, and membership validation
+- [x] 59-02-PLAN.md — Soft-delete attendance on rehearsal deletion and consumer updates for late status
 
 #### Phase 60: Attendance UX
 **Goal**: Conductors can take attendance quickly and intuitively with smart defaults and auto-saving
