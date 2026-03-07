@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 61 of 63 (Orchestra Detail & Rehearsal Integration UI)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-07 — Phase 60 complete (2/2 plans, verified 8/8 must-haves)
+Plan: 1/1 complete
+Status: Phase 61 complete
+Last activity: 2026-03-07 — Phase 61 complete (1/1 plans)
 
-Progress: [██████░░░░] ~57% (v1.9)
+Progress: [███████░░░] ~71% (v1.9)
 
 ## Performance Metrics
 
@@ -58,6 +58,8 @@ Progress: [██████░░░░] ~57% (v1.9)
 - **[60-02]** Auto-save debounce at 1500ms with hasInteracted guard to prevent saving on initial render
 - **[60-02]** STATUS_CYCLE array with modulo wrap for tap-to-cycle through fixed status sequence
 - **[60-02]** Attendance summary in details page now shows late count alongside present/absent
+- **[61-01]** Take Attendance button shown for all past rehearsals (not just those with existing attendance)
+- **[61-01]** preselectedOrchestraId passed via navigate state for Add Rehearsal button
 
 ### Blockers/Concerns
 
@@ -66,5 +68,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Phase 60 complete — verified 8/8 must-haves
-Resume: /gsd:plan-phase 61
+Stopped at: Completed 61-01-PLAN.md (Phase 61 complete)
+Resume: /gsd:plan-phase 62
