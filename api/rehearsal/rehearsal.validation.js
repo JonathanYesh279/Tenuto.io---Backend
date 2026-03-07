@@ -29,9 +29,10 @@ export const rehearsalSchema = Joi.object({
     .required(),
   location: Joi.string().required(),
   attendance: Joi.object({
-    present: Joi.array().items(Joi.string()).required(),
-    absent: Joi.array().items(Joi.string()).required(),
-  }).default({ present: [], absent: [] }),
+    present: Joi.array().items(Joi.string()).default([]),
+    absent: Joi.array().items(Joi.string()).default([]),
+    late: Joi.array().items(Joi.string()).default([]),
+  }).default({ present: [], absent: [], late: [] }),
   notes: Joi.string().allow('').default(''),
   schoolYearId: Joi.string().required(),
   isActive: Joi.boolean().default(true),
@@ -80,6 +81,7 @@ export const rehearsalUpdateSchema = Joi.object({
   attendance: Joi.object({
     present: Joi.array().items(Joi.string()).default([]),
     absent: Joi.array().items(Joi.string()).default([]),
+    late: Joi.array().items(Joi.string()).default([]),
   }).optional(),
   notes: Joi.string().allow('').optional(),
   schoolYearId: Joi.string().optional(),
@@ -87,8 +89,13 @@ export const rehearsalUpdateSchema = Joi.object({
 });
 
 export const attendanceSchema = Joi.object({
-  present: Joi.array().items(Joi.string()).default([]),
-  absent: Joi.array().items(Joi.string()).default([]),
+  records: Joi.array().items(
+    Joi.object({
+      studentId: Joi.string().required(),
+      status: Joi.string().valid('הגיע/ה', 'לא הגיע/ה', 'איחור').required(),
+      notes: Joi.string().allow('').default(''),
+    })
+  ).min(1).required(),
 });
 
 export function validateRehearsalUpdate(rehearsalUpdate) {

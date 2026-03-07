@@ -237,6 +237,17 @@ export function roundToQuarterHour(hours) {
   return Math.round(hours * 4) / 4;
 }
 
+// ─── Attendance Statuses ─────────────────────────────────────────────────────
+
+export const ATTENDANCE_STATUSES = {
+  PRESENT: 'הגיע/ה',
+  ABSENT: 'לא הגיע/ה',
+  LATE: 'איחור',
+};
+
+// For Ministry reporting: late counts as present
+export const MINISTRY_PRESENT_STATUSES = ['הגיע/ה', 'איחור'];
+
 // ─── Collection Names ──────────────────────────────────────────────────────────
 
 export const COLLECTIONS = {
