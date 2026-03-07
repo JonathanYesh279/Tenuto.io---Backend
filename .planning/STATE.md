@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 58 of 63 (Conflict Detection Engine)
-Plan: 01 complete
+Plan: 02 complete
 Status: Executing
-Last activity: 2026-03-07 — Plan 58-01 complete (2/2 tasks)
+Last activity: 2026-03-07 — Plan 58-02 complete (2/2 tasks)
 
-Progress: [██░░░░░░░░] ~21% (v1.9)
+Progress: [███░░░░░░░] ~28% (v1.9)
 
 ## Performance Metrics
 
@@ -45,6 +45,8 @@ Progress: [██░░░░░░░░] ~21% (v1.9)
 - **[58-01]** Separate rehearsalConflictService.js rather than extending theory-specific conflictDetectionService.js
 - **[58-01]** Parallel Promise.all for all 6 conflict queries (3 room + 3 teacher) for performance
 - **[58-01]** CONFLICT error code pattern with 409 HTTP response for scheduling conflicts
+- **[58-02]** Preserve BULK_CONFLICT error through service catch block (re-throw instead of wrapping)
+- **[58-02]** Sequential per-date conflict checks acceptable for typical 30-40 date bulk creation
 
 ### Blockers/Concerns
 
@@ -53,5 +55,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 58-01-PLAN.md (rehearsal conflict detection)
-Resume: /gsd:execute-phase 58 plan 02
+Stopped at: Completed 58-02-PLAN.md (bulk rehearsal conflict validation)
+Resume: /gsd:execute-phase 58 plan 03 (if exists) or next phase
