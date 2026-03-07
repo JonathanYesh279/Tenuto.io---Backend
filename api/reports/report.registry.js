@@ -22,6 +22,17 @@ let loaded = false;
 const REQUIRED_FIELDS = ['id', 'name', 'category', 'roles', 'generate'];
 
 /**
+ * Catalog categories map the 5 generator-level categories into 4 user-facing sections.
+ * `generatorCategories` lists which generator.category values belong to each section.
+ */
+const CATALOG_CATEGORIES = [
+  { id: 'teacher', label: 'מורים', icon: 'Users', generatorCategories: ['teacher'] },
+  { id: 'student', label: 'תלמידים', icon: 'GraduationCap', generatorCategories: ['student'] },
+  { id: 'institutional', label: 'מוסדי', icon: 'Building', generatorCategories: ['institutional'] },
+  { id: 'department-schedule', label: 'מחלקות ולו"ז', icon: 'Grid', generatorCategories: ['department', 'schedule'] },
+];
+
+/**
  * Loads all generator files from the generators/ subdirectory.
  * Called once at startup. Idempotent — subsequent calls are no-ops.
  *
@@ -111,6 +122,32 @@ export function getRegistry(userRoles) {
   });
 
   return results;
+}
+
+/**
+ * Returns a categorized catalog of reports filtered by the user's roles.
+ * Groups the flat registry into 4 user-facing categories. Categories with
+ * no visible reports are omitted from the result.
+ *
+ * @param {string[]} userRoles - The requesting user's roles
+ * @returns {Array<{id: string, label: string, icon: string, reports: object[]}>}
+ */
+export function getCatalog(userRoles) {
+  const reports = getRegistry(userRoles);
+
+  const categories = [];
+  for (const cat of CATALOG_CATEGORIES) {
+    const catReports = reports.filter(r => cat.generatorCategories.includes(r.category));
+    if (catReports.length === 0) continue;
+    categories.push({
+      id: cat.id,
+      label: cat.label,
+      icon: cat.icon,
+      reports: catReports,
+    });
+  }
+
+  return categories;
 }
 
 /**
