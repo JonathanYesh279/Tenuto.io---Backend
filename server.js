@@ -45,6 +45,7 @@ import roomScheduleRoutes from './api/room-schedule/room-schedule.route.js';
 import superAdminRoutes from './api/super-admin/super-admin.route.js';
 import rolesRoutes from './api/settings/roles.route.js';
 import reportRoutes from './api/reports/report.route.js';
+import attendanceAlertRoutes from './api/attendance-alerts/attendanceAlert.route.js';
 import { loadGenerators } from './api/reports/report.registry.js';
 import { cascadeSystemInitializer } from './services/cascadeSystemInitializer.js';
 import { errorHandler } from './middleware/error.handler.js';
@@ -248,6 +249,16 @@ app.use(
   stripTenantId,
   addSchoolYearToRequest,
   analyticsRoutes
+);
+app.use(
+  '/api/attendance-alerts',
+  authenticateToken,
+  enrichImpersonationContext,
+  buildContext,
+  enforceTenant,
+  stripTenantId,
+  addSchoolYearToRequest,
+  attendanceAlertRoutes
 );
 app.use(
   '/api/admin/consistency-validation',
