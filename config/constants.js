@@ -248,6 +248,15 @@ export const ATTENDANCE_STATUSES = {
 // For Ministry reporting: late counts as present
 export const MINISTRY_PRESENT_STATUSES = ['הגיע/ה', 'איחור'];
 
+// ─── Attendance Alert Defaults ───────────────────────────────────────────────
+
+export const DEFAULT_ATTENDANCE_ALERT_SETTINGS = {
+  consecutiveAbsences: 3,
+  absenceRateThreshold: 30,
+  minimumRehearsals: 3,
+  isEnabled: true,
+};
+
 // ─── Collection Names ──────────────────────────────────────────────────────────
 
 export const COLLECTIONS = {

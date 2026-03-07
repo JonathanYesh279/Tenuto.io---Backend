@@ -55,6 +55,12 @@ export const tenantSchema = Joi.object({
       isActive: Joi.boolean().default(true),
       createdAt: Joi.date().default(() => new Date()),
     })).optional().default([]),
+    attendanceAlerts: Joi.object({
+      consecutiveAbsences: Joi.number().integer().min(1).max(20).default(3),
+      absenceRateThreshold: Joi.number().min(5).max(90).default(30),
+      minimumRehearsals: Joi.number().integer().min(1).max(50).default(3),
+      isEnabled: Joi.boolean().default(true),
+    }).optional().default(null),
   }).default({ lessonDurations: [30, 45, 60], schoolStartMonth: 9 }),
 
   rolePermissions: rolePermissionsSchema.default(null),
@@ -130,6 +136,12 @@ export const tenantUpdateSchema = Joi.object({
       isActive: Joi.boolean(),
       createdAt: Joi.date(),
     })).optional(),
+    attendanceAlerts: Joi.object({
+      consecutiveAbsences: Joi.number().integer().min(1).max(20),
+      absenceRateThreshold: Joi.number().min(5).max(90),
+      minimumRehearsals: Joi.number().integer().min(1).max(50),
+      isEnabled: Joi.boolean(),
+    }).optional(),
   }),
 
   rolePermissions: rolePermissionsSchema,
