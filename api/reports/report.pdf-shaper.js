@@ -63,6 +63,19 @@ const TABLE = {
 // which preserves inter-word spaces in Hebrew text. 0.01 is visually invisible.
 const WS = { wordSpacing: 0.01 };
 
+const HEBREW_RANGE = /[\u0590-\u05FF]/;
+
+/**
+ * Reverse word order for Hebrew text so PDFKit's LTR word layout
+ * produces correct RTL visual reading order.
+ * Pure LTR content (numbers, dates) is returned unchanged.
+ */
+function rtl(text) {
+  if (!text || typeof text !== 'string') return text || '';
+  if (!HEBREW_RANGE.test(text)) return text;
+  return text.split(/\s+/).reverse().join(' ');
+}
+
 /**
  * Format a cell value for PDF display.
  */
@@ -125,7 +138,7 @@ function drawHeader(doc, conservatoryName, reportName, generatedAt) {
     .font('Hebrew')
     .fontSize(14)
     .fillColor(COLORS.textPrimary)
-    .text(conservatoryName, PAGE.margins.left, y, {
+    .text(rtl(conservatoryName), PAGE.margins.left, y, {
       ...WS,
       width: USABLE_WIDTH,
       align: 'right',
@@ -134,7 +147,7 @@ function drawHeader(doc, conservatoryName, reportName, generatedAt) {
   // Report title
   doc
     .fontSize(12)
-    .text(reportName, PAGE.margins.left, y + 18, {
+    .text(rtl(reportName), PAGE.margins.left, y + 18, {
       ...WS,
       width: USABLE_WIDTH,
       align: 'right',
@@ -183,7 +196,7 @@ function drawFooter(doc, pageNum, totalPages) {
     .fontSize(8)
     .fillColor(COLORS.textSecondary)
     .text(
-      `עמוד ${pageNum} מתוך ${totalPages}`,
+      rtl(`עמוד ${pageNum} מתוך ${totalPages}`),
       PAGE.margins.left,
       y,
       {
@@ -211,7 +224,7 @@ function drawTableHeader(doc, columns, colWidths, y) {
 
   for (let i = 0; i < columns.length; i++) {
     doc.text(
-      columns[i].label,
+      rtl(columns[i].label),
       currentX + 4,
       y + 7,
       {
@@ -247,7 +260,7 @@ function drawDataRow(doc, row, columns, colWidths, y, isOdd) {
     const value = formatValue(row[col.key], col.type);
 
     doc.text(
-      value,
+      rtl(value),
       currentX + 4,
       y + 5,
       {
@@ -282,7 +295,7 @@ function drawSummary(doc, summary, y) {
     .fill(COLORS.summaryBg);
 
   const summaryText = summary.items
-    .map(item => `${item.label}: ${formatValue(item.value, item.type)}`)
+    .map(item => rtl(`${item.label}: ${formatValue(item.value, item.type)}`))
     .join('    ');
 
   doc
