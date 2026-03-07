@@ -11,6 +11,7 @@
 - [x] **v1.6 Room & Hours Management Table** — Phases 31-38 (shipped 2026-03-04)
 - [x] **v1.7 RBAC & Admin Provisioning** — Phases 39-48 (shipped 2026-03-06)
 - [x] **v1.8 Admin Report Generator** — Phases 49-56 (shipped 2026-03-07)
+- [ ] **v1.9 Rehearsals, Orchestras & Attendance Upgrade** — Phases 57-63 (in progress)
 
 ## Phases
 
@@ -142,6 +143,125 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 
 </details>
 
+### v1.9 Rehearsals, Orchestras & Attendance Upgrade (In Progress)
+
+**Milestone Goal:** Fix rehearsal-orchestra bidirectional data flow bugs, add room/time/teacher conflict detection for rehearsals, refactor attendance to a single source of truth with transactional safety, deliver modern attendance-taking UX with smart suggestions, build an interactive rehearsal calendar, and provide attendance analytics with configurable alerting.
+
+- [ ] **Phase 57: Rehearsal-Orchestra Data Flow** — Transactional sync and cascade cleanup between rehearsals and orchestras
+- [ ] **Phase 58: Conflict Detection Engine** — Room, time, and teacher conflict detection for rehearsal scheduling
+- [ ] **Phase 59: Attendance Data Layer** — Single source of truth with transactional writes, membership validation, and three statuses
+- [ ] **Phase 60: Attendance UX** — Quick toggle list with smart suggestions, auto-save, batch operations, and per-student notes
+- [ ] **Phase 61: Orchestra Detail & Rehearsal Integration UI** — Orchestra detail page shows accurate linked rehearsals
+- [ ] **Phase 62: Rehearsal Calendar UX** — Interactive calendar with drag-and-drop, conflict indicators, filtering, and bulk creation wizard
+- [ ] **Phase 63: Attendance Alerts & Dashboard** — Configurable thresholds, auto-flagging, per-orchestra analytics, and student profile widgets
+
+#### Phase 57: Rehearsal-Orchestra Data Flow
+**Goal**: Rehearsal CRUD reliably maintains bidirectional integrity with orchestras — no orphan references, no silent failures
+**Depends on**: Nothing (first phase of v1.9)
+**Requirements**: RORCH-01, RORCH-02
+**Success Criteria** (what must be TRUE):
+  1. Creating a rehearsal atomically adds its ID to the parent orchestra's rehearsalIds array
+  2. Deleting a rehearsal atomically removes its ID from the parent orchestra's rehearsalIds array
+  3. Deleting or deactivating an orchestra removes or archives all associated rehearsals with no orphan references remaining
+  4. If a transaction fails mid-operation, neither the rehearsal nor the orchestra reference is left in an inconsistent state
+**Plans:** 2 plans
+
+Plans:
+- [ ] 57-01-PLAN.md — Transactional rehearsal CRUD with atomic orchestra.rehearsalIds sync
+- [ ] 57-02-PLAN.md — Orchestra cascade deactivation to rehearsals + transactional orchestra mutations
+
+#### Phase 58: Conflict Detection Engine
+**Goal**: Users are warned about scheduling conflicts before they create double-booked rehearsals
+**Depends on**: Phase 57
+**Requirements**: RORCH-03, RORCH-04, RORCH-05, RORCH-06
+**Success Criteria** (what must be TRUE):
+  1. Creating a rehearsal that overlaps an existing time block, rehearsal, or theory lesson in the same room shows a conflict error with the conflicting activity's name, time, and room
+  2. Bulk rehearsal creation validates all generated dates for conflicts before inserting any, and reports per-date conflict details
+  3. A conductor or teacher scheduled for two activities at the same time triggers a teacher-schedule conflict warning
+  4. Conflict responses include enough detail (activity type, name, time range, room) for the user to resolve the issue without guessing
+**Plans**: TBD
+
+Plans:
+- [ ] 58-01: TBD
+- [ ] 58-02: TBD
+
+#### Phase 59: Attendance Data Layer
+**Goal**: Attendance records live in a single canonical collection with transactional consistency, membership validation, and three statuses
+**Depends on**: Phase 57
+**Requirements**: ATND-01, ATND-02, ATND-03, ATND-04, ATND-05
+**Success Criteria** (what must be TRUE):
+  1. activity_attendance collection is the single source of truth; rehearsal.attendance arrays are kept in sync atomically via transactions
+  2. Attendance status is one of three values (present, absent, late) with late counting as present for Ministry reporting aggregations
+  3. Recording attendance for a student not in orchestra.memberIds is rejected with a clear error
+  4. Deleting a rehearsal soft-deletes (archives) its attendance records rather than destroying them
+  5. If the transaction writing to both activity_attendance and rehearsal.attendance fails, neither write persists
+**Plans**: TBD
+
+Plans:
+- [ ] 59-01: TBD
+- [ ] 59-02: TBD
+
+#### Phase 60: Attendance UX
+**Goal**: Conductors can take attendance quickly and intuitively with smart defaults and auto-saving
+**Depends on**: Phase 59
+**Requirements**: AUX-01, AUX-02, AUX-03, AUX-04, AUX-05
+**Success Criteria** (what must be TRUE):
+  1. Conductor sees all orchestra members in a toggle list and can tap to cycle each student through statuses (not marked -> present -> late -> absent)
+  2. Students with high attendance rates are visually hinted as "likely present" and frequent absentees show warning indicators
+  3. Changes auto-save after 1-2 seconds of idle time with a visible save confirmation indicator
+  4. "Mark all present" and "Mark all absent" buttons update every student in the list at once
+  5. Each student row has a notes field where the conductor can record absence reasons or late arrival details
+**Plans**: TBD
+
+Plans:
+- [ ] 60-01: TBD
+- [ ] 60-02: TBD
+
+#### Phase 61: Orchestra Detail & Rehearsal Integration UI
+**Goal**: Orchestra detail page accurately displays linked rehearsals with no stale or orphan references
+**Depends on**: Phase 57, Phase 58
+**Requirements**: RORCH-07
+**Success Criteria** (what must be TRUE):
+  1. Orchestra detail page lists all linked rehearsals with correct date, time, room, and attendance status
+  2. Rehearsals that were deleted no longer appear in the orchestra's rehearsal list (no ghost entries)
+  3. Conductor can navigate from orchestra detail to a specific rehearsal's attendance view
+**Plans**: TBD
+
+Plans:
+- [ ] 61-01: TBD
+
+#### Phase 62: Rehearsal Calendar UX
+**Goal**: Users manage rehearsals through an interactive calendar with visual conflict feedback and bulk creation
+**Depends on**: Phase 58
+**Requirements**: RCAL-01, RCAL-02, RCAL-03, RCAL-04, RCAL-05, RCAL-06
+**Success Criteria** (what must be TRUE):
+  1. Calendar displays in month, week, and day modes with drag-and-drop rescheduling of individual rehearsals
+  2. Conflicting rehearsals show red overlay or badge indicators directly on the calendar
+  3. Clicking an empty time slot opens a quick-add rehearsal form pre-filled with the selected date and time
+  4. Rehearsal cards on the calendar show orchestra name, time, room, and attendance status for past dates
+  5. Calendar can be filtered by orchestra, conductor, room, or activity type
+**Plans**: TBD
+
+Plans:
+- [ ] 62-01: TBD
+- [ ] 62-02: TBD
+- [ ] 62-03: TBD
+
+#### Phase 63: Attendance Alerts & Dashboard
+**Goal**: Admins and conductors see attendance trends, flagged students, and configurable absence thresholds
+**Depends on**: Phase 59, Phase 60
+**Requirements**: ADSH-01, ADSH-02, ADSH-03, ADSH-04, ADSH-05
+**Success Criteria** (what must be TRUE):
+  1. Tenant settings include configurable absence thresholds (consecutive absences count and total absence rate percentage) with sensible defaults
+  2. Students exceeding the threshold are auto-flagged, and the flag is visible on their profile and in the conductor's orchestra member list as a warning badge
+  3. Admin attendance dashboard shows per-orchestra attendance rates, trend charts over time, and a list of all flagged students
+  4. Student detail page includes an attendance summary widget showing attendance rate, recent session history, and flag status
+**Plans**: TBD
+
+Plans:
+- [ ] 63-01: TBD
+- [ ] 63-02: TBD
+
 ## Progress
 
 | Phase Range | Milestone | Phases | Plans | Status |
@@ -155,9 +275,10 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 | 31-38 | v1.6 Room & Hours Management Table | 8 | 26 | Shipped 2026-03-04 |
 | 39-48 | v1.7 RBAC & Admin Provisioning | 10 | 15 | Shipped 2026-03-06 |
 | 49-56 | v1.8 Admin Report Generator | 8 | 16 | Shipped 2026-03-07 |
+| 57-63 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 7 | TBD | In progress |
 
-**Total: 56 phases, 119 plans across 9 milestones (9 shipped)**
+**Total: 63 phases (56 shipped, 7 planned), 119+ plans across 10 milestones (9 shipped)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 56 complete, v1.8 milestone shipped
+*Last updated: 2026-03-07 — Phase 57 planned (2 plans)*
