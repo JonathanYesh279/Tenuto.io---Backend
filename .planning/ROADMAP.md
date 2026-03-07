@@ -150,7 +150,7 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 - [x] **Phase 57: Rehearsal-Orchestra Data Flow** — Transactional sync and cascade cleanup between rehearsals and orchestras — completed 2026-03-07
 - [x] **Phase 58: Conflict Detection Engine** — Room, time, and teacher conflict detection for rehearsal scheduling — completed 2026-03-07
 - [x] **Phase 59: Attendance Data Layer** — Single source of truth with transactional writes, membership validation, and three statuses — completed 2026-03-07
-- [ ] **Phase 60: Attendance UX** — Quick toggle list with smart suggestions, auto-save, batch operations, and per-student notes
+- [x] **Phase 60: Attendance UX** — Quick toggle list with smart suggestions, auto-save, batch operations, and per-student notes — completed 2026-03-07
 - [ ] **Phase 61: Orchestra Detail & Rehearsal Integration UI** — Orchestra detail page shows accurate linked rehearsals
 - [ ] **Phase 62: Rehearsal Calendar UX** — Interactive calendar with drag-and-drop, conflict indicators, filtering, and bulk creation wizard
 - [ ] **Phase 63: Attendance Alerts & Dashboard** — Configurable thresholds, auto-flagging, per-orchestra analytics, and student profile widgets
@@ -211,11 +211,11 @@ Plans:
   3. Changes auto-save after 1-2 seconds of idle time with a visible save confirmation indicator
   4. "Mark all present" and "Mark all absent" buttons update every student in the list at once
   5. Each student row has a notes field where the conductor can record absence reasons or late arrival details
-**Plans:** 2 plans
+**Plans:** 2/2 complete
 
 Plans:
-- [ ] 60-01-PLAN.md — Batch member attendance rates endpoint for smart suggestions
-- [ ] 60-02-PLAN.md — Rewrite attendance UI with 4-status cycling, auto-save, notes, and smart suggestions
+- [x] 60-01-PLAN.md — Batch member attendance rates endpoint for smart suggestions
+- [x] 60-02-PLAN.md — Rewrite attendance UI with 4-status cycling, auto-save, notes, and smart suggestions
 
 #### Phase 61: Orchestra Detail & Rehearsal Integration UI
 **Goal**: Orchestra detail page accurately displays linked rehearsals with no stale or orphan references
