@@ -5,20 +5,20 @@
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.8 Admin Report Generator — Phase 54
+**Current focus:** v1.8 Admin Report Generator — Phase 55
 
 ## Current Position
 
-Phase: 54 of 56
-Plan: 2 of 2 (phase complete)
-Status: Ready
-Last activity: 2026-03-07 — Plan 54-02 complete (PDF export engine)
+Phase: 55 of 56
+Plan: 1 of 2
+Status: In Progress
+Last activity: 2026-03-07 — Plan 55-01 complete (Dashboard KPI endpoint)
 
-Progress: [██████░░░░] 60%
+Progress: [███████░░░] 65%
 
 ## Performance Metrics
 
-**All milestones:** 50 phases, 112 plans across 8 milestones
+**All milestones:** 50 phases, 113 plans across 8 milestones
 **v1.8 (50-01):** 2min, 2 tasks, 2 files
 **v1.8 (50-02):** 2min, 2 tasks, 2 files
 **v1.8 (51-01):** 1min, 2 tasks, 2 files
@@ -29,6 +29,7 @@ Progress: [██████░░░░] 60%
 **v1.8 (53-02):** 3min, 3 tasks, 3 files
 **v1.8 (54-01):** 3min, 3 tasks, 3 files
 **v1.8 (54-02):** 3min, 2 tasks, 2 files
+**v1.8 (55-01):** 3min, 2 tasks, 3 files
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -77,6 +78,9 @@ Progress: [██████░░░░] 60%
 - **[54-02]** Used pdfkit for PDF generation (lightweight, no headless browser dependency)
 - **[54-02]** Reisinger-Yonatan TTF font for Hebrew RTL text rendering in PDFs
 - **[54-02]** A4 landscape layout with buffered pages for post-render page numbering
+- **[55-01]** Idle teacher count via aggregation pipeline (unwind teacherAssignments, collect assigned IDs, subtract from total)
+- **[55-01]** Data quality score = 100 minus high-severity anomaly count (unassigned students + idle teachers), floored at 0
+- **[55-01]** Previous school year found by sorting school_year by createdAt desc, picking one after current index
 
 ### Pending Todos
 
@@ -89,5 +93,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 54-02-PLAN.md (PDF export engine)
-Resume: Execute next phase (55)
+Stopped at: Completed 55-01-PLAN.md (Dashboard KPI endpoint)
+Resume: Execute 55-02-PLAN.md (Catalog API enhancements)
