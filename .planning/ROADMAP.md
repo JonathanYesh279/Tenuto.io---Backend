@@ -152,7 +152,7 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 - [x] **Phase 59: Attendance Data Layer** — Single source of truth with transactional writes, membership validation, and three statuses — completed 2026-03-07
 - [x] **Phase 60: Attendance UX** — Quick toggle list with smart suggestions, auto-save, batch operations, and per-student notes — completed 2026-03-07
 - [x] **Phase 61: Orchestra Detail & Rehearsal Integration UI** — Orchestra detail page shows accurate linked rehearsals — completed 2026-03-07
-- [ ] **Phase 62: Rehearsal Calendar UX** — Interactive calendar with drag-and-drop, conflict indicators, filtering, and bulk creation wizard
+- [x] **Phase 62: Rehearsal Calendar UX** — Interactive calendar with drag-and-drop, conflict indicators, filtering, and bulk creation wizard — completed 2026-03-07
 - [ ] **Phase 63: Attendance Alerts & Dashboard** — Configurable thresholds, auto-flagging, per-orchestra analytics, and student profile widgets
 
 #### Phase 57: Rehearsal-Orchestra Data Flow
@@ -240,11 +240,12 @@ Plans:
   3. Clicking an empty time slot opens a quick-add rehearsal form pre-filled with the selected date and time
   4. Rehearsal cards on the calendar show orchestra name, time, room, and attendance status for past dates
   5. Calendar can be filtered by orchestra, conductor, room, or activity type
-**Plans:** 2 plans
+**Plans:** 3/3 complete
 
 Plans:
-- [ ] 62-01-PLAN.md — Day view, drag-and-drop rescheduling, and quick-add from empty time slots
-- [ ] 62-02-PLAN.md — Conflict indicators, attendance badges, and conductor filter
+- [x] 62-01-PLAN.md — Day view, drag-and-drop rescheduling, and quick-add from empty time slots
+- [x] 62-02-PLAN.md — Conflict indicators, attendance badges, and conductor filter
+- [x] 62-03-PLAN.md — Gap closure: RehearsalForm pre-fill fix + activity type filter
 
 #### Phase 63: Attendance Alerts & Dashboard
 **Goal**: Admins and conductors see attendance trends, flagged students, and configurable absence thresholds
