@@ -179,11 +179,11 @@ Plans:
   2. Bulk rehearsal creation validates all generated dates for conflicts before inserting any, and reports per-date conflict details
   3. A conductor or teacher scheduled for two activities at the same time triggers a teacher-schedule conflict warning
   4. Conflict responses include enough detail (activity type, name, time range, room) for the user to resolve the issue without guessing
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 58-01: TBD
-- [ ] 58-02: TBD
+- [ ] 58-01-PLAN.md — Cross-source room & teacher conflict detection service + single rehearsal CRUD wiring
+- [ ] 58-02-PLAN.md — Bulk rehearsal creation conflict pre-validation with per-date breakdown
 
 #### Phase 59: Attendance Data Layer
 **Goal**: Attendance records live in a single canonical collection with transactional consistency, membership validation, and three statuses
