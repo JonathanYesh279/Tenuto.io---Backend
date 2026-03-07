@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 62 of 63 (Rehearsal Calendar UX)
-Plan: 2/2 complete
-Status: Phase 62 complete
-Last activity: 2026-03-07 — Completed 62-02-PLAN.md (2/2 plans)
+Plan: 3/3 complete
+Status: Phase 62 complete (gap closure done)
+Last activity: 2026-03-07 — Completed 62-03-PLAN.md (gap closure)
 
 Progress: [█████████░] ~86% (v1.9)
 
@@ -67,6 +67,8 @@ Progress: [█████████░] ~86% (v1.9)
 - **[62-02]** Group rehearsals by date for O(n) conflict detection instead of O(n^2) pairwise comparison
 - **[62-02]** Conflict badges use ring-2 + WarningIcon overlay for visibility on colored card backgrounds
 - **[62-02]** Attendance badges shown on all past rehearsals regardless of card variant (minimal, compact, full)
+- **[62-03]** Check initialData?.groupId (not !!initialData) to distinguish pre-fill create mode from edit mode
+- **[62-03]** Use Hebrew type values in activity type filter to match existing rehearsal.type field
 
 ### Blockers/Concerns
 
@@ -75,5 +77,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 62-02-PLAN.md (phase 62 complete)
+Stopped at: Completed 62-03-PLAN.md (phase 62 gap closure complete)
 Resume: /gsd:execute-phase 63
