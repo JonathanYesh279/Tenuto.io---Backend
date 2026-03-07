@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 ## Current Position
 
 Phase: 58 of 63 (Conflict Detection Engine)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-07 — Phase 57 complete (2/2 plans, verified)
+Plan: 01 complete
+Status: Executing
+Last activity: 2026-03-07 — Plan 58-01 complete (2/2 tasks)
 
-Progress: [█░░░░░░░░░] ~14% (v1.9)
+Progress: [██░░░░░░░░] ~21% (v1.9)
 
 ## Performance Metrics
 
@@ -42,6 +42,9 @@ Progress: [█░░░░░░░░░] ~14% (v1.9)
 - **[57-01]** Remove all silent error swallowing on orchestra sync -- transaction atomicity handles failures
 - **[57-02]** Hard-delete rehearsals on orchestra deactivation (consistent with removeRehearsal pattern)
 - **[57-02]** All orchestra mutation functions (add, update, remove) wrapped in withTransaction
+- **[58-01]** Separate rehearsalConflictService.js rather than extending theory-specific conflictDetectionService.js
+- **[58-01]** Parallel Promise.all for all 6 conflict queries (3 room + 3 teacher) for performance
+- **[58-01]** CONFLICT error code pattern with 409 HTTP response for scheduling conflicts
 
 ### Blockers/Concerns
 
@@ -50,5 +53,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Phase 57 complete — verified 4/4 must-haves
-Resume: /gsd:plan-phase 58
+Stopped at: Completed 58-01-PLAN.md (rehearsal conflict detection)
+Resume: /gsd:execute-phase 58 plan 02
