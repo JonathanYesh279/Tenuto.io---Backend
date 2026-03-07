@@ -148,7 +148,7 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 **Milestone Goal:** Fix rehearsal-orchestra bidirectional data flow bugs, add room/time/teacher conflict detection for rehearsals, refactor attendance to a single source of truth with transactional safety, deliver modern attendance-taking UX with smart suggestions, build an interactive rehearsal calendar, and provide attendance analytics with configurable alerting.
 
 - [x] **Phase 57: Rehearsal-Orchestra Data Flow** — Transactional sync and cascade cleanup between rehearsals and orchestras — completed 2026-03-07
-- [ ] **Phase 58: Conflict Detection Engine** — Room, time, and teacher conflict detection for rehearsal scheduling
+- [x] **Phase 58: Conflict Detection Engine** — Room, time, and teacher conflict detection for rehearsal scheduling — completed 2026-03-07
 - [ ] **Phase 59: Attendance Data Layer** — Single source of truth with transactional writes, membership validation, and three statuses
 - [ ] **Phase 60: Attendance UX** — Quick toggle list with smart suggestions, auto-save, batch operations, and per-student notes
 - [ ] **Phase 61: Orchestra Detail & Rehearsal Integration UI** — Orchestra detail page shows accurate linked rehearsals
@@ -179,11 +179,11 @@ Plans:
   2. Bulk rehearsal creation validates all generated dates for conflicts before inserting any, and reports per-date conflict details
   3. A conductor or teacher scheduled for two activities at the same time triggers a teacher-schedule conflict warning
   4. Conflict responses include enough detail (activity type, name, time range, room) for the user to resolve the issue without guessing
-**Plans**: 2 plans
+**Plans:** 2/2 complete
 
 Plans:
-- [ ] 58-01-PLAN.md — Cross-source room & teacher conflict detection service + single rehearsal CRUD wiring
-- [ ] 58-02-PLAN.md — Bulk rehearsal creation conflict pre-validation with per-date breakdown
+- [x] 58-01-PLAN.md — Cross-source room & teacher conflict detection service + single rehearsal CRUD wiring
+- [x] 58-02-PLAN.md — Bulk rehearsal creation conflict pre-validation with per-date breakdown
 
 #### Phase 59: Attendance Data Layer
 **Goal**: Attendance records live in a single canonical collection with transactional consistency, membership validation, and three statuses

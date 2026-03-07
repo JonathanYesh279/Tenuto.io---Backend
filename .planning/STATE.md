@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 58
+**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 59
 
 ## Current Position
 
-Phase: 58 of 63 (Conflict Detection Engine)
-Plan: 02 complete
-Status: Executing
-Last activity: 2026-03-07 — Plan 58-02 complete (2/2 tasks)
+Phase: 59 of 63 (Attendance Data Layer)
+Plan: —
+Status: Ready to plan
+Last activity: 2026-03-07 — Phase 58 complete (2/2 plans, verified + gap fix)
 
-Progress: [███░░░░░░░] ~28% (v1.9)
+Progress: [██░░░░░░░░] ~29% (v1.9)
 
 ## Performance Metrics
 
@@ -55,5 +55,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 58-02-PLAN.md (bulk rehearsal conflict validation)
-Resume: /gsd:execute-phase 58 plan 03 (if exists) or next phase
+Stopped at: Phase 58 complete — verified 4/4 must-haves (gap fix applied)
+Resume: /gsd:plan-phase 59
