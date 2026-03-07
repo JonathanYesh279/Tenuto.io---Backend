@@ -259,8 +259,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 63-01: TBD
-- [ ] 63-02: TBD
+- [ ] 63-01-PLAN.md — Tenant threshold settings, auto-flagging service, dashboard & summary APIs
+- [ ] 63-02-PLAN.md — Admin dashboard page, student attendance widget, conductor warning badges
 
 ## Progress
 
@@ -281,4 +281,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-07 — Phase 62 planned (2 plans)
+*Last updated: 2026-03-07 — Phase 63 planned (2 plans)
