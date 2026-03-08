@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A multi-tenant SaaS platform for Israeli music conservatories (Node.js + Express + MongoDB backend, React + TypeScript frontend). Manages teachers, students, lessons, orchestras, theory classes, bagrut programs, schedules, and Ministry of Education reporting. Features 5-layer tenant isolation, hybrid RBAC with 13 roles and per-tenant customizable permissions, a super admin platform for tenant CRUD/reporting/impersonation/admin provisioning, enriched import from Ministry Excel files for teachers/students/conservatory profile/ensembles with conductor matching and student-orchestra linking, room schedule management with conflict detection, Ministry export workbook generation, and a management reporting center with 18 reports across 4 categories, KPI dashboard with alerts, Excel/PDF export, and year-over-year comparison.
+A multi-tenant SaaS platform for Israeli music conservatories (Node.js + Express + MongoDB backend, React + TypeScript frontend). Manages teachers, students, lessons, orchestras, theory classes, bagrut programs, schedules, and Ministry of Education reporting. Features 5-layer tenant isolation, hybrid RBAC with 13 roles and per-tenant customizable permissions, a super admin platform for tenant CRUD/reporting/impersonation/admin provisioning, enriched import from Ministry Excel files for teachers/students/conservatory profile/ensembles with conductor matching and student-orchestra linking, room schedule management with conflict detection, Ministry export workbook generation, a management reporting center with 18 reports across 4 categories, KPI dashboard with alerts, Excel/PDF export, and year-over-year comparison, transactional rehearsal-orchestra bidirectional sync with cross-source conflict detection, single source of truth attendance system with smart UX and auto-save, interactive rehearsal calendar with drag-and-drop, and configurable attendance alerts with admin dashboard and analytics.
 
 ## Core Value
 
@@ -77,9 +77,16 @@ Reliable multi-tenant music school management where every teacher sees only thei
 - ✓ Categorized report catalog with role-filtered visibility — v1.8
 - ✓ Frontend Reports UI with DefaultTableRenderer, custom chart/gauge renderers, and year comparison — v1.8
 
+- ✓ Transactional rehearsal-orchestra bidirectional sync with atomic cascade cleanup — v1.9
+- ✓ Cross-source room & teacher conflict detection for rehearsal scheduling — v1.9
+- ✓ Single source of truth attendance with 3 statuses, transactional writes, membership validation — v1.9
+- ✓ Modern attendance UX with tap-to-cycle, auto-save, smart suggestions, batch operations — v1.9
+- ✓ Interactive rehearsal calendar with drag-and-drop, conflict badges, filtering — v1.9
+- ✓ Configurable attendance alerts with auto-flagging, admin dashboard, trend analytics — v1.9
+
 ### Active
 
-(No active milestone — ready for next milestone planning)
+(None — all milestones shipped. Next milestone TBD.)
 
 ### Out of Scope
 
@@ -103,7 +110,7 @@ Reliable multi-tenant music school management where every teacher sees only thei
 
 ## Context
 
-**Current state:** v1.8 shipped (Admin Report Generator). Backend has ~100,000 LOC JavaScript. Frontend has React 18 + TypeScript + Vite + Tailwind. Platform features: 5-layer tenant isolation, hybrid RBAC with 13 roles and department-scoped coordinators, super admin dashboard with tenant admin management, enriched teacher/student/conservatory/ensemble import from Ministry Excel, Ministry export workbook, room schedule management with conflict detection, complete Israeli privacy compliance documentation package (24 documents), and management reporting center with 18 reports, KPI dashboard, Excel/PDF export. 9 milestones shipped (v1.0-v1.8), 56 phases, 119 plans.
+**Current state:** v1.9 shipped (Rehearsals, Orchestras & Attendance Upgrade). Backend has ~100,000 LOC JavaScript. Frontend has React 18 + TypeScript + Vite + Tailwind. Platform features: 5-layer tenant isolation, hybrid RBAC with 13 roles and department-scoped coordinators, super admin dashboard with tenant admin management, enriched teacher/student/conservatory/ensemble import from Ministry Excel, Ministry export workbook, room schedule management with conflict detection, complete Israeli privacy compliance documentation package (24 documents), management reporting center with 18 reports, KPI dashboard, Excel/PDF export, transactional rehearsal-orchestra sync with conflict detection, single source of truth attendance system with interactive calendar and admin dashboard. 10 milestones shipped (v1.0-v1.9), 65 phases, 142 plans.
 
 **Tech stack:** Node.js + Express + MongoDB native driver (no Mongoose). React 18 + TypeScript + Vite + Tailwind CSS. Vitest + MongoDB Memory Server for testing. GitHub Actions CI pipeline.
 
@@ -185,4 +192,13 @@ Reliable multi-tenant music school management where every teacher sees only thei
 | 5 categories merged to 4 in catalog | department+schedule naturally group together | ✓ Good — cleaner UX, fewer categories |
 
 ---
-*Last updated: 2026-03-07 after v1.8 milestone completion*
+| withTransaction for all rehearsal write operations | Atomic orchestraIds sync, no orphan references | ✓ Good — eliminated silent sync failures |
+| Separate rehearsalConflictService.js | Theory-specific conflictDetectionService is different concern | ✓ Good — clean separation, parallel queries |
+| activity_attendance as single source of truth | Replaces dual rehearsal.attendance + activity_attendance inconsistency | ✓ Good — transactional writes, one canonical source |
+| Late counts as present for Ministry reporting | Israeli Ministry attendance reporting convention | ✓ Good — MINISTRY_PRESENT_STATUSES constant |
+| HTML5 native drag-and-drop (no library) | Lightweight, no dependency for rehearsal calendar | ✓ Good — works across all views |
+| 1500ms debounce auto-save with hasInteracted guard | Prevents saving on initial render | ✓ Good — no phantom saves |
+| Tenant settings.attendanceAlerts defaults to null | Service falls back to DEFAULT_ATTENDANCE_ALERT_SETTINGS | ✓ Good — zero-config for existing tenants |
+
+---
+*Last updated: 2026-03-08 after v1.9 milestone*

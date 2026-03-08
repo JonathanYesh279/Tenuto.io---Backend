@@ -267,3 +267,33 @@
 
 ---
 
+## v1.9 — Rehearsals, Orchestras & Attendance Upgrade
+
+**Shipped:** 2026-03-08
+**Phases:** 9 (57-65)
+**Plans:** 19
+**Timeline:** 2 days (2026-03-07 -> 2026-03-08)
+**Commits:** 64
+**Files modified:** 61 (+7,555 / -569 lines)
+
+### Accomplishments
+
+1. **Transactional Rehearsal-Orchestra Sync** — Rehearsal CRUD atomically maintains bidirectional orchestra.rehearsalIds via withTransaction, with cascade cleanup on orchestra deactivation eliminating orphan references
+2. **Cross-Source Conflict Detection Engine** — Room and teacher conflict detection across rehearsals, theory lessons, and time blocks with parallel 6-query architecture, 409 responses with actionable details, and bulk creation pre-validation
+3. **Single Source of Truth Attendance Layer** — activity_attendance as canonical collection with transactional writes, membership validation, 3 statuses (present/absent/late with late counting as present for Ministry), and soft-delete on rehearsal removal
+4. **Modern Attendance-Taking UX** — Tap-to-cycle status badges, 1500ms debounce auto-save, smart suggestions based on historical attendance rates, batch mark-all operations, per-student notes with animated expand, and orchestra grouping
+5. **Interactive Rehearsal Calendar** — Month/week/day views with HTML5 native drag-and-drop rescheduling, conflict badges, attendance indicators, click-to-create from empty slots, orchestra/conductor/room/type filtering, and 15-minute snap grid
+6. **Configurable Attendance Alerts & Dashboard** — Per-tenant absence thresholds (consecutive + rate), auto-flagging service, admin dashboard with Recharts trend charts, per-orchestra drill-down, student profile attendance widget, and conductor warning badges
+
+### Requirements
+
+- 28/28 v1.9 requirements satisfied (100%)
+- See: `.planning/milestones/v1.9-REQUIREMENTS.md`
+
+### Archive
+
+- Roadmap: `.planning/milestones/v1.9-ROADMAP.md`
+- Requirements: `.planning/milestones/v1.9-REQUIREMENTS.md`
+- Audit: `.planning/milestones/v1.9-MILESTONE-AUDIT.md`
+
+---
