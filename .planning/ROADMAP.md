@@ -11,7 +11,7 @@
 - [x] **v1.6 Room & Hours Management Table** — Phases 31-38 (shipped 2026-03-04)
 - [x] **v1.7 RBAC & Admin Provisioning** — Phases 39-48 (shipped 2026-03-06)
 - [x] **v1.8 Admin Report Generator** — Phases 49-56 (shipped 2026-03-07)
-- [ ] **v1.9 Rehearsals, Orchestras & Attendance Upgrade** — Phases 57-64 (in progress)
+- [ ] **v1.9 Rehearsals, Orchestras & Attendance Upgrade** — Phases 57-65 (in progress)
 
 ## Phases
 
@@ -155,6 +155,7 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 - [x] **Phase 62: Rehearsal Calendar UX** — Interactive calendar with drag-and-drop, conflict indicators, filtering, and bulk creation wizard — completed 2026-03-07
 - [x] **Phase 63: Attendance Alerts & Dashboard** — Configurable thresholds, auto-flagging, per-orchestra analytics, and student profile widgets — completed 2026-03-08
 - [x] **Phase 64: v1.9 Bug Fixes & Polish** — Gap closure: conflict error preservation, field name fix, snap indicators, cleanup — completed 2026-03-08
+- [ ] **Phase 65: Attendance Integration Fixes** — Fix sessionId/activityId mismatch and RehearsalAttendance data shape — Gap closure from re-audit
 
 #### Phase 57: Rehearsal-Orchestra Data Flow
 **Goal**: Rehearsal CRUD reliably maintains bidirectional integrity with orchestras — no orphan references, no silent failures
@@ -283,6 +284,20 @@ Note: Success criteria #1 (conflict error preservation) already fixed in commit 
 Plans:
 - [x] 64-01-PLAN.md — Fix attendance history dots field name mismatch + remove console.log from bulk delete
 
+#### Phase 65: Attendance Integration Fixes
+**Goal**: Fix two critical integration bugs that break attendance save and alerts/dashboard functionality
+**Depends on**: Phase 59, Phase 60, Phase 63
+**Requirements**: None (all 28 satisfied — this closes integration gaps)
+**Gap Closure:** Closes integration gaps from v1.9-MILESTONE-AUDIT.md re-audit
+**Success Criteria** (what must be TRUE):
+  1. `attendanceAlert.service.js` queries use `sessionId` (matching what `rehearsal.service.js` writes to `activity_attendance`)
+  2. `RehearsalAttendance.tsx` sends records as array of `{studentId, status, notes}` with Hebrew status values
+  3. Attendance alerts dashboard returns real data (not empty)
+  4. Conductor attendance save from RehearsalAttendance page succeeds
+
+Plans:
+- [ ] 65-01-PLAN.md — Fix sessionId/activityId mismatch in attendanceAlert.service.js + RehearsalAttendance data shape
+
 ## Progress
 
 | Phase Range | Milestone | Phases | Plans | Status |
@@ -296,9 +311,9 @@ Plans:
 | 31-38 | v1.6 Room & Hours Management Table | 8 | 26 | Shipped 2026-03-04 |
 | 39-48 | v1.7 RBAC & Admin Provisioning | 10 | 15 | Shipped 2026-03-06 |
 | 49-56 | v1.8 Admin Report Generator | 8 | 16 | Shipped 2026-03-07 |
-| 57-64 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 8 | TBD | In progress |
+| 57-65 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 9 | TBD | In progress |
 
-**Total: 64 phases (56 shipped, 8 in progress), 122+ plans across 10 milestones (9 shipped)**
+**Total: 65 phases (56 shipped, 9 in progress), 122+ plans across 10 milestones (9 shipped)**
 
 ---
 *Roadmap created: 2026-02-14*
