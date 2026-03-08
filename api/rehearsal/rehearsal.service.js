@@ -640,9 +640,6 @@ async function bulkDeleteRehearsalsByOrchestra(orchestraId, userId, isAdmin = fa
       return deleteResult.deletedCount;
     });
 
-    // Logging
-    console.log(`User ${userId} deleted ${deletedCount} rehearsals for orchestra ${orchestraId}`);
-
     return {
       deletedCount,
       message: `Successfully deleted ${deletedCount} rehearsals for orchestra`
@@ -758,9 +755,6 @@ async function bulkDeleteRehearsalsByDateRange(orchestraId, startDate, endDate, 
 
       return deleteResult.deletedCount;
     });
-
-    // Logging
-    console.log(`User ${userId} deleted ${deletedCount} rehearsals for orchestra ${orchestraId} in date range ${startDate} to ${endDate}`);
 
     return {
       deletedCount,
