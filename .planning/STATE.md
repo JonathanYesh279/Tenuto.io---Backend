@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v1.9 Rehearsals, Orchestras & Attendance Upgrade — Phase 64 COMPLETE
+**Current focus:** Gap closure phase 65 — Attendance integration bug fixes
 
 ## Current Position
 
-Phase: 64 of 64 (v1.9 Bug Fixes & Polish)
+Phase: 65 of 65 (Attendance Integration Fixes)
 Plan: 1/1 complete
-Status: Phase 64 COMPLETE — v1.9 gap closure shipped
-Last activity: 2026-03-08 — Fixed attendance history dots field mismatch + removed bulk delete console.log
+Status: Phase 65 COMPLETE — attendance integration bugs fixed
+Last activity: 2026-03-08 — Fixed sessionId mismatch in alert queries + attendance save payload shape
 
-Progress: [██████████] 100% (v1.9 gap closure COMPLETE)
+Progress: [██████████] 100% (Phase 65 gap closure COMPLETE)
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Progress: [██████████] 100% (v1.9 gap closure COMPLETE)
 - **[63-05]** Dismiss flag is client-side only (temporary, resets on reload) until backend endpoint exists
 - **[63-05]** Drill-down caches student summaries in useRef Map to avoid re-fetching
 - **[63-05]** Chart container uses dir=ltr since Recharts renders left-to-right regardless of page direction
+- **[65-01]** STATUS_TO_HEBREW and HEBREW_TO_STATUS as separate constants for bidirectional attendance status mapping
 
 ### Blockers/Concerns
 
@@ -94,5 +95,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-08
-Stopped at: Completed 64-01-PLAN.md — Phase 64 gap closure complete
-Resume: All v1.9 gaps closed (4/4). Ready for next milestone or review.
+Stopped at: Completed 65-01-PLAN.md — Attendance integration fixes complete
+Resume: Phase 65 complete. Attendance save and dashboard queries now functional.
