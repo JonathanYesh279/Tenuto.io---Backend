@@ -11,7 +11,7 @@
 - [x] **v1.6 Room & Hours Management Table** — Phases 31-38 (shipped 2026-03-04)
 - [x] **v1.7 RBAC & Admin Provisioning** — Phases 39-48 (shipped 2026-03-06)
 - [x] **v1.8 Admin Report Generator** — Phases 49-56 (shipped 2026-03-07)
-- [ ] **v1.9 Rehearsals, Orchestras & Attendance Upgrade** — Phases 57-63 (in progress)
+- [ ] **v1.9 Rehearsals, Orchestras & Attendance Upgrade** — Phases 57-64 (in progress)
 
 ## Phases
 
@@ -153,8 +153,8 @@ See: `.planning/milestones/v1.8-ROADMAP.md` for full details.
 - [x] **Phase 60: Attendance UX** — Quick toggle list with smart suggestions, auto-save, batch operations, and per-student notes — completed 2026-03-07
 - [x] **Phase 61: Orchestra Detail & Rehearsal Integration UI** — Orchestra detail page shows accurate linked rehearsals — completed 2026-03-07
 - [x] **Phase 62: Rehearsal Calendar UX** — Interactive calendar with drag-and-drop, conflict indicators, filtering, and bulk creation wizard — completed 2026-03-07
-- [ ] **Phase 63: Attendance Alerts & Dashboard** — Configurable thresholds, auto-flagging, per-orchestra analytics, and student profile widgets
-- [ ] **Phase 64: v1.9 Bug Fixes & Polish** — Gap closure: conflict error preservation, field name fix, snap indicators, cleanup
+- [x] **Phase 63: Attendance Alerts & Dashboard** — Configurable thresholds, auto-flagging, per-orchestra analytics, and student profile widgets — completed 2026-03-08
+- [x] **Phase 64: v1.9 Bug Fixes & Polish** — Gap closure: conflict error preservation, field name fix, snap indicators, cleanup — completed 2026-03-08
 
 #### Phase 57: Rehearsal-Orchestra Data Flow
 **Goal**: Rehearsal CRUD reliably maintains bidirectional integrity with orchestras — no orphan references, no silent failures
@@ -257,14 +257,14 @@ Plans:
   2. Students exceeding the threshold are auto-flagged, and the flag is visible on their profile and in the conductor's orchestra member list as a warning badge
   3. Admin attendance dashboard shows per-orchestra attendance rates, trend charts over time, and a list of all flagged students
   4. Student detail page includes an attendance summary widget showing attendance rate, recent session history, and flag status
-**Plans:** 5 plans
+**Plans:** 5/5 complete
 
 Plans:
 - [x] 63-01-PLAN.md — Tenant threshold settings, auto-flagging service, dashboard & summary APIs
 - [x] 63-02-PLAN.md — Admin dashboard page, student attendance widget, conductor warning badges
-- [ ] 63-03-PLAN.md — Gap closure: Calendar visual redesign with animations, side panel, and drag improvements
-- [ ] 63-04-PLAN.md — Gap closure: Attendance marking UX overhaul with grouping, tap-to-cycle, and auto-save
-- [ ] 63-05-PLAN.md — Gap closure: Dashboard polish with Recharts, sorting, filtering, and drill-down
+- [x] 63-03-PLAN.md — Gap closure: Calendar visual redesign with animations, side panel, and drag improvements
+- [x] 63-04-PLAN.md — Gap closure: Attendance marking UX overhaul with grouping, tap-to-cycle, and auto-save
+- [x] 63-05-PLAN.md — Gap closure: Dashboard polish with Recharts, sorting, filtering, and drill-down
 
 #### Phase 64: v1.9 Bug Fixes & Polish
 **Goal**: Close all gaps identified by v1.9 milestone audit — fix conflict error preservation, field name mismatch, snap indicators, and cleanup
@@ -277,11 +277,11 @@ Plans:
   3. Visual 15-minute snap indicator lines appear during drag-over in day view
   4. No console.log statements in rehearsal bulk delete handler
 
-**Plans:** 1 plan
+**Plans:** 1/1 complete
 
-Note: Success criteria #1 (conflict error preservation) already fixed in commit 7798df8. Success criteria #3 (snap indicators) already implemented in RehearsalCalendar.tsx. Only #2 and #4 need work.
+Note: Success criteria #1 (conflict error preservation) already fixed in commit 7798df8. Success criteria #3 (snap indicators) already implemented in RehearsalCalendar.tsx. Only #2 and #4 needed work.
 Plans:
-- [ ] 64-01-PLAN.md — Fix attendance history dots field name mismatch + remove console.log from bulk delete
+- [x] 64-01-PLAN.md — Fix attendance history dots field name mismatch + remove console.log from bulk delete
 
 ## Progress
 
