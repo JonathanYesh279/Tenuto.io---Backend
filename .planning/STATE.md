@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v2.0 Design System Infrastructure — Phase 66: Token Foundation
+**Current focus:** v2.0 Design System Infrastructure — Phase 67: Component Standardization
 
 ## Current Position
 
-Phase: 66 of 69 (Token Foundation) -- COMPLETE
-Plan: 2 of 2 in current phase (phase done)
-Status: Phase 66 complete — ready for Phase 67
-Last activity: 2026-03-10 — Completed 66-02 (spacing, typography, table density tokens)
+Phase: 67 of 69 (Component Standardization)
+Plan: 1 of 3 in current phase
+Status: 67-01 complete — ready for 67-02
+Last activity: 2026-03-10 — Completed 67-01 (token adoption in ui/ components)
 
-Progress: [██░░░░░░░░] 29% (v2.0 — 2/7 plans)
+Progress: [███░░░░░░░] 43% (v2.0 — 3/7 plans)
 
 ## Performance Metrics
 
@@ -44,6 +44,9 @@ Progress: [██░░░░░░░░] 29% (v2.0 — 2/7 plans)
 - **[66-02]** Spacing values derived from current usage: page=24px, section=32px, card=24px, element=12px
 - **[66-02]** Typography line heights Hebrew-optimized: 1.3-1.4 headings, 1.5-1.6 body
 - **[66-02]** Table density tokens placed in spacing config for utility class flexibility
+- **[67-01]** Semantic tokens (text-foreground, text-muted-foreground) preferred over neutral-NNN for dialog text
+- **[67-01]** CVA Card variants: default=shadow-1, elevated=shadow-2, outlined=shadow-none+border-2
+- **[67-01]** Graduated/pending badge variants kept as-is (no semantic token equivalents)
 - **[v2.0]** v1.9 archived as-is with phases 61-65 deferred/completed outside GSD tracking
 - **[v2.0]** All work in frontend repo: `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Frontend/src`
 
@@ -58,5 +61,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-10
-Stopped at: Completed 66-02-PLAN.md — Phase 66 complete, ready for Phase 67
+Stopped at: Completed 67-01-PLAN.md — ready for 67-02
 Resume file: None
