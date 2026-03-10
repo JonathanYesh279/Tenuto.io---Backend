@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 66 of 69 (Token Foundation)
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-03-10 — v2.0 roadmap created (4 phases, 20 requirements mapped)
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-03-10 — Completed 66-01 (color collision resolved, neutral + status tokens)
 
-Progress: [░░░░░░░░░░] 0% (v2.0 — 0/7 plans)
+Progress: [█░░░░░░░░░] 14% (v2.0 — 1/7 plans)
 
 ## Performance Metrics
 
@@ -38,6 +38,9 @@ Progress: [░░░░░░░░░░] 0% (v2.0 — 0/7 plans)
 - **[v2.0]** Infrastructure only — update token system and shared components, don't touch individual pages
 - **[v2.0]** Only ADD new CSS variable names — never change existing `:root` values (prior revert was caused by global changes)
 - **[v2.0]** Primary color collision (CLR-01) is Phase 66 first plan — root blocker, must resolve before any visual cascade
+- **[66-01]** primary-500 = #6366f1 (indigo), matching --primary CSS var — CLR-01 collision resolved
+- **[66-01]** neutral scale uses direct var() refs (CSS vars already contain hsl() values)
+- **[66-01]** warning/info have DEFAULT+foreground only — orange palette covers hex shade needs
 - **[v2.0]** v1.9 archived as-is with phases 61-65 deferred/completed outside GSD tracking
 - **[v2.0]** All work in frontend repo: `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Frontend/src`
 
@@ -52,5 +55,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-10
-Stopped at: v2.0 roadmap created — ready to plan Phase 66
+Stopped at: Completed 66-01-PLAN.md — ready for 66-02
 Resume file: None
