@@ -205,9 +205,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 67-01: Migrate `src/components/ui/` from `gray-NNN` to `neutral-NNN` + add CVA variants to Card + semantic colors to Badge
-- [ ] 67-02: Consolidate Button (CVA canonical + ActionButton delegation + deprecate `.btn-*`) + standardize Input and Dialog
-- [ ] 67-03: Apply semantic type scale to shared heading components + add calendar CSS token overrides
+- [x] 67-01: Migrate `src/components/ui/` from `gray-NNN` to `neutral-NNN` + add CVA variants to Card + semantic colors to Badge — completed 2026-03-10
+- [x] 67-02: Consolidate Button (CVA canonical + ActionButton delegation + deprecate `.btn-*`) + standardize Input and Dialog — completed 2026-03-10
+- [x] 67-03: Apply semantic type scale to shared heading components + add calendar CSS token overrides — completed 2026-03-10
 
 ---
 
@@ -257,7 +257,7 @@ Plans:
 | 49-56 | v1.8 Admin Report Generator | 16 | Shipped | 2026-03-07 |
 | 57-65 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 19 | Shipped | 2026-03-08 |
 | 66. Token Foundation | v2.0 | 2 | ✓ Complete | 2026-03-10 |
-| 67. Component Standardization | v2.0 | 3 | Not started | - |
+| 67. Component Standardization | v2.0 | 3 | ✓ Complete | 2026-03-10 |
 | 68. Layout Primitives | v2.0 | TBD | Not started | - |
 | 69. CSS Cleanup | v2.0 | TBD | Not started | - |
 
