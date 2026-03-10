@@ -223,7 +223,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 68-01-PLAN.md — Create PageShell, SectionWrapper, FormLayout primitives + barrel export in `src/components/layout/`
+- [x] 68-01-PLAN.md — Create PageShell, SectionWrapper, FormLayout primitives + barrel export in `src/components/layout/` — completed 2026-03-11
 
 ---
 
@@ -258,11 +258,11 @@ Plans:
 | 57-65 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 19 | Shipped | 2026-03-08 |
 | 66. Token Foundation | v2.0 | 2 | Complete | 2026-03-10 |
 | 67. Component Standardization | v2.0 | 3 | Complete | 2026-03-10 |
-| 68. Layout Primitives | v2.0 | 1 | Not started | - |
+| 68. Layout Primitives | v2.0 | 1 | Complete | 2026-03-11 |
 | 69. CSS Cleanup | v2.0 | TBD | Not started | - |
 
 **Total: 69 phases (65 shipped, 4 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-11 — Phase 68 planned (1 plan, layout primitives)*
+*Last updated: 2026-03-11 — Phase 68 complete (layout primitives)*
