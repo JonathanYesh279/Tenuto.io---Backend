@@ -220,10 +220,10 @@ Plans:
   2. `SectionWrapper` component wraps page sections and enforces consistent vertical section gap and heading placement
   3. `FormLayout` component wraps forms and enforces consistent field spacing, label alignment, and section grouping
   4. All three primitives accept `className` for override and `children` for content — no required data props
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
-- [ ] 68-01: Create `PageShell`, `SectionWrapper`, and `FormLayout` in `src/components/layout/`
+- [ ] 68-01-PLAN.md — Create PageShell, SectionWrapper, FormLayout primitives + barrel export in `src/components/layout/`
 
 ---
 
@@ -256,13 +256,13 @@ Plans:
 | 39-48 | v1.7 RBAC & Admin Provisioning | 15 | Shipped | 2026-03-06 |
 | 49-56 | v1.8 Admin Report Generator | 16 | Shipped | 2026-03-07 |
 | 57-65 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 19 | Shipped | 2026-03-08 |
-| 66. Token Foundation | v2.0 | 2 | ✓ Complete | 2026-03-10 |
-| 67. Component Standardization | v2.0 | 3 | ✓ Complete | 2026-03-10 |
-| 68. Layout Primitives | v2.0 | TBD | Not started | - |
+| 66. Token Foundation | v2.0 | 2 | Complete | 2026-03-10 |
+| 67. Component Standardization | v2.0 | 3 | Complete | 2026-03-10 |
+| 68. Layout Primitives | v2.0 | 1 | Not started | - |
 | 69. CSS Cleanup | v2.0 | TBD | Not started | - |
 
 **Total: 69 phases (65 shipped, 4 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-10 — v2.0 Design System Infrastructure roadmap created (4 phases, 20 requirements)*
+*Last updated: 2026-03-11 — Phase 68 planned (1 plan, layout primitives)*
