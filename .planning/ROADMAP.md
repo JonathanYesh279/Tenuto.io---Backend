@@ -185,8 +185,8 @@ See: `.planning/milestones/v1.9-ROADMAP.md` for full details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 66-01: Resolve primary color collision + wire neutral scale + add semantic status tokens to `src/index.css` and `tailwind.config.js`
-- [ ] 66-02: Add spacing tokens, typography scale, and table density tokens to `tailwind.config.js`
+- [x] 66-01: Resolve primary color collision + wire neutral scale + add semantic status tokens to `src/index.css` and `tailwind.config.js` — completed 2026-03-10
+- [x] 66-02: Add spacing tokens, typography scale, and table density tokens to `tailwind.config.js` — completed 2026-03-10
 
 ---
 
@@ -256,7 +256,7 @@ Plans:
 | 39-48 | v1.7 RBAC & Admin Provisioning | 15 | Shipped | 2026-03-06 |
 | 49-56 | v1.8 Admin Report Generator | 16 | Shipped | 2026-03-07 |
 | 57-65 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 19 | Shipped | 2026-03-08 |
-| 66. Token Foundation | v2.0 | 2 | Planned | - |
+| 66. Token Foundation | v2.0 | 2 | ✓ Complete | 2026-03-10 |
 | 67. Component Standardization | v2.0 | TBD | Not started | - |
 | 68. Layout Primitives | v2.0 | TBD | Not started | - |
 | 69. CSS Cleanup | v2.0 | TBD | Not started | - |
