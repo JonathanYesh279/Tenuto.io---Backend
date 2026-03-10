@@ -79,7 +79,18 @@ Reliable multi-tenant music school management where every teacher sees only thei
 
 ### Active
 
-(No active milestone — ready for next milestone planning)
+## Current Milestone: v2.0 Design System Infrastructure
+
+**Goal:** Establish a consistent, token-based design system across the frontend — spacing, typography, buttons, colors, tables, and calendars — without changing the visual appearance of any page.
+
+**Target features:**
+- Strict spacing/gap token scale replacing ad-hoc Tailwind values
+- Typography hierarchy tokens (heading levels, body text, labels)
+- Button component consolidation (eliminate inline ad-hoc button styling)
+- Color token migration (~1,211 hardcoded primary-NNN → semantic tokens)
+- Table component standardization (consistent styling across all table instances)
+- Calendar/grid styling tokens
+- Shared layout primitives (page shell, section wrapper, form layout)
 
 ### Out of Scope
 
@@ -103,7 +114,7 @@ Reliable multi-tenant music school management where every teacher sees only thei
 
 ## Context
 
-**Current state:** v1.8 shipped (Admin Report Generator). Backend has ~100,000 LOC JavaScript. Frontend has React 18 + TypeScript + Vite + Tailwind. Platform features: 5-layer tenant isolation, hybrid RBAC with 13 roles and department-scoped coordinators, super admin dashboard with tenant admin management, enriched teacher/student/conservatory/ensemble import from Ministry Excel, Ministry export workbook, room schedule management with conflict detection, complete Israeli privacy compliance documentation package (24 documents), and management reporting center with 18 reports, KPI dashboard, Excel/PDF export. 9 milestones shipped (v1.0-v1.8), 56 phases, 119 plans.
+**Current state:** v1.9 shipped (Rehearsals, Orchestras & Attendance Upgrade). Backend has ~100,000 LOC JavaScript. Frontend has React 18 + TypeScript + Vite + Tailwind. Platform features: 5-layer tenant isolation, hybrid RBAC with 13 roles and department-scoped coordinators, super admin dashboard with tenant admin management, enriched teacher/student/conservatory/ensemble import from Ministry Excel, Ministry export workbook, room schedule management with conflict detection, complete Israeli privacy compliance documentation package (24 documents), and management reporting center with 18 reports, KPI dashboard, Excel/PDF export. 10 milestones shipped (v1.0-v1.9), 65 phases, 142 plans.
 
 **Tech stack:** Node.js + Express + MongoDB native driver (no Mongoose). React 18 + TypeScript + Vite + Tailwind CSS. Vitest + MongoDB Memory Server for testing. GitHub Actions CI pipeline.
 
@@ -185,4 +196,4 @@ Reliable multi-tenant music school management where every teacher sees only thei
 | 5 categories merged to 4 in catalog | department+schedule naturally group together | ✓ Good — cleaner UX, fewer categories |
 
 ---
-*Last updated: 2026-03-07 after v1.8 milestone completion*
+*Last updated: 2026-03-10 after v2.0 milestone start*
