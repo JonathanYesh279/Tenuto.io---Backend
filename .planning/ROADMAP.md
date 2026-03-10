@@ -202,7 +202,7 @@ Plans:
   5. Input and Dialog use token-based sizing, border, and focus ring values — no hardcoded `px-3 py-2` or `ring-offset-2` variants not backed by tokens
   6. Shared heading usage (h1/h2/h3 in domain components) consistently applies the semantic type scale from Phase 66
   7. Calendar component CSS variable overrides match the design system's color and spacing tokens
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [ ] 67-01: Migrate `src/components/ui/` from `gray-NNN` to `neutral-NNN` + add CVA variants to Card + semantic colors to Badge
@@ -257,7 +257,7 @@ Plans:
 | 49-56 | v1.8 Admin Report Generator | 16 | Shipped | 2026-03-07 |
 | 57-65 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 19 | Shipped | 2026-03-08 |
 | 66. Token Foundation | v2.0 | 2 | ✓ Complete | 2026-03-10 |
-| 67. Component Standardization | v2.0 | TBD | Not started | - |
+| 67. Component Standardization | v2.0 | 3 | Not started | - |
 | 68. Layout Primitives | v2.0 | TBD | Not started | - |
 | 69. CSS Cleanup | v2.0 | TBD | Not started | - |
 
