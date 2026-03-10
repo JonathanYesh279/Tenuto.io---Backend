@@ -12,7 +12,7 @@
 - [x] **v1.7 RBAC & Admin Provisioning** — Phases 39-48 (shipped 2026-03-06)
 - [x] **v1.8 Admin Report Generator** — Phases 49-56 (shipped 2026-03-07)
 - [x] **v1.9 Rehearsals, Orchestras & Attendance Upgrade** — Phases 57-65 (shipped 2026-03-08)
-- [ ] **v2.0 Design System Infrastructure** — Phases 66-69 (in progress)
+- [x] **v2.0 Design System Infrastructure** — Phases 66-69 (shipped 2026-03-11)
 
 ## Phases
 
@@ -238,8 +238,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 69-01-PLAN.md -- Delete 3 dead CSS files + remove legacy blocks from index.css
-- [ ] 69-02-PLAN.md -- Add audit header comments to 4 active permanent exception CSS files
+- [x] 69-01-PLAN.md -- Delete 3 dead CSS files + remove legacy blocks from index.css -- completed 2026-03-11
+- [x] 69-02-PLAN.md -- Add audit header comments to 4 active permanent exception CSS files -- completed 2026-03-11
 
 ---
 
@@ -260,10 +260,10 @@ Plans:
 | 66. Token Foundation | v2.0 | 2 | Complete | 2026-03-10 |
 | 67. Component Standardization | v2.0 | 3 | Complete | 2026-03-10 |
 | 68. Layout Primitives | v2.0 | 1 | Complete | 2026-03-11 |
-| 69. CSS Cleanup | v2.0 | 2 | Not started | - |
+| 69. CSS Cleanup | v2.0 | 2 | Complete | 2026-03-11 |
 
-**Total: 69 phases (65 shipped, 4 planned)**
+**Total: 69 phases (69 complete)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-11 -- Phase 69 planned (2 plans)*
+*Last updated: 2026-03-11 -- Phase 69 complete, v2.0 milestone complete*
