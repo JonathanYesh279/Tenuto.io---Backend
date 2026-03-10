@@ -182,7 +182,7 @@ See: `.planning/milestones/v1.9-ROADMAP.md` for full details.
   4. Named spacing tokens (`spacing-page`, `spacing-section`, `spacing-card`, `spacing-element`) exist as Tailwind config entries
   5. A 7-step semantic type scale (`text-display`, `text-h1` through `text-h3`, `text-body`, `text-small`, `text-caption`) is available as Tailwind classes with correct size + weight + line-height
   6. Table density values (compact row height 40-44px, cell padding) are defined as named tokens in Tailwind config
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 66-01: Resolve primary color collision + wire neutral scale + add semantic status tokens to `src/index.css` and `tailwind.config.js`
@@ -202,7 +202,7 @@ Plans:
   5. Input and Dialog use token-based sizing, border, and focus ring values — no hardcoded `px-3 py-2` or `ring-offset-2` variants not backed by tokens
   6. Shared heading usage (h1/h2/h3 in domain components) consistently applies the semantic type scale from Phase 66
   7. Calendar component CSS variable overrides match the design system's color and spacing tokens
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 67-01: Migrate `src/components/ui/` from `gray-NNN` to `neutral-NNN` + add CVA variants to Card + semantic colors to Badge
@@ -220,7 +220,7 @@ Plans:
   2. `SectionWrapper` component wraps page sections and enforces consistent vertical section gap and heading placement
   3. `FormLayout` component wraps forms and enforces consistent field spacing, label alignment, and section grouping
   4. All three primitives accept `className` for override and `children` for content — no required data props
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 68-01: Create `PageShell`, `SectionWrapper`, and `FormLayout` in `src/components/layout/`
@@ -235,7 +235,7 @@ Plans:
   1. Each of the 5 workaround CSS files has a header comment documenting: what it overrides, why the override was needed, and whether it is a migration candidate or a permanent exception
   2. Any CSS override that duplicates something now expressible via Tailwind tokens (from Phase 66) or component-level styles (from Phase 67) is removed from the workaround files and replaced with the token-based approach
   3. The remaining workaround CSS files contain only documented permanent exceptions — no unexamined overrides remain
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 69-01: Audit all 5 workaround CSS files and document each; consolidate migratable overrides into Tailwind config or component classNames
@@ -256,7 +256,7 @@ Plans:
 | 39-48 | v1.7 RBAC & Admin Provisioning | 15 | Shipped | 2026-03-06 |
 | 49-56 | v1.8 Admin Report Generator | 16 | Shipped | 2026-03-07 |
 | 57-65 | v1.9 Rehearsals, Orchestras & Attendance Upgrade | 19 | Shipped | 2026-03-08 |
-| 66. Token Foundation | v2.0 | TBD | Not started | - |
+| 66. Token Foundation | v2.0 | 2 | Planned | - |
 | 67. Component Standardization | v2.0 | TBD | Not started | - |
 | 68. Layout Primitives | v2.0 | TBD | Not started | - |
 | 69. CSS Cleanup | v2.0 | TBD | Not started | - |
