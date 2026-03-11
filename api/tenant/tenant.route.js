@@ -19,10 +19,28 @@ const roomUpload = multer({
   },
 });
 
+// Multer config for logo upload (memory-only, 2MB max, PNG/JPG only)
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = file.originalname.toLowerCase();
+    if (ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg')) {
+      cb(null, true);
+    } else {
+      cb(new Error('\u05E8\u05E7 \u05E7\u05D1\u05E6\u05D9 PNG/JPG \u05DE\u05D5\u05EA\u05E8\u05D9\u05DD'));
+    }
+  },
+});
+
 router.get('/', requirePermission('settings', 'view'), tenantController.getTenants);
 router.get('/:id', requirePermission('settings', 'view'), tenantController.getTenantById);
 router.post('/', requirePermission('settings', 'update'), tenantController.createTenant);
 router.put('/:id', requirePermission('settings', 'update'), tenantController.updateTenant);
+
+// Logo upload
+router.post('/:id/logo', requirePermission('settings', 'update'), logoUpload.single('logo'), tenantController.uploadLogo);
+router.delete('/:id/logo', requirePermission('settings', 'update'), tenantController.deleteLogo);
 
 // Room management routes
 // IMPORTANT: /import must be BEFORE /:roomId to prevent Express treating "import" as a roomId

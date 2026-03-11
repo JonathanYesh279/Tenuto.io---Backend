@@ -93,6 +93,7 @@ export async function authenticateToken(req, res, next) {
       _id: teacher._id.toString(),
       tenantId: teacher.tenantId || null,
       tenantName: tenant?.name || null,
+      tenantLogoUrl: tenant?.branding?.logoUrl || null,
       roles: teacher.roles,
       firstName: teacher.personalInfo?.firstName || '',
       lastName: teacher.personalInfo?.lastName || '',

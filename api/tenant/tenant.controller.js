@@ -8,6 +8,8 @@ export const tenantController = {
   getTenantById,
   createTenant,
   updateTenant,
+  uploadLogo,
+  deleteLogo,
   getRooms,
   addRoom,
   updateRoom,
@@ -54,6 +56,31 @@ async function updateTenant(req, res) {
   } catch (err) {
     log.error({ err: err.message }, 'Error updating tenant');
     const status = err.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function uploadLogo(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+    const tenant = await tenantService.uploadLogo(req.params.id, req.file);
+    res.json({ success: true, data: tenant });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error uploading logo');
+    const status = err.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function deleteLogo(req, res) {
+  try {
+    const tenant = await tenantService.deleteLogo(req.params.id);
+    res.json({ success: true, data: tenant });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error deleting logo');
+    const status = err.message.includes('not found') ? 404 : 500;
     res.status(status).json({ success: false, error: err.message });
   }
 }

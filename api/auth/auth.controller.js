@@ -205,6 +205,7 @@ async function validateToken(req, res) {
           roles: user.roles,
           tenantId: user.tenantId || null,
           tenantName: user.tenantName || null,
+          tenantLogoUrl: user.tenantLogoUrl || null,
         }
       },
       message: 'Token is valid'

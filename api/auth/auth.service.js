@@ -131,6 +131,7 @@ async function login(email, password, tenantId) {
         _id: teacher._id.toString(),
         tenantId: teacher.tenantId || null,
         tenantName: tenant?.name || null,
+        tenantLogoUrl: tenant?.branding?.logoUrl || null,
         personalInfo: {
           firstName: displayFirstName,
           lastName: displayLastName,

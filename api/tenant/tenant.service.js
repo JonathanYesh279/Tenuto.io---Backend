@@ -3,6 +3,7 @@ import { validateTenant, validateRoom } from './tenant.validation.js';
 import { ObjectId } from 'mongodb';
 import { createLogger } from '../../services/logger.service.js';
 import { COLLECTIONS } from '../../config/constants.js';
+import { processUploadedFile, deleteFile } from '../../services/fileStorage.service.js';
 import XLSX from 'xlsx';
 
 const log = createLogger('tenant.service');
@@ -13,6 +14,8 @@ export const tenantService = {
   getTenantBySlug,
   createTenant,
   updateTenant,
+  uploadLogo,
+  deleteLogo,
   getRooms,
   addRoom,
   updateRoom,
@@ -100,6 +103,80 @@ async function updateTenant(tenantId, tenantData) {
   }
 
   log.info({ tenantId }, 'Tenant updated');
+  return result;
+}
+
+async function uploadLogo(tenantId, file) {
+  const collection = await getCollection(COLLECTIONS.TENANT);
+  const tenant = await collection.findOne({
+    _id: ObjectId.createFromHexString(tenantId),
+  });
+
+  if (!tenant) {
+    throw new Error(`Tenant with id ${tenantId} not found`);
+  }
+
+  // Delete old logo if exists
+  const oldLogoUrl = tenant.branding?.logoUrl;
+  if (oldLogoUrl) {
+    try {
+      await deleteFile(oldLogoUrl);
+    } catch (err) {
+      log.warn({ err: err.message, tenantId }, 'Failed to delete old logo, continuing');
+    }
+  }
+
+  // Process and store new logo
+  const { url, key } = await processUploadedFile(file);
+
+  const result = await collection.findOneAndUpdate(
+    { _id: ObjectId.createFromHexString(tenantId) },
+    {
+      $set: {
+        'branding.logoUrl': url,
+        'branding.logoKey': key || null,
+        updatedAt: new Date(),
+      },
+    },
+    { returnDocument: 'after' }
+  );
+
+  log.info({ tenantId, logoUrl: url }, 'Tenant logo uploaded');
+  return result;
+}
+
+async function deleteLogo(tenantId) {
+  const collection = await getCollection(COLLECTIONS.TENANT);
+  const tenant = await collection.findOne({
+    _id: ObjectId.createFromHexString(tenantId),
+  });
+
+  if (!tenant) {
+    throw new Error(`Tenant with id ${tenantId} not found`);
+  }
+
+  const logoUrl = tenant.branding?.logoUrl;
+  if (logoUrl) {
+    try {
+      await deleteFile(logoUrl);
+    } catch (err) {
+      log.warn({ err: err.message, tenantId }, 'Failed to delete logo file, continuing');
+    }
+  }
+
+  const result = await collection.findOneAndUpdate(
+    { _id: ObjectId.createFromHexString(tenantId) },
+    {
+      $set: {
+        'branding.logoUrl': null,
+        'branding.logoKey': null,
+        updatedAt: new Date(),
+      },
+    },
+    { returnDocument: 'after' }
+  );
+
+  log.info({ tenantId }, 'Tenant logo deleted');
   return result;
 }
 

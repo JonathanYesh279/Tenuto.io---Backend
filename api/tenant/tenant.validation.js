@@ -81,6 +81,11 @@ export const tenantSchema = Joi.object({
     maxStudents: 500,
   }),
 
+  branding: Joi.object({
+    logoUrl: Joi.string().allow(null, '').default(null),
+    logoKey: Joi.string().allow(null, '').default(null),
+  }).default({ logoUrl: null, logoKey: null }),
+
   conservatoryProfile: Joi.object({
     code: Joi.string().allow(null, '').default(null),
     ownershipName: Joi.string().allow(null, '').default(null),
@@ -153,6 +158,11 @@ export const tenantUpdateSchema = Joi.object({
     isActive: Joi.boolean(),
     maxTeachers: Joi.number().positive(),
     maxStudents: Joi.number().positive(),
+  }),
+
+  branding: Joi.object({
+    logoUrl: Joi.string().allow(null, ''),
+    logoKey: Joi.string().allow(null, ''),
   }),
 
   conservatoryProfile: Joi.object({
