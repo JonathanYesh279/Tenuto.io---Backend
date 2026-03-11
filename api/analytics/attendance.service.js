@@ -10,7 +10,8 @@ export const attendanceAnalyticsService = {
   getAttendanceTrends,
   getAttendanceComparison,
   generateAttendanceInsights,
-  exportAttendanceReport
+  exportAttendanceReport,
+  getBulkAbsenceCounts
 };
 
 /**
@@ -629,6 +630,45 @@ async function exportAttendanceReport(reportOptions = {}) {
     console.error(`Error exporting attendance report: ${err.message}`);
     throw new Error(`Error exporting attendance report: ${err.message}`);
   }
+}
+
+/**
+ * Get absence counts for all students in a tenant, grouped by studentId.
+ * Only counts status 'לא הגיע/ה' (absent) across all activity types.
+ * @param {object} options - { context, startDate, endDate }
+ * @returns {Promise<Object>} - { [studentId]: absenceCount }
+ */
+async function getBulkAbsenceCounts(options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+  const { startDate, endDate } = options;
+
+  const activityCollection = await getCollection('activity_attendance');
+
+  const matchFilter = {
+    tenantId,
+    status: 'לא הגיע/ה',
+    isArchived: { $ne: true }
+  };
+
+  if (startDate || endDate) {
+    matchFilter.date = {};
+    if (startDate) matchFilter.date.$gte = new Date(startDate);
+    if (endDate) matchFilter.date.$lte = new Date(endDate);
+  }
+
+  const pipeline = [
+    { $match: matchFilter },
+    { $group: { _id: '$studentId', count: { $sum: 1 } } }
+  ];
+
+  const results = await activityCollection.aggregate(pipeline).toArray();
+
+  const absenceCounts = {};
+  for (const row of results) {
+    absenceCounts[row._id] = row.count;
+  }
+
+  return absenceCounts;
 }
 
 // Helper functions

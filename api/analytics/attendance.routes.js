@@ -26,6 +26,12 @@ router.get('/teachers/:teacherId/attendance', requirePermission('reports', 'view
 router.get('/attendance/overall', requirePermission('reports', 'view'), attendanceAnalyticsController.getOverallAttendanceReport);
 
 /**
+ * Bulk absence counts for all students (current school year)
+ * GET /api/analytics/attendance/bulk-absence-counts
+ */
+router.get('/attendance/bulk-absence-counts', requirePermission('students', 'view'), attendanceAnalyticsController.getBulkAbsenceCounts);
+
+/**
  * Attendance trends analysis
  * GET /api/analytics/attendance/trends
  * Query params: period, activityType, teacherId, studentId

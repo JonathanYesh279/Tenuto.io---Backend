@@ -7,7 +7,8 @@ export const attendanceAnalyticsController = {
   getAttendanceTrends,
   getAttendanceComparison,
   generateAttendanceInsights,
-  exportAttendanceReport
+  exportAttendanceReport,
+  getBulkAbsenceCounts
 };
 
 /**
@@ -309,5 +310,27 @@ async function exportAttendanceReport(req, res) {
   } catch (err) {
     console.error(`Error in exportAttendanceReport: ${err.message}`);
     res.status(500).json({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
+  }
+}
+
+/**
+ * Get bulk absence counts for all students in tenant
+ * @route GET /api/analytics/attendance/bulk-absence-counts
+ */
+async function getBulkAbsenceCounts(req, res) {
+  try {
+    const startDate = req.schoolYear?.startDate || req.query.startDate;
+    const endDate = req.schoolYear?.endDate || req.query.endDate;
+
+    const result = await attendanceAnalyticsService.getBulkAbsenceCounts({
+      context: req.context,
+      startDate,
+      endDate
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error fetching bulk absence counts:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 }
