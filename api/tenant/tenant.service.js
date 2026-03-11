@@ -3,7 +3,14 @@ import { validateTenant, validateRoom } from './tenant.validation.js';
 import { ObjectId } from 'mongodb';
 import { createLogger } from '../../services/logger.service.js';
 import { COLLECTIONS } from '../../config/constants.js';
-import { processUploadedFile, deleteFile } from '../../services/fileStorage.service.js';
+import { processUploadedFile, deleteFile, STORAGE_MODE } from '../../services/fileStorage.service.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 import XLSX from 'xlsx';
 
 const log = createLogger('tenant.service');
@@ -127,6 +134,15 @@ async function uploadLogo(tenantId, file) {
   }
 
   // Process and store new logo
+  // memoryStorage doesn't set file.filename — write to disk for local mode
+  if (STORAGE_MODE === 'local' && file.buffer && !file.filename) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const filename = `logo-${tenantId}-${Date.now()}${ext}`;
+    const filePath = path.join(UPLOAD_DIR, filename);
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    fs.writeFileSync(filePath, file.buffer);
+    file.filename = filename;
+  }
   const { url, key } = await processUploadedFile(file);
 
   const result = await collection.findOneAndUpdate(
