@@ -5,20 +5,20 @@
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Reliable multi-tenant music school management where every teacher sees only their tenant's data.
-**Current focus:** v2.0 Design System Infrastructure — COMPLETE
+**Current focus:** v2.1 Entity Page Consistency — IN PROGRESS
 
 ## Current Position
 
-Phase: 69 of 69 (CSS Cleanup) -- COMPLETE
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 69 complete — v2.0 milestone SHIPPED
-Last activity: 2026-03-11 — Completed 69-02 (CSS audit headers: 4 files documented as Permanent Exceptions)
+Phase: 70 of 70 (Teachers Page Restyle & Login Activity Badges)
+Plan: 1 of 1 in current phase -- COMPLETE
+Status: Plan 01 complete — login count tracking backend
+Last activity: 2026-03-12 — Plan 70-01 executed
 
-Progress: [██████████] 100% (v2.0 — 7/7 plans)
+Progress: [##########] 100% (v2.1 Phase 70 — 1/1 plans)
 
 ## Performance Metrics
 
-**All milestones:** 69 phases, 143 plans across 11 milestones
+**All milestones:** 70 phases, 144 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -62,10 +62,16 @@ Progress: [██████████] 100% (v2.0 — 7/7 plans)
 - **[69-02]** Permanent Exception header format established: FILE, STATUS, AUDITED, PURPOSE, WHY OVERRIDE CSS, COMPONENTS USING THIS FILE, MIGRATION NOTES
 - **[v2.0]** v1.9 archived as-is with phases 61-65 deferred/completed outside GSD tracking
 - **[v2.0]** All work in frontend repo: `/mnt/c/Users/yona2/Documents/Tenuto.io/Tenuto.io-Frontend/src`
+- **[70-01]** MongoDB $inc for loginCount — auto-creates field on first increment, no migration needed
+- **[70-01]** loginCount/lastLogin extracted in enrichment layer, not query projection
 
 ### Pending Todos
 
 - **[Future DevOps milestone]** Configure email service for forgot-password flow: set SendGrid/Gmail credentials, FRONTEND_URL, FROM_EMAIL in production .env. Code is complete — just needs deployment config.
+
+### Roadmap Evolution
+
+- Phase 70 added: Teachers Page Restyle & Login Activity Badges (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -73,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11
-Stopped at: Phase 69 Plan 02 complete — v2.0 Design System Infrastructure milestone SHIPPED
+Last session: 2026-03-12
+Stopped at: Completed 70-01-PLAN.md (login count tracking backend)
 Resume file: None
