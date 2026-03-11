@@ -124,7 +124,7 @@ export const tenantUpdateSchema = Joi.object({
 
   director: Joi.object({
     name: Joi.string().allow(null, ''),
-    teacherId: Joi.string().allow(null),
+    teacherId: Joi.string().allow(null, ''),
   }),
 
   ministryInfo: Joi.object({
