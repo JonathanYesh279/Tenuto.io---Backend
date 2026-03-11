@@ -116,6 +116,7 @@ async function login(email, password, tenantId) {
           'credentials.lastLogin': new Date(),
           updatedAt: new Date(),
         },
+        $inc: { 'credentials.loginCount': 1 },
       }
     )
 
@@ -411,7 +412,8 @@ async function changePassword(teacherId, currentPassword, newPassword) {
           'credentials.requiresPasswordChange': false,
           'credentials.lastLogin': new Date(),
           updatedAt: new Date()
-        }
+        },
+        $inc: { 'credentials.loginCount': 1 },
       }
     )
 
@@ -500,7 +502,8 @@ async function forcePasswordChange(teacherId, newPassword) {
           'credentials.requiresPasswordChange': false,
           'credentials.lastLogin': new Date(),
           updatedAt: new Date()
-        }
+        },
+        $inc: { 'credentials.loginCount': 1 },
       }
     )
 
@@ -721,7 +724,8 @@ async function acceptInvitation(invitationToken, newPassword) {
         $set: {
           'credentials.refreshToken': refreshToken,
           'credentials.lastLogin': new Date()
-        }
+        },
+        $inc: { 'credentials.loginCount': 1 },
       }
     )
 

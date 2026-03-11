@@ -100,7 +100,8 @@ async function acceptInvitation(token, password) {
           'credentials.refreshToken': refreshToken,
           'credentials.lastLogin': new Date(),
           updatedAt: new Date()
-        }
+        },
+        $inc: { 'credentials.loginCount': 1 },
       }
     );
 
