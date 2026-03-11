@@ -13,6 +13,7 @@
 - [x] **v1.8 Admin Report Generator** — Phases 49-56 (shipped 2026-03-07)
 - [x] **v1.9 Rehearsals, Orchestras & Attendance Upgrade** — Phases 57-65 (shipped 2026-03-08)
 - [x] **v2.0 Design System Infrastructure** — Phases 66-69 (shipped 2026-03-11)
+- [ ] **v2.1 Entity Page Consistency** — Phases 70+ (in progress)
 
 ## Phases
 
@@ -243,6 +244,39 @@ Plans:
 
 ---
 
+### v2.1 Entity Page Consistency (In Progress)
+
+**Milestone Goal:** Bring all entity pages (Teachers, Orchestras, etc.) to the same visual standard as the Students page — consistent stat cards, filter bars, table styling, avatar badges, and reusable patterns. Backend additions where needed (e.g., login activity tracking).
+
+---
+
+#### Phase 70: Teachers Page Restyle & Login Activity Badges
+**Goal**: Teachers page matches Students page styling exactly — same GlassStatCard row, GlassSelect filter bar, HeroUI table with avatar + badge pattern, and pagination. Replace absence badges with login activity count badges (blue) sourced from backend login tracking.
+**Depends on**: Phase 66-69 (design system tokens + components)
+**Requirements**:
+  - Teachers page uses GlassStatCard for all stat boxes (same green-blue gradient)
+  - Teachers page uses GlassSelect for all filter dropdowns (instrument, role)
+  - Teachers page uses SearchInput for search field
+  - Table uses HeroUI Table with same column structure pattern as Students
+  - Teacher rows show colored avatar with initials (same hash-color logic as Students)
+  - Login activity badge on each teacher avatar — blue badge with login count number
+  - Backend: expose `lastLogin` and `loginCount` in teacher list API response
+  - Backend: track login count on teacher document (increment on each login)
+  - Pagination matches Students page pattern (numbered pages, not load-more)
+**Success Criteria** (what must be TRUE):
+  1. Teachers page visual layout is indistinguishable from Students page (stat cards, filters, table, pagination)
+  2. Each teacher row shows a colored avatar circle with initials + a blue badge showing login count
+  3. Backend `/api/teacher` list endpoint returns `lastLogin` and `loginCount` fields
+  4. Backend auth login flow increments `credentials.loginCount` on each successful login
+  5. All shared UI components (GlassStatCard, GlassSelect, SearchInput) are reused — no duplicate styling code
+**Plans**: 2 plans
+
+Plans:
+- [ ] 70-01-PLAN.md — Backend: add loginCount tracking to auth + expose in teacher list API
+- [ ] 70-02-PLAN.md — Frontend: restyle Teachers page to match Students page pattern
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -261,8 +295,9 @@ Plans:
 | 67. Component Standardization | v2.0 | 3 | Complete | 2026-03-10 |
 | 68. Layout Primitives | v2.0 | 1 | Complete | 2026-03-11 |
 | 69. CSS Cleanup | v2.0 | 2 | Complete | 2026-03-11 |
+| 70. Teachers Page Restyle | v2.1 | TBD | Not planned | - |
 
-**Total: 69 phases (69 complete)**
+**Total: 70 phases (69 complete, 1 in progress)**
 
 ---
 *Roadmap created: 2026-02-14*
