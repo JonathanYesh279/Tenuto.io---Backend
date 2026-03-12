@@ -787,13 +787,7 @@ async function bulkDeleteTheoryLessonsByDate(req, res, next) {
       });
     }
 
-    // Authorization check - only admin and theory instructors can bulk delete
-    if (!isAdmin && !req.loggedinUser?.roles?.includes('מורה תאוריה') && !req.teacher?.roles?.includes('מורה תאוריה')) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Insufficient permissions to bulk delete theory lessons'
-      });
-    }
+    // Authorization handled by requirePermission('theory', 'delete') middleware on route
 
     const result = await theoryService.bulkDeleteTheoryLessonsByDate(
       startDate,
@@ -845,13 +839,7 @@ async function bulkDeleteTheoryLessonsByCategory(req, res, next) {
       });
     }
 
-    // Authorization check - only admin and theory instructors can bulk delete
-    if (!isAdmin && !req.loggedinUser?.roles?.includes('מורה תאוריה') && !req.teacher?.roles?.includes('מורה תאוריה')) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Insufficient permissions to bulk delete theory lessons'
-      });
-    }
+    // Authorization handled by requirePermission('theory', 'delete') middleware on route
 
     const result = await theoryService.bulkDeleteTheoryLessonsByCategory(
       category,
@@ -898,19 +886,7 @@ async function bulkDeleteTheoryLessonsByTeacher(req, res, next) {
       });
     }
 
-    // Authorization check - only admin and theory instructors can bulk delete
-    // Teachers can delete their own lessons
-    const canDelete = isAdmin || 
-      req.loggedinUser?.roles?.includes('מורה תאוריה') || 
-      req.teacher?.roles?.includes('מורה תאוריה') ||
-      teacherId === userId.toString();
-
-    if (!canDelete) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Insufficient permissions to bulk delete theory lessons for this teacher'
-      });
-    }
+    // Authorization handled by requirePermission('theory', 'delete') middleware on route
 
     const result = await theoryService.bulkDeleteTheoryLessonsByTeacher(
       teacherId,

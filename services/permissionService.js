@@ -142,7 +142,8 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.SCHEDULE_UPDATE
   ],
   
-  'מורה תאוריה': [
+  // Normalized role name (legacy 'מורה תאוריה' normalized by middleware before lookup)
+  'תאוריה': [
     PERMISSIONS.TEACHER_READ_OWN,
     PERMISSIONS.TEACHER_UPDATE_OWN,
     PERMISSIONS.STUDENT_READ_ASSIGNED,
