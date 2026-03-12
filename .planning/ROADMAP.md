@@ -277,6 +277,35 @@ Plans:
 
 ---
 
+#### Phase 71: Theory & Orchestra Pages Restyle
+**Goal**: Theory Lessons and Orchestras pages match the Students page styling — same GlassStatCard row, GlassSelect filter bar, SearchInput, and consistent button styling. These pages use cards (not tables) as their primary data display, so cards should be restyled to match the analytics KPI card aesthetic. No table changes.
+**Depends on**: Phase 70 (entity page restyle pattern established)
+**Requirements**:
+  - Theory Lessons page uses GlassStatCard for all stat boxes (same green-blue gradient as Students/Teachers)
+  - Theory Lessons page uses GlassSelect for all filter dropdowns
+  - Theory Lessons page uses SearchInput for search field
+  - Theory Lessons page buttons use HeroUI Button with consistent color/variant pattern
+  - Theory Lessons data cards restyled to match analytics KPI card aesthetic (consistent spacing, shadows, typography)
+  - Orchestras page uses GlassStatCard for all stat boxes
+  - Orchestras page uses GlassSelect for all filter dropdowns
+  - Orchestras page uses SearchInput for search field
+  - Orchestras page buttons use HeroUI Button with consistent color/variant pattern
+  - Orchestras data cards restyled to match analytics KPI card aesthetic
+  - All shared UI components (GlassStatCard, GlassSelect, SearchInput) are reused — no duplicate styling code
+**Success Criteria** (what must be TRUE):
+  1. Theory Lessons page header area (stat cards, filters, search) is visually consistent with Students/Teachers pages
+  2. Orchestras page header area (stat cards, filters, search) is visually consistent with Students/Teachers pages
+  3. Data cards on both pages follow a unified card style matching analytics KPI aesthetics
+  4. All buttons on both pages use HeroUI Button with consistent variant/color patterns
+  5. All shared UI components are reused — no duplicate styling code
+**Plans**: 2 plans
+
+Plans:
+- [ ] 71-01-PLAN.md — Restyle Theory Lessons page header + TheoryLessonCard
+- [ ] 71-02-PLAN.md — Restyle Orchestras page header + OrchestraCard
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -296,9 +325,10 @@ Plans:
 | 68. Layout Primitives | v2.0 | 1 | Complete | 2026-03-11 |
 | 69. CSS Cleanup | v2.0 | 2 | Complete | 2026-03-11 |
 | 70. Teachers Page Restyle | v2.1 | 2 | Complete | 2026-03-12 |
+| 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Planned | — |
 
-**Total: 70 phases (70 complete, 0 in progress)**
+**Total: 71 phases (70 complete, 1 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-12 -- Phase 70 complete*
+*Last updated: 2026-03-12 -- Phase 71 added*
