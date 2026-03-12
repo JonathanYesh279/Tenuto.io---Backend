@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 71 of 71 (Theory & Orchestra Pages Restyle)
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 71 complete — Theory & Orchestra pages restyled
-Last activity: 2026-03-12 — Plan 71-02 executed
+Phase: 72 of 72 (Theory Lesson Entity Fixes & Role Normalization)
+Plan: 1 of 2 in current phase
+Status: Plan 72-01 complete — theory teacher role normalization
+Last activity: 2026-03-12 — Plan 72-01 executed
 
-Progress: [##########] 100% (v2.1 Phase 71 — 2/2 plans)
+Progress: [#####-----] 50% (v2.1 Phase 72 — 1/2 plans)
 
 ## Performance Metrics
 
-**All milestones:** 71 phases, 146 plans across 12 milestones
+**All milestones:** 72 phases, 148 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -71,6 +71,9 @@ Progress: [##########] 100% (v2.1 Phase 71 — 2/2 plans)
 - **[71-02]** isActive boolean checkbox converted to GlassSelect dropdown (active/inactive/all) for consistency
 - **[71-02]** Sort dropdown also converted to GlassSelect for visual consistency
 - **[71-02]** View mode toggle restyled to pill pattern matching Teachers page
+- **[72-01]** Dual-role check pattern for API-facing filters: roles.some(r => r === 'תאוריה' || r === 'מורה תאוריה')
+- **[72-01]** TeacherForm uses only normalized role (VALID_ROLES already has 'תאוריה') -- no backward compat needed
+- **[72-01]** Display-only color maps retain legacy role entries for backward compatibility
 
 ### Pending Todos
 
@@ -80,6 +83,7 @@ Progress: [##########] 100% (v2.1 Phase 71 — 2/2 plans)
 
 - Phase 70 added: Teachers Page Restyle & Login Activity Badges (v2.1 Entity Page Consistency)
 - Phase 71 added: Theory & Orchestra Pages Restyle (v2.1 Entity Page Consistency)
+- Phase 72 added: Theory Lesson Entity Fixes & Role Normalization (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -88,5 +92,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-12
-Stopped at: Completed 71-02-PLAN.md (Orchestras page restyle — phase 71 complete)
+Stopped at: Completed 72-01-PLAN.md (Theory teacher role normalization)
 Resume file: None
