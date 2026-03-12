@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 71 of 71 (Theory & Orchestra Pages Restyle)
-Plan: 1 of 2 in current phase
-Status: Plan 71-01 complete — Theory Lessons page restyled
-Last activity: 2026-03-12 — Plan 71-01 executed
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: Phase 71 complete — Theory & Orchestra pages restyled
+Last activity: 2026-03-12 — Plan 71-02 executed
 
-Progress: [#####-----] 50% (v2.1 Phase 71 — 1/2 plans)
+Progress: [##########] 100% (v2.1 Phase 71 — 2/2 plans)
 
 ## Performance Metrics
 
@@ -68,6 +68,9 @@ Progress: [#####-----] 50% (v2.1 Phase 71 — 1/2 plans)
 - **[70-02]** Entity page restyle pattern established: GlassStatCard + GlassSelect + SearchInput + HeroUI Table/Pagination
 - **[71-01]** Tab navigation kept as styled buttons (not HeroButton) for consistent toggle pattern
 - **[71-01]** Category badge in TheoryLessonCard uses bg-primary/10 for readability vs raw bg-primary
+- **[71-02]** isActive boolean checkbox converted to GlassSelect dropdown (active/inactive/all) for consistency
+- **[71-02]** Sort dropdown also converted to GlassSelect for visual consistency
+- **[71-02]** View mode toggle restyled to pill pattern matching Teachers page
 
 ### Pending Todos
 
@@ -85,5 +88,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-12
-Stopped at: Completed 71-01-PLAN.md (Theory Lessons page restyle)
+Stopped at: Completed 71-02-PLAN.md (Orchestras page restyle — phase 71 complete)
 Resume file: None
