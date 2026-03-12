@@ -325,8 +325,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 72-01-PLAN.md — Fix frontend theory teacher dropdown filters + normalize all "מורה תאוריה" references across 7 files
-- [ ] 72-02-PLAN.md — Remove redundant inline auth from theory controller + fix permissionService key + ministry mapper + test utility
+- [x] 72-01-PLAN.md — Fix frontend theory teacher dropdown filters + normalize all "מורה תאוריה" references across 7 files -- completed 2026-03-12
+- [x] 72-02-PLAN.md — Remove redundant inline auth from theory controller + fix permissionService key + ministry mapper + test utility -- completed 2026-03-12
 
 ---
 
@@ -350,10 +350,10 @@ Plans:
 | 69. CSS Cleanup | v2.0 | 2 | Complete | 2026-03-11 |
 | 70. Teachers Page Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 | 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Complete | 2026-03-12 |
-| 72. Theory Lesson Entity Fixes | v2.1 | 2 | Planned | — |
+| 72. Theory Lesson Entity Fixes | v2.1 | 2 | Complete | 2026-03-12 |
 
-**Total: 72 phases (71 complete, 1 planned)**
+**Total: 72 phases (72 complete, 0 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-12 -- Phase 72 planned*
+*Last updated: 2026-03-12 -- Phase 72 complete*
