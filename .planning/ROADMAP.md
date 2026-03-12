@@ -272,8 +272,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 70-01-PLAN.md — Backend: add loginCount tracking to auth + expose in teacher list API
-- [ ] 70-02-PLAN.md — Frontend: restyle Teachers page to match Students page pattern
+- [x] 70-01-PLAN.md — Backend: add loginCount tracking to auth + expose in teacher list API -- completed 2026-03-12
+- [x] 70-02-PLAN.md — Frontend: restyle Teachers page to match Students page pattern -- completed 2026-03-12
 
 ---
 
@@ -295,10 +295,10 @@ Plans:
 | 67. Component Standardization | v2.0 | 3 | Complete | 2026-03-10 |
 | 68. Layout Primitives | v2.0 | 1 | Complete | 2026-03-11 |
 | 69. CSS Cleanup | v2.0 | 2 | Complete | 2026-03-11 |
-| 70. Teachers Page Restyle | v2.1 | TBD | Not planned | - |
+| 70. Teachers Page Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 
-**Total: 70 phases (69 complete, 1 in progress)**
+**Total: 70 phases (70 complete, 0 in progress)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-11 -- Phase 69 complete, v2.0 milestone complete*
+*Last updated: 2026-03-12 -- Phase 70 complete*
