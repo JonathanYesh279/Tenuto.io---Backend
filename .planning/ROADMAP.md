@@ -301,8 +301,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 71-01-PLAN.md — Restyle Theory Lessons page header + TheoryLessonCard
-- [ ] 71-02-PLAN.md — Restyle Orchestras page header + OrchestraCard
+- [x] 71-01-PLAN.md — Restyle Theory Lessons page header + TheoryLessonCard -- completed 2026-03-12
+- [x] 71-02-PLAN.md — Restyle Orchestras page header + OrchestraCard -- completed 2026-03-12
 
 ---
 
@@ -325,10 +325,10 @@ Plans:
 | 68. Layout Primitives | v2.0 | 1 | Complete | 2026-03-11 |
 | 69. CSS Cleanup | v2.0 | 2 | Complete | 2026-03-11 |
 | 70. Teachers Page Restyle | v2.1 | 2 | Complete | 2026-03-12 |
-| 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Planned | — |
+| 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 
-**Total: 71 phases (70 complete, 1 planned)**
+**Total: 71 phases (71 complete, 0 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-12 -- Phase 71 added*
+*Last updated: 2026-03-12 -- Phase 71 complete*
