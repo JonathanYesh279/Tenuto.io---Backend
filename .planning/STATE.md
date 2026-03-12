@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 70 of 70 (Teachers Page Restyle & Login Activity Badges)
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 70 complete — Teachers page restyled with login activity badges
-Last activity: 2026-03-12 — Plan 70-02 executed
+Phase: 71 of 71 (Theory & Orchestra Pages Restyle)
+Plan: 1 of 2 in current phase
+Status: Plan 71-01 complete — Theory Lessons page restyled
+Last activity: 2026-03-12 — Plan 71-01 executed
 
-Progress: [##########] 100% (v2.1 Phase 70 — 2/2 plans)
+Progress: [#####-----] 50% (v2.1 Phase 71 — 1/2 plans)
 
 ## Performance Metrics
 
-**All milestones:** 70 phases, 144 plans across 12 milestones
+**All milestones:** 71 phases, 146 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -66,6 +66,8 @@ Progress: [##########] 100% (v2.1 Phase 70 — 2/2 plans)
 - **[70-01]** loginCount/lastLogin extracted in enrichment layer, not query projection
 - **[70-02]** Full client-side pagination (20/page) replacing server-side load-more for Teachers page
 - **[70-02]** Entity page restyle pattern established: GlassStatCard + GlassSelect + SearchInput + HeroUI Table/Pagination
+- **[71-01]** Tab navigation kept as styled buttons (not HeroButton) for consistent toggle pattern
+- **[71-01]** Category badge in TheoryLessonCard uses bg-primary/10 for readability vs raw bg-primary
 
 ### Pending Todos
 
@@ -74,6 +76,7 @@ Progress: [##########] 100% (v2.1 Phase 70 — 2/2 plans)
 ### Roadmap Evolution
 
 - Phase 70 added: Teachers Page Restyle & Login Activity Badges (v2.1 Entity Page Consistency)
+- Phase 71 added: Theory & Orchestra Pages Restyle (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -82,5 +85,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-12
-Stopped at: Completed 70-02-PLAN.md (Teachers page restyle — phase 70 complete)
+Stopped at: Completed 71-01-PLAN.md (Theory Lessons page restyle)
 Resume file: None
