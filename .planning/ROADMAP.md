@@ -306,6 +306,30 @@ Plans:
 
 ---
 
+#### Phase 72: Theory Lesson Entity Fixes & Role Normalization
+**Goal**: Fix the critical teacher dropdown bug in theory lesson forms (role mismatch "מורה תאוריה" vs "תאוריה"), normalize all legacy role references across frontend and backend, and audit the theory lesson entity for consistency with current patterns.
+**Depends on**: Phase 70-71 (entity page consistency established)
+**Requirements**:
+  - Theory lesson form teacher dropdown shows all teachers with role "תאוריה" (currently shows none due to role mismatch)
+  - BulkTheoryUpdateTab teacher filter uses correct role "תאוריה"
+  - Backend theory controller authorization checks use normalized roles from req.context.userRoles
+  - All frontend files referencing "מורה תאוריה" migrated to "תאוריה" (TheoryLessonForm, BulkTheoryUpdateTab, TeacherForm, TeacherCard, RoleDistributionPanel, Profile, styleUtils)
+  - Backend files with legacy "מורה תאוריה" references updated (theory.controller.js, ministry-mappers.js, permissionService.js)
+  - Theory lesson CRUD operations verified working end-to-end
+**Success Criteria** (what must be TRUE):
+  1. Creating a new theory lesson shows all "תאוריה" role teachers in the dropdown
+  2. Zero references to "מורה תאוריה" remain in frontend src/ (except comments explaining migration)
+  3. Backend theory controller uses req.context.userRoles for authorization (normalized roles)
+  4. Bulk theory update tab correctly filters teachers by "תאוריה" role
+  5. Ministry export mappers and permission service use normalized role names
+**Plans**: 2 plans
+
+Plans:
+- [ ] 72-01-PLAN.md — Fix frontend theory teacher dropdown filters + normalize all "מורה תאוריה" references across 7 files
+- [ ] 72-02-PLAN.md — Remove redundant inline auth from theory controller + fix permissionService key + ministry mapper + test utility
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -326,9 +350,10 @@ Plans:
 | 69. CSS Cleanup | v2.0 | 2 | Complete | 2026-03-11 |
 | 70. Teachers Page Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 | 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Complete | 2026-03-12 |
+| 72. Theory Lesson Entity Fixes | v2.1 | 2 | Planned | — |
 
-**Total: 71 phases (71 complete, 0 planned)**
+**Total: 72 phases (71 complete, 1 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-12 -- Phase 71 complete*
+*Last updated: 2026-03-12 -- Phase 72 planned*
