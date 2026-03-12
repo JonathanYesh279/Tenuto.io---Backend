@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 72 of 72 (Theory Lesson Entity Fixes & Role Normalization)
-Plan: 1 of 2 in current phase
-Status: Plan 72-01 complete — theory teacher role normalization
-Last activity: 2026-03-12 — Plan 72-01 executed
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: Phase 72 complete — theory lesson entity fixes & role normalization
+Last activity: 2026-03-12 — Plan 72-02 executed
 
-Progress: [#####-----] 50% (v2.1 Phase 72 — 1/2 plans)
+Progress: [##########] 100% (v2.1 Phase 72 — 2/2 plans)
 
 ## Performance Metrics
 
@@ -74,6 +74,8 @@ Progress: [#####-----] 50% (v2.1 Phase 72 — 1/2 plans)
 - **[72-01]** Dual-role check pattern for API-facing filters: roles.some(r => r === 'תאוריה' || r === 'מורה תאוריה')
 - **[72-01]** TeacherForm uses only normalized role (VALID_ROLES already has 'תאוריה') -- no backward compat needed
 - **[72-01]** Display-only color maps retain legacy role entries for backward compatibility
+- **[72-02]** Remove inline auth checks entirely — RBAC middleware is the single authorization authority
+- **[72-02]** Ministry mapper checks both normalized and legacy role strings (export reads raw DB data)
 
 ### Pending Todos
 
@@ -92,5 +94,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-12
-Stopped at: Completed 72-01-PLAN.md (Theory teacher role normalization)
+Stopped at: Completed 72-02-PLAN.md (Backend auth & role reference fixes — phase 72 complete)
 Resume file: None
