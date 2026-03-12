@@ -185,7 +185,8 @@ function mapTeacherRoster(data) {
       teachingSubjects: {
         pianoAccomp: subjects.includes('ליווי פסנתר'),
         conducting: subjects.includes('ניצוח') || roles.includes('מנצח'),
-        theory: subjects.includes('תאוריה') || roles.includes('מורה תאוריה'),
+        // Check both normalized and legacy role names (export reads raw DB data, not middleware-normalized)
+        theory: subjects.includes('תאוריה') || roles.includes('תאוריה') || roles.includes('מורה תאוריה'),
         composition: subjects.includes('הלחנה'),
         librarian: subjects.includes('ספרנות תזמורות'),
         other: subjects.includes('אחר'),

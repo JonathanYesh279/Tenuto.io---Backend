@@ -214,8 +214,8 @@ describe('Teacher Validation', () => {
 
   describe('TEACHER_CONSTANTS', () => {
     it('should define valid teacher roles', () => {
-      // Assert - roles now include 'מורה תאוריה' and 'מגמה'
-      expect(TEACHER_CONSTANTS.VALID_RULES).toEqual(['מורה', 'מנצח', 'מדריך הרכב', 'מנהל', 'מורה תאוריה', 'מגמה'])
+      // Assert - roles match current TEACHER_ROLES from config/constants.js
+      expect(TEACHER_CONSTANTS.VALID_RULES).toEqual(['מנהל', 'סגן מנהל', 'מזכירות', 'רכז/ת כללי', 'רכז/ת מחלקתי', 'מורה', 'ניצוח', 'מדריך הרכב', 'תאוריה', 'ליווי פסנתר', 'הלחנה', 'מורה מגמה', 'צפייה בלבד'])
     })
   })
 
