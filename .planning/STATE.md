@@ -10,15 +10,15 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 73 of 73 (Teacher Hours Import Refactor)
-Plan: 2 of N in current phase
-Status: Plan 73-02 complete — import hours wiring
-Last activity: 2026-03-13 — Plan 73-02 executed
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: Phase 73 complete — teacher hours import refactor
+Last activity: 2026-03-13 — Phase 73 executed and verified
 
-Progress: [########--] 80% (v2.1 Phase 73 — 2/N plans)
+Progress: [##########] 100% (v2.1 Phase 73 — 2/2 plans)
 
 ## Performance Metrics
 
-**All milestones:** 73 phases, 149+ plans across 12 milestones
+**All milestones:** 73 phases, 150 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -81,6 +81,7 @@ Progress: [########--] 80% (v2.1 Phase 73 — 2/N plans)
 - **[73-02]** Post-import recalculation is non-fatal — import success is independent of hours calculation
 - **[73-02]** Per-teacher calculation (not bulk) after import to only process affected teachers
 - **[73-02]** Dynamic imports for hoursSummaryService/schoolYearService to avoid circular dependencies
+- **[73]** hours_summary collection NOT deprecated — it provides per-student/per-orchestra breakdowns that weeklyHoursSummary (flat totals) intentionally doesn't replicate
 
 ### Pending Todos
 
@@ -100,5 +101,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Completed 73-02-PLAN.md (import hours wiring — weeklyHoursSummary in import + post-import recalculation)
+Stopped at: Phase 73 complete — Teacher Hours Import Refactor (all 2 plans executed, verified 5/6 + gap closed with design doc)
 Resume file: None

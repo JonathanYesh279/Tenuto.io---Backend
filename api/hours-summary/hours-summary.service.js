@@ -4,6 +4,12 @@
  * Calculates weekly ש"ש (teaching hours) per teacher for Ministry of Education reporting.
  * Pre-computes and caches results in the hours_summary collection.
  *
+ * Dual-write architecture (Phase 73):
+ *   - hours_summary collection: detailed per-student/per-orchestra breakdowns (used by report generators, export, ministry reports)
+ *   - teacher.weeklyHoursSummary: flat totals only (used by teacher list API, dashboard, quick lookups)
+ *   Both are kept in sync by calculateTeacherHours(). The hours_summary collection is NOT deprecated —
+ *   it provides granularity that weeklyHoursSummary intentionally does not replicate.
+ *
  * Data sources (all single-source-of-truth):
  *   - Student teacherAssignments → individual lesson hours
  *   - Teacher teaching.timeBlocks → scheduled time blocks

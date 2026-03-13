@@ -349,8 +349,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 73-01-PLAN.md — Add weeklyHoursSummary schema, dual-write in hours calculation, expose in teacher list API
-- [ ] 73-02-PLAN.md — Wire import flow to populate weeklyHoursSummary + post-import recalculation hook
+- [x] 73-01-PLAN.md — Add weeklyHoursSummary schema, dual-write in hours calculation, expose in teacher list API -- completed 2026-03-13
+- [x] 73-02-PLAN.md — Wire import flow to populate weeklyHoursSummary + post-import recalculation hook -- completed 2026-03-13
 
 ---
 
@@ -375,10 +375,10 @@ Plans:
 | 70. Teachers Page Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 | 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 | 72. Theory Lesson Entity Fixes | v2.1 | 2 | Complete | 2026-03-12 |
-| 73. Teacher Hours Import Refactor | v2.1 | 2 | Planned | - |
+| 73. Teacher Hours Import Refactor | v2.1 | 2 | Complete | 2026-03-13 |
 
-**Total: 73 phases (72 complete, 1 planned)**
+**Total: 73 phases (73 complete)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-13 -- Phase 73 added (Teacher Hours Import Refactor)*
+*Last updated: 2026-03-13 -- Phase 73 complete (Teacher Hours Import Refactor)*
