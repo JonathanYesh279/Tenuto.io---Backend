@@ -2714,6 +2714,37 @@ async function executeTeacherImport(log, importLogCollection, tenantId, adminId)
     { $set: { status, results, affectedDocIds, completedAt: new Date() } }
   );
 
+  // Post-import: recalculate hours for affected teachers (non-fatal enrichment)
+  // This triggers dual-write to both hours_summary collection and teacher.weeklyHoursSummary
+  // with calculated values (which may differ from raw import values)
+  if (affectedDocIds.length > 0) {
+    try {
+      const { hoursSummaryService } = await import('../hours-summary/hours-summary.service.js');
+      // Get current school year for this tenant
+      const { schoolYearService } = await import('../school-year/school-year.service.js');
+      let schoolYearId = null;
+      try {
+        const currentSY = await schoolYearService.getCurrentSchoolYear({ context: { tenantId } });
+        schoolYearId = currentSY?._id?.toString() || null;
+      } catch { /* no current school year — calculate without it */ }
+
+      let calcSuccess = 0;
+      let calcErrors = 0;
+      for (const teacherId of affectedDocIds) {
+        try {
+          await hoursSummaryService.calculateTeacherHours(teacherId, schoolYearId, { context: { tenantId } });
+          calcSuccess++;
+        } catch (err) {
+          calcErrors++;
+          console.warn(`Hours recalculation failed for teacher ${teacherId} (non-fatal):`, err.message);
+        }
+      }
+      console.log(`Post-import hours recalculation: ${calcSuccess}/${affectedDocIds.length} succeeded, ${calcErrors} errors`);
+    } catch (err) {
+      console.warn('Post-import hours recalculation failed entirely (non-fatal):', err.message);
+    }
+  }
+
   return results;
 }
 
