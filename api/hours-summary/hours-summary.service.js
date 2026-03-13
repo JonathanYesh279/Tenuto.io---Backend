@@ -213,6 +213,29 @@ async function calculateTeacherHours(teacherId, schoolYearId, options = {}) {
       { upsert: true }
     );
 
+    // Dual-write: persist summary totals on teacher document for fast list/dashboard access
+    await teacherCollection.updateOne(
+      { _id: ObjectId.createFromHexString(teacherId), tenantId },
+      {
+        $set: {
+          weeklyHoursSummary: {
+            totalWeeklyHours: summary.totals.totalWeeklyHours,
+            individualLessons: summary.totals.individualLessons,
+            orchestraConducting: summary.totals.orchestraConducting,
+            theoryTeaching: summary.totals.theoryTeaching,
+            management: summary.totals.management,
+            accompaniment: summary.totals.accompaniment,
+            ensembleCoordination: summary.totals.ensembleCoordination,
+            coordination: summary.totals.coordination,
+            breakTime: summary.totals.breakTime,
+            travelTime: summary.totals.travelTime,
+            source: 'calculated',
+            updatedAt: new Date(),
+          }
+        }
+      }
+    );
+
     return summary;
   } catch (err) {
     console.error(`Error calculating hours for teacher ${teacherId}:`, err.message);

@@ -77,6 +77,22 @@ const managementInfoSchema = Joi.object({
   totalWeeklyHours: null,
 });
 
+// weeklyHoursSummary sub-schema (denormalized hours totals from calculation or import)
+const weeklyHoursSummarySchema = Joi.object({
+  totalWeeklyHours: Joi.number().min(0).allow(null).default(null),
+  individualLessons: Joi.number().min(0).allow(null).default(null),
+  orchestraConducting: Joi.number().min(0).allow(null).default(null),
+  theoryTeaching: Joi.number().min(0).allow(null).default(null),
+  management: Joi.number().min(0).allow(null).default(null),
+  accompaniment: Joi.number().min(0).allow(null).default(null),
+  ensembleCoordination: Joi.number().min(0).allow(null).default(null),
+  coordination: Joi.number().min(0).allow(null).default(null),
+  breakTime: Joi.number().min(0).allow(null).default(null),
+  travelTime: Joi.number().min(0).allow(null).default(null),
+  source: Joi.string().valid('import', 'calculated').allow(null).default(null),
+  updatedAt: Joi.date().allow(null).default(null),
+}).default(null).allow(null);
+
 // Original schema for creating new teachers
 export const teacherSchema = Joi.object({
   tenantId: Joi.any().strip(),
@@ -137,6 +153,8 @@ export const teacherSchema = Joi.object({
   }).required(),
 
   managementInfo: managementInfoSchema,
+
+  weeklyHoursSummary: weeklyHoursSummarySchema,
 
   teaching: Joi.object({
     timeBlocks: Joi.array()
@@ -290,6 +308,8 @@ export const teacherUpdateSchema = Joi.object({
 
   managementInfo: managementInfoUpdateSchema,
 
+  weeklyHoursSummary: weeklyHoursSummarySchema.optional(),
+
   teaching: Joi.object({
     timeBlocks: Joi.array()
       .items(scheduleSlotUpdateSchema)
@@ -408,6 +428,8 @@ export const teacherImportSchema = Joi.object({
   }).default(),
 
   managementInfo: managementInfoSchema,
+
+  weeklyHoursSummary: weeklyHoursSummarySchema,
 
   teaching: Joi.object({
     timeBlocks: Joi.array().items(scheduleSlotSchema).default([]),
