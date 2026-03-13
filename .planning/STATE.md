@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 73 of 73 (Teacher Hours Import Refactor)
-Plan: 1 of N in current phase
-Status: Plan 73-01 complete — weeklyHoursSummary denormalization
-Last activity: 2026-03-13 — Plan 73-01 executed
+Plan: 2 of N in current phase
+Status: Plan 73-02 complete — import hours wiring
+Last activity: 2026-03-13 — Plan 73-02 executed
 
-Progress: [#####-----] 50% (v2.1 Phase 73 — 1/N plans)
+Progress: [########--] 80% (v2.1 Phase 73 — 2/N plans)
 
 ## Performance Metrics
 
@@ -78,6 +78,9 @@ Progress: [#####-----] 50% (v2.1 Phase 73 — 1/N plans)
 - **[72-02]** Ministry mapper checks both normalized and legacy role strings (export reads raw DB data)
 - **[73-01]** weeklyHoursSummary defaults to null (not empty object) to signal "not yet calculated"
 - **[73-01]** Dual-write pattern: hours_summary collection keeps full breakdown, teacher doc gets flat totals for list display
+- **[73-02]** Post-import recalculation is non-fatal — import success is independent of hours calculation
+- **[73-02]** Per-teacher calculation (not bulk) after import to only process affected teachers
+- **[73-02]** Dynamic imports for hoursSummaryService/schoolYearService to avoid circular dependencies
 
 ### Pending Todos
 
@@ -97,5 +100,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Completed 73-01-PLAN.md (weeklyHoursSummary denormalization — schema, dual-write, API exposure)
+Stopped at: Completed 73-02-PLAN.md (import hours wiring — weeklyHoursSummary in import + post-import recalculation)
 Resume file: None
