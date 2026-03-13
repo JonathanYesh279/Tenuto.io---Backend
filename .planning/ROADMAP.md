@@ -330,6 +330,30 @@ Plans:
 
 ---
 
+#### Phase 73: Teacher Hours Import Refactor
+**Goal**: Redesign teacher hours data architecture so weekly hours are sourced from the imported Excel file and stored persistently, available at all times — not calculated on-demand when visiting teacher details page. This makes hours data reliable for dashboard analytics, reports, and any future feature that needs teacher workload information.
+**Depends on**: Phase 72 (entity page consistency established)
+**Requirements**:
+  - Teacher weekly hours (individual lessons, orchestra conducting, theory teaching, management, etc.) persisted on teacher document during Excel import
+  - Hours data available via teacher list API for dashboard and reports without on-demand calculation
+  - Dashboard teacher workload section can display hours breakdown from stored data
+  - Backward compatible with existing hours_summary collection and teacher details page
+  - Import flow updates hours on re-import (idempotent)
+**Success Criteria** (what must be TRUE):
+  1. Teacher import (Excel) extracts and persists all hour types on the teacher document
+  2. Teacher list API includes hours data without requiring a separate calculation step
+  3. Dashboard can display teacher workload breakdown from API data (no on-demand calculation needed)
+  4. Re-importing a teacher file updates hours data correctly (no duplicates or stale data)
+  5. Existing teacher details page שעות שבועיות tab continues to work
+  6. hours_summary collection usage consolidated or deprecated in favor of teacher document fields
+**Plans**: 2 plans
+
+Plans:
+- [ ] 73-01-PLAN.md — Add weeklyHoursSummary schema, dual-write in hours calculation, expose in teacher list API
+- [ ] 73-02-PLAN.md — Wire import flow to populate weeklyHoursSummary + post-import recalculation hook
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -351,9 +375,10 @@ Plans:
 | 70. Teachers Page Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 | 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 | 72. Theory Lesson Entity Fixes | v2.1 | 2 | Complete | 2026-03-12 |
+| 73. Teacher Hours Import Refactor | v2.1 | 2 | Planned | - |
 
-**Total: 72 phases (72 complete, 0 planned)**
+**Total: 73 phases (72 complete, 1 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-12 -- Phase 72 complete*
+*Last updated: 2026-03-13 -- Phase 73 added (Teacher Hours Import Refactor)*
