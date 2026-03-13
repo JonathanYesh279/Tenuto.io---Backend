@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 72 of 72 (Theory Lesson Entity Fixes & Role Normalization)
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 72 complete — theory lesson entity fixes & role normalization
-Last activity: 2026-03-12 — Plan 72-02 executed
+Phase: 73 of 73 (Teacher Hours Import Refactor)
+Plan: 1 of N in current phase
+Status: Plan 73-01 complete — weeklyHoursSummary denormalization
+Last activity: 2026-03-13 — Plan 73-01 executed
 
-Progress: [##########] 100% (v2.1 Phase 72 — 2/2 plans)
+Progress: [#####-----] 50% (v2.1 Phase 73 — 1/N plans)
 
 ## Performance Metrics
 
-**All milestones:** 72 phases, 148 plans across 12 milestones
+**All milestones:** 73 phases, 149+ plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -76,6 +76,8 @@ Progress: [##########] 100% (v2.1 Phase 72 — 2/2 plans)
 - **[72-01]** Display-only color maps retain legacy role entries for backward compatibility
 - **[72-02]** Remove inline auth checks entirely — RBAC middleware is the single authorization authority
 - **[72-02]** Ministry mapper checks both normalized and legacy role strings (export reads raw DB data)
+- **[73-01]** weeklyHoursSummary defaults to null (not empty object) to signal "not yet calculated"
+- **[73-01]** Dual-write pattern: hours_summary collection keeps full breakdown, teacher doc gets flat totals for list display
 
 ### Pending Todos
 
@@ -86,6 +88,7 @@ Progress: [##########] 100% (v2.1 Phase 72 — 2/2 plans)
 - Phase 70 added: Teachers Page Restyle & Login Activity Badges (v2.1 Entity Page Consistency)
 - Phase 71 added: Theory & Orchestra Pages Restyle (v2.1 Entity Page Consistency)
 - Phase 72 added: Theory Lesson Entity Fixes & Role Normalization (v2.1 Entity Page Consistency)
+- Phase 73 added: Teacher Hours Import Refactor (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -93,6 +96,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12
-Stopped at: Completed 72-02-PLAN.md (Backend auth & role reference fixes — phase 72 complete)
+Last session: 2026-03-13
+Stopped at: Completed 73-01-PLAN.md (weeklyHoursSummary denormalization — schema, dual-write, API exposure)
 Resume file: None
