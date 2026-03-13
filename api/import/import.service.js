@@ -1647,6 +1647,22 @@ function calculateTeacherChanges(teacher, mapped, instruments, roles = [], teach
     }
   }
 
+  // weeklyHoursSummary changes (mirrors managementInfo hours in denormalized form)
+  if (Object.keys(teachingHours || {}).length > 0) {
+    const newSummary = buildImportWeeklyHoursSummary(teachingHours);
+    if (newSummary) {
+      const currentSummary = teacher.weeklyHoursSummary;
+      // Always update if hours are being imported — recalculation will refine later
+      if (JSON.stringify(currentSummary) !== JSON.stringify(newSummary)) {
+        changes.push({
+          field: 'weeklyHoursSummary',
+          oldValue: currentSummary ?? null,
+          newValue: newSummary,
+        });
+      }
+    }
+  }
+
   // Role changes (if Ministry file has role columns)
   if (roles && roles.length > 0) {
     const currentRoles = teacher.roles || [];
@@ -1666,6 +1682,28 @@ function calculateTeacherChanges(teacher, mapped, instruments, roles = [], teach
   }
 
   return changes;
+}
+
+/**
+ * Build weeklyHoursSummary from import teaching hours.
+ * Maps managementInfo field names to weeklyHoursSummary field names.
+ */
+function buildImportWeeklyHoursSummary(teachingHours) {
+  if (!teachingHours || Object.keys(teachingHours).length === 0) return null;
+  return {
+    totalWeeklyHours: teachingHours.totalWeeklyHours ?? null,
+    individualLessons: teachingHours.teachingHours ?? null,
+    orchestraConducting: teachingHours.ensembleHours ?? null,
+    theoryTeaching: teachingHours.theoryHours ?? null,
+    management: teachingHours.managementHours ?? null,
+    accompaniment: teachingHours.accompHours ?? null,
+    ensembleCoordination: teachingHours.ensembleCoordHours ?? null,
+    coordination: teachingHours.coordinationHours ?? null,
+    breakTime: teachingHours.breakTimeHours ?? null,
+    travelTime: null,
+    source: 'import',
+    updatedAt: new Date(),
+  };
 }
 
 // ─── Import Normalization & Document Building ────────────────────────────────
@@ -1737,6 +1775,7 @@ function buildImportTeacherDocument(data, tenantId, hashedPassword, adminId) {
       breakTimeHours: data.teachingHours?.breakTimeHours ?? null,
       totalWeeklyHours: data.teachingHours?.totalWeeklyHours ?? null,
     },
+    weeklyHoursSummary: buildImportWeeklyHoursSummary(data.teachingHours),
     teaching: { timeBlocks: [] },
     conducting: { orchestraIds: [] },
     ensemblesIds: [],
