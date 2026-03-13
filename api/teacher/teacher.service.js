@@ -979,6 +979,7 @@ async function _enrichWithStudentCounts(teachers, tenantId) {
       studentCount: countMap.get(t._id.toString()) || 0,
       loginCount: t.credentials?.loginCount || 0,
       lastLogin: t.credentials?.lastLogin || null,
+      weeklyHoursSummary: t.weeklyHoursSummary || null,
     }));
   } catch (err) {
     console.error('Error enriching student counts:', err.message);
