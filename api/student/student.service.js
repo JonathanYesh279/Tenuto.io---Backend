@@ -185,6 +185,22 @@ async function addStudent(studentToAdd, teacherId = null, isAdmin = false, optio
         console.error(`SYNC ERROR: Failed to sync teacher assignments for new student:`, syncError);
         // Continue with student creation even if sync fails
       }
+
+      // Auto-recalculate hours for assigned teachers (fire-and-forget, non-fatal)
+      const teacherIds = value.teacherAssignments
+        .map(a => a.teacherId?.toString())
+        .filter(Boolean);
+
+      if (teacherIds.length > 0) {
+        import('../hours-summary/hours-summary.service.js').then(({ hoursSummaryService }) => {
+          const schoolYearId = value.schoolYearId || options.context?.schoolYearId;
+          for (const tid of teacherIds) {
+            hoursSummaryService.calculateTeacherHours(tid, schoolYearId, { context: options.context })
+              .then(() => console.log(`AUTO-RECALC: Hours recalculated for teacher ${tid} (new student)`))
+              .catch(err => console.error(`AUTO-RECALC: Hours recalc failed for teacher ${tid}:`, err.message));
+          }
+        }).catch(err => console.error('AUTO-RECALC: Failed to load hoursSummaryService:', err.message));
+      }
     }
 
     return { _id: result.insertedId, ...value };
@@ -423,6 +439,28 @@ async function updateStudent(
 
     // Commit the transaction
     await session.commitTransaction();
+
+    // Auto-recalculate hours for affected teachers (fire-and-forget, non-fatal)
+    // Placed AFTER transaction commit — must not be part of the transaction
+    if (teacherAssignmentsSyncRequired) {
+      const affectedTeacherIds = new Set([
+        ...(originalStudent.teacherAssignments || []).map(a => a.teacherId?.toString()),
+        ...(newAssignments || []).map(a => a.teacherId?.toString()),
+      ].filter(Boolean));
+
+      if (affectedTeacherIds.size > 0) {
+        // Dynamic import to avoid circular dependency
+        import('../hours-summary/hours-summary.service.js').then(({ hoursSummaryService }) => {
+          const schoolYearId = options.context?.schoolYearId || originalStudent.schoolYearId;
+
+          for (const tid of affectedTeacherIds) {
+            hoursSummaryService.calculateTeacherHours(tid, schoolYearId, { context: options.context })
+              .then(() => console.log(`AUTO-RECALC: Hours recalculated for teacher ${tid}`))
+              .catch(err => console.error(`AUTO-RECALC: Hours recalc failed for teacher ${tid}:`, err.message));
+          }
+        }).catch(err => console.error('AUTO-RECALC: Failed to load hoursSummaryService:', err.message));
+      }
+    }
 
     return result;
   } catch (err) {
