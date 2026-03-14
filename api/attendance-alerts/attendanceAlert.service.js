@@ -133,7 +133,7 @@ async function evaluateFlaggedStudents(orchestraId, options = {}) {
     const absenceRate =
       totalRehearsals > 0 ? Math.round((absentCount / totalRehearsals) * 100 * 100) / 100 : 0;
     const attendanceRate =
-      totalRehearsals > 0 ? Math.round(((totalRehearsals - absentCount) / totalRehearsals) * 100 * 100) / 100 : 100;
+      totalRehearsals > 0 ? Math.round(((totalRehearsals - absentCount) / totalRehearsals) * 100 * 100) / 100 : 0;
 
     // Check flag conditions
     const flags = [];
@@ -189,9 +189,10 @@ async function getAttendanceDashboard(options = {}) {
     .toArray();
 
   // Build date filter for activity_attendance
+  // Note: date field is stored as ISO string in some records, so use string comparison
   const dateFilter = {};
-  if (startDate) dateFilter.$gte = new Date(startDate);
-  if (endDate) dateFilter.$lte = new Date(endDate);
+  if (startDate) dateFilter.$gte = typeof startDate === 'string' ? startDate : new Date(startDate).toISOString();
+  if (endDate) dateFilter.$lte = typeof endDate === 'string' ? endDate + 'T23:59:59.999Z' : new Date(endDate).toISOString();
 
   const activityFilter = {
     tenantId,
@@ -294,7 +295,7 @@ async function getAttendanceDashboard(options = {}) {
   const trendFilter = {
     tenantId,
     isArchived: { $ne: true },
-    date: { $gte: sixMonthsAgo },
+    date: { $gte: sixMonthsAgo.toISOString() },
   };
 
   const trendRecords = await activityCol.find(trendFilter).toArray();
@@ -316,14 +317,14 @@ async function getAttendanceDashboard(options = {}) {
       month,
       totalSessions: data.sessions.size,
       attendanceRate:
-        data.total > 0 ? Math.round((data.present / data.total) * 100 * 100) / 100 : 100,
+        data.total > 0 ? Math.round((data.present / data.total) * 100 * 100) / 100 : 0,
     }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
   const overallAttendanceRate =
     overallTotal > 0
       ? Math.round((overallPresent / overallTotal) * 100 * 100) / 100
-      : 100;
+      : null;
 
   return {
     perOrchestra,
@@ -363,7 +364,7 @@ async function getStudentAttendanceSummary(studentId, options = {}) {
   const attendanceRate =
     totalSessions > 0
       ? Math.round((attendedCount / totalSessions) * 100 * 100) / 100
-      : 100;
+      : 0;
 
   // Consecutive absences from most recent
   let consecutiveAbsences = 0;
