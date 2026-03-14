@@ -384,6 +384,25 @@ Plans:
 
 ---
 
+#### Phase 75: Rehearsal Attendance Tracking
+**Goal**: Persist denormalized `attendanceCount` on rehearsal documents when attendance is marked, and fix the frontend to prefer server-persisted counts over client-computed values. Research confirmed the entire attendance API (PUT /rehearsal/:id/attendance), UI (AttendanceManager.tsx), and dashboard tooltip (Dashboard.tsx line 772) already exist from v1.9 -- the only gap is the missing `attendanceCount` field on the rehearsal document and the frontend always overwriting it with client-computed zeros.
+**Depends on**: Phase 74 (dashboard tooltip already built), v1.9 Phases 59-60 (attendance data layer + UX foundations)
+**Requirements**:
+  - Backend: auto-aggregate `attendanceCount` (`{ present, absent, late, total }`) on rehearsal doc when attendance is marked
+  - Frontend: apiService prefers server-persisted `attendanceCount` over client-computed fallback
+  - Dashboard rehearsal tracker tooltip displays real attendance data (already wired — just needs real data to flow)
+**Success Criteria** (what must be TRUE):
+  1. `attendanceCount` field is auto-calculated and persisted on the rehearsal document after marking
+  2. Dashboard 30-day rehearsal tracker tooltip shows real attendance percentages from DB data
+  3. Attendance marking is idempotent — re-marking the same rehearsal updates rather than duplicates
+  4. Frontend gracefully handles old rehearsals without server attendanceCount (client-computed fallback)
+**Plans**: 1 plan
+
+Plans:
+- [ ] 75-01-PLAN.md — Persist attendanceCount in backend updateAttendance + fix frontend apiService to prefer server values
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -407,9 +426,10 @@ Plans:
 | 72. Theory Lesson Entity Fixes | v2.1 | 2 | Complete | 2026-03-12 |
 | 73. Teacher Hours Import Refactor | v2.1 | 2 | Complete | 2026-03-13 |
 | 74. Teacher Hours UI & Dashboard | v2.1 | 3 | Complete | 2026-03-14 |
+| 75. Rehearsal Attendance Tracking | v2.1 | 1 | Planned | — |
 
-**Total: 74 phases (74 complete, 0 planned)**
+**Total: 75 phases (74 complete, 1 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-14 -- Phase 74 complete (Teacher Hours UI & Dashboard Integration)*
+*Last updated: 2026-03-14 -- Phase 75 planned (1 plan — research confirmed API+UI already exist, only attendanceCount persistence gap)*
