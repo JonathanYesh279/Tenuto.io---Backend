@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 73 of 73 (Teacher Hours Import Refactor)
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 73 complete — teacher hours import refactor
-Last activity: 2026-03-13 — Phase 73 executed and verified
+Phase: 74 of 74 (Teacher Hours UI & Dashboard Integration)
+Plan: 3 of 4 in current phase
+Status: Executing Phase 74 — plan 03 complete
+Last activity: 2026-03-14 — Phase 74 plan 03 executed
 
-Progress: [##########] 100% (v2.1 Phase 73 — 2/2 plans)
+Progress: [#######---] 75% (v2.1 Phase 74 — 3/4 plans)
 
 ## Performance Metrics
 
@@ -82,6 +82,8 @@ Progress: [##########] 100% (v2.1 Phase 73 — 2/2 plans)
 - **[73-02]** Per-teacher calculation (not bulk) after import to only process affected teachers
 - **[73-02]** Dynamic imports for hoursSummaryService/schoolYearService to avoid circular dependencies
 - **[73]** hours_summary collection NOT deprecated — it provides per-student/per-orchestra breakdowns that weeklyHoursSummary (flat totals) intentionally doesn't replicate
+- **[74-03]** Auto-recalculation hook placed AFTER transaction commit — non-transactional, fire-and-forget
+- **[74-03]** Dynamic import() pattern reused from Phase 73 for circular dependency avoidance
 
 ### Pending Todos
 
@@ -101,6 +103,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-13
-Stopped at: Phase 73 complete — Teacher Hours Import Refactor (all 2 plans executed, verified 5/6 + gap closed with design doc)
+Last session: 2026-03-14
+Stopped at: Phase 74 plan 03 complete — Auto-recalculation hook added to student.service.js
 Resume file: None
