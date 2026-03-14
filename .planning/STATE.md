@@ -82,6 +82,9 @@ Progress: [#######---] 75% (v2.1 Phase 74 — 3/4 plans)
 - **[73-02]** Per-teacher calculation (not bulk) after import to only process affected teachers
 - **[73-02]** Dynamic imports for hoursSummaryService/schoolYearService to avoid circular dependencies
 - **[73]** hours_summary collection NOT deprecated — it provides per-student/per-orchestra breakdowns that weeklyHoursSummary (flat totals) intentionally doesn't replicate
+- **[74-01]** GlassStatCard extended with valueClassName prop for red overloaded count
+- **[74-01]** weeklyHoursSummary.totalWeeklyHours used as data source, NOT totalTeachingHours (time blocks)
+- **[74-01]** Client-side sorting via useMemo + sortDescriptor state for Teachers table
 - **[74-03]** Auto-recalculation hook placed AFTER transaction commit — non-transactional, fire-and-forget
 - **[74-03]** Dynamic import() pattern reused from Phase 73 for circular dependency avoidance
 
