@@ -403,6 +403,37 @@ Plans:
 
 ---
 
+#### Phase 76: Attendance Management Page
+**Goal**: Build a dedicated Attendance Management page that surfaces all existing attendance capabilities (rehearsal marking, analytics, alerts, trends) in one unified interface — replacing the current redirect-to-teachers behavior. Admin gets a full operations view with attendance overview stats, per-orchestra drill-down, flagged students, trend charts, and quick-mark workflow. All backend APIs already exist (rehearsal attendance, analytics, attendance-alerts); this phase is primarily frontend with routing fixes.
+**Depends on**: Phase 75 (attendanceCount persistence), v1.9 Phases 59-60 (attendance data layer + UX)
+**Requirements**:
+  - Dedicated `/attendance` route with its own page (not redirect to Teachers)
+  - GlassStatCard row showing overall attendance rate, total rehearsals tracked, flagged students count, average attendance trend
+  - Per-orchestra attendance table with attendance rate, flagged count, last rehearsal date, drill-down to rehearsal list
+  - Quick-mark workflow: select orchestra → see upcoming/recent rehearsals → open AttendanceManager modal
+  - Flagged students section with alert details (consecutive absences, high absence rate) from attendance-alerts API
+  - Attendance trend charts (monthly rates) from analytics trends API
+  - Filter bar: date range, orchestra filter, activity type filter
+  - Student attendance drill-down showing per-student stats from analytics student endpoint
+  - Admin bulk actions: trigger attendance report export, view attendance audit summary
+  - Consistent styling with entity page pattern (GlassStatCard, GlassSelect, SearchInput, HeroUI Table)
+**Success Criteria** (what must be TRUE):
+  1. `/attendance` route renders a full management page (not redirect to Teachers)
+  2. Overview stat cards show real data from attendance-alerts dashboard API
+  3. Per-orchestra table shows attendance rates and flagged student counts
+  4. Quick-mark workflow opens AttendanceManager for selected rehearsal
+  5. Flagged students section displays alerts with reason badges (consecutive absences / high rate)
+  6. Trend chart shows monthly attendance rates from analytics API
+  7. Date range and orchestra filters work correctly
+  8. All shared UI components reused — consistent with entity page pattern
+**Plans**: 2 plans
+
+Plans:
+- [ ] 76-01-PLAN.md — API service methods + route registration + sidebar navigation fix
+- [ ] 76-02-PLAN.md — AttendanceManagement page with stats, table, flagged students, trends, quick-mark
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -427,9 +458,10 @@ Plans:
 | 73. Teacher Hours Import Refactor | v2.1 | 2 | Complete | 2026-03-13 |
 | 74. Teacher Hours UI & Dashboard | v2.1 | 3 | Complete | 2026-03-14 |
 | 75. Rehearsal Attendance Tracking | v2.1 | 1 | Complete | 2026-03-14 |
+| 76. Attendance Management Page | v2.1 | 2 | Planned | — |
 
-**Total: 75 phases (75 complete, 0 planned)**
+**Total: 76 phases (75 complete, 1 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-14 -- Phase 75 complete (attendanceCount persistence + frontend server-first preference)*
+*Last updated: 2026-03-14 -- Phase 76 planned (2 plans in 2 waves)*
