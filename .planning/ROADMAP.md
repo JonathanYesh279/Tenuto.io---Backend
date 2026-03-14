@@ -399,7 +399,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 75-01-PLAN.md — Persist attendanceCount in backend updateAttendance + fix frontend apiService to prefer server values
+- [x] 75-01-PLAN.md — Persist attendanceCount in backend updateAttendance + fix frontend apiService to prefer server values -- completed 2026-03-14
 
 ---
 
@@ -426,10 +426,10 @@ Plans:
 | 72. Theory Lesson Entity Fixes | v2.1 | 2 | Complete | 2026-03-12 |
 | 73. Teacher Hours Import Refactor | v2.1 | 2 | Complete | 2026-03-13 |
 | 74. Teacher Hours UI & Dashboard | v2.1 | 3 | Complete | 2026-03-14 |
-| 75. Rehearsal Attendance Tracking | v2.1 | 1 | Planned | — |
+| 75. Rehearsal Attendance Tracking | v2.1 | 1 | Complete | 2026-03-14 |
 
-**Total: 75 phases (74 complete, 1 planned)**
+**Total: 75 phases (75 complete, 0 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-14 -- Phase 75 planned (1 plan — research confirmed API+UI already exist, only attendanceCount persistence gap)*
+*Last updated: 2026-03-14 -- Phase 75 complete (attendanceCount persistence + frontend server-first preference)*
