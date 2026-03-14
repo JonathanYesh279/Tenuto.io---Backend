@@ -434,6 +434,37 @@ Plans:
 
 ---
 
+#### Phase 77: Dashboard Chart UX Enhancement
+**Goal**: Improve dashboard chart section UX — replace the always-visible 3-column chart grid with a responsive tab-based layout on mobile (Radix Tabs + Framer Motion transitions), add a focus mode that expands any chart to full-width on click, and enhance the overall chart section with better animations and interactions. Desktop keeps side-by-side layout but gains focus-mode expand capability.
+**Depends on**: Phase 76 (current dashboard state), Phase 66-67 (design tokens + components)
+**Requirements**:
+  - Mobile (< lg): charts display in a tabbed interface with animated transitions between tabs
+  - Desktop (>= lg): charts display side-by-side in current 3-column grid layout
+  - Tab navigation uses Radix Tabs with Framer Motion `AnimatePresence` for smooth slide/fade transitions
+  - Focus mode: clicking a chart header expands it to full-width with smooth animation (desktop only)
+  - Clicking again or pressing Escape collapses back to grid view
+  - Instrument distribution chart interaction preserved in both tab and focus modes
+  - Activity-by-day click-to-popover interaction preserved in both modes
+  - ComboChart biaxial display works correctly in both narrow (tab) and wide (focus) layouts
+  - RTL support for tab labels and swipe direction
+  - Consistent styling with design system tokens (spacing, typography, borders)
+  - No new npm dependencies (Radix Tabs + Framer Motion already installed)
+**Success Criteria** (what must be TRUE):
+  1. On mobile (< 1024px), charts display one-at-a-time in a tabbed interface with Hebrew tab labels
+  2. Tab transitions use Framer Motion animations (slide + fade, RTL-aware direction)
+  3. On desktop (>= 1024px), charts display in a 3-column grid (current behavior preserved)
+  4. Desktop focus mode: clicking a chart header expands it full-width with spring animation
+  5. All chart interactions (popover, tooltips, click handlers) work in both mobile tab and desktop focus modes
+  6. No layout shifts or content overflow during transitions
+  7. Zero new npm dependencies added
+  8. Consistent with design system tokens and entity page patterns
+**Plans**: 1 plan
+
+Plans:
+- [ ] 77-01-PLAN.md — Create useMediaQuery hook + DashboardChartSection (mobile tabs + desktop grid with focus-mode) + wire into Dashboard.tsx
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -459,9 +490,10 @@ Plans:
 | 74. Teacher Hours UI & Dashboard | v2.1 | 3 | Complete | 2026-03-14 |
 | 75. Rehearsal Attendance Tracking | v2.1 | 1 | Complete | 2026-03-14 |
 | 76. Attendance Management Page | v2.1 | 2 | Complete | 2026-03-15 |
+| 77. Dashboard Chart UX Enhancement | v2.1 | 1 | Planned | — |
 
-**Total: 76 phases (76 complete)**
+**Total: 77 phases (76 complete, 1 pending)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-15 -- Phase 76 complete (2 plans executed)*
+*Last updated: 2026-03-15 -- Phase 77 planned (Dashboard Chart UX Enhancement, 1 plan)*
