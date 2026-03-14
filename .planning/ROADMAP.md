@@ -377,9 +377,9 @@ Plans:
 
 
 Plans:
-- [ ] 74-01-PLAN.md — Teachers page: hours column with workload colors, sorting, stat cards, bulk recalculate button
-- [ ] 74-02-PLAN.md — Dashboard: augment TeacherPerformanceTable with hours bars, recalculate button, remove dead AdminHoursOverview
-- [ ] 74-03-PLAN.md — Backend: auto-recalculate teacher hours on student assignment changes
+- [x] 74-01-PLAN.md — Teachers page: hours column with workload colors, sorting, stat cards, bulk recalculate button -- completed 2026-03-14
+- [x] 74-02-PLAN.md — Dashboard: augment TeacherPerformanceTable with hours bars, recalculate button, remove dead AdminHoursOverview -- completed 2026-03-14
+- [x] 74-03-PLAN.md — Backend: auto-recalculate teacher hours on student assignment changes -- completed 2026-03-14
 
 
 ---
@@ -406,10 +406,10 @@ Plans:
 | 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 | 72. Theory Lesson Entity Fixes | v2.1 | 2 | Complete | 2026-03-12 |
 | 73. Teacher Hours Import Refactor | v2.1 | 2 | Complete | 2026-03-13 |
-| 74. Teacher Hours UI & Dashboard | v2.1 | 3 | Planned | - |
+| 74. Teacher Hours UI & Dashboard | v2.1 | 3 | Complete | 2026-03-14 |
 
-**Total: 74 phases (73 complete, 1 planned)**
+**Total: 74 phases (74 complete, 0 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-14 -- Phase 74 added (Teacher Hours UI & Dashboard Integration)*
+*Last updated: 2026-03-14 -- Phase 74 complete (Teacher Hours UI & Dashboard Integration)*
