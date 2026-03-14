@@ -93,6 +93,7 @@ Progress: [##########] 100% (v2.1 Phase 73 — 2/2 plans)
 - Phase 71 added: Theory & Orchestra Pages Restyle (v2.1 Entity Page Consistency)
 - Phase 72 added: Theory Lesson Entity Fixes & Role Normalization (v2.1 Entity Page Consistency)
 - Phase 73 added: Teacher Hours Import Refactor (v2.1 Entity Page Consistency)
+- Phase 74 added: Teacher Hours UI & Dashboard Integration (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 

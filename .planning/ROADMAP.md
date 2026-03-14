@@ -354,6 +354,32 @@ Plans:
 
 ---
 
+#### Phase 74: Teacher Hours UI & Dashboard Integration
+**Goal**: Make teacher hours data fully visible and actionable across the app — hours column on Teachers list with workload color coding, dashboard workload widget showing busiest teachers, bulk recalculate button, and auto-recalculation when student assignments or schedules change. All backend APIs exist (Phase 73); this phase is frontend UI + wiring.
+**Depends on**: Phase 73 (teacher hours backend infrastructure)
+**Requirements**:
+  - Teachers list page shows שעות שבועיות column with total weekly hours for each teacher
+  - Workload color coding on hours (green < 15h, yellow 15-20h, red > 20h)
+  - Teachers list sortable/filterable by hours
+  - Dashboard shows teacher workload widget (top busiest teachers with hours breakdown)
+  - Dashboard workload widget shows hours bar/indicator per teacher with color coding
+  - Admin can trigger bulk hours recalculation from dashboard or Teachers page
+  - Hours auto-recalculated when student assignments change (add/remove student-teacher link)
+  - GlassStatCard on Teachers page shows hours-related stats (avg hours, teachers over threshold)
+**Success Criteria** (what must be TRUE):
+  1. Teachers list table shows hours column with color-coded workload indicators
+  2. Dashboard displays teacher workload widget with top teachers by hours
+  3. Admin can bulk recalculate all teacher hours from the UI
+  4. Sorting teachers by hours works correctly
+  5. Hours stat card shows on Teachers page (avg hours, overloaded count)
+  6. All shared UI components (GlassStatCard, color coding) reused — no duplicate styling
+**Plans**: TBD
+
+Plans:
+- [ ] TBD
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -376,9 +402,10 @@ Plans:
 | 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 | 72. Theory Lesson Entity Fixes | v2.1 | 2 | Complete | 2026-03-12 |
 | 73. Teacher Hours Import Refactor | v2.1 | 2 | Complete | 2026-03-13 |
+| 74. Teacher Hours UI & Dashboard | v2.1 | TBD | Planned | - |
 
-**Total: 73 phases (73 complete)**
+**Total: 74 phases (73 complete, 1 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-13 -- Phase 73 complete (Teacher Hours Import Refactor)*
+*Last updated: 2026-03-14 -- Phase 74 added (Teacher Hours UI & Dashboard Integration)*
