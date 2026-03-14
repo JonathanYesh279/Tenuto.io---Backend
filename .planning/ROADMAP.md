@@ -373,10 +373,14 @@ Plans:
   4. Sorting teachers by hours works correctly
   5. Hours stat card shows on Teachers page (avg hours, overloaded count)
   6. All shared UI components (GlassStatCard, color coding) reused — no duplicate styling
-**Plans**: TBD
+**Plans**: 3 plans
+
 
 Plans:
-- [ ] TBD
+- [ ] 74-01-PLAN.md — Teachers page: hours column with workload colors, sorting, stat cards, bulk recalculate button
+- [ ] 74-02-PLAN.md — Dashboard: augment TeacherPerformanceTable with hours bars, recalculate button, remove dead AdminHoursOverview
+- [ ] 74-03-PLAN.md — Backend: auto-recalculate teacher hours on student assignment changes
+
 
 ---
 
@@ -402,7 +406,7 @@ Plans:
 | 71. Theory & Orchestra Pages Restyle | v2.1 | 2 | Complete | 2026-03-12 |
 | 72. Theory Lesson Entity Fixes | v2.1 | 2 | Complete | 2026-03-12 |
 | 73. Teacher Hours Import Refactor | v2.1 | 2 | Complete | 2026-03-13 |
-| 74. Teacher Hours UI & Dashboard | v2.1 | TBD | Planned | - |
+| 74. Teacher Hours UI & Dashboard | v2.1 | 3 | Planned | - |
 
 **Total: 74 phases (73 complete, 1 planned)**
 
