@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 75 of 75 (Rehearsal Attendance Tracking)
-Plan: 1 of 1 in current phase -- COMPLETE
-Status: Phase 75 complete — rehearsal attendance tracking
-Last activity: 2026-03-14 — Phase 75-01 executed and verified
+Phase: 76 of 76 (Attendance Management Page)
+Plan: 1 of 2 in current phase -- COMPLETE
+Status: Phase 76-01 complete — API wiring & route registration
+Last activity: 2026-03-14 — Phase 76-01 executed and verified
 
-Progress: [##########] 100% (v2.1 Phase 75 — 1/1 plans)
+Progress: [#####-----] 50% (v2.1 Phase 76 — 1/2 plans)
 
 ## Performance Metrics
 
-**All milestones:** 75 phases, 154 plans across 12 milestones
+**All milestones:** 76 phases, 156 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -91,6 +91,8 @@ Progress: [##########] 100% (v2.1 Phase 75 — 1/1 plans)
 - **[74-02]** AdminHoursOverview removed (101 lines dead code) — superseded by table hours integration
 - **[75-01]** attendanceCount.total uses records.length (all marked students including late), not present+absent sum
 - **[75-01]** Frontend || fallback pattern for backward compat with rehearsals lacking server attendanceCount
+- **[76-01]** attendanceAlertService follows thin wrapper pattern (no try/catch) -- apiClient handles errors
+- **[76-01]** Sidebar smart-redirect for dual-role admins preserved -- only default fallback changed to /attendance
 
 ### Pending Todos
 
@@ -104,6 +106,7 @@ Progress: [##########] 100% (v2.1 Phase 75 — 1/1 plans)
 - Phase 73 added: Teacher Hours Import Refactor (v2.1 Entity Page Consistency)
 - Phase 74 added: Teacher Hours UI & Dashboard Integration (v2.1 Entity Page Consistency)
 - Phase 75 added: Rehearsal Attendance Tracking (v2.1 Entity Page Consistency)
+- Phase 76 added: Attendance Management Page (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -112,5 +115,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Phase 75 complete — Rehearsal Attendance Tracking (1/1 plan executed)
+Stopped at: Phase 76-01 complete — API wiring & route registration (1/2 plans)
 Resume file: None
