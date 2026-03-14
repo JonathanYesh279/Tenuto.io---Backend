@@ -26,8 +26,8 @@
     "test:tenant-isolation:watch": "vitest --config vitest.config.tenant-isolation.js",
     "test:ci": "npm run test:tenant-isolation && node utils/validateAllowlist.js"
   },
-  "author": "Yehonatan Yeshayahu",
-  "license": "ISC",
+  "author": "Yehonatan Yeshayahu (יהונתן ישעיהו)",
+  "license": "SEE LICENSE IN LICENSE",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.758.0",
     "@aws-sdk/lib-storage": "^3.758.0",

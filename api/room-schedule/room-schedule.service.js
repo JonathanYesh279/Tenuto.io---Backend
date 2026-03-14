@@ -23,6 +23,7 @@ const DAY_NAMES = VALID_DAYS; // ['ראשון', 'שני', 'שלישי', 'רבי�
 
 export const roomScheduleService = {
   getRoomSchedule,
+  getDailyAgenda,
   moveActivity,
   rescheduleLesson,
 };
@@ -98,6 +99,62 @@ async function getRoomSchedule(day, options = {}) {
         rehearsal: rehearsalResult.ms,
         theory: theoryResult.ms,
       },
+    },
+  };
+}
+
+/**
+ * Get a flat chronological agenda for a given weekday — all activity types merged.
+ * Used by the dashboard AgendaWidget.
+ *
+ * @param {number} day - Numeric day 0-5 (0=Sunday)
+ * @param {object} options - { context: { tenantId, schoolYearId } }
+ * @returns {Promise<object>} { day, dayName, activities[], summary }
+ */
+async function getDailyAgenda(day, options = {}) {
+  const tenantId = requireTenantId(options.context?.tenantId);
+  const schoolYearId = options.context?.schoolYearId || null;
+  const hebrewDay = DAY_NAMES[day];
+
+  if (day === 6) {
+    return { day, dayName: 'שבת', activities: [], summary: { total: 0, rehearsals: 0, theoryLessons: 0, lessons: 0 } };
+  }
+
+  const [timeBlockResult, rehearsalResult, theoryResult] = await Promise.all([
+    timedQuery(() => getTimeBlockActivities(tenantId, hebrewDay, day)),
+    timedQuery(() => getRehearsalActivities(tenantId, day, schoolYearId)),
+    timedQuery(() => getTheoryActivities(tenantId, day, schoolYearId)),
+  ]);
+
+  const allActivities = [
+    ...timeBlockResult.data,
+    ...rehearsalResult.data,
+    ...theoryResult.data,
+  ];
+
+  // Flatten to agenda items sorted by start time
+  const activities = allActivities
+    .map((a) => ({
+      id: a.id,
+      source: a.source,
+      startTime: a.startTime,
+      endTime: a.endTime,
+      title: a.label || a.activityType,
+      location: a.room || '',
+      teacherName: a.teacherName || '',
+      badge: a.activityType,
+    }))
+    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+
+  return {
+    day,
+    dayName: hebrewDay,
+    activities,
+    summary: {
+      total: activities.length,
+      rehearsals: rehearsalResult.data.length,
+      theoryLessons: theoryResult.data.length,
+      lessons: timeBlockResult.data.length,
     },
   };
 }

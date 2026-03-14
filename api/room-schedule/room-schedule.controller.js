@@ -3,6 +3,7 @@ import { validateDayQuery, validateMoveBody, validateRescheduleBody } from './ro
 
 export const roomScheduleController = {
   getRoomSchedule,
+  getDailyAgenda,
   moveActivity,
   rescheduleLesson,
 };
@@ -33,6 +34,34 @@ async function getRoomSchedule(req, res) {
       return res.status(403).json({ error: 'Tenant context required' });
     }
     res.status(500).json({ error: 'Failed to fetch room schedule' });
+  }
+}
+
+async function getDailyAgenda(req, res) {
+  try {
+    // Auto-detect today's day of week (Israel timezone)
+    const now = new Date();
+    const israelTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
+    const day = req.query.day !== undefined ? Number(req.query.day) : israelTime.getDay();
+
+    if (isNaN(day) || day < 0 || day > 6) {
+      return res.status(400).json({ error: 'Invalid day parameter (0-6)' });
+    }
+
+    const result = await roomScheduleService.getDailyAgenda(day, {
+      context: {
+        ...req.context,
+        schoolYearId: req.schoolYear?._id?.toString() || req.context?.schoolYearId,
+      },
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    console.error(`Error getting daily agenda: ${err.message}`);
+    if (err.message.includes('TENANT_GUARD')) {
+      return res.status(403).json({ error: 'Tenant context required' });
+    }
+    res.status(500).json({ error: 'Failed to fetch daily agenda' });
   }
 }
 

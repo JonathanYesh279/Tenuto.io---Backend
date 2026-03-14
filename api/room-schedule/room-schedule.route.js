@@ -7,6 +7,9 @@ const router = express.Router();
 // GET / — admin-only room schedule aggregation view
 router.get('/', requirePermission('settings', 'view'), roomScheduleController.getRoomSchedule);
 
+// GET /agenda — daily agenda for dashboard (all activity types)
+router.get('/agenda', roomScheduleController.getDailyAgenda);
+
 // PUT /move — admin-only move activity to different room/time slot
 router.put('/move', requirePermission('settings', 'update'), roomScheduleController.moveActivity);
 

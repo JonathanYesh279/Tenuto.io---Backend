@@ -132,6 +132,7 @@ beforeAll(async () => {
       throw new Error(
         `Failed to setup test database: ${error?.message || error}`,
       );
+      
     }
   }
   
