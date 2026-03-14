@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 76 of 76 (Attendance Management Page)
-Plan: 1 of 2 in current phase -- COMPLETE
-Status: Phase 76-01 complete — API wiring & route registration
-Last activity: 2026-03-14 — Phase 76-01 executed and verified
+Plan: 2 of 2 in current phase -- COMPLETE
+Status: Phase 76 complete — attendance management page with real API data
+Last activity: 2026-03-15 — Phase 76-02 executed with checkpoint verification
 
-Progress: [#####-----] 50% (v2.1 Phase 76 — 1/2 plans)
+Progress: [##########] 100% (v2.1 Phase 76 — 2/2 plans)
 
 ## Performance Metrics
 
@@ -93,6 +93,13 @@ Progress: [#####-----] 50% (v2.1 Phase 76 — 1/2 plans)
 - **[75-01]** Frontend || fallback pattern for backward compat with rehearsals lacking server attendanceCount
 - **[76-01]** attendanceAlertService follows thin wrapper pattern (no try/catch) -- apiClient handles errors
 - **[76-01]** Sidebar smart-redirect for dual-role admins preserved -- only default fallback changed to /attendance
+- **[76-02]** Renamed מסומנים to בסיכון (at-risk) for clearer Hebrew UX
+- **[76-02]** Rehearsal sort: upcoming/today first (ascending), then past (descending)
+- **[76-02]** Multi-select orchestra filter replaces single GlassSelect
+- **[76-02]** Orchestra rows clickable (no actions column), rehearsal cards use motion.div bounce
+- **[76-02]** Orchestra avatar: #46ab7d green with white icon; Student avatar: HeroUI User + getAvatarColorHex
+- **[76-02]** Fixed critical bug: activity_attendance.date stored as ISO string, not BSON Date — date filters must use string comparison
+- **[76-02]** Default attendance rate is null/0 when no records (not 100%)
 
 ### Pending Todos
 
@@ -114,6 +121,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-14
-Stopped at: Phase 76-01 complete — API wiring & route registration (1/2 plans)
+Last session: 2026-03-15
+Stopped at: Phase 76 complete — Attendance Management Page (2/2 plans)
 Resume file: None
