@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 74 of 74 (Teacher Hours UI & Dashboard Integration)
-Plan: 3 of 3 in current phase -- COMPLETE
-Status: Phase 74 complete — teacher hours UI & dashboard integration
-Last activity: 2026-03-14 — Phase 74 executed and verified
+Phase: 75 of 75 (Rehearsal Attendance Tracking)
+Plan: 1 of 1 in current phase -- COMPLETE
+Status: Phase 75 complete — rehearsal attendance tracking
+Last activity: 2026-03-14 — Phase 75-01 executed and verified
 
-Progress: [##########] 100% (v2.1 Phase 74 — 3/3 plans)
+Progress: [##########] 100% (v2.1 Phase 75 — 1/1 plans)
 
 ## Performance Metrics
 
-**All milestones:** 74 phases, 153 plans across 12 milestones
+**All milestones:** 75 phases, 154 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -89,6 +89,8 @@ Progress: [##########] 100% (v2.1 Phase 74 — 3/3 plans)
 - **[74-03]** Dynamic import() pattern reused from Phase 73 for circular dependency avoidance
 - **[74-02]** Sorting/slicing done in TeacherPerformanceTable, not Dashboard data construction
 - **[74-02]** AdminHoursOverview removed (101 lines dead code) — superseded by table hours integration
+- **[75-01]** attendanceCount.total uses records.length (all marked students including late), not present+absent sum
+- **[75-01]** Frontend || fallback pattern for backward compat with rehearsals lacking server attendanceCount
 
 ### Pending Todos
 
@@ -101,6 +103,7 @@ Progress: [##########] 100% (v2.1 Phase 74 — 3/3 plans)
 - Phase 72 added: Theory Lesson Entity Fixes & Role Normalization (v2.1 Entity Page Consistency)
 - Phase 73 added: Teacher Hours Import Refactor (v2.1 Entity Page Consistency)
 - Phase 74 added: Teacher Hours UI & Dashboard Integration (v2.1 Entity Page Consistency)
+- Phase 75 added: Rehearsal Attendance Tracking (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -109,5 +112,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Phase 74 complete — Teacher Hours UI & Dashboard Integration (all 3 plans executed, verified 6/6)
+Stopped at: Phase 75 complete — Rehearsal Attendance Tracking (1/1 plan executed)
 Resume file: None
