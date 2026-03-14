@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 74 of 74 (Teacher Hours UI & Dashboard Integration)
-Plan: 3 of 4 in current phase
-Status: Executing Phase 74 — plan 03 complete
-Last activity: 2026-03-14 — Phase 74 plan 03 executed
+Plan: 3 of 3 in current phase
+Status: Phase 74 COMPLETE — all plans executed
+Last activity: 2026-03-14 — Phase 74 plan 02 executed
 
-Progress: [#######---] 75% (v2.1 Phase 74 — 3/4 plans)
+Progress: [##########] 100% (v2.1 Phase 74 — 3/3 plans)
 
 ## Performance Metrics
 
@@ -87,6 +87,8 @@ Progress: [#######---] 75% (v2.1 Phase 74 — 3/4 plans)
 - **[74-01]** Client-side sorting via useMemo + sortDescriptor state for Teachers table
 - **[74-03]** Auto-recalculation hook placed AFTER transaction commit — non-transactional, fire-and-forget
 - **[74-03]** Dynamic import() pattern reused from Phase 73 for circular dependency avoidance
+- **[74-02]** Sorting/slicing done in TeacherPerformanceTable, not Dashboard data construction
+- **[74-02]** AdminHoursOverview removed (101 lines dead code) — superseded by table hours integration
 
 ### Pending Todos
 
@@ -107,5 +109,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Phase 74 plan 03 complete — Auto-recalculation hook added to student.service.js
+Stopped at: Phase 74 plan 02 complete — Dashboard hours integration with workload bars and recalculate
 Resume file: None
