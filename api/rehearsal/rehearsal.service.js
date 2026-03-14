@@ -969,6 +969,12 @@ async function updateAttendance(
         {
           $set: {
             attendance: attendanceCache,
+            attendanceCount: {
+              present: attendanceCache.present.length,
+              absent: attendanceCache.absent.length,
+              late: (attendanceCache.late || []).length,
+              total: records.length,
+            },
             updatedAt: currentTime,
           },
         },
