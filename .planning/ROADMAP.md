@@ -465,6 +465,36 @@ Plans:
 
 ---
 
+#### Phase 78: Full Activity Rescheduling (Day/Room/Time)
+**Goal**: Enable rescheduling any activity (private lesson, rehearsal, theory lesson) to a different day, room, and time from the Activity Detail Modal — with real-time conflict detection and consistent UX across all activity types. Currently only lessons (timeBlock with lessonId) support day changes; empty timeBlocks, rehearsals, and theory lessons are limited to same-day room/time edits.
+**Depends on**: Phase 38 (Single-Lesson Reschedule & Detail Modal), Phase 58 (Conflict Detection Engine)
+**Requirements**:
+  - Activity Detail Modal shows Day selector for ALL activity types (not just lessons)
+  - Room selector shows all active rooms for ALL activity types
+  - Backend `moveActivity` API extended with `targetDay` parameter for empty timeBlocks
+  - Frontend wires rehearsal/theory save handlers to pass day changes (date/dayOfWeek) to existing APIs
+  - Conflict detection for theory lesson updates (currently missing — rehearsals already have cross-source checks)
+  - Real-time conflict preview before save (show conflicting activities in UI before API call)
+  - Error handling shows detailed conflict info (teacher name, time, room) on save failure
+  - Rehearsal day change calculates correct target date from dayOfWeek selection
+  - All source types (timeBlock, rehearsal, theory) tested end-to-end for day/room/time changes
+**Success Criteria** (what must be TRUE):
+  1. Day selector visible and functional for all 3 activity types in Activity Detail Modal
+  2. Changing day + room + time works for lessons (already works — verify preserved)
+  3. Changing day + room + time works for empty timeBlocks (new backend support)
+  4. Changing day + room + time works for rehearsals (frontend wiring to existing API)
+  5. Changing day + room + time works for theory lessons (frontend wiring + backend conflict detection)
+  6. Conflict detection catches room overlaps AND teacher/conductor conflicts across all source types
+  7. UI shows conflict details before or after save attempt with actionable error messages
+**Plans**: 3 plans
+
+Plans:
+- [ ] 78-01-PLAN.md — Backend: extend moveActivity with targetDay + add cross-source conflict detection for theory lessons
+- [ ] 78-02-PLAN.md — Frontend: universal Day selector + wire save handlers for all activity types
+- [ ] 78-03-PLAN.md — Checkpoint: end-to-end verification of day/room/time rescheduling for all activity types
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -491,9 +521,10 @@ Plans:
 | 75. Rehearsal Attendance Tracking | v2.1 | 1 | Complete | 2026-03-14 |
 | 76. Attendance Management Page | v2.1 | 2 | Complete | 2026-03-15 |
 | 77. Dashboard Chart UX Enhancement | v2.1 | 1 | Planned | — |
+| 78. Full Activity Rescheduling | v2.1 | 3 | Planned | — |
 
-**Total: 77 phases (76 complete, 1 pending)**
+**Total: 78 phases (76 complete, 2 pending)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-15 -- Phase 77 planned (Dashboard Chart UX Enhancement, 1 plan)*
+*Last updated: 2026-03-16 -- Phase 78 planned (Full Activity Rescheduling, 3 plans in 3 waves)*
