@@ -688,7 +688,7 @@ async function getRehearsalActivities(tenantId, day, schoolYearId) {
     await batchLookupOrchestras(groupIds);
 
   // Batch lookup conductor teacher names
-  const conductorIds = [...new Set(Object.values(conductorIdMap).filter(Boolean))];
+  const conductorIds = [...new Set([...conductorIdMap.values()].filter(Boolean))];
   const conductorNameMap = await batchLookupTeacherNames(conductorIds);
 
   // Normalize
