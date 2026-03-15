@@ -40,7 +40,7 @@ async function createTimeBlock(req, res) {
     }
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!req.context?.isAdmin && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         error: 'You are not authorized to create time blocks for this teacher',
       });
@@ -81,7 +81,7 @@ async function updateTimeBlock(req, res) {
     }
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!req.context?.isAdmin && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         error: 'You are not authorized to update time blocks for this teacher',
       });
@@ -114,7 +114,7 @@ async function deleteTimeBlock(req, res) {
     const { teacherId, blockId } = req.params;
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!req.context?.isAdmin && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         error: 'You are not authorized to delete time blocks for this teacher',
       });
@@ -151,7 +151,7 @@ async function getTeacherTimeBlocks(req, res) {
     }
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!req.context?.isAdmin && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         error: 'You are not authorized to view time blocks for this teacher',
       });
@@ -192,7 +192,7 @@ async function getAvailableSlots(req, res) {
     }
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!req.context?.isAdmin && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         error: 'You are not authorized to view available slots for this teacher',
       });
@@ -239,7 +239,7 @@ async function assignLessonToBlock(req, res) {
     }
 
     // Verify permission
-    if (!req.isAdmin && value.teacherId !== req.teacher._id.toString()) {
+    if (!req.context?.isAdmin && value.teacherId !== req.teacher._id.toString()) {
       return res.status(403).json({
         error: 'You are not authorized to assign lessons for this teacher',
       });
@@ -276,7 +276,7 @@ async function removeLessonFromBlock(req, res) {
     const { teacherId, timeBlockId, lessonId } = req.params;
 
     // Verify permission
-    if (!req.isAdmin && teacherId !== req.teacher._id.toString()) {
+    if (!req.context?.isAdmin && teacherId !== req.teacher._id.toString()) {
       return res.status(403).json({
         error: 'You are not authorized to remove lessons for this teacher',
       });
@@ -318,7 +318,7 @@ async function getTeacherScheduleWithBlocks(req, res) {
     }
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!req.context?.isAdmin && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         error: 'You are not authorized to view this teacher\'s complete schedule',
       });
@@ -355,7 +355,7 @@ async function findOptimalSlot(req, res) {
     }
 
     // Verify permission
-    if (!req.isAdmin && teacherId !== req.teacher._id.toString()) {
+    if (!req.context?.isAdmin && teacherId !== req.teacher._id.toString()) {
       return res.status(403).json({
         error: 'You are not authorized to find slots for this teacher',
       });
@@ -444,7 +444,7 @@ async function getBlockUtilizationStats(req, res) {
     const { teacherId } = req.params;
 
     // Verify permission
-    if (!req.isAdmin && req.teacher._id.toString() !== teacherId) {
+    if (!req.context?.isAdmin && req.teacher._id.toString() !== teacherId) {
       return res.status(403).json({
         error: 'You are not authorized to view utilization stats for this teacher',
       });
