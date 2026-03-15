@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 78 of 78 (Full Activity Rescheduling)
-Plan: 1 of 3 in current phase
-Status: Phase 78-01 complete — backend day-change and cross-source conflicts
-Last activity: 2026-03-16 — Phase 78-01 executed (2 tasks, 3 files)
+Plan: 2 of 3 in current phase
+Status: Phase 78-02 complete — frontend day selector, save wiring, conflict preview
+Last activity: 2026-03-16 — Phase 78-02 executed (3 tasks, 2 files)
 
-Progress: [###-------] 33% (v2.1 Phase 78 — 1/3 plans)
+Progress: [######----] 67% (v2.1 Phase 78 — 2/3 plans)
 
 ## Performance Metrics
 
@@ -103,6 +103,9 @@ Progress: [###-------] 33% (v2.1 Phase 78 — 1/3 plans)
 - **[78-01]** moveActivity handles day changes ONLY for timeBlocks -- rehearsal/theory use their own update APIs
 - **[78-01]** Cross-source conflict check is non-fatal (returns empty on error) to avoid blocking theory lesson creation
 - **[78-01]** effectiveDay pattern: targetDay overrides numericDay when provided, falls back to current day otherwise
+- **[78-02]** Rehearsal day change calculates target date from JS Date to maintain date/dayOfWeek consistency
+- **[78-02]** Conflict preview is non-blocking warning (amber banner) — server-side check is authoritative
+- **[78-02]** Cross-day conflict preview fetches target day schedule via getRoomSchedule with 300ms debounce
 
 ### Pending Todos
 
@@ -127,5 +130,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-16
-Stopped at: Completed 78-01-PLAN.md
+Stopped at: Completed 78-02-PLAN.md
 Resume file: None
