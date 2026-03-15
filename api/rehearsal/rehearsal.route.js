@@ -15,6 +15,7 @@ router.get('/:id', requirePermission('rehearsals', 'view'), formatRehearsalRespo
 
 router.post('/', requirePermission('rehearsals', 'create'), validateRoomExists, rehearsalController.addRehearsal)
 router.put('/:id', requirePermission('rehearsals', 'update'), validateRoomExists, rehearsalController.updateRehearsal)
+router.delete('/:id/pattern', requirePermission('rehearsals', 'delete'), rehearsalController.removeRehearsalPattern)
 router.delete('/:id', requirePermission('rehearsals', 'delete'), rehearsalController.removeRehearsal)
 
 router.put('/:rehearsalId/attendance', requirePermission('rehearsals', 'update'), formatAttendanceResponse(), rehearsalController.updateAttendance)

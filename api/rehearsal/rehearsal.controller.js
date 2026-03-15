@@ -7,6 +7,7 @@ export const rehearsalController = {
   addRehearsal,
   updateRehearsal,
   removeRehearsal,
+  removeRehearsalPattern,
   bulkCreateRehearsals,
   bulkDeleteRehearsalsByOrchestra,
   bulkDeleteRehearsalsByDateRange,
@@ -153,6 +154,28 @@ async function removeRehearsal(req, res, next) {
       return res.status(403).json({ error: err.message })
     }
 
+    next(err)
+  }
+}
+
+async function removeRehearsalPattern(req, res, next) {
+  try {
+    const { id } = req.params
+    const teacherId = req.loggedinUser?._id || req.teacher._id
+    const isAdmin = req.loggedinUser?.roles?.includes('מנהל') || req.context?.isAdmin || req.teacher.roles.includes('מנהל')
+
+    const result = await rehearsalService.removeRehearsalPattern(
+      id,
+      teacherId,
+      isAdmin,
+      { context: req.context }
+    )
+
+    res.json(result)
+  } catch (err) {
+    if (err.message?.includes('Not authorized')) {
+      return res.status(403).json({ error: err.message })
+    }
     next(err)
   }
 }

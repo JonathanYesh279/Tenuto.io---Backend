@@ -29,6 +29,7 @@ export const rehearsalService = {
   addRehearsal,
   updateRehearsal,
   removeRehearsal,
+  removeRehearsalPattern,
   bulkCreateRehearsals,
   bulkDeleteRehearsalsByOrchestra,
   bulkDeleteRehearsalsByDateRange,
@@ -375,6 +376,73 @@ async function removeRehearsal(rehearsalId, teacherId, isAdmin = false, options 
   } catch (err) {
     console.error(`Failed to remove rehearsal: ${err}`);
     throw new Error(`Failed to remove rehearsal: ${err}`);
+  }
+}
+
+/**
+ * Remove all rehearsals matching the same weekly pattern as a given rehearsal.
+ * Used by room-schedule where rehearsals are deduplicated by pattern.
+ */
+async function removeRehearsalPattern(rehearsalId, teacherId, isAdmin = false, options = {}) {
+  try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+    const rehearsal = await getRehearsalById(rehearsalId, options);
+
+    if (!isAdmin) {
+      const orchestraCollection = await getCollection('orchestra');
+      const orchestra = await orchestraCollection.findOne({
+        _id: ObjectId.createFromHexString(rehearsal.groupId),
+        tenantId,
+      });
+      if (!orchestra) throw new Error(`Orchestra with id ${rehearsal.groupId} not found`);
+      if (orchestra.conductorId !== teacherId.toString()) {
+        throw new Error('Not authorized to delete rehearsals for this orchestra');
+      }
+    }
+
+    const collection = await getCollection('rehearsal');
+
+    // Find all rehearsals with the same weekly pattern
+    const patternFilter = {
+      tenantId,
+      groupId: rehearsal.groupId,
+      dayOfWeek: rehearsal.dayOfWeek,
+      startTime: rehearsal.startTime,
+      endTime: rehearsal.endTime,
+      location: rehearsal.location,
+    };
+
+    const matchingIds = await collection.find(patternFilter, { projection: { _id: 1 } }).toArray();
+    const ids = matchingIds.map(r => r._id);
+
+    if (ids.length === 0) return { deletedCount: 0 };
+
+    // Archive attendance for all matching rehearsals
+    const activityCollection = await getCollection('activity_attendance');
+    if (activityCollection) {
+      await activityCollection.updateMany(
+        { sessionId: { $in: ids.map(id => id.toString()) }, tenantId },
+        { $set: { isArchived: true, archivedAt: new Date(), archivedReason: 'rehearsal_pattern_deleted' } }
+      );
+    }
+
+    // Remove from orchestra
+    if (rehearsal.type === 'תזמורת') {
+      const orchestraCollection = await getCollection('orchestra');
+      await orchestraCollection.updateOne(
+        { _id: ObjectId.createFromHexString(rehearsal.groupId), tenantId },
+        { $pull: { rehearsalIds: { $in: ids.map(id => id.toString()) } } }
+      );
+    }
+
+    // Delete all matching rehearsals
+    const deleteResult = await collection.deleteMany({ _id: { $in: ids } });
+    console.log(`Deleted ${deleteResult.deletedCount} rehearsals matching pattern for ${rehearsal.groupId} on day ${rehearsal.dayOfWeek}`);
+
+    return { deletedCount: deleteResult.deletedCount };
+  } catch (err) {
+    console.error(`Failed to remove rehearsal pattern: ${err}`);
+    throw new Error(`Failed to remove rehearsal pattern: ${err.message}`);
   }
 }
 
