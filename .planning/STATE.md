@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 76 of 76 (Attendance Management Page)
-Plan: 2 of 2 in current phase -- COMPLETE
-Status: Phase 76 complete — attendance management page with real API data
-Last activity: 2026-03-15 — Phase 76-02 executed with checkpoint verification
+Phase: 78 of 78 (Full Activity Rescheduling)
+Plan: 1 of 3 in current phase
+Status: Phase 78-01 complete — backend day-change and cross-source conflicts
+Last activity: 2026-03-16 — Phase 78-01 executed (2 tasks, 3 files)
 
-Progress: [##########] 100% (v2.1 Phase 76 — 2/2 plans)
+Progress: [###-------] 33% (v2.1 Phase 78 — 1/3 plans)
 
 ## Performance Metrics
 
-**All milestones:** 76 phases, 156 plans across 12 milestones
+**All milestones:** 78 phases, 159 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -100,6 +100,9 @@ Progress: [##########] 100% (v2.1 Phase 76 — 2/2 plans)
 - **[76-02]** Orchestra avatar: #46ab7d green with white icon; Student avatar: HeroUI User + getAvatarColorHex
 - **[76-02]** Fixed critical bug: activity_attendance.date stored as ISO string, not BSON Date — date filters must use string comparison
 - **[76-02]** Default attendance rate is null/0 when no records (not 100%)
+- **[78-01]** moveActivity handles day changes ONLY for timeBlocks -- rehearsal/theory use their own update APIs
+- **[78-01]** Cross-source conflict check is non-fatal (returns empty on error) to avoid blocking theory lesson creation
+- **[78-01]** effectiveDay pattern: targetDay overrides numericDay when provided, falls back to current day otherwise
 
 ### Pending Todos
 
@@ -114,6 +117,8 @@ Progress: [##########] 100% (v2.1 Phase 76 — 2/2 plans)
 - Phase 74 added: Teacher Hours UI & Dashboard Integration (v2.1 Entity Page Consistency)
 - Phase 75 added: Rehearsal Attendance Tracking (v2.1 Entity Page Consistency)
 - Phase 76 added: Attendance Management Page (v2.1 Entity Page Consistency)
+- Phase 77 added: Dashboard Chart UX Enhancement (v2.1 Entity Page Consistency)
+- Phase 78 added: Full Activity Rescheduling — Day/Room/Time (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -121,6 +126,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-15
-Stopped at: Phase 76 complete — Attendance Management Page (2/2 plans)
+Last session: 2026-03-16
+Stopped at: Completed 78-01-PLAN.md
 Resume file: None
