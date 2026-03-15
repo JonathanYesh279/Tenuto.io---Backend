@@ -44,6 +44,13 @@ const moveBodySchema = Joi.object({
     then: Joi.required(),
     otherwise: Joi.optional(),
   }).messages({ 'any.required': 'blockId is required for timeBlock source' }),
+  targetDay: Joi.number().integer().min(0).max(5).optional()
+    .messages({
+      'number.base': 'targetDay must be a number (0-5)',
+      'number.integer': 'targetDay must be an integer (0-5)',
+      'number.min': 'targetDay must be between 0 (Sunday) and 5 (Friday)',
+      'number.max': 'targetDay must be between 0 (Sunday) and 5 (Friday)',
+    }),
 });
 
 /**

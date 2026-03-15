@@ -176,7 +176,7 @@ async function getDailyAgenda(day, options = {}) {
  */
 async function moveActivity(moveData, options = {}) {
   const tenantId = requireTenantId(options.context?.tenantId);
-  const { activityId, source, targetRoom, targetStartTime, targetEndTime, teacherId, blockId } = moveData;
+  const { activityId, source, targetRoom, targetStartTime, targetEndTime, teacherId, blockId, targetDay } = moveData;
 
   // Step 1: Determine the day for the activity being moved
   let numericDay;
@@ -234,8 +234,11 @@ async function moveActivity(moveData, options = {}) {
     numericDay = theory.dayOfWeek;
   }
 
+  // Calculate effective day (target day for cross-day moves, or current day)
+  const effectiveDay = (targetDay !== undefined && targetDay !== null) ? targetDay : numericDay;
+
   // Step 2: Conflict pre-check
-  const schedule = await getRoomSchedule(numericDay, options);
+  const schedule = await getRoomSchedule(effectiveDay, options);
 
   // Collect all activities from rooms + unassigned, filter out the one being moved
   const allActivities = [
@@ -289,20 +292,25 @@ async function moveActivity(moveData, options = {}) {
   // Step 3: Per-source update
   if (source === 'timeBlock') {
     const teacherCollection = await getCollection('teacher');
+    const setFields = {
+      'teaching.timeBlocks.$.location': targetRoom,
+      'teaching.timeBlocks.$.startTime': targetStartTime,
+      'teaching.timeBlocks.$.endTime': targetEndTime,
+      'teaching.timeBlocks.$.updatedAt': new Date(),
+    };
+
+    // Update day when moving to a different day
+    if (effectiveDay !== numericDay) {
+      setFields['teaching.timeBlocks.$.day'] = DAY_NAMES[effectiveDay];
+    }
+
     const result = await teacherCollection.updateOne(
       {
         _id: ObjectId.createFromHexString(teacherId),
         tenantId,
         'teaching.timeBlocks._id': ObjectId.createFromHexString(blockId),
       },
-      {
-        $set: {
-          'teaching.timeBlocks.$.location': targetRoom,
-          'teaching.timeBlocks.$.startTime': targetStartTime,
-          'teaching.timeBlocks.$.endTime': targetEndTime,
-          'teaching.timeBlocks.$.updatedAt': new Date(),
-        },
-      }
+      { $set: setFields }
     );
 
     if (result.modifiedCount === 0) {
@@ -350,8 +358,8 @@ async function moveActivity(moveData, options = {}) {
     }
   }
 
-  // Step 4: Return fresh schedule
-  return getRoomSchedule(numericDay, options);
+  // Step 4: Return fresh schedule (for target day if cross-day move)
+  return getRoomSchedule(effectiveDay, options);
 }
 
 /**
