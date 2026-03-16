@@ -6,6 +6,7 @@ import {
   validateLessonAssignment,
 } from './time-block.validation.js';
 import { requireTenantId } from '../../middleware/tenant.middleware.js';
+import { VALID_DAYS } from '../../config/constants.js';
 
 export const timeBlockService = {
   createTimeBlock,
@@ -56,6 +57,17 @@ async function createTimeBlock(teacherId, blockData, options = {}) {
 
     if (hasConflict) {
       throw new Error('Time block conflicts with existing schedule');
+    }
+
+    // Check cross-source room conflicts (other teachers' blocks, rehearsals, theory lessons)
+    if (value.location) {
+      const roomCheck = await checkRoomCrossSourceConflicts(
+        value.location, value.day, value.startTime, value.endTime, tenantId
+      );
+      if (roomCheck.hasConflict) {
+        const conflictInfo = roomCheck.conflicts.map(c => `${c.name} ${c.startTime}-${c.endTime}`).join(', ');
+        throw new Error(`Room "${value.location}" is occupied: ${conflictInfo}`);
+      }
     }
 
     // Create new time block
@@ -164,6 +176,19 @@ async function updateTimeBlock(teacherId, blockId, updateData, options = {}) {
 
       if (hasBlockConflict) {
         throw new Error('Updated time block would conflict with existing schedule');
+      }
+
+      // Check cross-source room conflicts (other teachers' blocks, rehearsals, theory lessons)
+      const newLocation = value.location !== undefined ? value.location : timeBlock.location;
+      if (newLocation) {
+        const roomCheck = await checkRoomCrossSourceConflicts(
+          newLocation, newDay, newStart, newEnd, tenantId,
+          { teacherId, blockId }
+        );
+        if (roomCheck.hasConflict) {
+          const conflictInfo = roomCheck.conflicts.map(c => `${c.name} ${c.startTime}-${c.endTime}`).join(', ');
+          throw new Error(`Room "${newLocation}" is occupied: ${conflictInfo}`);
+        }
       }
 
       // Update total duration if time changed
@@ -867,6 +892,112 @@ async function findOptimalSlot(teacherId, duration, preferences = {}, options = 
     console.error(`Error finding optimal slot: ${err.message}`);
     throw new Error(`Error finding optimal slot: ${err.message}`);
   }
+}
+
+/**
+ * Check room conflicts for a time block across ALL sources.
+ * Verifies that no other teacher's timeBlock, rehearsal, or theory lesson
+ * occupies the same room + time on the same day.
+ * @param {string} location - Room name
+ * @param {string} hebrewDay - Day of week in Hebrew (e.g. 'ראשון')
+ * @param {string} startTime - Start time (HH:MM)
+ * @param {string} endTime - End time (HH:MM)
+ * @param {string} tenantId - Tenant ID
+ * @param {object} [exclude] - Optional exclusion: { teacherId, blockId } to exclude the block being updated
+ * @returns {Promise<{hasConflict: boolean, conflicts: Array}>}
+ */
+async function checkRoomCrossSourceConflicts(location, hebrewDay, startTime, endTime, tenantId, exclude = {}) {
+  if (!location) return { hasConflict: false, conflicts: [] };
+
+  const numericDay = VALID_DAYS.indexOf(hebrewDay);
+  if (numericDay < 0) return { hasConflict: false, conflicts: [] };
+
+  const newStart = timeToMinutes(startTime);
+  const newEnd = timeToMinutes(endTime);
+  const conflicts = [];
+
+  // Check other teachers' timeBlocks in the same room + day
+  const teacherCollection = await getCollection('teacher');
+  const teachersWithBlocks = await teacherCollection.find({
+    tenantId,
+    'teaching.timeBlocks': {
+      $elemMatch: { day: hebrewDay, location, isActive: { $ne: false } },
+    },
+  }).toArray();
+
+  for (const teacher of teachersWithBlocks) {
+    const teacherName = `${teacher.personalInfo?.firstName || ''} ${teacher.personalInfo?.lastName || ''}`.trim();
+    for (const block of (teacher.teaching?.timeBlocks || [])) {
+      if (!block.isActive || block.day !== hebrewDay || block.location !== location) continue;
+      // Skip the block being updated
+      if (exclude.teacherId === teacher._id.toString() && exclude.blockId === block._id?.toString()) continue;
+      const bStart = timeToMinutes(block.startTime);
+      const bEnd = timeToMinutes(block.endTime);
+      if (newStart < bEnd && bStart < newEnd) {
+        conflicts.push({
+          source: 'timeBlock',
+          id: block._id?.toString(),
+          startTime: block.startTime,
+          endTime: block.endTime,
+          name: `שיעור - ${teacherName}`,
+        });
+      }
+    }
+  }
+
+  // Check rehearsals in the same room + day with overlapping time
+  const rehearsalCollection = await getCollection('rehearsal');
+  const rehearsals = await rehearsalCollection.find({
+    tenantId,
+    dayOfWeek: numericDay,
+    location,
+    isActive: { $ne: false },
+  }).toArray();
+
+  for (const r of rehearsals) {
+    const rStart = timeToMinutes(r.startTime);
+    const rEnd = timeToMinutes(r.endTime);
+    if (newStart < rEnd && rStart < newEnd) {
+      conflicts.push({
+        source: 'rehearsal',
+        id: r._id.toString(),
+        startTime: r.startTime,
+        endTime: r.endTime,
+        name: r.groupName || 'חזרה',
+      });
+    }
+  }
+
+  // Check theory lessons in the same room + day with overlapping time
+  const theoryCollection = await getCollection('theory_lesson');
+  const theoryLessons = await theoryCollection.find({
+    tenantId,
+    dayOfWeek: numericDay,
+    location,
+    isActive: { $ne: false },
+  }).toArray();
+
+  // Deduplicate theory lessons by time slot (multiple students = one class)
+  const seenTheorySlots = new Set();
+  for (const tl of theoryLessons) {
+    const slotKey = `${tl.startTime}-${tl.endTime}-${tl.teacherId}`;
+    if (seenTheorySlots.has(slotKey)) continue;
+    seenTheorySlots.add(slotKey);
+
+    const tlStart = timeToMinutes(tl.startTime);
+    const tlEnd = timeToMinutes(tl.endTime);
+    if (newStart < tlEnd && tlStart < newEnd) {
+      conflicts.push({
+        source: 'theory',
+        id: tl._id.toString(),
+        startTime: tl.startTime,
+        endTime: tl.endTime,
+        name: tl.category || 'תאוריה',
+      });
+    }
+  }
+
+  return { hasConflict: conflicts.length > 0, conflicts };
 }
 
 /**
