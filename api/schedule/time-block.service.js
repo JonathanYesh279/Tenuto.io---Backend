@@ -60,9 +60,11 @@ async function createTimeBlock(teacherId, blockData, options = {}) {
     }
 
     // Check cross-source room conflicts (other teachers' blocks, rehearsals, theory lessons)
-    if (value.location) {
+    // Skip when caller already performed conflict validation (e.g. rescheduleLesson)
+    if (value.location && !options.skipRoomConflictCheck) {
       const roomCheck = await checkRoomCrossSourceConflicts(
-        value.location, value.day, value.startTime, value.endTime, tenantId
+        value.location, value.day, value.startTime, value.endTime, tenantId,
+        { teacherId, blockId: options.excludeBlockId || null }
       );
       if (roomCheck.hasConflict) {
         const conflictInfo = roomCheck.conflicts.map(c => `${c.name} ${c.startTime}-${c.endTime}`).join(', ');

@@ -478,7 +478,7 @@ async function rescheduleLesson(rescheduleData, options = {}) {
       startTime: targetStartTime,
       endTime: targetEndTime,
       location: targetRoom,
-    }, { ...options, excludeBlockId: sourceBlockId });
+    }, { ...options, excludeBlockId: sourceBlockId, skipRoomConflictCheck: true });
     newBlockId = createResult.timeBlock._id.toString();
   } catch (createErr) {
     console.error(`Error creating target block: ${createErr.message}`);
