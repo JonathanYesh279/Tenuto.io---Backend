@@ -728,10 +728,11 @@ async function getRehearsalActivities(tenantId, day, schoolYearId) {
 async function getTheoryActivities(tenantId, day, schoolYearId) {
   const theoryCollection = await getCollection('theory_lesson');
 
+  // Note: theory_lesson uses hard delete — isActive field may not exist on all docs
   const matchFilter = {
     tenantId,
     dayOfWeek: day,
-    isActive: true,
+    isActive: { $ne: false },
   };
   if (schoolYearId) {
     matchFilter.schoolYearId = schoolYearId;
