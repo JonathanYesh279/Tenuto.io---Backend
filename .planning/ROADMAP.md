@@ -495,6 +495,40 @@ Plans:
 
 ---
 
+#### Phase 79: Rehearsal Form Redesign
+**Goal**: Redesign the RehearsalForm modal (single + bulk modes) to use the app's design system — shadcn Dialog, FormField wrappers, semantic tokens, HeroUI Button, GlassSelect for dropdowns, Phosphor Icons, and Framer Motion animations. Replace raw HTML elements and hardcoded gray-* classes with design-system-compliant components matching the OrchestraForm and AddTeacherModal patterns.
+**Depends on**: Phase 66-69 (design system tokens + components), Rehearsals page redesign (timeline cards)
+**Requirements**:
+  - Modal uses shadcn Dialog (not custom fixed overlay) for focus trap, Escape key, scroll lock, ARIA
+  - All form inputs use shadcn Input/Select/Textarea (not raw HTML elements)
+  - FormField wrapper for consistent label + error display + required asterisk
+  - Mode toggle (single/bulk) uses HeroUI Tabs or design system tab pattern
+  - Location dropdown groups options by category using SelectGroup + SelectLabel (like OrchestraForm)
+  - Day-of-week selector in bulk mode uses design system components
+  - Exclude dates in bulk mode uses Chip dismissible pattern
+  - Preview dates display uses design system card/badge styling
+  - ConflictDetector integration preserved (existing component, just styled container)
+  - All buttons use design system Button component (not raw button elements)
+  - All colors use semantic tokens (text-foreground, border-border, etc.) not hardcoded gray-*
+  - Framer Motion entrance animation on dialog (already built into shadcn Dialog)
+  - All existing form logic, validation, and submission handlers preserved unchanged
+**Success Criteria** (what must be TRUE):
+  1. RehearsalForm modal uses shadcn Dialog with proper ARIA, focus trap, and motion
+  2. Zero raw HTML form elements (input/select/textarea) — all replaced with design system components
+  3. Zero hardcoded gray-* / red-* color classes — all semantic tokens
+  4. FormField wrapper used for every form field (consistent label + error pattern)
+  5. Location dropdown grouped by category (halls, studios, classrooms, etc.)
+  6. Both single and bulk modes fully functional with identical behavior to current
+  7. ConflictDetector renders correctly within the new dialog layout
+  8. All existing validation logic and error states preserved
+**Plans**: 2 plans
+
+Plans:
+- [ ] 79-01-PLAN.md — Rewrite RehearsalForm with design system components (Dialog, FormField, Select, Tabs, Button, Badge)
+- [ ] 79-02-PLAN.md — Update all 4 callers to new props + fix Sidebar double-overlay + visual verification
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -522,9 +556,10 @@ Plans:
 | 76. Attendance Management Page | v2.1 | 2 | Complete | 2026-03-15 |
 | 77. Dashboard Chart UX Enhancement | v2.1 | 1 | Planned | — |
 | 78. Full Activity Rescheduling | v2.1 | 3 | Planned | — |
+| 79. Rehearsal Form Redesign | v2.1 | 2 | Planned | — |
 
-**Total: 78 phases (76 complete, 2 pending)**
+**Total: 79 phases (76 complete, 3 pending)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-16 -- Phase 78 planned (Full Activity Rescheduling, 3 plans in 3 waves)*
+*Last updated: 2026-03-18 -- Phase 79 added (Rehearsal Form Redesign)*
