@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 78 of 78 (Full Activity Rescheduling)
-Plan: 2 of 3 in current phase
-Status: Phase 78-02 complete — frontend day selector, save wiring, conflict preview
-Last activity: 2026-03-16 — Phase 78-02 executed (3 tasks, 2 files)
+Phase: 79 of 79 (Rehearsal Form Redesign)
+Plan: 1 of 1 in current phase
+Status: Phase 79-01 complete — RehearsalForm design system migration
+Last activity: 2026-03-18 — Phase 79-01 executed (1 task, 3 files)
 
-Progress: [######----] 67% (v2.1 Phase 78 — 2/3 plans)
+Progress: [##########] 100% (v2.1 Phase 79 — 1/1 plans)
 
 ## Performance Metrics
 
-**All milestones:** 78 phases, 159 plans across 12 milestones
+**All milestones:** 79 phases, 160 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -106,6 +106,10 @@ Progress: [######----] 67% (v2.1 Phase 78 — 2/3 plans)
 - **[78-02]** Rehearsal day change calculates target date from JS Date to maintain date/dayOfWeek consistency
 - **[78-02]** Conflict preview is non-blocking warning (amber banner) — server-side check is authoritative
 - **[78-02]** Cross-day conflict preview fetches target day schedule via getRoomSchedule with 300ms debounce
+- **[79-01]** RehearsalForm props changed from onCancel to open+onOpenChange for Dialog-controlled pattern
+- **[79-01]** Badge dismiss button kept as raw button inside Badge (plan-specified chip dismiss pattern)
+- **[79-01]** renderSingleFormFields extracted as shared function for Tabs and edit-mode reuse
+- **[79-01]** Location grouping extracted to reusable locationGroups array with filter functions
 
 ### Pending Todos
 
@@ -122,6 +126,7 @@ Progress: [######----] 67% (v2.1 Phase 78 — 2/3 plans)
 - Phase 76 added: Attendance Management Page (v2.1 Entity Page Consistency)
 - Phase 77 added: Dashboard Chart UX Enhancement (v2.1 Entity Page Consistency)
 - Phase 78 added: Full Activity Rescheduling — Day/Room/Time (v2.1 Entity Page Consistency)
+- Phase 79 added: Rehearsal Form Redesign — shadcn Dialog + design system components (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -129,6 +134,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-16
-Stopped at: Completed 78-02-PLAN.md
+Last session: 2026-03-18
+Stopped at: Completed 79-01-PLAN.md
 Resume file: None
