@@ -530,16 +530,30 @@ Plans:
 ---
 
 #### Phase 80: Student Details UI/UX Refactor
-**Goal**: Refactor the Student Details page UI/UX to match a provided design image — improving layout, information hierarchy, visual consistency, and interaction patterns to align with the app's design system and entity page standards.
+**Goal**: Transform the Student Details page from a 7-tab layout into a 3-column dashboard (RTL: profile card right, activity charts center, attendance left) with unified enrollment table and HeroUI Tabs for surviving deep-dive content (Schedule, Bagrut, Orchestra, Theory). Faithful adaptation of Coursify LMS design reference to Hebrew RTL music school context.
 **Depends on**: Phase 66-69 (design system tokens + components), Phase 70 (entity page restyle pattern)
 **Requirements**:
-  - TBD — requires design image analysis and planning
+  - 3-column RTL grid dashboard as primary view with ProfileCard, ActivityChart, AttendanceChart
+  - Profile card with HeroUI User avatar, instrument/class badges, contact actions (phone/email/WhatsApp), parent info, teacher assignments, inline edit
+  - Weekly hours bar chart (TremorBarChart) + 3 summary stat cards (hours, orchestras, theory count)
+  - Attendance donut chart (TremorDonutChart) + monthly trend line (Recharts LineChart)
+  - Unified enrollment table combining individual lessons, orchestras, theory with colored type icons, search, filters
+  - HeroUI Tabs with dashboard default + 4 surviving tabs (Schedule, Bagrut, Orchestra, Theory)
+  - useStudentDashboardData hook centralizing all API calls (no N+1 teacher fetches)
 **Success Criteria** (what must be TRUE):
-  - TBD — defined during planning phase
-**Plans**: TBD
+  1. Dashboard shows 3-column RTL grid with profile card on right, charts in center/left
+  2. Profile card displays avatar, badges, contact actions, parent info, teacher assignments, and inline edit
+  3. Weekly hours bar chart shows Sun-Fri daily hours from teacherAssignments
+  4. Attendance donut shows present/absent/late with rate percentage center label
+  5. Unified enrollment table combines all enrollment types with colored icons and filters
+  6. HeroUI Tabs navigate between dashboard and 4 surviving tabs without regression
+  7. Zero new npm dependencies added
+**Plans**: 3 plans
 
 Plans:
-- TBD
+- [ ] 80-01-PLAN.md -- Data hook + ProfileCard + 3-column grid scaffold
+- [ ] 80-02-PLAN.md -- ActivityChart + SummaryCards + AttendanceChart (charts wired into grid)
+- [ ] 80-03-PLAN.md -- EnrollmentsTable + StudentDetailsPageSimple refactor (HeroUI Tabs + full integration)
 
 ---
 
@@ -571,7 +585,7 @@ Plans:
 | 77. Dashboard Chart UX Enhancement | v2.1 | 1 | Planned | — |
 | 78. Full Activity Rescheduling | v2.1 | 3 | Planned | — |
 | 79. Rehearsal Form Redesign | v2.1 | 2 | Planned | — |
-| 80. Student Details UI/UX Refactor | v2.1 | TBD | Planned | — |
+| 80. Student Details UI/UX Refactor | v2.1 | 3 | Planned | — |
 
 **Total: 80 phases (76 complete, 4 pending)**
 
