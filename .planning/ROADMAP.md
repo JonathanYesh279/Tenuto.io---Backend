@@ -551,9 +551,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 80-01-PLAN.md -- Data hook + ProfileCard + 3-column grid scaffold
-- [ ] 80-02-PLAN.md -- ActivityChart + SummaryCards + AttendanceChart (charts wired into grid)
-- [ ] 80-03-PLAN.md -- EnrollmentsTable + StudentDetailsPageSimple refactor (HeroUI Tabs + full integration)
+- [x] 80-01-PLAN.md -- Data hook + ProfileCard + 3-column grid scaffold -- completed 2026-03-18
+- [x] 80-02-PLAN.md -- ActivityChart + SummaryCards + AttendanceChart (charts wired into grid) -- completed 2026-03-18
+- [x] 80-03-PLAN.md -- EnrollmentsTable + StudentDetailsPageSimple refactor (HeroUI Tabs + full integration) -- completed 2026-03-18
 
 ---
 
@@ -585,9 +585,9 @@ Plans:
 | 77. Dashboard Chart UX Enhancement | v2.1 | 1 | Planned | — |
 | 78. Full Activity Rescheduling | v2.1 | 3 | Planned | — |
 | 79. Rehearsal Form Redesign | v2.1 | 2 | Planned | — |
-| 80. Student Details UI/UX Refactor | v2.1 | 3 | Planned | — |
+| 80. Student Details UI/UX Refactor | v2.1 | 3 | Complete | 2026-03-18 |
 
-**Total: 80 phases (76 complete, 4 pending)**
+**Total: 80 phases (77 complete, 3 pending)**
 
 ---
 *Roadmap created: 2026-02-14*
