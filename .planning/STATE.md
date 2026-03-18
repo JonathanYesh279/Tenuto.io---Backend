@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 79 of 79 (Rehearsal Form Redesign)
-Plan: 1 of 1 in current phase
-Status: Phase 79-01 complete — RehearsalForm design system migration
-Last activity: 2026-03-18 — Phase 79-01 executed (1 task, 3 files)
+Phase: 80 of 80 (Student Details UI/UX Refactor)
+Plan: 1 of ? in current phase
+Status: Phase 80-01 complete — Dashboard data hook, ProfileCard, 3-column RTL grid
+Last activity: 2026-03-18 — Phase 80-01 executed (3 tasks, 3 files)
 
-Progress: [##########] 100% (v2.1 Phase 79 — 1/1 plans)
+Progress: [#---------] 10% (v2.1 Phase 80 — 1/? plans)
 
 ## Performance Metrics
 
-**All milestones:** 79 phases, 160 plans across 12 milestones
+**All milestones:** 80 phases, 161+ plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -110,6 +110,10 @@ Progress: [##########] 100% (v2.1 Phase 79 — 1/1 plans)
 - **[79-01]** Badge dismiss button kept as raw button inside Badge (plan-specified chip dismiss pattern)
 - **[79-01]** renderSingleFormFields extracted as shared function for Tabs and edit-mode reuse
 - **[79-01]** Location grouping extracted to reusable locationGroups array with filter functions
+- **[80-01]** ChatCircleDotsIcon used for WhatsApp button (WhatsappLogoIcon unavailable in project Phosphor icons)
+- **[80-01]** getAvatarColorHex from avatarColorHash.ts (not avatarColors.ts)
+- **[80-01]** Theory lessons fetched globally then filtered client-side by studentId (no dedicated student theory endpoint)
+- **[80-01]** Teacher map pattern: fetch teacher details once in data hook, pass Record<id, info> to child components
 
 ### Pending Todos
 
@@ -136,5 +140,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-18
-Stopped at: Completed 79-01-PLAN.md
+Stopped at: Completed 80-01-PLAN.md
 Resume file: None
