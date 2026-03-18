@@ -529,6 +529,20 @@ Plans:
 
 ---
 
+#### Phase 80: Student Details UI/UX Refactor
+**Goal**: Refactor the Student Details page UI/UX to match a provided design image — improving layout, information hierarchy, visual consistency, and interaction patterns to align with the app's design system and entity page standards.
+**Depends on**: Phase 66-69 (design system tokens + components), Phase 70 (entity page restyle pattern)
+**Requirements**:
+  - TBD — requires design image analysis and planning
+**Success Criteria** (what must be TRUE):
+  - TBD — defined during planning phase
+**Plans**: TBD
+
+Plans:
+- TBD
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -557,9 +571,10 @@ Plans:
 | 77. Dashboard Chart UX Enhancement | v2.1 | 1 | Planned | — |
 | 78. Full Activity Rescheduling | v2.1 | 3 | Planned | — |
 | 79. Rehearsal Form Redesign | v2.1 | 2 | Planned | — |
+| 80. Student Details UI/UX Refactor | v2.1 | TBD | Planned | — |
 
-**Total: 79 phases (76 complete, 3 pending)**
+**Total: 80 phases (76 complete, 4 pending)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-18 -- Phase 79 added (Rehearsal Form Redesign)*
+*Last updated: 2026-03-18 -- Phase 80 added (Student Details UI/UX Refactor)*
