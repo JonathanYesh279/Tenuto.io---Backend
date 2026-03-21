@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 81 of 81 (Schedule Single Source of Truth)
-Plan: 1 of 3 in current phase
-Status: Plan 81-01 COMPLETE — Student weekly schedule endpoint with write-through sync
-Last activity: 2026-03-21 — Plan 81-01 executed (2 tasks, 4 files, 2 commits)
+Plan: 2 of 2 in current phase
+Status: Phase 81 COMPLETE — All 2 plans executed and verified
+Last activity: 2026-03-22 — Phase 81 fully executed (2 plans, 12 files, 5 commits)
 
-Progress: [###-------] 33% (v2.1 Phase 81 — 1/3 plans)
+Progress: [##########] 100% (v2.1 Phase 81 — 2/2 plans)
 
 ## Performance Metrics
 
@@ -123,6 +123,9 @@ Progress: [###-------] 33% (v2.1 Phase 81 — 1/3 plans)
 - **[81-01]** moveActivity write-through updates location and day only — lesson times within block are independent
 - **[81-01]** rescheduleLesson already covered by removeLessonFromBlock + assignLessonToBlock lifecycle
 - **[81-01]** Orchestra membership checked via both enrollments.orchestraIds AND orchestra.memberIds
+- **[81-02]** useStudentScheduleData hook uses apiService (not studentDetailsApi) — singleton token caching bug
+- **[81-02]** student prop removed from ScheduleTab — all data from hook, 4 call sites updated
+- **[81-02]** 30s staleTime for schedule data React Query cache
 
 ### Pending Todos
 
@@ -149,6 +152,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-21
-Stopped at: Completed 81-01-PLAN.md (student weekly schedule endpoint)
+Last session: 2026-03-22
+Stopped at: Phase 81 fully executed and verified — schedule single source of truth complete
 Resume file: None
