@@ -318,6 +318,29 @@ async function moveActivity(moveData, options = {}) {
       err.code = 'NOT_FOUND';
       throw err;
     }
+
+    // Write-through: update scheduleInfo on student assignments referencing this block
+    try {
+      const studentCollection = await getCollection('student');
+      const scheduleInfoUpdate = {
+        'teacherAssignments.$[elem].scheduleInfo.location': targetRoom,
+        'teacherAssignments.$[elem].location': targetRoom,
+        'teacherAssignments.$[elem].updatedAt': new Date(),
+      };
+      if (effectiveDay !== numericDay) {
+        scheduleInfoUpdate['teacherAssignments.$[elem].scheduleInfo.day'] = DAY_NAMES[effectiveDay];
+        scheduleInfoUpdate['teacherAssignments.$[elem].day'] = DAY_NAMES[effectiveDay];
+      }
+
+      await studentCollection.updateMany(
+        { tenantId, 'teacherAssignments.timeBlockId': blockId },
+        { $set: scheduleInfoUpdate },
+        { arrayFilters: [{ 'elem.timeBlockId': blockId, 'elem.isActive': { $ne: false } }] }
+      );
+    } catch (syncErr) {
+      // Non-fatal: log but don't fail the move operation
+      console.error(`Warning: scheduleInfo sync failed after moveActivity: ${syncErr.message}`);
+    }
   } else if (source === 'rehearsal') {
     const rehearsalCollection = await getCollection('rehearsal');
     const result = await rehearsalCollection.updateOne(
