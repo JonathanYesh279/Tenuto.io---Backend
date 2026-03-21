@@ -1,10 +1,12 @@
 // api/student/student.controller.js
 import { studentService } from './student.service.js';
+import { studentScheduleService } from './student-schedule.service.js';
 import { canAccessStudent } from '../../utils/queryScoping.js';
 
 export const studentController = {
   getStudents,
   getStudentById,
+  getStudentWeeklySchedule,
   addStudent,
   updateStudent,
   updateStudentTest,
@@ -45,6 +47,22 @@ async function getStudentById(req, res, next) {
 
     const student = await studentService.getStudentById(id, { context: req.context });
     res.json(student);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getStudentWeeklySchedule(req, res, next) {
+  try {
+    const { studentId } = req.params;
+
+    // IDOR prevention via pre-loaded scopes (no extra DB query)
+    if (!canAccessStudent(studentId, req.context, req.permissionScope)) {
+      return res.status(404).json({ error: 'Not Found', message: 'The requested resource was not found' });
+    }
+
+    const schedule = await studentScheduleService.getStudentWeeklySchedule(studentId, { context: req.context });
+    res.json(schedule);
   } catch (err) {
     next(err);
   }

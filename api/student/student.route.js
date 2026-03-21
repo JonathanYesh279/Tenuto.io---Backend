@@ -9,6 +9,7 @@ const router = express.Router()
 router.get('/', requirePermission('students', 'view'), studentController.getStudents)
 router.get('/:id', requirePermission('students', 'view'), studentController.getStudentById)
 router.get('/:studentId/private-lesson-attendance', requirePermission('students', 'view'), attendanceController.getStudentPrivateLessonStats)
+router.get('/:studentId/weekly-schedule', requirePermission('students', 'view'), studentController.getStudentWeeklySchedule)
 router.get('/:studentId/attendance-history', requirePermission('students', 'view'), attendanceController.getStudentAttendanceHistory)
 
 router.post('/', requirePermission('students', 'create'), validateTeacherAssignmentsMiddleware, studentController.addStudent);
