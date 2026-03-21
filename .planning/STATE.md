@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 80 of 80 (Student Details UI/UX Refactor)
-Plan: 3 of 3 in current phase
-Status: Phase 80 COMPLETE — All 3 plans executed and verified (7/7 must-haves)
-Last activity: 2026-03-18 — Phase 80 fully executed (3 plans, 8 files, 8 commits)
+Phase: 81 of 81 (Schedule Single Source of Truth)
+Plan: 1 of 3 in current phase
+Status: Plan 81-01 COMPLETE — Student weekly schedule endpoint with write-through sync
+Last activity: 2026-03-21 — Plan 81-01 executed (2 tasks, 4 files, 2 commits)
 
-Progress: [##########] 100% (v2.1 Phase 80 — 3/3 plans)
+Progress: [###-------] 33% (v2.1 Phase 81 — 1/3 plans)
 
 ## Performance Metrics
 
-**All milestones:** 80 phases, 163 plans across 12 milestones
+**All milestones:** 81 phases, 166 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -118,6 +118,11 @@ Progress: [##########] 100% (v2.1 Phase 80 — 3/3 plans)
 - **[80-02]** AttendanceChart uses Recharts LineChart directly for monthly trend (TremorBarChart/DonutChart don't support lines)
 - **[80-03]** StudentDetailsPageSimple refactored from 7 shadcn tabs to 5 HeroUI Tabs (dashboard default)
 - **[80-03]** Surviving tabs: Schedule, Bagrut, Orchestra, Theory — all wired with existing props unchanged
+- **[81-01]** Live data only — student schedule endpoint reads from timeBlocks/rehearsals/theory_lesson, never from stale scheduleInfo snapshots
+- **[81-01]** Legacy assignments without timeBlockId fall back to top-level day/time fields (NOT scheduleInfo)
+- **[81-01]** moveActivity write-through updates location and day only — lesson times within block are independent
+- **[81-01]** rescheduleLesson already covered by removeLessonFromBlock + assignLessonToBlock lifecycle
+- **[81-01]** Orchestra membership checked via both enrollments.orchestraIds AND orchestra.memberIds
 
 ### Pending Todos
 
@@ -136,6 +141,7 @@ Progress: [##########] 100% (v2.1 Phase 80 — 3/3 plans)
 - Phase 78 added: Full Activity Rescheduling — Day/Room/Time (v2.1 Entity Page Consistency)
 - Phase 79 added: Rehearsal Form Redesign — shadcn Dialog + design system components (v2.1 Entity Page Consistency)
 - Phase 80 added: Student Details UI/UX Refactor + image design to copy from (v2.1 Entity Page Consistency)
+- Phase 81 added: Schedule Single Source of Truth — eliminate data inconsistency between student schedule and room schedule (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -143,6 +149,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-18
-Stopped at: Phase 80 fully executed and verified (7/7 must-haves)
+Last session: 2026-03-21
+Stopped at: Completed 81-01-PLAN.md (student weekly schedule endpoint)
 Resume file: None
