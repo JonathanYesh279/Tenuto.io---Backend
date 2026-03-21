@@ -557,6 +557,33 @@ Plans:
 
 ---
 
+#### Phase 81: Schedule Single Source of Truth
+**Goal**: Eliminate data inconsistency between student schedule tab (reads from `teacherAssignment.scheduleInfo` snapshots) and room schedule page (reads from `teacher.teaching.timeBlocks`). Refactor student schedule to fetch live timeBlock data via API using the `timeBlockId` reference on each assignment, ensuring both views always show the same data. Add theory lessons to the schedule view.
+**Depends on**: Phase 80 (Student Details UI/UX Refactor), Phase 38 (Room Schedule infrastructure)
+**Requirements**:
+  - Student schedule tab fetches live timeBlock data from backend API (not stale snapshots)
+  - Backend endpoint to get timeBlocks by IDs (batch fetch for a student's assignments)
+  - Student schedule and room schedule show identical lesson times, rooms, and days
+  - Theory lessons appear on the student weekly calendar (currently missing)
+  - Orchestra rehearsals on student schedule use the same rehearsal data as the rehearsals page
+  - No hardcoded fallback times/days — if data is missing, show "לא מתוזמן" instead of phantom lessons
+  - Inactive assignments never render on schedule
+  - scheduleInfo on teacherAssignment becomes a read-through cache, not a primary data source
+**Success Criteria** (what must be TRUE):
+  1. Student schedule tab and room schedule page show identical data for the same teacher/room/time
+  2. Moving a lesson on the room schedule page is immediately reflected on the student schedule tab (no stale cache)
+  3. Theory lessons appear on the student weekly calendar with correct day/time/location
+  4. No phantom lessons caused by hardcoded default values
+  5. Backend provides a batch timeBlock fetch endpoint used by the student schedule
+  6. All three activity types (individual, orchestra, theory) render on the student weekly calendar
+**Plans**: 2 plans
+
+Plans:
+- [ ] 81-01-PLAN.md — Backend: batch timeBlock fetch endpoint + student schedule API
+- [ ] 81-02-PLAN.md — Frontend: refactor ScheduleTab to use live timeBlock data + add theory lessons
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -586,9 +613,10 @@ Plans:
 | 78. Full Activity Rescheduling | v2.1 | 3 | Planned | — |
 | 79. Rehearsal Form Redesign | v2.1 | 2 | Planned | — |
 | 80. Student Details UI/UX Refactor | v2.1 | 3 | Complete | 2026-03-18 |
+| 81. Schedule Single Source of Truth | v2.1 | 2 | Planned | — |
 
-**Total: 80 phases (77 complete, 3 pending)**
+**Total: 81 phases (77 complete, 4 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-18 -- Phase 80 added (Student Details UI/UX Refactor)*
+*Last updated: 2026-03-21 -- Phase 81 added (Schedule Single Source of Truth)*
