@@ -584,6 +584,39 @@ Plans:
 
 ---
 
+#### Phase 82: Profile Page Redesign & Credentials Management
+**Goal**: Transform the Profile page from a basic layout into a rich, role-aware dashboard matching the Student Details design pattern — gradient header with avatar, 3-column layout (profile card + role-specific widgets), animated tabs, credential management (password change), and design system compliance throughout. Admin sees conservatory-wide stats; teacher sees teaching stats; conductor sees orchestra stats.
+**Depends on**: Phase 80 (Student Details UI/UX pattern), Phase 66-69 (design system tokens + components)
+**Requirements**:
+  - Profile header with gradient + curved SVG wave + overlapping HeroUI avatar (matching StudentDashboardView ProfileCard)
+  - 3-column dashboard layout: profile info card (right) + role-specific widgets (center/left)
+  - GlassStatCard row with role-aware statistics (admin: conservatory totals, teacher: personal stats)
+  - Animated tabs (design system) with role-based tab visibility
+  - New "Credentials" tab: password change form with current password verification, new password + confirm, strength indicator
+  - Backend: password change endpoint (PUT /teacher/profile/me/password) with current password verification
+  - GeneralInfoTab uses design tokens (rounded-card, border-border, shadow-1) and HeroUI components
+  - Role information card with Chip badges for roles, status, instrument
+  - Quick contact actions (phone, email, WhatsApp) with Popovers (matching student ProfileCard)
+  - Admin-specific: show conservatory-wide summary stats (total teachers, students, orchestras)
+  - All shared components reused (GlassStatCard, AvatarInitials/HeroUI User, animated-tabs, HeroUI Button/Chip)
+**Success Criteria** (what must be TRUE):
+  1. Profile page header uses gradient + curved SVG wave + overlapping avatar (matching student dashboard ProfileCard)
+  2. Page layout is 3-column on desktop with profile card, stats, and role widgets (not empty/sparse)
+  3. GlassStatCard row shows role-appropriate statistics
+  4. Animated tabs with smooth transitions between tab content
+  5. Credentials tab allows password change with current password verification and strength indicator
+  6. Backend password change endpoint validates current password before allowing update
+  7. Admin profile shows conservatory-wide stats (not just personal teacher stats)
+  8. All components use design system tokens — zero hardcoded gray-*/blue-* classes
+  9. Quick contact actions work with Popovers for phone/email
+**Plans**: 2 plans
+
+Plans:
+- [ ] 82-01-PLAN.md — Credentials tab with password change form + apiService changePassword method
+- [ ] 82-02-PLAN.md — 3-column profile dashboard layout with ProfileSidebar, role-aware admin stats, contact Popovers
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -614,9 +647,10 @@ Plans:
 | 79. Rehearsal Form Redesign | v2.1 | 2 | Planned | — |
 | 80. Student Details UI/UX Refactor | v2.1 | 3 | Complete | 2026-03-18 |
 | 81. Schedule Single Source of Truth | v2.1 | 2 | Planned | — |
+| 82. Profile Page Redesign & Credentials | v2.1 | 2 | Planned | — |
 
-**Total: 81 phases (77 complete, 4 planned)**
+**Total: 82 phases (77 complete, 5 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-21 -- Phase 81 added (Schedule Single Source of Truth)*
+*Last updated: 2026-03-22 -- Phase 82 added (Profile Page Redesign & Credentials Management)*
