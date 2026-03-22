@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 82 of 82 (Profile Page Redesign & Credentials Management)
-Plan: 1 of N in current phase
-Status: Plan 82-01 COMPLETE — Credentials tab with password change form
-Last activity: 2026-03-22 — Plan 82-01 executed (2 tasks, 3 files, 2 commits)
+Plan: 2 of N in current phase
+Status: Plan 82-02 COMPLETE — 3-column dashboard layout with ProfileSidebar and admin stats
+Last activity: 2026-03-22 — Plan 82-02 executed (3 tasks, 3 files, 3 commits)
 
-Progress: [#---------] 10% (v2.1 Phase 82 — 1/N plans)
+Progress: [##--------] 20% (v2.1 Phase 82 — 2/N plans)
 
 ## Performance Metrics
 
@@ -128,6 +128,9 @@ Progress: [#---------] 10% (v2.1 Phase 82 — 1/N plans)
 - **[81-02]** 30s staleTime for schedule data React Query cache
 - **[82-01]** No refreshToken localStorage storage -- follows forcePasswordChange pattern (apiClient.setToken only)
 - **[82-01]** Credentials tab after General tab, before role-specific tabs -- visible to all users
+- **[82-02]** Admin stats fetched via existing list endpoints (getTeachers/getStudents/getOrchestras) with Promise.allSettled
+- **[82-02]** Role info widget below stats in center-left column for at-a-glance role context
+- **[82-02]** GeneralInfoTab emerald/red status colors are semantic feedback, not design token migration targets
 
 ### Pending Todos
 
@@ -156,5 +159,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-22
-Stopped at: Completed 82-01-PLAN.md — Credentials tab with password change form
+Stopped at: Completed 82-02-PLAN.md — 3-column dashboard layout with ProfileSidebar and admin stats
 Resume file: None
