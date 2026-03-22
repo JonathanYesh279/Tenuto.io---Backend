@@ -9,16 +9,16 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 81 of 81 (Schedule Single Source of Truth)
-Plan: 2 of 2 in current phase
-Status: Phase 81 COMPLETE — All 2 plans executed and verified
-Last activity: 2026-03-22 — Phase 81 fully executed (2 plans, 12 files, 5 commits)
+Phase: 82 of 82 (Profile Page Redesign & Credentials Management)
+Plan: 1 of N in current phase
+Status: Plan 82-01 COMPLETE — Credentials tab with password change form
+Last activity: 2026-03-22 — Plan 82-01 executed (2 tasks, 3 files, 2 commits)
 
-Progress: [##########] 100% (v2.1 Phase 81 — 2/2 plans)
+Progress: [#---------] 10% (v2.1 Phase 82 — 1/N plans)
 
 ## Performance Metrics
 
-**All milestones:** 81 phases, 166 plans across 12 milestones
+**All milestones:** 82 phases, 167+ plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -126,6 +126,8 @@ Progress: [##########] 100% (v2.1 Phase 81 — 2/2 plans)
 - **[81-02]** useStudentScheduleData hook uses apiService (not studentDetailsApi) — singleton token caching bug
 - **[81-02]** student prop removed from ScheduleTab — all data from hook, 4 call sites updated
 - **[81-02]** 30s staleTime for schedule data React Query cache
+- **[82-01]** No refreshToken localStorage storage -- follows forcePasswordChange pattern (apiClient.setToken only)
+- **[82-01]** Credentials tab after General tab, before role-specific tabs -- visible to all users
 
 ### Pending Todos
 
@@ -145,6 +147,7 @@ Progress: [##########] 100% (v2.1 Phase 81 — 2/2 plans)
 - Phase 79 added: Rehearsal Form Redesign — shadcn Dialog + design system components (v2.1 Entity Page Consistency)
 - Phase 80 added: Student Details UI/UX Refactor + image design to copy from (v2.1 Entity Page Consistency)
 - Phase 81 added: Schedule Single Source of Truth — eliminate data inconsistency between student schedule and room schedule (v2.1 Entity Page Consistency)
+- Phase 82 added: Profile Page Redesign & Credentials Management — gradient header, 3-column layout, password change, role-aware dashboard (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -153,5 +156,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-22
-Stopped at: Phase 81 fully executed and verified — schedule single source of truth complete
+Stopped at: Completed 82-01-PLAN.md — Credentials tab with password change form
 Resume file: None
