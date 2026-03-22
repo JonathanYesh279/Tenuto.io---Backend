@@ -612,8 +612,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 82-01-PLAN.md — Credentials tab with password change form + apiService changePassword method
-- [ ] 82-02-PLAN.md — 3-column profile dashboard layout with ProfileSidebar, role-aware admin stats, contact Popovers
+- [x] 82-01-PLAN.md — Credentials tab with password change form + apiService changePassword method -- completed 2026-03-22
+- [x] 82-02-PLAN.md — 3-column profile dashboard layout with ProfileSidebar, role-aware admin stats, contact Popovers -- completed 2026-03-22
 
 ---
 
@@ -646,11 +646,11 @@ Plans:
 | 78. Full Activity Rescheduling | v2.1 | 3 | Planned | — |
 | 79. Rehearsal Form Redesign | v2.1 | 2 | Planned | — |
 | 80. Student Details UI/UX Refactor | v2.1 | 3 | Complete | 2026-03-18 |
-| 81. Schedule Single Source of Truth | v2.1 | 2 | Planned | — |
-| 82. Profile Page Redesign & Credentials | v2.1 | 2 | Planned | — |
+| 81. Schedule Single Source of Truth | v2.1 | 2 | Complete | 2026-03-22 |
+| 82. Profile Page Redesign & Credentials | v2.1 | 2 | Complete | 2026-03-22 |
 
-**Total: 82 phases (77 complete, 5 planned)**
+**Total: 82 phases (78 complete, 4 planned)**
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-22 -- Phase 82 added (Profile Page Redesign & Credentials Management)*
+*Last updated: 2026-03-22 -- Phase 82 complete (Profile Page Redesign & Credentials Management)*
