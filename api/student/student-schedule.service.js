@@ -37,7 +37,7 @@ async function getStudentWeeklySchedule(studentId, options = {}) {
   const studentCollection = await getCollection('student');
   const student = await studentCollection.findOne(
     { _id: ObjectId.createFromHexString(studentId), tenantId },
-    { projection: { teacherAssignments: 1, 'enrollments.orchestraIds': 1 } }
+    { projection: { teacherAssignments: 1, 'enrollments.orchestraIds': 1, 'enrollments.theoryLessonIds': 1 } }
   );
 
   if (!student) {
@@ -54,7 +54,7 @@ async function getStudentWeeklySchedule(studentId, options = {}) {
   const [individualLessons, orchestraRehearsals, theoryLessons] = await Promise.all([
     resolveIndividualLessons(activeAssignments, tenantId),
     resolveOrchestraRehearsals(studentId, student.enrollments?.orchestraIds, tenantId, schoolYearId),
-    resolveTheoryLessons(studentId, tenantId, schoolYearId),
+    resolveTheoryLessons(studentId, student.enrollments?.theoryLessonIds, tenantId, schoolYearId),
   ]);
 
   return {
@@ -281,13 +281,26 @@ async function resolveOrchestraRehearsals(studentId, enrollmentOrchestraIds, ten
 
 /**
  * Resolve theory lessons for a student.
+ * Checks both theory_lesson.studentIds and student.enrollments.theoryLessonIds
+ * since enrollment can be recorded in either location.
  */
-async function resolveTheoryLessons(studentId, tenantId, schoolYearId) {
+async function resolveTheoryLessons(studentId, enrollmentTheoryIds, tenantId, schoolYearId) {
   const theoryCollection = await getCollection('theory_lesson');
+
+  // Build OR query: student is in theory's studentIds OR theory is in student's enrollments
+  const orConditions = [{ studentIds: studentId }];
+  if (enrollmentTheoryIds?.length) {
+    const theoryObjIds = enrollmentTheoryIds
+      .filter((id) => ObjectId.isValid(id))
+      .map((id) => ObjectId.createFromHexString(id));
+    if (theoryObjIds.length) {
+      orConditions.push({ _id: { $in: theoryObjIds } });
+    }
+  }
 
   const filter = {
     tenantId,
-    studentIds: studentId,
+    $or: orConditions,
     isActive: { $ne: false },
   };
   if (schoolYearId) {

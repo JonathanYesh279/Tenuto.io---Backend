@@ -144,7 +144,8 @@ export const theoryLessonSchema = Joi.object({
   attendance: Joi.object({
     present: Joi.array().items(Joi.string()).default([]),
     absent: Joi.array().items(Joi.string()).default([]),
-  }).default({ present: [], absent: [] }),
+    late: Joi.array().items(Joi.string()).default([]),
+  }).default({ present: [], absent: [], late: [] }),
 
   notes: Joi.string().allow('', null).default('').messages({
     'string.base': 'Notes must be a string',
@@ -339,6 +340,7 @@ export const theoryLessonUpdateSchema = Joi.object({
   attendance: Joi.object({
     present: Joi.array().items(Joi.string()).default([]),
     absent: Joi.array().items(Joi.string()).default([]),
+    late: Joi.array().items(Joi.string()).default([]),
   }).optional(),
 
   notes: Joi.string().allow('', null).optional().messages({
@@ -388,6 +390,10 @@ export const theoryAttendanceSchema = Joi.object({
 
   absent: Joi.array().items(Joi.string()).default([]).messages({
     'array.base': 'Absent students must be an array of student IDs',
+  }),
+
+  late: Joi.array().items(Joi.string()).default([]).messages({
+    'array.base': 'Late students must be an array of student IDs',
   }),
 });
 

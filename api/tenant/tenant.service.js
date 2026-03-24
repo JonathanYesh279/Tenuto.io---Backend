@@ -27,6 +27,7 @@ export const tenantService = {
   addRoom,
   updateRoom,
   deactivateRoom,
+  deleteRoom,
   importRooms,
 };
 
@@ -207,7 +208,74 @@ async function getRooms(tenantId) {
     throw new Error(`Tenant with id ${tenantId} not found`);
   }
 
-  return tenant.settings?.rooms || [];
+  // Only auto-discover when settings.rooms has never been initialized
+  if (!tenant.settings?.rooms) {
+    const discoveredNames = await discoverRoomNames(tenantId);
+    if (discoveredNames.length > 0) {
+      const newRooms = discoveredNames.map(name => ({
+        _id: new ObjectId(),
+        name,
+        isActive: true,
+        createdAt: new Date(),
+      }));
+
+      await collection.updateOne(
+        { _id: ObjectId.createFromHexString(tenantId) },
+        {
+          $set: { 'settings.rooms': newRooms, updatedAt: new Date() },
+        }
+      );
+
+      log.info({ tenantId, synced: newRooms.length }, 'Initial room sync from activities');
+      return newRooms;
+    }
+    return [];
+  }
+
+  return tenant.settings.rooms;
+}
+
+/**
+ * Discover unique room names from timeBlocks, rehearsals, and theory lessons.
+ */
+async function discoverRoomNames(tenantId) {
+  // tenantId is stored as string in activity collections
+  const tenantFilter = { $in: [tenantId, ObjectId.createFromHexString(tenantId)] };
+  const locations = new Set();
+
+  // TimeBlock locations from teachers
+  const teacherCol = await getCollection(COLLECTIONS.TEACHER);
+  const teachers = await teacherCol.find(
+    { tenantId: tenantFilter, 'teaching.timeBlocks.location': { $exists: true, $ne: '' } },
+    { projection: { 'teaching.timeBlocks.location': 1 } }
+  ).toArray();
+  for (const t of teachers) {
+    for (const tb of t.teaching?.timeBlocks || []) {
+      if (tb.location) locations.add(tb.location.trim().replace(/\s+/g, ' '));
+    }
+  }
+
+  // Rehearsal locations
+  const rehearsalCol = await getCollection(COLLECTIONS.REHEARSAL);
+  const rehearsals = await rehearsalCol.find(
+    { tenantId: tenantFilter, location: { $exists: true, $ne: '' } },
+    { projection: { location: 1 } }
+  ).toArray();
+  for (const r of rehearsals) {
+    if (r.location) locations.add(r.location.trim().replace(/\s+/g, ' '));
+  }
+
+  // Theory lesson locations
+  const theoryCol = await getCollection(COLLECTIONS.THEORY_LESSON);
+  const theoryLessons = await theoryCol.find(
+    { tenantId: tenantFilter, location: { $exists: true, $ne: '' } },
+    { projection: { location: 1 } }
+  ).toArray();
+  for (const tl of theoryLessons) {
+    if (tl.location) locations.add(tl.location.trim().replace(/\s+/g, ' '));
+  }
+
+  return [...locations].sort();
 }
 
 async function addRoom(tenantId, roomData) {
@@ -309,6 +377,25 @@ async function deactivateRoom(tenantId, roomId) {
   }
 
   log.info({ tenantId, roomId }, 'Room deactivated');
+  return result.settings?.rooms || [];
+}
+
+async function deleteRoom(tenantId, roomId) {
+  const collection = await getCollection(COLLECTIONS.TENANT);
+  const result = await collection.findOneAndUpdate(
+    { _id: ObjectId.createFromHexString(tenantId) },
+    {
+      $pull: { 'settings.rooms': { _id: ObjectId.createFromHexString(roomId) } },
+      $set: { updatedAt: new Date() },
+    },
+    { returnDocument: 'after' }
+  );
+
+  if (!result) {
+    throw new Error('Room not found');
+  }
+
+  log.info({ tenantId, roomId }, 'Room deleted');
   return result.settings?.rooms || [];
 }
 

@@ -133,6 +133,7 @@ async function login(email, password, tenantId) {
         tenantId: teacher.tenantId || null,
         tenantName: tenant?.name || null,
         tenantLogoUrl: tenant?.branding?.logoUrl || null,
+        directorName: tenant?.director?.name || null,
         personalInfo: {
           firstName: displayFirstName,
           lastName: displayLastName,

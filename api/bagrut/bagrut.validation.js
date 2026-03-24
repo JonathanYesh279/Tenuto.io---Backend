@@ -118,7 +118,7 @@ export const bagrutSchema = Joi.object({
   program: Joi.array().items(pieceSchema).default([]),
   
   // New required fields for official Bagrut form
-  directorName: Joi.string().default('לימור אקטע'),
+  directorName: Joi.string().allow('').default(''),
   directorEvaluation: Joi.object({
     points: Joi.number().min(0).max(10).allow(null).default(null),
     percentage: Joi.number().default(10),

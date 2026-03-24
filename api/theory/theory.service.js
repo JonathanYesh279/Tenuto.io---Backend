@@ -631,7 +631,7 @@ async function updateTheoryAttendance(theoryLessonId, attendanceData, options = 
     const { error, value } = validateTheoryAttendance(attendanceData);
     if (error) throw error;
 
-    const { present, absent } = value;
+    const { present, absent, late = [] } = value;
 
     // Get the theory lesson to verify it exists
     const theoryLesson = await getTheoryLessonById(theoryLessonId, options);
@@ -644,6 +644,7 @@ async function updateTheoryAttendance(theoryLessonId, attendanceData, options = 
           attendance: {
             present,
             absent,
+            late,
           },
           updatedAt: toUTC(now()),
         },
@@ -695,7 +696,21 @@ async function updateTheoryAttendance(theoryLessonId, attendanceData, options = 
           })
         );
 
-        await Promise.all([...presentPromises, ...absentPromises]);
+        const latePromises = late.map((studentId) =>
+          activityCollection.insertOne({
+            tenantId,
+            studentId,
+            activityType: 'תאוריה',
+            groupId: theoryLesson.category,
+            sessionId: theoryLessonId,
+            date: theoryLesson.date,
+            status: 'איחר/ה',
+            notes: '',
+            createdAt: toUTC(now()),
+          })
+        );
+
+        await Promise.all([...presentPromises, ...absentPromises, ...latePromises]);
       }
     } catch (activityErr) {
       // Log but don't fail if activity records couldn't be created
@@ -713,7 +728,7 @@ async function getTheoryAttendance(theoryLessonId, options = {}) {
   try {
     requireTenantId(options.context?.tenantId);
     const theoryLesson = await getTheoryLessonById(theoryLessonId, options);
-    return theoryLesson.attendance || { present: [], absent: [] };
+    return theoryLesson.attendance || { present: [], absent: [], late: [] };
   } catch (err) {
     console.error(`Error in theoryService.getTheoryAttendance: ${err}`);
     throw new Error(`Error in theoryService.getTheoryAttendance: ${err}`);
@@ -821,7 +836,7 @@ async function getStudentTheoryAttendanceStats(studentId, category = null, optio
 
     const totalLessons = attendanceRecords.length;
     const attended = attendanceRecords.filter(
-      (record) => record.status === 'הגיע/ה'
+      (record) => record.status === 'הגיע/ה' || record.status === 'איחר/ה'
     ).length;
     const attendanceRate = totalLessons ? (attended / totalLessons) * 100 : 0;
 

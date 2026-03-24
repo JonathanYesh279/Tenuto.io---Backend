@@ -482,18 +482,8 @@ async function rescheduleLesson(rescheduleData, options = {}) {
     throw err;
   }
 
-  // 5. Remove lesson from source block
-  try {
-    await timeBlockService.removeLessonFromBlock(teacherId, sourceBlockId, lessonId, options);
-  } catch (removeErr) {
-    console.error(`Error removing lesson from source block: ${removeErr.message}`);
-    const err = new Error(`Failed to remove lesson from source block: ${removeErr.message}`);
-    err.code = 'INTERNAL';
-    throw err;
-  }
-
-  // 6. Create target block (exclude source block from conflict check
-  //    since we just deactivated the lesson there — the block still exists)
+  // 5. Create target block FIRST (before removing source — safe ordering)
+  //    Exclude source block from conflict check since we're moving this lesson.
   let newBlockId;
   try {
     const createResult = await timeBlockService.createTimeBlock(teacherId, {
@@ -501,7 +491,7 @@ async function rescheduleLesson(rescheduleData, options = {}) {
       startTime: targetStartTime,
       endTime: targetEndTime,
       location: targetRoom,
-    }, { ...options, excludeBlockId: sourceBlockId, skipRoomConflictCheck: true });
+    }, { ...options, excludeBlockId: sourceBlockId, skipRoomConflictCheck: true, skipTeacherConflictCheck: true });
     newBlockId = createResult.timeBlock._id.toString();
   } catch (createErr) {
     console.error(`Error creating target block: ${createErr.message}`);
@@ -510,7 +500,7 @@ async function rescheduleLesson(rescheduleData, options = {}) {
     throw err;
   }
 
-  // 7. Assign lesson to new block
+  // 6. Assign lesson to new block (still before removing source)
   try {
     await timeBlockService.assignLessonToBlock({
       teacherId,
@@ -520,10 +510,24 @@ async function rescheduleLesson(rescheduleData, options = {}) {
       duration: lessonDuration,
     }, options);
   } catch (assignErr) {
+    // Rollback: delete the target block we just created
+    try {
+      await timeBlockService.deleteTimeBlock(teacherId, newBlockId, options);
+    } catch (rollbackErr) {
+      console.error(`Warning: rollback failed after assign error: ${rollbackErr.message}`);
+    }
     console.error(`Error assigning lesson to target block: ${assignErr.message}`);
     const err = new Error(`Failed to assign lesson to target block: ${assignErr.message}`);
     err.code = 'INTERNAL';
     throw err;
+  }
+
+  // 7. NOW remove lesson from source block (target is confirmed created)
+  try {
+    await timeBlockService.removeLessonFromBlock(teacherId, sourceBlockId, lessonId, options);
+  } catch (removeErr) {
+    // Non-fatal: target is already created, source cleanup is best-effort
+    console.error(`Warning: failed to deactivate source lesson (target already created): ${removeErr.message}`);
   }
 
   // 8. Cleanup: check if source block has remaining active lessons

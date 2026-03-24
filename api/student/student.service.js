@@ -922,13 +922,21 @@ async function syncTeacherRecordsForStudentUpdate(studentId, studentName, newAss
         }
 
         // Create lesson assignment for teacher time block
+        // Always calculate endTime from startTime + duration — never trust stored scheduleInfo.endTime
+        const syncStartTime = assignment.time || assignment.scheduleInfo?.startTime || '00:00';
+        const syncDuration = assignment.duration || assignment.scheduleInfo?.duration || 45;
+        const syncEndTime = (() => {
+          const [h, m] = syncStartTime.split(':').map(Number);
+          const total = h * 60 + m + syncDuration;
+          return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
+        })();
         const lessonAssignment = {
           _id: lessonId ? ObjectId.createFromHexString(lessonId) : new ObjectId(),
           studentId: studentId,
           studentName: studentName || 'Unknown Student',
-          lessonStartTime: assignment.scheduleInfo?.startTime || '00:00',
-          lessonEndTime: assignment.scheduleInfo?.endTime || '00:45',
-          duration: assignment.scheduleInfo?.duration || 45,
+          lessonStartTime: syncStartTime,
+          lessonEndTime: syncEndTime,
+          duration: syncDuration,
           notes: assignment.notes || '',
           attended: undefined,
           isActive: true,

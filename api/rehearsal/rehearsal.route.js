@@ -20,6 +20,7 @@ router.delete('/:id', requirePermission('rehearsals', 'delete'), rehearsalContro
 
 router.put('/:rehearsalId/attendance', requirePermission('rehearsals', 'update'), formatAttendanceResponse(), rehearsalController.updateAttendance)
 
+router.post('/check-conflicts', requirePermission('rehearsals', 'view'), rehearsalController.checkConflicts)
 router.post('/bulk', requirePermission('rehearsals', 'create'), rehearsalController.bulkCreateRehearsals)
 router.delete('/orchestra/:orchestraId', requirePermission('rehearsals', 'delete'), rehearsalController.bulkDeleteRehearsalsByOrchestra)
 router.delete('/orchestra/:orchestraId/date-range', requirePermission('rehearsals', 'delete'), rehearsalController.bulkDeleteRehearsalsByDateRange)

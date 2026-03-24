@@ -345,13 +345,23 @@ async function getAttendanceDashboard(options = {}) {
 async function getStudentAttendanceSummary(studentId, options = {}) {
   const tenantId = requireTenantId(options.context?.tenantId);
 
+  const query = {
+    studentId,
+    tenantId,
+    isArchived: { $ne: true },
+  };
+
+  // Scope to school year date range if available (matches badge counts)
+  const schoolYear = options.context?.schoolYear || options.schoolYear;
+  if (schoolYear?.startDate || schoolYear?.endDate) {
+    query.date = {};
+    if (schoolYear.startDate) query.date.$gte = new Date(schoolYear.startDate);
+    if (schoolYear.endDate) query.date.$lte = new Date(schoolYear.endDate);
+  }
+
   const activityCol = await getCollection(COLLECTIONS.ACTIVITY_ATTENDANCE);
   const records = await activityCol
-    .find({
-      studentId,
-      tenantId,
-      isArchived: { $ne: true },
-    })
+    .find(query)
     .sort({ date: -1 })
     .toArray();
 

@@ -49,5 +49,6 @@ router.post('/:id/rooms/import', requirePermission('settings', 'update'), roomUp
 router.post('/:id/rooms', requirePermission('settings', 'update'), tenantController.addRoom);
 router.put('/:id/rooms/:roomId', requirePermission('settings', 'update'), tenantController.updateRoom);
 router.put('/:id/rooms/:roomId/deactivate', requirePermission('settings', 'update'), tenantController.deactivateRoom);
+router.delete('/:id/rooms/:roomId', requirePermission('settings', 'update'), tenantController.deleteRoom);
 
 export default router;

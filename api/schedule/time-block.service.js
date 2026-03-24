@@ -46,17 +46,20 @@ async function createTimeBlock(teacherId, blockData, options = {}) {
     }
 
     // Check for conflicts with existing time blocks
-    const hasConflict = await validateTimeBlockConflicts(
-      teacherId,
-      value.day,
-      value.startTime,
-      value.endTime,
-      options.excludeBlockId || null,
-      tenantId
-    );
+    // Skip when caller already performed conflict validation (e.g. rescheduleLesson)
+    if (!options.skipTeacherConflictCheck) {
+      const hasConflict = await validateTimeBlockConflicts(
+        teacherId,
+        value.day,
+        value.startTime,
+        value.endTime,
+        options.excludeBlockId || null,
+        tenantId
+      );
 
-    if (hasConflict) {
-      throw new Error('Time block conflicts with existing schedule');
+      if (hasConflict) {
+        throw new Error('Time block conflicts with existing schedule');
+      }
     }
 
     // Check cross-source room conflicts (other teachers' blocks, rehearsals, theory lessons)

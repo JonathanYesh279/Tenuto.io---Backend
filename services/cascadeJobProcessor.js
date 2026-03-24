@@ -469,13 +469,28 @@ class CascadeJobProcessor extends EventEmitter {
         }
       } else {
         // Handle direct reference fields
+        // Note: memberIds may be stored as strings while student._id is ObjectId.
+        // We must convert string refs to ObjectIds before comparing to avoid
+        // false-positive orphan detection (which would wipe all memberIds).
         const pipeline = [
           // Scope to tenant if tenantId provided
           ...(tenantId ? [{ $match: { tenantId } }] : []),
           {
+            // Convert string IDs to ObjectIds for comparison
+            $addFields: {
+              _refIdsAsObjectIds: {
+                $map: {
+                  input: { $ifNull: [`$${fieldPath}`, []] },
+                  as: 'rid',
+                  in: { $toObjectId: '$$rid' }
+                }
+              }
+            }
+          },
+          {
             $lookup: {
               from: 'student',
-              let: { refIds: `$${fieldPath}` },
+              let: { refIds: '$_refIdsAsObjectIds' },
               pipeline: [
                 {
                   $match: {
@@ -494,10 +509,17 @@ class CascadeJobProcessor extends EventEmitter {
           },
           {
             $project: {
+              // Compare original string IDs against valid ObjectIds converted back to strings
               orphanedRefs: {
                 $setDifference: [
                   { $ifNull: [`$${fieldPath}`, []] },
-                  '$validRefs._id'
+                  {
+                    $map: {
+                      input: '$validRefs._id',
+                      as: 'vid',
+                      in: { $toString: '$$vid' }
+                    }
+                  }
                 ]
               }
             }

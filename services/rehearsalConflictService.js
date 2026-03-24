@@ -114,21 +114,26 @@ async function findRoomRehearsalConflicts(tenantId, startOfDay, endOfDay, startT
 
   const rehearsals = await collection.find(query).toArray();
 
-  // Look up orchestra names for conflicting rehearsals
+  // Look up orchestra names and conductors for conflicting rehearsals
   const groupIds = [...new Set(rehearsals.filter(r => r.groupId).map(r => r.groupId))];
-  const orchestraNames = await lookupOrchestraNames(groupIds);
+  const orchestraInfo = await lookupOrchestraInfo(groupIds);
 
   return rehearsals
     .filter(r => doTimesOverlap(startTime, endTime, r.startTime, r.endTime))
-    .map(r => ({
-      type: 'room',
-      activityType: '\u05D7\u05D6\u05E8\u05D4', // חזרה
-      activityName: orchestraNames.get(r.groupId) || '\u05D7\u05D6\u05E8\u05D4',
-      conflictingTime: `${r.startTime}-${r.endTime}`,
-      room: r.location,
-      conflictId: r._id.toString(),
-      description: `\u05D4\u05D7\u05D3\u05E8 ${r.location} \u05EA\u05E4\u05D5\u05E1 \u05E2\u05DC \u05D9\u05D3\u05D9 \u05D7\u05D6\u05E8\u05D4 "${orchestraNames.get(r.groupId) || ''}" \u05D1\u05E9\u05E2\u05D5\u05EA ${r.startTime}-${r.endTime}`,
-    }));
+    .map(r => {
+      const info = orchestraInfo.get(r.groupId) || { name: '', conductorName: '' };
+      const conductorSuffix = info.conductorName ? ` (מנצח: ${info.conductorName})` : '';
+      return {
+        type: 'room',
+        activityType: '\u05D7\u05D6\u05E8\u05D4', // חזרה
+        activityName: info.name || '\u05D7\u05D6\u05E8\u05D4',
+        conductorName: info.conductorName,
+        conflictingTime: `${r.startTime}-${r.endTime}`,
+        room: r.location,
+        conflictId: r._id.toString(),
+        description: `\u05D4\u05D7\u05D3\u05E8 ${r.location} \u05EA\u05E4\u05D5\u05E1 \u05E2\u05DC \u05D9\u05D3\u05D9 \u05D7\u05D6\u05E8\u05D4 "${info.name}"${conductorSuffix} \u05D1\u05E9\u05E2\u05D5\u05EA ${r.startTime}-${r.endTime}`,
+      };
+    });
 }
 
 /**
@@ -147,17 +152,38 @@ async function findRoomTheoryConflicts(tenantId, startOfDay, endOfDay, startTime
 
   const lessons = await collection.find(query).toArray();
 
+  // Look up teacher names for conflicting lessons
+  const teacherIds = [...new Set(lessons.filter(l => l.teacherId).map(l => l.teacherId))];
+  const teacherNames = new Map();
+  if (teacherIds.length > 0) {
+    const teacherCollection = await getCollection('teacher');
+    const teachers = await teacherCollection
+      .find(
+        { _id: { $in: teacherIds.filter(id => ObjectId.isValid(id)).map(id => ObjectId.createFromHexString(id)) } },
+        { projection: { 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 } }
+      )
+      .toArray();
+    for (const t of teachers) {
+      teacherNames.set(t._id.toString(), `${t.personalInfo?.firstName || ''} ${t.personalInfo?.lastName || ''}`.trim());
+    }
+  }
+
   return lessons
     .filter(l => doTimesOverlap(startTime, endTime, l.startTime, l.endTime))
-    .map(l => ({
-      type: 'room',
-      activityType: '\u05EA\u05D0\u05D5\u05E8\u05D9\u05D4', // תאוריה
-      activityName: l.category || '\u05EA\u05D0\u05D5\u05E8\u05D9\u05D4',
-      conflictingTime: `${l.startTime}-${l.endTime}`,
-      room: l.location,
-      conflictId: l._id.toString(),
-      description: `\u05D4\u05D7\u05D3\u05E8 ${l.location} \u05EA\u05E4\u05D5\u05E1 \u05E2\u05DC \u05D9\u05D3\u05D9 \u05E9\u05D9\u05E2\u05D5\u05E8 \u05EA\u05D0\u05D5\u05E8\u05D9\u05D4 "${l.category || ''}" \u05D1\u05E9\u05E2\u05D5\u05EA ${l.startTime}-${l.endTime}`,
-    }));
+    .map(l => {
+      const teacherName = teacherNames.get(l.teacherId) || '';
+      const teacherSuffix = teacherName ? ` (מורה: ${teacherName})` : '';
+      return {
+        type: 'room',
+        activityType: '\u05EA\u05D0\u05D5\u05E8\u05D9\u05D4', // תאוריה
+        activityName: l.category || '\u05EA\u05D0\u05D5\u05E8\u05D9\u05D4',
+        teacherName,
+        conflictingTime: `${l.startTime}-${l.endTime}`,
+        room: l.location,
+        conflictId: l._id.toString(),
+        description: `\u05D4\u05D7\u05D3\u05E8 ${l.location} \u05EA\u05E4\u05D5\u05E1 \u05E2\u05DC \u05D9\u05D3\u05D9 \u05E9\u05D9\u05E2\u05D5\u05E8 \u05EA\u05D0\u05D5\u05E8\u05D9\u05D4 "${l.category || ''}"${teacherSuffix} \u05D1\u05E9\u05E2\u05D5\u05EA ${l.startTime}-${l.endTime}`,
+      };
+    });
 }
 
 /**
@@ -233,6 +259,19 @@ async function findTeacherRehearsalConflicts(tenantId, startOfDay, endOfDay, sta
     conductorId,
   }).toArray();
 
+  // Lookup conductor name
+  let conductorName = '';
+  if (conductorId) {
+    const teacherCollection = await getCollection('teacher');
+    const conductor = await teacherCollection.findOne(
+      { _id: ObjectId.createFromHexString(conductorId) },
+      { projection: { 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 } }
+    );
+    if (conductor) {
+      conductorName = `${conductor.personalInfo?.firstName || ''} ${conductor.personalInfo?.lastName || ''}`.trim();
+    }
+  }
+
   const conductorOrchestraIds = new Set(orchestras.map(o => o._id.toString()));
   const orchestraNames = new Map(orchestras.map(o => [o._id.toString(), o.name || '']));
 
@@ -242,10 +281,11 @@ async function findTeacherRehearsalConflicts(tenantId, startOfDay, endOfDay, sta
       type: 'teacher',
       activityType: '\u05D7\u05D6\u05E8\u05D4', // חזרה
       activityName: orchestraNames.get(r.groupId) || '\u05D7\u05D6\u05E8\u05D4',
+      conductorName,
       conflictingTime: `${r.startTime}-${r.endTime}`,
       room: r.location || '',
       conflictId: r._id.toString(),
-      description: `\u05D4\u05DE\u05E0\u05E6\u05D7/\u05EA \u05EA\u05E4\u05D5\u05E1/\u05D4 \u05D1\u05D7\u05D6\u05E8\u05D4 "${orchestraNames.get(r.groupId) || ''}" \u05D1\u05E9\u05E2\u05D5\u05EA ${r.startTime}-${r.endTime}`,
+      description: `${conductorName ? conductorName + ' - ' : ''}\u05D4\u05DE\u05E0\u05E6\u05D7/\u05EA \u05EA\u05E4\u05D5\u05E1/\u05D4 \u05D1\u05D7\u05D6\u05E8\u05D4 "${orchestraNames.get(r.groupId) || ''}" \u05D1\u05E9\u05E2\u05D5\u05EA ${r.startTime}-${r.endTime}`,
     }));
 }
 
@@ -316,9 +356,10 @@ async function findTeacherTimeBlockConflicts(tenantId, hebrewDay, startTime, end
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Batch lookup orchestra names by groupId strings.
+ * Batch lookup orchestra names and conductor info by groupId strings.
+ * Returns a Map of groupId → { name, conductorName, conductorId }
  */
-async function lookupOrchestraNames(groupIds) {
+async function lookupOrchestraInfo(groupIds) {
   const map = new Map();
   if (!groupIds.length) return map;
 
@@ -330,11 +371,45 @@ async function lookupOrchestraNames(groupIds) {
   if (!objectIds.length) return map;
 
   const orchestras = await collection
-    .find({ _id: { $in: objectIds } }, { projection: { name: 1 } })
+    .find({ _id: { $in: objectIds } }, { projection: { name: 1, conductorId: 1 } })
     .toArray();
 
+  // Collect conductor IDs for name lookup
+  const conductorIds = orchestras
+    .filter(o => o.conductorId && ObjectId.isValid(o.conductorId))
+    .map(o => o.conductorId);
+
+  const conductorNames = new Map();
+  if (conductorIds.length > 0) {
+    const teacherCollection = await getCollection('teacher');
+    const teachers = await teacherCollection
+      .find(
+        { _id: { $in: conductorIds.map(id => ObjectId.createFromHexString(id)) } },
+        { projection: { 'personalInfo.firstName': 1, 'personalInfo.lastName': 1 } }
+      )
+      .toArray();
+    for (const t of teachers) {
+      const name = `${t.personalInfo?.firstName || ''} ${t.personalInfo?.lastName || ''}`.trim();
+      conductorNames.set(t._id.toString(), name);
+    }
+  }
+
   for (const o of orchestras) {
-    map.set(o._id.toString(), o.name || '');
+    map.set(o._id.toString(), {
+      name: o.name || '',
+      conductorName: conductorNames.get(o.conductorId) || '',
+      conductorId: o.conductorId || '',
+    });
   }
   return map;
+}
+
+/** @deprecated Use lookupOrchestraInfo instead */
+async function lookupOrchestraNames(groupIds) {
+  const infoMap = await lookupOrchestraInfo(groupIds);
+  const nameMap = new Map();
+  for (const [id, info] of infoMap) {
+    nameMap.set(id, info.name);
+  }
+  return nameMap;
 }

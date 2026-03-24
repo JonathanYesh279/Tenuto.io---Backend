@@ -68,10 +68,14 @@ async function calculateTeacherHours(teacherId, schoolYearId, options = {}) {
       for (const assignment of activeAssignments) {
         const duration = assignment.scheduleInfo?.duration || 45; // default 45 min
         individualMinutes += duration;
+        const primaryInstrument = (student.academicInfo?.instrumentProgress || [])
+          .find((ip) => ip.isPrimary)?.instrumentName
+          || student.academicInfo?.instrumentProgress?.[0]?.instrumentName
+          || '';
         studentBreakdown.push({
           studentId: student._id.toString(),
           studentName: `${student.personalInfo?.firstName || ''} ${student.personalInfo?.lastName || ''}`.trim(),
-          instrument: student.academicInfo?.instrument || '',
+          instrument: primaryInstrument,
           weeklyMinutes: duration,
         });
       }

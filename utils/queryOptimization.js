@@ -142,6 +142,11 @@ export function createLessonFilterQuery(filters = {}) {
     query.category = filters.category;
   }
   
+  // Student filtering — find lessons where this student is enrolled
+  if (filters.studentId) {
+    query.studentIds = filters.studentId;
+  }
+
   // Location filtering
   if (filters.location) {
     query.location = filters.location;

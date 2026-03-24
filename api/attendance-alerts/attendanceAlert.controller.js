@@ -73,7 +73,7 @@ async function getStudentSummary(req, res, next) {
     const { studentId } = req.params;
     const summary = await attendanceAlertService.getStudentAttendanceSummary(
       studentId,
-      { context: req.context }
+      { context: req.context, schoolYear: req.schoolYear }
     );
     res.status(200).json(summary);
   } catch (err) {

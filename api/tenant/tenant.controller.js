@@ -14,6 +14,7 @@ export const tenantController = {
   addRoom,
   updateRoom,
   deactivateRoom,
+  deleteRoom,
   importRooms,
 };
 
@@ -132,6 +133,17 @@ async function deactivateRoom(req, res) {
     res.json({ success: true, data: rooms });
   } catch (err) {
     log.error({ err: err.message }, 'Error deactivating room');
+    const status = err.message.includes('not found') ? 404 : 500;
+    res.status(status).json({ success: false, error: err.message });
+  }
+}
+
+async function deleteRoom(req, res) {
+  try {
+    const rooms = await tenantService.deleteRoom(req.params.id, req.params.roomId);
+    res.json({ success: true, data: rooms });
+  } catch (err) {
+    log.error({ err: err.message }, 'Error deleting room');
     const status = err.message.includes('not found') ? 404 : 500;
     res.status(status).json({ success: false, error: err.message });
   }

@@ -1,4 +1,5 @@
 import { rehearsalService } from './rehearsal.service.js'
+import { checkRehearsalConflicts } from '../../services/rehearsalConflictService.js'
 
 export const rehearsalController = {
   getRehearsals,
@@ -13,6 +14,7 @@ export const rehearsalController = {
   bulkDeleteRehearsalsByDateRange,
   bulkUpdateRehearsalsByOrchestra,
   updateAttendance,
+  checkConflicts,
 }
 
 async function getRehearsals(req, res, next) {
@@ -535,5 +537,40 @@ async function bulkUpdateRehearsalsByOrchestra(req, res, next) {
       error: "Internal server error",
       message: "Failed to update rehearsals"
     })
+  }
+}
+
+async function checkConflicts(req, res) {
+  try {
+    const { dates, startTime, endTime, location, groupId } = req.body;
+
+    if (!dates || !Array.isArray(dates) || !startTime || !endTime || !location) {
+      return res.status(400).json({ error: 'Missing required fields: dates, startTime, endTime, location' });
+    }
+
+    const results = [];
+    for (const date of dates) {
+      const conflicts = await checkRehearsalConflicts(
+        { date, startTime, endTime, location, groupId },
+        { context: req.context }
+      );
+      if (conflicts.hasConflicts) {
+        results.push({
+          date,
+          roomConflicts: conflicts.roomConflicts,
+          teacherConflicts: conflicts.teacherConflicts,
+        });
+      }
+    }
+
+    res.json({
+      hasConflicts: results.length > 0,
+      totalDates: dates.length,
+      conflictingDates: results.length,
+      dateConflicts: results,
+    });
+  } catch (err) {
+    console.error('Error checking conflicts:', err);
+    res.status(500).json({ error: 'Failed to check conflicts' });
   }
 }

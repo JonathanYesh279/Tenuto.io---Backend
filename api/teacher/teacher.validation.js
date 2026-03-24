@@ -252,13 +252,14 @@ export const teacherUpdateSchema = Joi.object({
   tenantId: Joi.any().strip(),
 
   personalInfo: Joi.object({
-    firstName: Joi.string().optional(),
-    lastName: Joi.string().optional(),
+    firstName: Joi.string().allow('').optional(),
+    lastName: Joi.string().allow('').optional(),
     phone: Joi.string()
       .pattern(/^05\d{8}$/)
+      .allow(null, '')
       .optional(),
-    email: Joi.string().email().optional(),
-    address: Joi.string().optional(),
+    email: Joi.string().email().allow(null, '').optional(),
+    address: Joi.string().allow('').optional(),
     idNumber: Joi.string()
       .pattern(/^\d{9}$/)
       .allow(null, '')
@@ -269,6 +270,7 @@ export const teacherUpdateSchema = Joi.object({
       .max(2010)
       .allow(null)
       .optional(),
+    birthDate: Joi.string().allow(null, '').optional(),
   }).optional(),
 
   roles: Joi.array()

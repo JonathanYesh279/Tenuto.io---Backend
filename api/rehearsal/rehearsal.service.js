@@ -558,6 +558,7 @@ async function bulkCreateRehearsals(data, teacherId, isAdmin = false, options = 
       attendance: { present: [], absent: [] },
       notes: notes || '',
       schoolYearId: schoolYearId,
+      isActive: true,
       tenantId,
       createdAt: toUTC(currentTime),
       updatedAt: toUTC(currentTime),
