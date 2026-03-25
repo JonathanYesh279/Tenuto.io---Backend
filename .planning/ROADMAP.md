@@ -648,9 +648,21 @@ Plans:
 | 80. Student Details UI/UX Refactor | v2.1 | 3 | Complete | 2026-03-18 |
 | 81. Schedule Single Source of Truth | v2.1 | 2 | Complete | 2026-03-22 |
 | 82. Profile Page Redesign & Credentials | v2.1 | 2 | Complete | 2026-03-22 |
+| 83. Attendance Feature Deep Review | v2.1 | 3 | Planned | — |
 
-**Total: 82 phases (78 complete, 4 planned)**
+**Total: 83 phases (78 complete, 5 planned)**
+
+### Phase 83: Attendance Feature Deep Review — cross-entity sync, UI completeness & data correctness
+
+**Goal:** Fix attendance data correctness bugs (activityId/sessionId mismatch, mock data), ensure cross-entity sync, and complete UI accuracy
+**Depends on:** Phase 82
+**Plans:** 3 plans
+
+Plans:
+- [ ] 83-01-PLAN.md — Fix activityId/sessionId bug + analytics date filter
+- [ ] 83-02-PLAN.md — Replace mock data in student AttendanceTab
+- [ ] 83-03-PLAN.md — Fix legacy RehearsalAttendance save format
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-22 -- Phase 82 complete (Profile Page Redesign & Credentials Management)*
+*Last updated: 2026-03-26 -- Phase 83 planned (Attendance Feature Deep Review)*
