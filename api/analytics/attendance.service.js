@@ -58,8 +58,8 @@ async function getStudentAttendanceStats(studentId, options = {}) {
     const timeFilter = { studentId, tenantId, isArchived: { $ne: true } };
     if (startDate || endDate) {
       timeFilter.date = {};
-      if (startDate) timeFilter.date.$gte = new Date(startDate);
-      if (endDate) timeFilter.date.$lte = new Date(endDate);
+      if (startDate) timeFilter.date.$gte = new Date(startDate).toISOString();
+      if (endDate) timeFilter.date.$lte = new Date(endDate).toISOString();
     }
 
     // Get attendance records
@@ -175,8 +175,8 @@ async function getTeacherAttendanceAnalytics(teacherId, options = {}) {
 
     if (startDate || endDate) {
       filter.date = {};
-      if (startDate) filter.date.$gte = new Date(startDate);
-      if (endDate) filter.date.$lte = new Date(endDate);
+      if (startDate) filter.date.$gte = new Date(startDate).toISOString();
+      if (endDate) filter.date.$lte = new Date(endDate).toISOString();
     }
 
     // Get attendance records
@@ -280,8 +280,8 @@ async function getOverallAttendanceReport(options = {}) {
     const filter = { tenantId, isArchived: { $ne: true } };
     if (startDate || endDate) {
       filter.date = {};
-      if (startDate) filter.date.$gte = new Date(startDate);
-      if (endDate) filter.date.$lte = new Date(endDate);
+      if (startDate) filter.date.$gte = new Date(startDate).toISOString();
+      if (endDate) filter.date.$lte = new Date(endDate).toISOString();
     }
 
     // Get all attendance records
@@ -375,7 +375,7 @@ async function getAttendanceTrends(options = {}) {
     // Build filter
     const filter = {
       tenantId,
-      date: { $gte: startDate, $lte: endDate },
+      date: { $gte: startDate.toISOString(), $lte: endDate.toISOString() },
       activityType,
       isArchived: { $ne: true }
     };
@@ -434,8 +434,8 @@ async function getAttendanceComparison(comparisonOptions = {}) {
           tenantId,
           isArchived: { $ne: true },
           date: {
-            $gte: new Date(baseline.startDate),
-            $lte: new Date(baseline.endDate)
+            $gte: new Date(baseline.startDate).toISOString(),
+            $lte: new Date(baseline.endDate).toISOString()
           }
         })
         .toArray();
@@ -445,8 +445,8 @@ async function getAttendanceComparison(comparisonOptions = {}) {
           tenantId,
           isArchived: { $ne: true },
           date: {
-            $gte: new Date(comparison.startDate),
-            $lte: new Date(comparison.endDate)
+            $gte: new Date(comparison.startDate).toISOString(),
+            $lte: new Date(comparison.endDate).toISOString()
           }
         })
         .toArray();
@@ -652,8 +652,8 @@ async function getBulkAbsenceCounts(options = {}) {
 
   if (startDate || endDate) {
     matchFilter.date = {};
-    if (startDate) matchFilter.date.$gte = new Date(startDate);
-    if (endDate) matchFilter.date.$lte = new Date(endDate);
+    if (startDate) matchFilter.date.$gte = new Date(startDate).toISOString();
+    if (endDate) matchFilter.date.$lte = new Date(endDate).toISOString();
   }
 
   const pipeline = [
@@ -875,14 +875,14 @@ async function getComparisonPeriodStats(studentId, activityTypes, startDate, end
       studentId,
       tenantId,
       activityType: { $in: activityTypes },
-      date: { $gte: prevStart, $lte: prevEnd },
+      date: { $gte: prevStart.toISOString(), $lte: prevEnd.toISOString() },
       isArchived: { $ne: true }
     })
     .toArray();
 
   const total = prevRecords.length;
   const attended = prevRecords.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
-  
+
   return {
     period: { startDate: prevStart, endDate: prevEnd },
     overall: {
@@ -907,11 +907,11 @@ async function getSystemComparisonData(startDate, endDate, tenantId) {
   const prevRecords = await activityCollection
     .find({
       tenantId,
-      date: { $gte: prevStart, $lte: prevEnd },
+      date: { $gte: prevStart.toISOString(), $lte: prevEnd.toISOString() },
       isArchived: { $ne: true }
     })
     .toArray();
-  
+
   return calculateStatsForRecords(prevRecords);
 }
 
