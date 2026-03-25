@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 Phase: 83 of 83 (Attendance Feature Deep Review)
 Plan: 3 of 3 in current phase
-Status: Plan 83-03 COMPLETE — RehearsalAttendance save format fixed
-Last activity: 2026-03-26 — Plan 83-03 executed (1 task, 1 commit, 1 file modified)
+Status: Phase 83 COMPLETE — All 3 plans executed (attendance data bugs, UI, save format)
+Last activity: 2026-03-26 — Plan 83-01 executed (2 tasks, 2 commits, 2 files fixed)
 
 Progress: [##########] 100% (Phase 83 — 3/3 plans)
 
@@ -131,6 +131,8 @@ Progress: [##########] 100% (Phase 83 — 3/3 plans)
 - **[82-02]** Admin stats fetched via existing list endpoints (getTeachers/getStudents/getOrchestras) with Promise.allSettled
 - **[82-02]** Role info widget below stats in center-left column for at-a-glance role context
 - **[82-02]** GeneralInfoTab emerald/red status colors are semantic feedback, not design token migration targets
+- **[83-01]** All activity_attendance date filters must use toISOString() -- dates stored as ISO strings, not BSON Date objects
+- **[83-01]** sessionId is the correct field name in activity_attendance (not activityId)
 - **[83-03]** Shared STATUS_MAP import from rehearsalUtils for all attendance components (not inline constants)
 
 ### Pending Todos
@@ -161,5 +163,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-26
-Stopped at: Plan 83-03 complete — RehearsalAttendance save format fixed
+Stopped at: Phase 83 fully executed — all 3 plans complete (attendance data bugs, UI completeness, save format)
 Resume file: None
