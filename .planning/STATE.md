@@ -11,14 +11,14 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 Phase: 83 of 83 (Attendance Feature Deep Review)
 Plan: 3 of 3 in current phase
-Status: Phase 83 COMPLETE — All 3 plans executed (attendance data bugs, UI, save format)
-Last activity: 2026-03-26 — Plan 83-01 executed (2 tasks, 2 commits, 2 files fixed)
+Status: Phase 83 COMPLETE — All 3 plans executed and verified (6/6 must-haves)
+Last activity: 2026-03-26 — Phase 83 fully executed (3 plans, 6 commits, 4 files modified)
 
-Progress: [##########] 100% (Phase 83 — 3/3 plans)
+Progress: [##########] 100% (v2.1 Phase 83 — 3/3 plans)
 
 ## Performance Metrics
 
-**All milestones:** 82 phases, 168 plans across 12 milestones
+**All milestones:** 83 phases, 171 plans across 12 milestones
 **v1.0:** 25 plans, 9 phases, 11 days (2026-02-14 -> 2026-02-24)
 **v1.1:** 13 plans, 5 phases, 3 days (2026-02-24 -> 2026-02-26)
 **v1.2:** 8 plans, 5 phases, 1 day (2026-02-27)
@@ -133,6 +133,9 @@ Progress: [##########] 100% (Phase 83 — 3/3 plans)
 - **[82-02]** GeneralInfoTab emerald/red status colors are semantic feedback, not design token migration targets
 - **[83-01]** All activity_attendance date filters must use toISOString() -- dates stored as ISO strings, not BSON Date objects
 - **[83-01]** sessionId is the correct field name in activity_attendance (not activityId)
+- **[83-02]** All frontend attendance status comparisons must use Hebrew strings ('הגיע/ה', 'לא הגיע/ה', 'איחור') — backend returns Hebrew
+- **[83-02]** Streak calculation counts 'איחור' (late) as present — arriving late is still attendance
+- **[83-02]** Absence reasons computed from record notes field, grouped under 'לא צוינה סיבה' when empty
 - **[83-03]** Shared STATUS_MAP import from rehearsalUtils for all attendance components (not inline constants)
 
 ### Pending Todos
