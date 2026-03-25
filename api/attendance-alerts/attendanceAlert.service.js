@@ -71,11 +71,11 @@ async function evaluateFlaggedStudents(orchestraId, options = {}) {
     return [];
   }
 
-  // Fetch attendance records for all members via rehearsal activityIds
+  // Fetch attendance records for all members via rehearsal sessionIds
   const activityCol = await getCollection(COLLECTIONS.ACTIVITY_ATTENDANCE);
   const records = await activityCol
     .find({
-      activityId: { $in: rehearsalIds },
+      sessionId: { $in: rehearsalIds },
       studentId: { $in: memberIds },
       tenantId,
       isArchived: { $ne: true },
@@ -239,10 +239,10 @@ async function getAttendanceDashboard(options = {}) {
     // Get attendance records for this orchestra via its rehearsalIds
     const rehearsalIds = orchestra.rehearsalIds || [];
     const records = rehearsalIds.length > 0
-      ? await activityCol.find({ ...activityFilter, activityId: { $in: rehearsalIds } }).toArray()
+      ? await activityCol.find({ ...activityFilter, sessionId: { $in: rehearsalIds } }).toArray()
       : [];
 
-    const totalRehearsals = new Set(records.map(r => r.activityId)).size;
+    const totalRehearsals = new Set(records.map(r => r.sessionId)).size;
     const presentCount = records.filter(r => MINISTRY_PRESENT_STATUSES.includes(r.status)).length;
     const totalRecords = records.length;
     const averageAttendanceRate =
@@ -309,7 +309,7 @@ async function getAttendanceDashboard(options = {}) {
     if (MINISTRY_PRESENT_STATUSES.includes(record.status)) {
       monthlyBuckets[monthKey].present++;
     }
-    monthlyBuckets[monthKey].sessions.add(record.activityId);
+    monthlyBuckets[monthKey].sessions.add(record.sessionId);
   }
 
   const monthlyTrends = Object.entries(monthlyBuckets)
@@ -355,8 +355,8 @@ async function getStudentAttendanceSummary(studentId, options = {}) {
   const schoolYear = options.context?.schoolYear || options.schoolYear;
   if (schoolYear?.startDate || schoolYear?.endDate) {
     query.date = {};
-    if (schoolYear.startDate) query.date.$gte = new Date(schoolYear.startDate);
-    if (schoolYear.endDate) query.date.$lte = new Date(schoolYear.endDate);
+    if (schoolYear.startDate) query.date.$gte = new Date(schoolYear.startDate).toISOString();
+    if (schoolYear.endDate) query.date.$lte = new Date(schoolYear.endDate).toISOString();
   }
 
   const activityCol = await getCollection(COLLECTIONS.ACTIVITY_ATTENDANCE);
@@ -390,7 +390,7 @@ async function getStudentAttendanceSummary(studentId, options = {}) {
   const recentHistory = records.slice(0, 10).map(r => ({
     date: r.date,
     activityType: r.activityType,
-    activityName: r.activityId || null,
+    activityName: r.sessionId || null,
     status: r.status,
   }));
 
