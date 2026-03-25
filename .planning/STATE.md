@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 82 of 82 (Profile Page Redesign & Credentials Management)
-Plan: 2 of 2 in current phase
-Status: Phase 82 COMPLETE — All 2 plans executed and verified (9/9 success criteria)
-Last activity: 2026-03-22 — Phase 82 fully executed (2 plans, 7 commits, 3 files created/modified)
+Phase: 83 of 83 (Attendance Feature Deep Review)
+Plan: 3 of 3 in current phase
+Status: Plan 83-03 COMPLETE — RehearsalAttendance save format fixed
+Last activity: 2026-03-26 — Plan 83-03 executed (1 task, 1 commit, 1 file modified)
 
-Progress: [##########] 100% (v2.1 Phase 82 — 2/2 plans)
+Progress: [##########] 100% (Phase 83 — 3/3 plans)
 
 ## Performance Metrics
 
@@ -131,6 +131,7 @@ Progress: [##########] 100% (v2.1 Phase 82 — 2/2 plans)
 - **[82-02]** Admin stats fetched via existing list endpoints (getTeachers/getStudents/getOrchestras) with Promise.allSettled
 - **[82-02]** Role info widget below stats in center-left column for at-a-glance role context
 - **[82-02]** GeneralInfoTab emerald/red status colors are semantic feedback, not design token migration targets
+- **[83-03]** Shared STATUS_MAP import from rehearsalUtils for all attendance components (not inline constants)
 
 ### Pending Todos
 
@@ -151,6 +152,7 @@ Progress: [##########] 100% (v2.1 Phase 82 — 2/2 plans)
 - Phase 80 added: Student Details UI/UX Refactor + image design to copy from (v2.1 Entity Page Consistency)
 - Phase 81 added: Schedule Single Source of Truth — eliminate data inconsistency between student schedule and room schedule (v2.1 Entity Page Consistency)
 - Phase 82 added: Profile Page Redesign & Credentials Management — gradient header, 3-column layout, password change, role-aware dashboard (v2.1 Entity Page Consistency)
+- Phase 83 added: Attendance Feature Deep Review — cross-entity sync, UI completeness & data correctness (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -158,6 +160,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-22
-Stopped at: Phase 82 fully executed and verified — profile page redesign & credentials management complete
+Last session: 2026-03-26
+Stopped at: Plan 83-03 complete — RehearsalAttendance save format fixed
 Resume file: None
