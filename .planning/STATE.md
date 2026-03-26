@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 83 of 83 (Attendance Feature Deep Review)
-Plan: 3 of 3 in current phase
-Status: Phase 83 COMPLETE — All 3 plans executed and verified (6/6 must-haves)
-Last activity: 2026-03-26 — Phase 83 fully executed (3 plans, 6 commits, 4 files modified)
+Phase: 84 of 84 (Theory Lesson Course Architecture)
+Plan: 1 of 3 in current phase
+Status: Plan 84-01 COMPLETE — theory_course data layer: service, validation, migration script
+Last activity: 2026-03-26 — Plan 84-01 executed (2 tasks, 2 commits, 4 files)
 
-Progress: [##########] 100% (v2.1 Phase 83 — 3/3 plans)
+Progress: [##########] 33% (v2.1 Phase 84 — 1/3 plans)
 
 ## Performance Metrics
 
@@ -137,6 +137,9 @@ Progress: [##########] 100% (v2.1 Phase 83 — 3/3 plans)
 - **[83-02]** Streak calculation counts 'איחור' (late) as present — arriving late is still attendance
 - **[83-02]** Absence reasons computed from record notes field, grouped under 'לא צוינה סיבה' when empty
 - **[83-03]** Shared STATUS_MAP import from rehearsalUtils for all attendance components (not inline constants)
+- **[84-01]** Use 'איחור' (not 'איחר/ה') for activity_attendance analytics — MINISTRY_PRESENT_STATUSES canonical; 'איחר/ה' is theory.service.js embedded object only
+- **[84-01]** linkLessonsToCourse uses $addToSet with $each for idempotency — bulk lesson association after bulkCreate
+- **[84-01]** Migration does NOT auto-group existing lessons — courseId: null until user assigns via endpoints
 
 ### Pending Todos
 
@@ -167,5 +170,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-26
-Stopped at: Phase 83 fully executed — all 3 plans complete (attendance data bugs, UI completeness, save format)
+Stopped at: Phase 84 Plan 01 complete — theory_course data layer (service, validation, migration)
 Resume file: None
