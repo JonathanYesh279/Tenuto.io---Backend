@@ -36,6 +36,7 @@ coverage/
 # Temporary files
 tmp/
 temp/
+.tmp/
 
 # Uploads (user uploaded files)
 uploads/
@@ -162,19 +163,14 @@ NOTES.md
 notes.txt
 *.notes
 planning/
-.planning/**
+.planning/
 
 # Markdown / documentation files (AI-generated guides, etc.)
 *.md
 !docs/*.md
 
 # Scripts (migrations, seeds, one-off fixes, utilities)
-scripts/*
-!scripts/create-tenant-indexes.js
-!scripts/migrate-theory-courses.js
-!scripts/anonymize/
-scripts/anonymize/name-map.json
-!scripts/anonymize/README.md
+scripts/
 
 # Reports and test result JSON files
 reports/
@@ -274,7 +270,6 @@ core.*
 email-templates/compiled/
 !email-templates/compiled/example.html
 
-# Compliance documents — tracked exceptions to .planning/** and *.md
-!.planning/compliance/
-!.planning/compliance/**
-!.planning/PRODUCTION-READINESS.md
+# Vitest config files
+vitest.config*.js
+vitest-output.txt
