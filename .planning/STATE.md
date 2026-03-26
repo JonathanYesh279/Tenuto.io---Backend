@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 84 of 84 (Theory Lesson Course Architecture)
-Plan: 2 of 3 in current phase
-Status: Plan 84-02 COMPLETE — course API routes, controller functions, enhanced bulkCreate
-Last activity: 2026-03-26 — Plan 84-02 executed (2 tasks, 2 commits, 5 files)
+Plan: 3 of 3 in current phase — AWAITING HUMAN VERIFICATION (checkpoint)
+Status: Plan 84-03 Tasks 1+2 COMPLETE — frontend API wiring done, checkpoint:human-verify pending
+Last activity: 2026-03-26 — Plan 84-03 executed (2 tasks, 2 commits, 2 files)
 
-Progress: [####################] 67% (v2.1 Phase 84 — 2/3 plans)
+Progress: [####################] 90% (v2.1 Phase 84 — awaiting verification checkpoint)
 
 ## Performance Metrics
 
@@ -144,6 +144,9 @@ Progress: [####################] 67% (v2.1 Phase 84 — 2/3 plans)
 - **[84-02]** Dynamic import() for theoryCourseService in bulkCreate — avoids circular dependency (same as Phase 73)
 - **[84-02]** linkLessonsToCourse failure is non-fatal in bulkCreate — lesson courseId stamp is authoritative
 - **[84-02]** courseId: null stamped on every lesson even when no course created — explicit over implicit
+- **[84-03]** getTheoryGroups delegates to getCourses API — returns empty array (not lesson-grouped fallback) when no courses exist
+- **[84-03]** Analytics tab lazy-loads on click — getCourseAnalytics not called until user opens analytics tab
+- **[84-03]** Student map built alongside teacher map for enrollment detail enrichment — non-fatal, graceful degradation if fails
 
 ### Pending Todos
 
@@ -174,5 +177,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-26
-Stopped at: Phase 84 Plan 02 complete — course API routes, controller, enhanced bulkCreate
+Stopped at: Phase 84 Plan 03 — Tasks 1+2 complete, checkpoint:human-verify pending (full-stack course feature verification)
 Resume file: None
