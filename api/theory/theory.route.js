@@ -5,7 +5,9 @@ import {
   validateBulkCreate,
   validateSingleCreate,
   validateUpdate,
-  validateObjectId
+  validateObjectId,
+  validateCourseCreate,
+  validateCourseUpdate
 } from '../../middleware/theoryValidation.js';
 import {
   validateLessonDate,
@@ -32,6 +34,16 @@ const router = express.Router();
 
 // Add toast helpers to all routes
 router.use(addToastHelpers);
+
+// Course routes — must come BEFORE /:id routes to avoid param conflicts
+router.get('/courses', requirePermission('theory', 'view'), theoryController.getCourses);
+router.get('/courses/:id', requirePermission('theory', 'view'), theoryController.getCourseById);
+router.get('/courses/:id/analytics', requirePermission('theory', 'view'), theoryController.getCourseAttendanceAnalytics);
+router.post('/courses', requirePermission('theory', 'create'), validateCourseCreate, theoryController.createCourse);
+router.put('/courses/:id', requirePermission('theory', 'update'), validateCourseUpdate, theoryController.updateCourse);
+router.delete('/courses/:id', requirePermission('theory', 'delete'), theoryController.deleteCourse);
+router.post('/courses/:id/student/:studentId', requirePermission('theory', 'create'), theoryController.addStudentToCourse);
+router.delete('/courses/:id/student/:studentId', requirePermission('theory', 'delete'), theoryController.removeStudentFromCourse);
 
 // GET routes - All authenticated users with theory view permission
 router.get('/', requirePermission('theory', 'view'), formatLessonResponse(), theoryController.getTheoryLessons);

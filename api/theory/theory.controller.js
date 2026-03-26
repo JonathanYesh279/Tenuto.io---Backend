@@ -1,4 +1,5 @@
 import { theoryService } from './theory.service.js';
+import { theoryCourseService } from './theory-course.service.js';
 import ConflictDetectionService from '../../services/conflictDetectionService.js';
 import { sendErrorResponse, sendSuccessResponse, formatConflictResponse } from '../../utils/errorResponses.js';
 import { isValidTimeFormat, isValidTimeRange } from '../../utils/timeUtils.js';
@@ -26,6 +27,15 @@ export const theoryController = {
   addStudentToTheory,
   removeStudentFromTheory,
   getStudentTheoryAttendanceStats,
+  // Course management
+  getCourses,
+  getCourseById,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  addStudentToCourse,
+  removeStudentFromCourse,
+  getCourseAttendanceAnalytics,
 };
 
 async function getTheoryLessons(req, res, next) {
@@ -918,5 +928,123 @@ async function bulkDeleteTheoryLessonsByTeacher(req, res, next) {
     }
 
     return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'An unexpected error occurred');
+  }
+}
+
+// ─── Course Controller Functions ─────────────────────────────────────────────
+
+async function getCourses(req, res, next) {
+  try {
+    const filterBy = {};
+    if (req.query.category) filterBy.category = req.query.category;
+    if (req.query.teacherId) filterBy.teacherId = req.query.teacherId;
+    if (req.query.schoolYearId) filterBy.schoolYearId = req.query.schoolYearId;
+    if (req.query.isActive !== undefined) filterBy.isActive = req.query.isActive === 'true';
+
+    const courses = await theoryCourseService.getCourses(filterBy, { context: req.context });
+    return sendSuccessResponse(res, 'GET_SUCCESS', courses);
+  } catch (err) {
+    console.error(`Error in getCourses controller: ${err.message}`);
+    next(err);
+  }
+}
+
+async function getCourseById(req, res, next) {
+  try {
+    const courseId = req.params.id;
+    const course = await theoryCourseService.getCourseById(courseId, { context: req.context });
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Not Found', message: 'Theory course not found' });
+    }
+    return sendSuccessResponse(res, 'GET_SUCCESS', course);
+  } catch (err) {
+    console.error(`Error in getCourseById controller: ${err.message}`);
+    if (err.message.includes('not found')) {
+      return res.status(404).json({ success: false, error: 'Not Found', message: err.message });
+    }
+    next(err);
+  }
+}
+
+async function createCourse(req, res, next) {
+  try {
+    const course = await theoryCourseService.createCourse(req.body, { context: req.context });
+    return res.status(201).json({ success: true, data: course });
+  } catch (err) {
+    console.error(`Error in createCourse controller: ${err.message}`);
+    if (err.message.includes('Validation')) {
+      return sendErrorResponse(res, 'VALIDATION_ERROR', [{ message: err.message }]);
+    }
+    next(err);
+  }
+}
+
+async function updateCourse(req, res, next) {
+  try {
+    const courseId = req.params.id;
+    const updated = await theoryCourseService.updateCourse(courseId, req.body, { context: req.context });
+    return sendSuccessResponse(res, 'UPDATE_SUCCESS', updated);
+  } catch (err) {
+    console.error(`Error in updateCourse controller: ${err.message}`);
+    if (err.message.includes('not found')) {
+      return res.status(404).json({ success: false, error: 'Not Found', message: err.message });
+    }
+    next(err);
+  }
+}
+
+async function deleteCourse(req, res, next) {
+  try {
+    const courseId = req.params.id;
+    await theoryCourseService.deleteCourse(courseId, { context: req.context });
+    return sendSuccessResponse(res, 'DELETE_SUCCESS', { message: 'Theory course deleted successfully' });
+  } catch (err) {
+    console.error(`Error in deleteCourse controller: ${err.message}`);
+    if (err.message.includes('not found')) {
+      return res.status(404).json({ success: false, error: 'Not Found', message: err.message });
+    }
+    next(err);
+  }
+}
+
+async function addStudentToCourse(req, res, next) {
+  try {
+    const { id: courseId, studentId } = req.params;
+    const updated = await theoryCourseService.addStudentToCourse(courseId, studentId, { context: req.context });
+    return sendSuccessResponse(res, 'UPDATE_SUCCESS', updated);
+  } catch (err) {
+    console.error(`Error in addStudentToCourse controller: ${err.message}`);
+    if (err.message.includes('not found')) {
+      return res.status(404).json({ success: false, error: 'Not Found', message: err.message });
+    }
+    next(err);
+  }
+}
+
+async function removeStudentFromCourse(req, res, next) {
+  try {
+    const { id: courseId, studentId } = req.params;
+    const updated = await theoryCourseService.removeStudentFromCourse(courseId, studentId, { context: req.context });
+    return sendSuccessResponse(res, 'UPDATE_SUCCESS', updated);
+  } catch (err) {
+    console.error(`Error in removeStudentFromCourse controller: ${err.message}`);
+    if (err.message.includes('not found')) {
+      return res.status(404).json({ success: false, error: 'Not Found', message: err.message });
+    }
+    next(err);
+  }
+}
+
+async function getCourseAttendanceAnalytics(req, res, next) {
+  try {
+    const courseId = req.params.id;
+    const analytics = await theoryCourseService.getCourseAttendanceAnalytics(courseId, { context: req.context });
+    return sendSuccessResponse(res, 'GET_SUCCESS', analytics);
+  } catch (err) {
+    console.error(`Error in getCourseAttendanceAnalytics controller: ${err.message}`);
+    if (err.message.includes('not found')) {
+      return res.status(404).json({ success: false, error: 'Not Found', message: err.message });
+    }
+    next(err);
   }
 }

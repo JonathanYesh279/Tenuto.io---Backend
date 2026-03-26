@@ -367,6 +367,40 @@ const validateUpdate = [
   // Don't validate teacher/school year existence for updates as they might not be changing
 ];
 
+/**
+ * Validate course create body using Joi theoryCourseSchema
+ */
+const validateCourseCreate = async (req, res, next) => {
+  try {
+    const { validateTheoryCourse } = await import('../api/theory/theory.validation.js');
+    const { error } = validateTheoryCourse(req.body);
+    if (error) {
+      return sendErrorResponse(res, 'VALIDATION_ERROR', error.details);
+    }
+    next();
+  } catch (err) {
+    console.error('Error in validateCourseCreate middleware:', err);
+    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'Error validating course data');
+  }
+};
+
+/**
+ * Validate course update body using Joi theoryCourseUpdateSchema
+ */
+const validateCourseUpdate = async (req, res, next) => {
+  try {
+    const { validateTheoryCourseUpdate } = await import('../api/theory/theory.validation.js');
+    const { error } = validateTheoryCourseUpdate(req.body);
+    if (error) {
+      return sendErrorResponse(res, 'VALIDATION_ERROR', error.details);
+    }
+    next();
+  } catch (err) {
+    console.error('Error in validateCourseUpdate middleware:', err);
+    return sendErrorResponse(res, 'INTERNAL_SERVER_ERROR', 'Error validating course update data');
+  }
+};
+
 export {
   validateBulkCreate,
   validateSingleCreate,
@@ -382,5 +416,7 @@ export {
   validateLocation,
   validateCategory,
   validateExcludeDates,
-  validateStudentIds
+  validateStudentIds,
+  validateCourseCreate,
+  validateCourseUpdate
 };
