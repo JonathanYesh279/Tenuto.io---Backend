@@ -37,11 +37,13 @@ router.use(addToastHelpers);
 
 // Course routes — must come BEFORE /:id routes to avoid param conflicts
 router.get('/courses', requirePermission('theory', 'view'), theoryController.getCourses);
+router.post('/courses/auto-group', requirePermission('theory', 'create'), theoryController.autoGroupLessons);
 router.get('/courses/:id', requirePermission('theory', 'view'), theoryController.getCourseById);
 router.get('/courses/:id/analytics', requirePermission('theory', 'view'), theoryController.getCourseAttendanceAnalytics);
 router.post('/courses', requirePermission('theory', 'create'), validateCourseCreate, theoryController.createCourse);
 router.put('/courses/:id', requirePermission('theory', 'update'), validateCourseUpdate, theoryController.updateCourse);
 router.delete('/courses/:id', requirePermission('theory', 'delete'), theoryController.deleteCourse);
+router.post('/courses/:id/link-lessons', requirePermission('theory', 'create'), theoryController.linkLessonsToCourse);
 router.post('/courses/:id/student/:studentId', requirePermission('theory', 'create'), theoryController.addStudentToCourse);
 router.delete('/courses/:id/student/:studentId', requirePermission('theory', 'delete'), theoryController.removeStudentFromCourse);
 

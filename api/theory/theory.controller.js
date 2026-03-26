@@ -36,6 +36,8 @@ export const theoryController = {
   addStudentToCourse,
   removeStudentFromCourse,
   getCourseAttendanceAnalytics,
+  autoGroupLessons,
+  linkLessonsToCourse,
 };
 
 async function getTheoryLessons(req, res, next) {
@@ -1045,6 +1047,36 @@ async function getCourseAttendanceAnalytics(req, res, next) {
     if (err.message.includes('not found')) {
       return res.status(404).json({ success: false, error: 'Not Found', message: err.message });
     }
+    next(err);
+  }
+}
+
+async function autoGroupLessons(req, res, next) {
+  try {
+    const { schoolYearId, minLessonCount, dryRun } = req.body;
+    if (!schoolYearId) {
+      return res.status(400).json({ error: 'schoolYearId is required' });
+    }
+    const result = await theoryCourseService.autoGroupLessons(
+      { schoolYearId, minLessonCount, dryRun },
+      { context: req.context }
+    );
+    return res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function linkLessonsToCourse(req, res, next) {
+  try {
+    const courseId = req.params.id;
+    const { lessonIds } = req.body;
+    if (!lessonIds || !Array.isArray(lessonIds)) {
+      return res.status(400).json({ error: 'lessonIds array is required' });
+    }
+    const result = await theoryCourseService.linkLessonsToCourse(courseId, lessonIds, { context: req.context });
+    return res.json({ data: result });
+  } catch (err) {
     next(err);
   }
 }
