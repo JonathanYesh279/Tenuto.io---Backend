@@ -670,11 +670,13 @@ Plans:
 
 **Goal:** Introduce a course/series concept that groups weekly recurring theory lessons together, shares student rosters across sessions, and enables cross-session attendance analytics
 **Depends on:** Phase 83
-**Plans:** 0 plans (not yet planned)
+**Plans:** 3 plans
 
 Plans:
-_(none yet — run `/gsd:plan-phase 84`)_
+- [ ] 84-01-PLAN.md — Theory course data layer (service, validation, migration)
+- [ ] 84-02-PLAN.md — Course API endpoints and enhanced bulk create
+- [ ] 84-03-PLAN.md — Frontend wiring (apiService + TheoryGroupManager)
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-26 -- Phase 84 added (Theory Lesson Course Architecture)*
+*Last updated: 2026-03-26 -- Phase 84 planned (3 plans, 3 waves)*
