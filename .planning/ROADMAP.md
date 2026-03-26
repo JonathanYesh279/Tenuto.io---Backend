@@ -648,9 +648,10 @@ Plans:
 | 80. Student Details UI/UX Refactor | v2.1 | 3 | Complete | 2026-03-18 |
 | 81. Schedule Single Source of Truth | v2.1 | 2 | Complete | 2026-03-22 |
 | 82. Profile Page Redesign & Credentials | v2.1 | 2 | Complete | 2026-03-22 |
-| 83. Attendance Feature Deep Review | v2.1 | 3 | Planned | — |
+| 83. Attendance Feature Deep Review | v2.1 | 3 | Complete | 2026-03-26 |
+| 84. Theory Lesson Course Architecture | v2.1 | 0 | Planned | — |
 
-**Total: 83 phases (78 complete, 5 planned)**
+**Total: 84 phases (79 complete, 5 planned)**
 
 ### Phase 83: Attendance Feature Deep Review — cross-entity sync, UI completeness & data correctness
 
@@ -664,5 +665,16 @@ Plans:
 - [x] 83-03-PLAN.md — Fix legacy RehearsalAttendance save format -- completed 2026-03-26
 
 ---
+
+### Phase 84: Theory Lesson Course Architecture — recurring lesson grouping, shared student rosters, cross-session attendance analytics
+
+**Goal:** Introduce a course/series concept that groups weekly recurring theory lessons together, shares student rosters across sessions, and enables cross-session attendance analytics
+**Depends on:** Phase 83
+**Plans:** 0 plans (not yet planned)
+
+Plans:
+_(none yet — run `/gsd:plan-phase 84`)_
+
+---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-26 -- Phase 83 executed (Attendance Feature Deep Review)*
+*Last updated: 2026-03-26 -- Phase 84 added (Theory Lesson Course Architecture)*

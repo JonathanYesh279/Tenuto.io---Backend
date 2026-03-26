@@ -158,6 +158,7 @@ Progress: [##########] 100% (v2.1 Phase 83 — 3/3 plans)
 - Phase 81 added: Schedule Single Source of Truth — eliminate data inconsistency between student schedule and room schedule (v2.1 Entity Page Consistency)
 - Phase 82 added: Profile Page Redesign & Credentials Management — gradient header, 3-column layout, password change, role-aware dashboard (v2.1 Entity Page Consistency)
 - Phase 83 added: Attendance Feature Deep Review — cross-entity sync, UI completeness & data correctness (v2.1 Entity Page Consistency)
+- Phase 84 added: Theory Lesson Course Architecture — recurring lesson grouping, shared student rosters, cross-session attendance analytics (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
