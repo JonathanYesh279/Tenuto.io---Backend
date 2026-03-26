@@ -673,10 +673,23 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 84-01-PLAN.md — Theory course data layer (service, validation, migration)
-- [ ] 84-02-PLAN.md — Course API endpoints and enhanced bulk create
-- [ ] 84-03-PLAN.md — Frontend wiring (apiService + TheoryGroupManager)
+- [x] 84-01-PLAN.md — Theory course data layer (service, validation, migration) -- completed 2026-03-26
+- [x] 84-02-PLAN.md — Course API endpoints and enhanced bulk create -- completed 2026-03-26
+- [x] 84-03-PLAN.md — Frontend wiring (apiService + TheoryGroupManager) -- completed 2026-03-26
+
+---
+
+### Phase 85: Theory Course Gap Closure — auto-grouping, roster inheritance, lesson UI integration
+
+**Goal:** Auto-group existing theory lessons into courses by category/teacher/schedule, update the lesson detail page to inherit the course's student roster, and ensure the lesson UI reflects course membership end-to-end
+**Depends on:** Phase 84
+**Plans:** 3 plans
+
+Plans:
+- [ ] 85-01-PLAN.md — Backend auto-group endpoint + link-lessons API route
+- [ ] 85-02-PLAN.md — Frontend apiService methods + TheoryLessonDetails course awareness
+- [ ] 85-03-PLAN.md — TheoryLessonCard badge + TheoryGroupManager auto-group trigger + checkpoint
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-03-26 -- Phase 84 planned (3 plans, 3 waves)*
+*Last updated: 2026-03-26 -- Phase 85 planned (3 plans, 3 waves)*
