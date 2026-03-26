@@ -17,6 +17,7 @@ export const theoryCourseService = {
   removeStudentFromCourse,
   getCourseAttendanceAnalytics,
   linkLessonsToCourse,
+  autoGroupLessons,
 };
 
 /**
@@ -464,5 +465,126 @@ async function linkLessonsToCourse(courseId, lessonIds, options = {}) {
   } catch (err) {
     logger.error({ courseId, lessonCount: lessonIds?.length, err: err.message }, 'Error in linkLessonsToCourse');
     throw new Error(`Error in theoryCourseService.linkLessonsToCourse: ${err}`);
+  }
+}
+
+/**
+ * Compute the union of multiple studentIds arrays into a single deduplicated array.
+ * Handles null/undefined inner arrays gracefully.
+ */
+function _unionStudentIds(arrayOfArrays) {
+  const idSet = new Set();
+  for (const arr of arrayOfArrays) {
+    if (!Array.isArray(arr)) continue;
+    for (const id of arr) {
+      if (id) idSet.add(String(id));
+    }
+  }
+  return [...idSet];
+}
+
+/**
+ * Auto-group ungrouped theory lessons into courses by schedule fingerprint.
+ * Groups lessons that share: category, teacherId, dayOfWeek, startTime, endTime.
+ *
+ * @param {Object} params
+ * @param {string} params.schoolYearId - Required school year filter
+ * @param {number} [params.minLessonCount=2] - Minimum lessons to form a group (skip singletons)
+ * @param {boolean} [params.dryRun=false] - If true, returns discovered groups without creating courses
+ * @param {Object} [options={}] - Must include context.tenantId
+ * @returns {Object} dryRun result or created courses summary
+ */
+async function autoGroupLessons({ schoolYearId, minLessonCount = 2, dryRun = false }, options = {}) {
+  try {
+    const tenantId = requireTenantId(options.context?.tenantId);
+
+    const lessonCollection = await getCollection('theory_lesson');
+
+    const groups = await lessonCollection.aggregate([
+      {
+        $match: {
+          tenantId,
+          courseId: null,
+          schoolYearId,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            category: '$category',
+            teacherId: '$teacherId',
+            dayOfWeek: '$dayOfWeek',
+            startTime: '$startTime',
+            endTime: '$endTime',
+          },
+          lessonIds: { $push: { $toString: '$_id' } },
+          allStudentIdArrays: { $push: '$studentIds' },
+          lessonCount: { $sum: 1 },
+          minDate: { $min: '$date' },
+          maxDate: { $max: '$date' },
+          location: { $first: '$location' },
+        },
+      },
+      {
+        $match: {
+          lessonCount: { $gte: minLessonCount },
+        },
+      },
+    ]).toArray();
+
+    if (dryRun) {
+      return {
+        dryRun: true,
+        groupsFound: groups.length,
+        groups: groups.map(g => ({
+          category: g._id.category,
+          teacherId: g._id.teacherId,
+          dayOfWeek: g._id.dayOfWeek,
+          startTime: g._id.startTime,
+          endTime: g._id.endTime,
+          lessonCount: g.lessonCount,
+          uniqueStudents: _unionStudentIds(g.allStudentIdArrays).length,
+        })),
+      };
+    }
+
+    // Execute mode: create courses and link lessons
+    const results = [];
+    for (const group of groups) {
+      const unionStudentIds = _unionStudentIds(group.allStudentIdArrays);
+
+      const course = await createCourse(
+        {
+          category: group._id.category,
+          teacherId: group._id.teacherId,
+          dayOfWeek: group._id.dayOfWeek,
+          startTime: group._id.startTime,
+          endTime: group._id.endTime,
+          location: group.location || '',
+          studentIds: unionStudentIds,
+          schoolYearId,
+          startDate: group.minDate,
+          endDate: group.maxDate,
+          excludeDates: [],
+        },
+        options
+      );
+
+      const courseId = course._id.toString();
+      await linkLessonsToCourse(courseId, group.lessonIds, options);
+
+      results.push({
+        courseId,
+        category: group._id.category,
+        lessonsLinked: group.lessonIds.length,
+        studentsEnrolled: unionStudentIds.length,
+      });
+    }
+
+    logger.info({ schoolYearId, coursesCreated: results.length }, 'Auto-grouped lessons into courses');
+    return { coursesCreated: results.length, results };
+  } catch (err) {
+    logger.error({ schoolYearId, err: err.message }, 'Error in autoGroupLessons');
+    throw new Error(`Error in theoryCourseService.autoGroupLessons: ${err}`);
   }
 }
