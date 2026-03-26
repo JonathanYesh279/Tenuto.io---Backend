@@ -253,6 +253,8 @@ export const theoryBulkCreateSchema = Joi.object({
   schoolYearId: Joi.string().required().messages({
     'any.required': 'School year ID is required for bulk creation',
   }),
+
+  createCourse: Joi.boolean().default(false),
 }).custom((obj, helpers) => {
   // Custom validation for time consistency
   const startTime = obj.startTime;

@@ -434,6 +434,7 @@ async function bulkCreateTheoryLessons(bulkData, options = {}) {
       syllabus = '',
       excludeDates = [],
       schoolYearId,
+      createCourse: shouldCreateCourse = false,
     } = value;
 
     // Verify school year ID
@@ -465,6 +466,29 @@ async function bulkCreateTheoryLessons(bulkData, options = {}) {
       console.log(`✅ Date verification passed: First date ${firstDate.format('YYYY-MM-DD')} is dayOfWeek=${firstDateDay}`);
     }
 
+    // Optionally create a parent course entity before inserting lessons
+    let courseId = null;
+    if (shouldCreateCourse) {
+      const { theoryCourseService } = await import('./theory-course.service.js');
+      const course = await theoryCourseService.createCourse({
+        category,
+        teacherId,
+        dayOfWeek,
+        startTime,
+        endTime,
+        location,
+        studentIds,
+        schoolYearId,
+        startDate,
+        endDate,
+        excludeDates,
+        notes,
+        syllabus,
+      }, options);
+      courseId = course._id.toString();
+      console.log(`Created parent course ${courseId} for bulk lesson creation`);
+    }
+
     // Create theory lesson documents with proper timezone handling
     const currentTime = now();
     const theoryLessons = utcDates.map((utcDate) => ({
@@ -482,6 +506,7 @@ async function bulkCreateTheoryLessons(bulkData, options = {}) {
       syllabus: syllabus || '',
       homework: '',
       schoolYearId: schoolYearId,
+      courseId: courseId || null,
       createdAt: toUTC(currentTime),
       updatedAt: toUTC(currentTime),
     }));
@@ -617,7 +642,22 @@ async function bulkCreateTheoryLessons(bulkData, options = {}) {
       }
     }
 
+    // If a course was created, link all inserted lessons to it
+    if (courseId && result.theoryLessonIds.length > 0) {
+      try {
+        const { theoryCourseService } = await import('./theory-course.service.js');
+        await theoryCourseService.linkLessonsToCourse(courseId, result.theoryLessonIds, options);
+        console.log(`Linked ${result.theoryLessonIds.length} lessons to course ${courseId}`);
+      } catch (linkErr) {
+        // Non-fatal — lessons are created, course is created; linkage is secondary
+        console.error(`Failed to link lessons to course ${courseId}: ${linkErr.message}`);
+      }
+    }
+
     console.log(`Successfully created ${result.insertedCount} theory lessons`);
+    if (courseId) {
+      result.courseId = courseId;
+    }
     return result;
   } catch (err) {
     console.error(`Failed to bulk create theory lessons: ${err}`);
