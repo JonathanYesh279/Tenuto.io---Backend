@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 
 ## Current Position
 
-Phase: 84 of 84 (Theory Lesson Course Architecture)
-Plan: 3 of 3 in current phase — AWAITING HUMAN VERIFICATION (checkpoint)
-Status: Plan 84-03 Tasks 1+2 COMPLETE — frontend API wiring done, checkpoint:human-verify pending
-Last activity: 2026-03-26 — Plan 84-03 executed (2 tasks, 2 commits, 2 files)
+Phase: 85 of 85 (Theory Course Gap Closure)
+Plan: 1 of 3 in current phase — COMPLETE
+Status: Plan 85-01 COMPLETE — auto-group and link-lessons API endpoints added
+Last activity: 2026-03-26 — Plan 85-01 executed (2 tasks, 2 commits, 3 files)
 
-Progress: [####################] 90% (v2.1 Phase 84 — awaiting verification checkpoint)
+Progress: [####################] 91% (v2.1 Phase 85 — Plan 01 complete)
 
 ## Performance Metrics
 
@@ -147,6 +147,9 @@ Progress: [####################] 90% (v2.1 Phase 84 — awaiting verification ch
 - **[84-03]** getTheoryGroups delegates to getCourses API — returns empty array (not lesson-grouped fallback) when no courses exist
 - **[84-03]** Analytics tab lazy-loads on click — getCourseAnalytics not called until user opens analytics tab
 - **[84-03]** Student map built alongside teacher map for enrollment detail enrichment — non-fatal, graceful degradation if fails
+- **[85-01]** Auto-group uses 5-field schedule fingerprint: category/teacherId/dayOfWeek/startTime/endTime
+- **[85-01]** Singletons (1 lesson) skipped by default (minLessonCount=2)
+- **[85-01]** Course studentIds computed as union of all grouped lessons' studentIds via Set
 
 ### Pending Todos
 
@@ -169,6 +172,7 @@ Progress: [####################] 90% (v2.1 Phase 84 — awaiting verification ch
 - Phase 82 added: Profile Page Redesign & Credentials Management — gradient header, 3-column layout, password change, role-aware dashboard (v2.1 Entity Page Consistency)
 - Phase 83 added: Attendance Feature Deep Review — cross-entity sync, UI completeness & data correctness (v2.1 Entity Page Consistency)
 - Phase 84 added: Theory Lesson Course Architecture — recurring lesson grouping, shared student rosters, cross-session attendance analytics (v2.1 Entity Page Consistency)
+- Phase 85 added: Theory Course Gap Closure — auto-group existing lessons into courses, lesson detail page inherits course roster, lesson UI shows course students (v2.1 Entity Page Consistency)
 
 ### Blockers/Concerns
 
@@ -177,5 +181,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-26
-Stopped at: Phase 84 Plan 03 — Tasks 1+2 complete, checkpoint:human-verify pending (full-stack course feature verification)
+Stopped at: Completed 85-01-PLAN.md — auto-group and link-lessons API endpoints
 Resume file: None
