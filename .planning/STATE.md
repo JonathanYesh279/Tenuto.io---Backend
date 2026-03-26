@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 84 of 84 (Theory Lesson Course Architecture)
-Plan: 1 of 3 in current phase
-Status: Plan 84-01 COMPLETE — theory_course data layer: service, validation, migration script
-Last activity: 2026-03-26 — Plan 84-01 executed (2 tasks, 2 commits, 4 files)
+Plan: 2 of 3 in current phase
+Status: Plan 84-02 COMPLETE — course API routes, controller functions, enhanced bulkCreate
+Last activity: 2026-03-26 — Plan 84-02 executed (2 tasks, 2 commits, 5 files)
 
-Progress: [##########] 33% (v2.1 Phase 84 — 1/3 plans)
+Progress: [####################] 67% (v2.1 Phase 84 — 2/3 plans)
 
 ## Performance Metrics
 
@@ -140,6 +140,10 @@ Progress: [##########] 33% (v2.1 Phase 84 — 1/3 plans)
 - **[84-01]** Use 'איחור' (not 'איחר/ה') for activity_attendance analytics — MINISTRY_PRESENT_STATUSES canonical; 'איחר/ה' is theory.service.js embedded object only
 - **[84-01]** linkLessonsToCourse uses $addToSet with $each for idempotency — bulk lesson association after bulkCreate
 - **[84-01]** Migration does NOT auto-group existing lessons — courseId: null until user assigns via endpoints
+- **[84-02]** Course routes placed BEFORE /:id routes — prevents Express treating 'courses' as an ID value
+- **[84-02]** Dynamic import() for theoryCourseService in bulkCreate — avoids circular dependency (same as Phase 73)
+- **[84-02]** linkLessonsToCourse failure is non-fatal in bulkCreate — lesson courseId stamp is authoritative
+- **[84-02]** courseId: null stamped on every lesson even when no course created — explicit over implicit
 
 ### Pending Todos
 
@@ -170,5 +174,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-26
-Stopped at: Phase 84 Plan 01 complete — theory_course data layer (service, validation, migration)
+Stopped at: Phase 84 Plan 02 complete — course API routes, controller, enhanced bulkCreate
 Resume file: None
