@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 85 of 85 (Theory Course Gap Closure)
-Plan: 1 of 3 in current phase — COMPLETE
-Status: Plan 85-01 COMPLETE — auto-group and link-lessons API endpoints added
-Last activity: 2026-03-26 — Plan 85-01 executed (2 tasks, 2 commits, 3 files)
+Plan: 2 of 3 in current phase — COMPLETE
+Status: Plan 85-02 COMPLETE — frontend API wiring and course-aware lesson detail
+Last activity: 2026-03-26 — Plan 85-02 executed (2 tasks, 2 commits, 2 files)
 
-Progress: [####################] 91% (v2.1 Phase 85 — Plan 01 complete)
+Progress: [####################] 94% (v2.1 Phase 85 — Plan 02 complete)
 
 ## Performance Metrics
 
@@ -150,6 +150,9 @@ Progress: [####################] 91% (v2.1 Phase 85 — Plan 01 complete)
 - **[85-01]** Auto-group uses 5-field schedule fingerprint: category/teacherId/dayOfWeek/startTime/endTime
 - **[85-01]** Singletons (1 lesson) skipped by default (minLessonCount=2)
 - **[85-01]** Course studentIds computed as union of all grouped lessons' studentIds via Set
+- **[85-02]** effectiveStudentIds uses course.studentIds when available, falls back to lesson.studentIds
+- **[85-02]** Attendance marking stays on lesson.studentIds (not course roster) — attendance is per-lesson
+- **[85-02]** Course fetch is non-fatal — page works normally if course fetch fails
 
 ### Pending Todos
 
@@ -181,5 +184,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-26
-Stopped at: Completed 85-01-PLAN.md — auto-group and link-lessons API endpoints
+Stopped at: Completed 85-02-PLAN.md — frontend API wiring and course-aware lesson detail
 Resume file: None
