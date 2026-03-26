@@ -426,6 +426,186 @@ export function validateTheoryAttendance(attendance) {
   });
 }
 
+// ─── Theory Course Schemas ────────────────────────────────────────────────────
+
+// Schema for creating a theory course (parent entity for recurring lessons)
+export const theoryCourseSchema = Joi.object({
+  tenantId: Joi.any().strip(),
+
+  category: Joi.string()
+    .valid(...VALID_THEORY_CATEGORIES)
+    .required()
+    .messages({
+      'any.only': `Category must be one of: ${VALID_THEORY_CATEGORIES.join(', ')}`,
+      'any.required': 'Theory course category is required',
+    }),
+
+  teacherId: Joi.string().required().messages({
+    'any.required': 'Teacher ID is required for theory course',
+  }),
+
+  dayOfWeek: Joi.number().integer().min(0).max(6).required().messages({
+    'number.min': 'Day of week must be between 0 (Sunday) and 6 (Saturday)',
+    'number.max': 'Day of week must be between 0 (Sunday) and 6 (Saturday)',
+    'any.required': 'Day of week is required',
+  }),
+
+  startTime: Joi.string()
+    .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+    .required()
+    .messages({
+      'string.pattern.base': 'Start time must be in HH:MM format (e.g., 09:00)',
+      'any.required': 'Start time is required',
+    }),
+
+  endTime: Joi.string()
+    .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+    .required()
+    .messages({
+      'string.pattern.base': 'End time must be in HH:MM format (e.g., 10:00)',
+      'any.required': 'End time is required',
+    }),
+
+  location: Joi.string().required().messages({
+    'any.required': 'Location is required',
+  }),
+
+  studentIds: Joi.array()
+    .items(Joi.string().hex().length(24))
+    .default([])
+    .messages({
+      'array.base': 'Student IDs must be an array',
+    }),
+
+  schoolYearId: Joi.string().required().messages({
+    'any.required': 'School year ID is required',
+  }),
+
+  startDate: Joi.date().required().messages({
+    'any.required': 'Start date is required',
+  }),
+
+  endDate: Joi.date().min(Joi.ref('startDate')).required().messages({
+    'date.min': 'End date must be after start date',
+    'any.required': 'End date is required',
+  }),
+
+  excludeDates: Joi.array().items(Joi.date()).default([]).messages({
+    'array.base': 'Exclude dates must be an array of dates',
+  }),
+
+  notes: Joi.string().allow('', null).default('').messages({
+    'string.base': 'Notes must be a string',
+  }),
+
+  syllabus: Joi.string().allow('', null).default('').messages({
+    'string.base': 'Syllabus must be a string',
+  }),
+
+  isActive: Joi.boolean().default(true),
+
+  createdAt: Joi.date().default(() => new Date()),
+  updatedAt: Joi.date().default(() => new Date()),
+}).custom((obj, helpers) => {
+  // Custom validation: endTime must be after startTime
+  const startTime = obj.startTime;
+  const endTime = obj.endTime;
+
+  if (startTime && endTime) {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    if (endMinutes <= startMinutes) {
+      return helpers.error('any.invalid', {
+        message: 'End time must be after start time',
+      });
+    }
+  }
+
+  return obj;
+});
+
+// Partial schema for updating a theory course (all fields optional)
+export const theoryCourseUpdateSchema = Joi.object({
+  tenantId: Joi.any().strip(),
+
+  category: Joi.string()
+    .valid(...VALID_THEORY_CATEGORIES)
+    .optional()
+    .messages({
+      'any.only': `Category must be one of: ${VALID_THEORY_CATEGORIES.join(', ')}`,
+    }),
+
+  teacherId: Joi.string().optional(),
+
+  dayOfWeek: Joi.number().integer().min(0).max(6).optional().messages({
+    'number.min': 'Day of week must be between 0 (Sunday) and 6 (Saturday)',
+    'number.max': 'Day of week must be between 0 (Sunday) and 6 (Saturday)',
+  }),
+
+  startTime: Joi.string()
+    .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+    .optional()
+    .messages({
+      'string.pattern.base': 'Start time must be in HH:MM format (e.g., 09:00)',
+    }),
+
+  endTime: Joi.string()
+    .pattern(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/)
+    .optional()
+    .messages({
+      'string.pattern.base': 'End time must be in HH:MM format (e.g., 10:00)',
+    }),
+
+  location: Joi.string().optional(),
+
+  notes: Joi.string().allow('', null).optional(),
+
+  syllabus: Joi.string().allow('', null).optional(),
+
+  isActive: Joi.boolean().optional(),
+
+  updatedAt: Joi.date().default(() => new Date()),
+}).custom((obj, helpers) => {
+  // Custom validation: if both times provided, endTime must be after startTime
+  const startTime = obj.startTime;
+  const endTime = obj.endTime;
+
+  if (startTime && endTime) {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    if (endMinutes <= startMinutes) {
+      return helpers.error('any.invalid', {
+        message: 'End time must be after start time',
+      });
+    }
+  }
+
+  return obj;
+});
+
+// Validation functions for theory courses
+export function validateTheoryCourse(courseData) {
+  return theoryCourseSchema.validate(courseData, {
+    abortEarly: false,
+    stripUnknown: false,
+  });
+}
+
+export function validateTheoryCourseUpdate(updateData) {
+  return theoryCourseUpdateSchema.validate(updateData, {
+    abortEarly: false,
+    stripUnknown: false,
+  });
+}
+
+// ─── Bulk Delete Validation ───────────────────────────────────────────────────
+
 // Bulk delete validation schemas
 const theoryBulkDeleteByDateSchema = Joi.object({
   startDate: Joi.date().required(),
