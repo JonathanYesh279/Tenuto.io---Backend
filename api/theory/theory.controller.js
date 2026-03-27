@@ -944,7 +944,7 @@ async function getCourses(req, res, next) {
     if (req.query.isActive !== undefined) filterBy.isActive = req.query.isActive === 'true';
 
     const courses = await theoryCourseService.getCourses(filterBy, { context: req.context });
-    return sendSuccessResponse(res, 'GET_SUCCESS', courses);
+    return res.json({ success: true, data: courses });
   } catch (err) {
     console.error(`Error in getCourses controller: ${err.message}`);
     next(err);
@@ -958,7 +958,7 @@ async function getCourseById(req, res, next) {
     if (!course) {
       return res.status(404).json({ success: false, error: 'Not Found', message: 'Theory course not found' });
     }
-    return sendSuccessResponse(res, 'GET_SUCCESS', course);
+    return res.json({ success: true, data: course });
   } catch (err) {
     console.error(`Error in getCourseById controller: ${err.message}`);
     if (err.message.includes('not found')) {
@@ -1041,7 +1041,7 @@ async function getCourseAttendanceAnalytics(req, res, next) {
   try {
     const courseId = req.params.id;
     const analytics = await theoryCourseService.getCourseAttendanceAnalytics(courseId, { context: req.context });
-    return sendSuccessResponse(res, 'GET_SUCCESS', analytics);
+    return res.json({ success: true, data: analytics });
   } catch (err) {
     console.error(`Error in getCourseAttendanceAnalytics controller: ${err.message}`);
     if (err.message.includes('not found')) {

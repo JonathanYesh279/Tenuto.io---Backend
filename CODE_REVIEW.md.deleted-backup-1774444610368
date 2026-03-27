@@ -1,0 +1,585 @@
+# Comprehensive Code Review
+
+**Project:** React + TypeScript SPA (Vite-based)  
+**Date:** Review conducted on current codebase snapshot  
+**Reviewer:** System Architect  
+**Overall Assessment:** Early-stage scaffold/boilerplate with minimal custom logic. The project is primarily composed of generated/templated code (shadcn/ui, Lovable GPT scaffold). Significant architectural decisions and feature implementation remain ahead.
+
+---
+
+## Table of Contents
+
+1. [Section 1: Project Configuration & Build Infrastructure](#section-1-project-configuration--build-infrastructure)
+2. [Section 2: Application Entry Point & Routing](#section-2-application-entry-point--routing)
+3. [Section 3: Pages & Views](#section-3-pages--views)
+4. [Section 4: UI Component Library (shadcn/ui)](#section-4-ui-component-library-shadcnui)
+5. [Section 5: Custom Hooks](#section-5-custom-hooks)
+6. [Section 6: Utilities & Library Code](#section-6-utilities--library-code)
+7. [Section 7: Styling Architecture](#section-7-styling-architecture)
+8. [Section 8: Testing & Quality Assurance](#section-8-testing--quality-assurance)
+9. [Section 9: Cross-Cutting Concerns](#section-9-cross-cutting-concerns)
+10. [Section 10: Improvement Roadmap](#section-10-improvement-roadmap)
+
+---
+
+## Section 1: Project Configuration & Build Infrastructure
+
+### Files Reviewed
+- `package.json`
+- `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`
+- `vite.config.ts`
+- `tailwind.config.ts`
+- `postcss.config.js`
+- `eslint.config.js`
+- `components.json`
+- `index.html`
+
+### Findings
+
+#### 1.1 `package.json` — Dependency Analysis
+
+**Positive:**
+- Modern toolchain: Vite 5.x, React 18.x, TypeScript, Tailwind CSS 4.x
+- Good choice of UI primitives: Radix UI (accessible, unstyled components)
+- `react-router-dom` v6 for routing
+- `date-fns` for date handling (tree-shakeable, superior to moment.js)
+- Path alias `@/` configured for clean imports
+
+**Issues & Concerns:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🔴 High | **Duplicate toast systems** | Both `sonner` AND `@radix-ui/react-toast` (via shadcn toast) are installed. Two completely separate toast notification systems coexist — this is redundant, increases bundle size, and creates UX inconsistency. |
+| 🟡 Medium | **No lock file strategy visible** | No indication of whether `npm`, `yarn`, or `pnpm` is the canonical package manager. Should be enforced via `packageManager` field or `.npmrc`. |
+| 🟡 Medium | **No `engines` field** | No Node.js version constraint specified. Could lead to "works on my machine" issues. |
+| 🟡 Medium | **Missing dev tooling** | No Prettier, no Husky/lint-staged for pre-commit hooks, no commit message linting (commitlint). |
+| 🟢 Low | **Lovable metadata** | `"lovable-tagger": "^1.0.0"` in devDependencies — this is scaffold tooling that should be removed for production projects. |
+| 🟢 Low | **No test framework** | Zero testing dependencies (no Vitest, Jest, React Testing Library, Playwright, etc.). |
+
+**Dependency Count Assessment:**
+- 20 runtime dependencies, 10 dev dependencies
+- For a project with essentially one page ("Hello World" level), this is heavy — but acceptable if features are planned
+- Several Radix UI packages imported individually (`@radix-ui/react-slot`, `@radix-ui/react-tooltip`, `@radix-ui/react-toast`) — this is correct (tree-shaking friendly)
+
+#### 1.2 TypeScript Configuration
+
+**Positive:**
+- Project references pattern (`tsconfig.json` → `tsconfig.app.json` + `tsconfig.node.json`) — clean separation of app vs. build tool TS configs
+- Strict mode enabled (`"strict": true`)
+- `noUnusedLocals` and `noUnusedParameters` enabled — good for code hygiene
+- Path alias `"@/*"` mapped to `"./src/*"` — consistent with Vite config
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🟡 Medium | **`skipLibCheck: true`** | Skips type-checking of `.d.ts` files. While common for performance, it can mask type errors in dependencies. Acceptable for now but should be toggled off periodically. |
+| 🟡 Medium | **`noEmit: true`** in app config | Correct for Vite (Vite handles transpilation), but means `tsc` is only used for type-checking. Should have a `"typecheck"` script in package.json (`tsc --noEmit`). |
+| 🟢 Low | **Bundler module resolution** | `"moduleResolution": "bundler"` is correct for Vite but relatively new — ensure all team members' IDEs support it. |
+
+#### 1.3 Vite Configuration
+
+```typescript
+// Current vite.config.ts
+export default defineConfig(({ mode }) => ({
+  server: { host: "::", port: 8080 },
+  plugins: [
+    react(),
+    mode === 'development' && componentTagger(),
+  ].filter(Boolean),
+  resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
+}));
+```
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🔴 High | **Port 8080 hardcoded** | Port 8080 is listed as a system-reserved port. This will cause conflicts. Should use an environment variable or different default. |
+| 🟡 Medium | **No build optimizations configured** | No `build.rollupOptions` for chunk splitting, no `build.target` specification, no source map configuration for production. |
+| 🟡 Medium | **No environment variable handling** | No `.env` files, no `envPrefix` configuration, no environment-specific configs. |
+| 🟡 Medium | **`host: "::"` (IPv6 any)** | Binds to all interfaces including IPv6. Fine for development but should be documented. |
+| 🟢 Low | **`componentTagger` in dev only** | Correctly conditional — good practice. But this is Lovable-specific tooling. |
+
+#### 1.4 Tailwind Configuration
+
+```typescript
+// Current: minimal config
+export default {
+  darkMode: ["class"],
+  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  // ... extensive theme with CSS variable-based colors
+}
+```
+
+**Positive:**
+- CSS variable-based theming (`hsl(var(--primary))`) — excellent for dark mode and theme switching
+- Comprehensive design token system (background, foreground, card, popover, primary, secondary, muted, accent, destructive, border, input, ring, sidebar, chart colors)
+- `tailwindcss-animate` plugin for animation utilities
+- Border radius tokens via CSS variables
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🟡 Medium | **Content paths include non-existent directories** | `./pages/**`, `./components/**`, `./app/**` don't exist at root — all code is under `./src/`. These are dead paths that slow down Tailwind's content scanning. |
+| 🟡 Medium | **No custom font configuration** | Uses system defaults. Should define a font stack explicitly. |
+| 🟢 Low | **Sidebar-specific tokens** | `sidebar-*` color tokens are defined but no sidebar component exists yet. Premature abstraction. |
+
+#### 1.5 ESLint Configuration
+
+**Minimal** — uses flat config format (good, modern) but only has basic React Hooks and React Refresh rules. No import ordering, no accessibility rules, no TypeScript-specific rules beyond defaults.
+
+---
+
+## Section 2: Application Entry Point & Routing
+
+### Files Reviewed
+- `src/main.tsx`
+- `src/App.tsx`
+
+### 2.1 `src/main.tsx` — Entry Point
+
+```tsx
+creatRoot(document.getElementById("root")!).render(<App />);
+```
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🔴 High | **No `React.StrictMode`** | `StrictMode` is omitted. This means double-rendering checks (which catch side-effect bugs) are disabled. Should wrap `<App />` in `<React.StrictMode>`. |
+| 🟡 Medium | **Non-null assertion on `getElementById`** | `document.getElementById("root")!` — if the element doesn't exist, this silently produces a runtime error. Should add a null check or fallback. |
+| 🟢 Low | **No error boundary at root** | If `<App />` throws during render, the entire app crashes with a white screen. Should wrap in a root-level error boundary. |
+
+### 2.2 `src/App.tsx` — Router & Provider Setup
+
+```tsx
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+```
+
+**Positive:**
+- React Query (`@tanstack/react-query`) is set up — good foundation for server state management
+- Tooltip provider wraps the entire app — correct for Radix tooltips
+- Catch-all 404 route exists
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🔴 High | **Dual toast renderers** | Both `<Toaster />` (from shadcn/radix) AND `<Sonner />` (from sonner library) are rendered simultaneously. This means two independent toast systems are active. Pick ONE. |
+| 🟡 Medium | **QueryClient created at module scope** | `const queryClient = new QueryClient()` is created outside the component. While this works, it means the client is a singleton shared across tests and potentially SSR contexts. For testability, consider creating it inside the component or via a factory. |
+| 🟡 Medium | **No Suspense boundary** | No `<Suspense>` wrapper for lazy-loaded routes or React Query suspense mode. |
+| 🟡 Medium | **No global error boundary** | No error boundary component wrapping routes. |
+| 🟢 Low | **`<Toaster />` and `<Sonner />` outside `<BrowserRouter>`** | Toast components are outside the router, which means they can't access route context. Usually fine, but worth noting. |
+| 🟢 Low | **No lazy loading** | Both routes eagerly import their page components. For two pages this is fine, but the pattern should shift to `React.lazy()` as the app grows. |
+
+---
+
+## Section 3: Pages & Views
+
+### Files Reviewed
+- `src/pages/Index.tsx`
+- `src/pages/NotFound.tsx`
+
+### 3.1 `src/pages/Index.tsx`
+
+```tsx
+const Index = () => {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
+        <p className="text-xl text-muted-foreground">Start building your amazing project by editing this page.</p>
+      </div>
+    </div>
+  );
+};
+```
+
+**Assessment:** Pure placeholder. No issues per se — it's a starting point.
+
+**Notes:**
+- Uses Tailwind's utility classes correctly
+- Uses the `text-muted-foreground` custom token — consistent with the design system
+- No SEO tags, no document title management (should use `react-helmet-async` or similar)
+
+### 3.2 `src/pages/NotFound.tsx`
+
+```tsx
+const NotFound = () => {
+  useEffect(() => {
+    console.error("404 Error: User attempted to access:", window.location.pathname);
+  }, []);
+  // ... renders a simple 404 page with link to home
+};
+```
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🟡 Medium | **`console.error` for 404 logging** | Using `console.error` as a logging mechanism is not production-appropriate. Should integrate with an error tracking service (Sentry, LogRocket, etc.) or at minimum use a logging utility. |
+| 🟡 Medium | **No analytics/telemetry** | 404 hits should be tracked for monitoring broken links. |
+| 🟢 Low | **Hardcoded strings** | No i18n consideration. Fine for now but should be noted for future. |
+
+---
+
+## Section 4: UI Component Library (shadcn/ui)
+
+### Files Reviewed
+- `src/components/ui/button.tsx`
+- `src/components/ui/toast.tsx`
+- `src/components/ui/toaster.tsx`
+- `src/components/ui/tooltip.tsx`
+- `src/components/ui/sonner.tsx`
+
+### General Assessment
+
+All UI components are **standard shadcn/ui generated code** — they are copy-pasted from the shadcn/ui CLI with zero customization. This is the intended usage pattern for shadcn/ui (own the code, modify as needed).
+
+### 4.1 `button.tsx`
+
+**Positive:**
+- Uses `class-variance-authority` (CVA) for variant management — industry best practice
+- Supports `asChild` pattern via Radix `Slot` — enables composition (e.g., `<Button asChild><Link to="/">Home</Link></Button>`)
+- Well-defined variants: default, destructive, outline, secondary, ghost, link
+- Well-defined sizes: default, sm, lg, icon
+- Proper `React.forwardRef` usage
+- `cn()` utility for class merging
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🟢 Low | **No loading state variant** | No built-in support for `isLoading` prop with spinner. Common need that will require extension. |
+| 🟢 Low | **No disabled styling variant** | Relies on native `:disabled` pseudo-class. May want explicit `disabled` variant for non-button elements. |
+
+### 4.2 `toast.tsx` + `toaster.tsx` (Radix-based)
+
+**Assessment:** Standard shadcn/ui toast implementation. Well-structured with proper compound component pattern (Toast, ToastAction, ToastClose, ToastTitle, ToastDescription, ToastViewport).
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🔴 High | **Redundant with Sonner** | This entire file + toaster.tsx is redundant if Sonner is the chosen toast system (or vice versa). Must choose one. |
+| 🟡 Medium | **Swipe-to-dismiss hardcoded** | `swipeDirection="right"` — not configurable, may not suit all layouts (e.g., toasts from the left). |
+
+### 4.3 `sonner.tsx`
+
+```tsx
+const Sonner = ({ ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme();
+  return <SonnerToaster theme={theme as ToasterProps["theme"]} ... />;
+};
+```
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🔴 High | **`useTheme()` from `next-themes`** | Imports `useTheme` from `next-themes` but this is NOT a Next.js project — it's a Vite/React SPA. `next-themes` may partially work in non-Next contexts but it's not designed for it. This hook likely returns `undefined` theme, falling back to `"system"`. Should use a custom theme context or remove theme integration. |
+| 🟡 Medium | **Hardcoded styling** | `toastOptions.classNames` has hardcoded classes like `toast group ...` with specific color tokens. These should reference the design system variables. |
+
+### 4.4 `tooltip.tsx`
+
+Standard Radix tooltip wrapper. No issues — clean, minimal, correct.
+
+### 4.5 `use-toast.ts` (Hook)
+
+**Assessment:** This is a custom state management implementation for the Radix toast system — essentially a mini Redux for toasts with its own reducer, action types, dispatch, and listener pattern.
+
+**Positive:**
+- Well-structured reducer pattern
+- Auto-dismiss with configurable `TOAST_REMOVE_DELAY` (1,000,000ms ≈ 16 minutes)
+- Unique ID generation via `genId()` counter
+- Proper cleanup of timeouts on unmount
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🟡 Medium | **`TOAST_REMOVE_DELAY = 1000000`** | ~16 minutes before auto-removal from DOM. This is extremely long — toasts will accumulate in memory. Should be ~5-10 seconds for UX and ~30s for DOM cleanup. |
+| 🟡 Medium | **`TOAST_LIMIT = 1`** | Only one toast at a time. This is a design decision but quite restrictive. |
+| 🟡 Medium | **Module-level mutable state** | `listeners`, `memoryState`, `toastTimeouts` are module-level variables. This is effectively a global singleton store — works but is not testable and not SSR-safe. |
+| 🟢 Low | **`genId` counter** | Simple incrementing counter. Fine for client-side but not universally unique. |
+
+---
+
+## Section 5: Custom Hooks
+
+### Files Reviewed
+- `src/hooks/use-mobile.tsx`
+- `src/hooks/use-toast.ts`
+
+### 5.1 `use-mobile.tsx`
+
+```tsx
+export function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined);
+  React.useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const onChange = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    mql.addEventListener("change", onChange);
+    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return !!isMobile;
+}
+```
+
+**Positive:**
+- Uses `matchMedia` API — more performant than resize event listener
+- Proper cleanup on unmount
+- Constant breakpoint (768px) — consistent
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🟡 Medium | **Initial value is `undefined`, coerced to `false`** | `!!undefined === false`. This means on first render, `isMobile` is always `false` regardless of actual viewport. Causes a flash/layout shift on mobile devices. Should initialize with `window.matchMedia` result. |
+| 🟡 Medium | **File extension `.tsx` but no JSX** | Should be `.ts` — it's a pure hook with no JSX. |
+| 🟢 Low | **No SSR consideration** | `window` is accessed directly. Would break in SSR context. Fine for Vite SPA. |
+| 🟢 Low | **No debounce** | `matchMedia` change events are already debounced by the browser, so this is fine. But rapid orientation changes on mobile could cause multiple re-renders. |
+
+### 5.2 `use-toast.ts` (in hooks directory)
+
+This is a **re-export** of the toast hook from `src/components/ui/use-toast.ts`. Reviewed above in Section 4.5.
+
+**Issue:** The file at `src/hooks/use-toast.ts` likely just re-exports from `src/components/ui/use-toast.ts`. This creates an unnecessary indirection layer.
+
+---
+
+## Section 6: Utilities & Library Code
+
+### Files Reviewed
+- `src/lib/utils.ts`
+
+### 6.1 `utils.ts`
+
+```tsx
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+
+**Assessment:** This is the standard shadcn/ui utility function. It's correct and essential.
+
+**Positive:**
+- `clsx` for conditional class joining + `twMerge` for Tailwind class deduplication
+- This is the industry-standard pattern
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🟢 Low | **Only one utility** | `src/lib/` has a single file. As the project grows, this directory should be organized (e.g., `lib/api.ts`, `lib/constants.ts`, `lib/validators.ts`). |
+
+---
+
+## Section 7: Styling Architecture
+
+### Files Reviewed
+- `src/index.css`
+- `src/App.css`
+
+### 7.1 `src/index.css`
+
+**Assessment:** This is the **design system foundation** — comprehensive CSS custom properties for theming.
+
+**Positive:**
+- Well-structured `:root` and `.dark` theme definitions
+- HSL color system with CSS variables — enables runtime theme switching
+- Comprehensive token coverage: background, foreground, card, popover, primary, secondary, muted, accent, destructive, border, input, ring, chart colors (5 chart colors!), sidebar tokens
+- `@apply` used for base resets (`border-border`, `bg-background`, `text-foreground`)
+- Proper `@tailwind` directives
+
+**Issues:**
+
+| Severity | Issue | Details |
+|----------|-------|---------|
+| 🟡 Medium | **No font-face declarations** | No custom fonts loaded. The app relies entirely on system fonts. Should define a font stack. |
+| 🟡 Medium | **Sidebar tokens defined but unused** | `--sidebar-*` variables are defined but no sidebar component exists. Dead code. |
+| 🟡 Medium | **Chart colors defined but unused** | `--chart-1` through `--chart-5` exist but no charting is implemented. |
+| 🟢 Low | **No CSS custom property documentation** | The variables are self-documenting by name, but a comment block explaining the system would help onboarding. |
+
+### 7.2 `src/App.css`
+
+**Assessment:** This file is **completely empty** (0 bytes). Should be deleted to avoid confusion.
+
+---
+
+## Section 8: Testing & Quality Assurance
+
+### Assessment: ⚠️ NO TESTING INFRASTRUCTURE EXISTS
+
+- No test files anywhere in the project
+- No testing dependencies in `package.json`
+- No test configuration files
+- No CI/CD configuration
+- No test scripts in `package.json`
+
+**This is the single largest gap in the project.**
+
+### Recommendations:
+
+| Priority | Action |
+|----------|--------|
+| 🔴 Critical | Add Vitest (natural fit for Vite projects) |
+| 🔴 Critical | Add React Testing Library for component tests |
+| 🟡 Important | Add Playwright or Cypress for E2E tests |
+| 🟡 Important | Add MSW (Mock Service Worker) for API mocking |
+| 🟡 Important | Configure coverage thresholds |
+
+---
+
+## Section 9: Cross-Cutting Concerns
+
+### 9.1 Security
+
+| Concern | Status | Notes |
+|---------|--------|-------|
+| CSP headers | ❌ Missing | No Content Security Policy. `index.html` has no meta CSP tag. |
+| Dependency auditing | ❌ Missing | No `npm audit` in scripts, no Snyk/Dependabot config. |
+| Environment variables | ❌ Missing | No `.env` files, no secrets management. |
+| Input sanitization | N/A | No user input handling yet. |
+
+### 9.2 Performance
+
+| Concern | Status | Notes |
+|---------|--------|-------|
+| Code splitting | ❌ Missing | No lazy loading, no dynamic imports. |
+| Bundle analysis | ❌ Missing | No `rollup-plugin-visualizer` or similar. |
+| Image optimization | N/A | No images yet. |
+| Caching strategy | ❌ Missing | No service worker, no cache headers config. |
+
+### 9.3 Accessibility
+
+| Concern | Status | Notes |
+|---------|--------|-------|
+| Semantic HTML | 🟡 Partial | Uses `<h1>`, `<p>` correctly but no `<main>`, `<nav>`, `<header>`, `<footer>` landmarks. |
+| ARIA attributes | 🟡 Partial | Radix UI components handle ARIA internally — good. Custom pages lack landmarks. |
+| Keyboard navigation | ✅ Good | Radix components are keyboard-accessible by default. |
+| Color contrast | ❓ Unknown | HSL values need contrast ratio verification. |
+| ESLint a11y plugin | ❌ Missing | `eslint-plugin-jsx-a11y` not installed. |
+
+### 9.4 SEO & Meta
+
+| Concern | Status | Notes |
+|---------|--------|-------|
+| Page titles | ❌ Missing | No `<title>` management per route. Static title in `index.html`. |
+| Meta descriptions | ❌ Missing | No meta tags beyond viewport. |
+| Open Graph tags | ❌ Missing | No social sharing metadata. |
+| Sitemap | ❌ Missing | No sitemap generation. |
+| Robots.txt | ❌ Missing | No robots.txt. |
+
+### 9.5 Developer Experience
+
+| Concern | Status | Notes |
+|---------|--------|-------|
+| Hot Module Replacement | ✅ Good | Vite provides this out of the box. |
+| TypeScript strict mode | ✅ Good | Enabled. |
+| Path aliases | ✅ Good | `@/` alias configured in both TS and Vite. |
+| Code formatting | ❌ Missing | No Prettier config. |
+| Pre-commit hooks | ❌ Missing | No Husky/lint-staged. |
+| Editor config | ❌ Missing | No `.editorconfig`. |
+| README | ❌ Missing | No documentation. |
+
+---
+
+## Section 10: Improvement Roadmap
+
+### 🔴 Priority 1 — Critical (Do Immediately)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 1 | **Remove duplicate toast system** | Choose either Sonner OR Radix Toast. Remove the other entirely (component, hook, dependency). Sonner is simpler and more feature-rich — recommend keeping Sonner, removing Radix toast. |
+| 2 | **Fix Sonner's `next-themes` dependency** | Replace `useTheme()` from `next-themes` with a custom theme context or remove theme integration entirely. `next-themes` is a Next.js library being used in a Vite app. |
+| 3 | **Add `React.StrictMode`** | Wrap `<App />` in `<React.StrictMode>` in `main.tsx`. Zero cost, catches bugs early. |
+| 4 | **Add testing infrastructure** | Install Vitest + React Testing Library. Add at minimum a smoke test for `<App />` rendering. |
+| 5 | **Fix Vite port conflict** | Change default dev server port from 8080 to something non-conflicting (e.g., 5173 which is Vite's default). |
+
+### 🟡 Priority 2 — Important (Do Soon)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 6 | **Add error boundaries** | Create a root-level `ErrorBoundary` component. Use `react-error-boundary` package. |
+| 7 | **Add Prettier + EditorConfig** | Ensure consistent formatting across team. |
+| 8 | **Add pre-commit hooks** | Husky + lint-staged for auto-formatting and linting on commit. |
+| 9 | **Fix `use-mobile.tsx` initial value** | Initialize state with actual `matchMedia` result to prevent layout flash. |
+| 10 | **Add `React.Suspense` boundaries** | Prepare for lazy loading and React Query suspense mode. |
+| 11 | **Clean up Tailwind content paths** | Remove non-existent root-level paths (`./pages/**`, `./components/**`, `./app/**`). |
+| 12 | **Delete empty `App.css`** | Dead file. |
+| 13 | **Add environment variable management** | Create `.env`, `.env.example` files. Configure Vite env handling. |
+| 14 | **Add ESLint plugins** | Add `eslint-plugin-jsx-a11y`, import ordering rules, TypeScript-specific rules. |
+| 15 | **Fix `TOAST_REMOVE_DELAY`** | Reduce from 1,000,000ms to a reasonable value (~5000-10000ms). |
+
+### 🟢 Priority 3 — Good Practice (Do When Building Features)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 16 | **Add page title management** | Use `react-helmet-async` or a custom hook for per-route `<title>` tags. |
+| 17 | **Add semantic HTML landmarks** | Use `<main>`, `<header>`, `<nav>`, `<footer>` in page layouts. |
+| 18 | **Set up code splitting** | Use `React.lazy()` + `Suspense` for route-level code splitting. |
+| 19 | **Add bundle analysis** | Install `rollup-plugin-visualizer` to monitor bundle size. |
+| 20 | **Remove Lovable-specific tooling** | Remove `lovable-tagger` devDependency and `componentTagger` from Vite config. |
+| 21 | **Add README.md** | Document project setup, architecture decisions, development workflow. |
+| 22 | **Add CI/CD pipeline** | GitHub Actions or similar for automated testing, linting, and deployment. |
+| 23 | **Configure production build** | Add chunk splitting strategy, source map configuration, minification settings. |
+| 24 | **Remove unused CSS variables** | Clean up sidebar-* and chart-* tokens if not needed. |
+| 25 | **Add global state management** | If needed beyond React Query, consider Zustand (lightweight) over Redux. |
+
+---
+
+## Architecture Assessment Summary
+
+### What This Project IS:
+- A **Vite + React + TypeScript scaffold** generated by Lovable (AI tool)
+- Uses **shadcn/ui** component library (Radix UI + Tailwind CSS)
+- Has **React Query** set up for future server state management
+- Has a **CSS variable-based design system** ready for theming
+- Currently has **1 page** (Index) + 404 handler
+
+### What This Project IS NOT (Yet):
+- A production-ready application
+- Tested
+- Documented
+- Configured for deployment
+- Feature-complete in any dimension
+
+### Architectural Strengths:
+1. **Modern, well-chosen stack** — Vite, React 18, TypeScript, Tailwind, Radix UI
+2. **Design system foundation** — CSS variables for theming are well-structured
+3. **Accessible component primitives** — Radix UI handles ARIA, keyboard nav, focus management
+4. **Server state ready** — React Query is configured and ready for API integration
+5. **Type safety** — TypeScript strict mode enabled
+
+### Architectural Weaknesses:
+1. **No backend/API layer** — Pure client-side scaffold
+2. **No state management strategy** — Beyond React Query, no plan for client state
+3. **No authentication/authorization** — No auth infrastructure
+4. **No testing at any level** — Unit, integration, E2E all missing
+5. **Conflicting libraries** — Dual toast systems, `next-themes` in non-Next app
+6. **No CI/CD** — No automated quality gates
+7. **No documentation** — No README, no architecture docs, no ADRs
+
+---
+
+*End of Code Review*
